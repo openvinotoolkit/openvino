@@ -36,8 +36,9 @@ public:
         std::vector<int64_t> finalization_offsets = {};  // in bytes
         Type type = Type::Vector;
     };
+    using LoopDescriptorList = std::vector<LoopDescriptor>;
     // [loop_id -> loop descriptors]
-    using LoopMap = std::map<size_t, std::vector<LoopDescriptor>>;
+    using LoopMap = std::map<size_t, LoopDescriptorList>;
 
     /**
      * @brief Check if config contains the LoopDescriptor by Loop ID and Type of descriptor.
@@ -70,7 +71,7 @@ public:
      * @param type the type of Loop
      * @return Iterator of vector with LoopDescriptors
      */
-    std::vector<LoopDescriptor>::iterator get_loop_desc_it(size_t loop_id, LoopDescriptor::Type type);
+    LoopDescriptorList::iterator get_loop_desc_it(size_t loop_id, LoopDescriptor::Type type);
 
     /**
      * @brief Return the loop descriptors
@@ -87,6 +88,10 @@ public:
      * @return the count
      */
     size_t get_full_loop_descriptor_count() const;
+    /**
+     * @brief Remove all the existing data from config
+     */
+    void clear();
 
 private:
     RuntimeConfig() = default;

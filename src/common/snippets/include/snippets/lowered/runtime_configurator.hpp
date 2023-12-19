@@ -26,6 +26,10 @@ public:
      * @param linear_ir the updated LinearIR
      */
     void update(const lowered::LinearIR& linear_ir);
+    /**
+     * @brief Reset config: remove all loop descriptors
+     */
+    void reset();
 
     /**
      * @brief Get runtime config
@@ -40,12 +44,6 @@ private:
      * @param loop_manager LoopManager of needed LinearIR
      */
     void init_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager);
-    /**
-     * @brief Update the map of loops descriptors using LoopManager of LinearIR.
-     *        The method `init_loop_descriptors` should be already called that inited desc map.
-     * @param loop_manager LoopManager of needed LinearIR
-     */
-    void update_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager);
     /**
      * @brief Initialize input and output data offsets
      * @param linear_ir Linear IR
@@ -96,6 +94,21 @@ private:
                                                   const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
                                                   size_t outer_loop_id);
     /**
+     * @brief Initialize ptr increments and finalization offsets from LoopPorts.
+     *        If there is previous Loop iteration (another Loop body before),
+     *        moves shifts frm the previous to the current and zeros them in the previous body.
+     * @param desc target Loop Descriptor
+     * @param loop_ports ports of the target Loop taht contains ptr increments and finalization offsets
+     * @param skip_evaluation true if work amount is zero and data shifts should be inited by zero
+     * @param is_there_prev_iter true if there is executed loop iterations before
+     * @param prev_iter_desc iterator to the descriptor of the previos loop body
+     */
+    void init_data_ptr_shifts(RuntimeConfig::LoopDescriptor& desc,
+                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports,
+                              bool skip_evaluation, bool is_there_prev_iter,
+                              const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc);
+
+    /**
      * @brief Check if first iter is needed
      * @param loop_info loop information of the corresponding loop
      * @return True if needed otherwise returns False
@@ -123,6 +136,7 @@ private:
     }
 
     RuntimeConfig m_config;
+    bool m_is_first_init = true;
 };
 
 } // namespace lowered

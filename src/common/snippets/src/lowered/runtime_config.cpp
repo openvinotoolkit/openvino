@@ -16,7 +16,7 @@ bool RuntimeConfig::contains(size_t loop_id, LoopDescriptor::Type type) const {
                         [&type](const RuntimeConfig::LoopDescriptor& desc) { return desc.type == type; }) != loop_descriptors.cend();
 }
 
-std::vector<RuntimeConfig::LoopDescriptor>::iterator RuntimeConfig::get_loop_desc_it(size_t loop_id, RuntimeConfig::LoopDescriptor::Type type) {
+RuntimeConfig::LoopDescriptorList::iterator RuntimeConfig::get_loop_desc_it(size_t loop_id, RuntimeConfig::LoopDescriptor::Type type) {
     OPENVINO_ASSERT(loops.count(loop_id) > 0, "LoopId has not been found!");
     auto& loop_descriptors = loops.at(loop_id);
     return std::find_if(loop_descriptors.begin(), loop_descriptors.end(),
@@ -58,7 +58,12 @@ bool RuntimeConfig::get_loop_desc(size_t loop_id, LoopDescriptor::Type type, Loo
 
 size_t RuntimeConfig::get_full_loop_descriptor_count() const {
     return std::accumulate(loops.cbegin(), loops.cend(), 0,
-                           [](size_t count, const std::pair<size_t, std::vector<LoopDescriptor>>& p) { return count + p.second.size(); });
+                           [](size_t count, const std::pair<size_t, LoopDescriptorList>& p) { return count + p.second.size(); });
+}
+
+void RuntimeConfig::clear() {
+    loops.clear();
+    data_offsets.clear();
 }
 
 } // namespace lowered

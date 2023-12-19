@@ -17,16 +17,19 @@ namespace lowered {
 
 void RuntimeConfigurator::update(const lowered::LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    if (m_config.loops.empty())
-        init_loop_descriptors(loop_manager);
-    else
-        update_loop_descriptors(loop_manager);
+    init_loop_descriptors(loop_manager);
     init_data_offsets(linear_ir);
+
+    m_is_first_init = false;
+}
+
+void RuntimeConfigurator::reset() {
+    m_is_first_init = true;
+    m_config.clear();
 }
 
 void RuntimeConfigurator::init_loop_descriptors(const lowered::LinearIR::LoopManagerPtr& loop_manager) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::RuntimeConfig::init_loop_descriptors")
-    OPENVINO_ASSERT(m_config.loops.empty(), "RuntimeConfigurator expects empty map for the first initialization");
 
     const auto& loop_map = loop_manager->get_map();
     for (const auto& loop_pair : loop_map) {
@@ -36,59 +39,29 @@ void RuntimeConfigurator::init_loop_descriptors(const lowered::LinearIR::LoopMan
         lowered::pass::InitLoops::init_loop_info(loop_info, true);
 
         OPENVINO_ASSERT(!utils::is_dynamic_vdim(loop_info->get_increment()), "Increment must be static value!");
-        OPENVINO_ASSERT(m_config.loops.count(loop_id) == 0, "Loop is already in RuntimeConfig");
-        m_config.loops[loop_id] = {};
+        OPENVINO_ASSERT(utils::implication(m_is_first_init, m_config.loops.count(loop_id) == 0),
+                        "If it's an first initialization, there should not be loop descriptors");
+        auto& loop_descriptors = m_config.loops[loop_id];
 
         if (is_first_iter_loop_needed(loop_info)) {
-            RuntimeConfig::LoopDescriptor desc;
-            init_first_iter_loop_descriptor(loop_info, loop_id, desc);
-            m_config.loops[loop_id].push_back(desc);
-        }
-        if (is_vector_loop_needed(loop_info)) {
-            RuntimeConfig::LoopDescriptor desc;
-            init_vector_loop_descriptor(loop_info, loop_id, desc);
-            m_config.loops[loop_id].push_back(desc);
-        }
-        if (is_tail_loop_needed(loop_info)) {
-            RuntimeConfig::LoopDescriptor desc;
-            init_tail_loop_descriptor(loop_info, loop_id, desc);
-            m_config.loops[loop_id].push_back(desc);
-            // Inner splited Loop update
-            init_inner_splited_tail_loop_descriptors(loop_manager, loop_info, desc, loop_id);
-        }
-    }
-}
-
-void RuntimeConfigurator::update_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::RuntimeConfig::init_loop_descriptors")
-    OPENVINO_ASSERT(!m_config.loops.empty(), "RuntimeConfig expects inited map for the updates");
-
-    const auto& loop_map = loop_manager->get_map();
-    for (const auto& loop_pair : loop_map) {
-        const auto loop_id = loop_pair.first;
-        // make a copy to avoid original loop info corruption
-        const auto loop_info = std::make_shared<LinearIR::LoopManager::LoopInfo>(*loop_pair.second);
-        lowered::pass::InitLoops::init_loop_info(loop_info, true);
-
-        OPENVINO_ASSERT(!utils::is_dynamic_vdim(loop_info->get_increment()), "Increment must be static value!");
-        OPENVINO_ASSERT(m_config.loops.count(loop_id) != 0, "Loop descriptors should be in RuntimeConfig");
-
-        if (is_first_iter_loop_needed(loop_info)) {
-            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
+            auto desc_it = m_is_first_init ? loop_descriptors.insert(loop_descriptors.cend(), RuntimeConfig::LoopDescriptor())
+                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
             OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "First Loop Descriptor has not been found!");
             init_first_iter_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_vector_loop_needed(loop_info)) {
-            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
+            auto desc_it = m_is_first_init ? loop_descriptors.insert(loop_descriptors.cend(), RuntimeConfig::LoopDescriptor())
+                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
             OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
             init_vector_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_tail_loop_needed(loop_info)) {
-            auto desc_it = m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
-            OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
+            auto desc_it = m_is_first_init ? loop_descriptors.insert(loop_descriptors.cend(), RuntimeConfig::LoopDescriptor())
+                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
+            OPENVINO_ASSERT(desc_it != m_config.loops.at(loop_id).end(), "Tail Loop Descriptor has not been found!");
             init_tail_loop_descriptor(loop_info, loop_id, *desc_it);
             // Inner splited Loop update
-            //init_inner_splited_tail_loop_descriptors(loop_manager, loop_info, desc, loop_id);
+            init_inner_splited_tail_loop_descriptors(loop_manager, loop_info, *desc_it, loop_id);
         }
     }
 }
@@ -99,21 +72,10 @@ void RuntimeConfigurator::init_first_iter_loop_descriptor(const LinearIR::LoopMa
     const auto is_wa_dynamic = utils::is_dynamic_vdim(loop_info->get_work_amount());
 
     first_iter_loop_desc.work_amount = is_wa_dynamic ? loop_info->get_work_amount() : loop_info->get_increment();
-    first_iter_loop_desc.ptr_increments.resize(loop_ports.size());
-    first_iter_loop_desc.finalization_offsets.resize(loop_ports.size());
     first_iter_loop_desc.increment = loop_info->get_increment();
     first_iter_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::First;
 
-    const auto& increment = first_iter_loop_desc.increment;
-    for (size_t i = 0; i < loop_ports.size(); ++i) {
-        const auto& loop_port = loop_ports[i];
-        first_iter_loop_desc.ptr_increments[i] =
-            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
-                                                                                       : increment * loop_port.ptr_increment * loop_port.data_size;
-        first_iter_loop_desc.finalization_offsets[i] =
-            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
-                                                                                             : loop_port.finalization_offset * loop_port.data_size;
-    }
+    init_data_ptr_shifts(first_iter_loop_desc, loop_ports, false, false, m_config.loops.at(loop_id).end());
 }
 
 void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
@@ -128,31 +90,9 @@ void RuntimeConfigurator::init_vector_loop_descriptor(const LinearIR::LoopManage
 
     vector_loop_desc.work_amount = skip_evaluation ? 0 : target_work_amount;
     vector_loop_desc.increment = loop_info->get_increment();
-    vector_loop_desc.ptr_increments.resize(loop_ports.size());
-    vector_loop_desc.finalization_offsets.resize(loop_ports.size());
     vector_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Vector;
 
-    if (skip_evaluation) {
-        std::fill(vector_loop_desc.ptr_increments.begin(), vector_loop_desc.ptr_increments.end(), 0);
-        std::fill(vector_loop_desc.finalization_offsets.begin(), vector_loop_desc.finalization_offsets.end(), 0);
-        return;
-    }
-
-    const auto& increment = vector_loop_desc.increment;
-    for (size_t i = 0; i < loop_ports.size(); ++i) {
-        const auto& loop_port = loop_ports[i];
-        vector_loop_desc.ptr_increments[i] =
-            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
-                                                                                       : increment * loop_port.ptr_increment * loop_port.data_size;
-        if (!first_needed)
-            vector_loop_desc.finalization_offsets[i] =
-                LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
-                                                                                             : loop_port.finalization_offset * loop_port.data_size;
-    }
-    if (first_needed) {
-        vector_loop_desc.finalization_offsets = first_iter_desc_it->finalization_offsets;
-        std::fill(first_iter_desc_it->finalization_offsets.begin(), first_iter_desc_it->finalization_offsets.end(), 0);
-    }
+    init_data_ptr_shifts(vector_loop_desc, loop_ports, skip_evaluation, first_needed, first_iter_desc_it);
 }
 
 void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
@@ -162,7 +102,7 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
     auto last_execution_loop = loop_descs.end();
      // todo: make reverse
     for (auto desc_it = loop_descs.begin(); desc_it != loop_descs.end(); ++desc_it) {
-        if (desc_it->type != RuntimeConfig::LoopDescriptor::Tail && desc_it->work_amount > 0) {
+        if (desc_it->type != RuntimeConfig::LoopDescriptor::Tail && !utils::is_dynamic_vdim(desc_it->work_amount) && desc_it->work_amount > 0) {
             last_execution_loop = desc_it;
         }
     }
@@ -173,31 +113,9 @@ void RuntimeConfigurator::init_tail_loop_descriptor(const LinearIR::LoopManager:
 
     tail_loop_desc.work_amount = target_work_amount;
     tail_loop_desc.increment = loop_info->is_dynamic() ? 1 : tail_loop_desc.work_amount;
-    tail_loop_desc.ptr_increments.resize(loop_ports.size());
-    tail_loop_desc.finalization_offsets.resize(loop_ports.size());
     tail_loop_desc.type = RuntimeConfig::LoopDescriptor::Type::Tail;
 
-    if (skip_evaluation) {
-        std::fill(tail_loop_desc.ptr_increments.begin(), tail_loop_desc.ptr_increments.end(), 0);
-        std::fill(tail_loop_desc.finalization_offsets.begin(), tail_loop_desc.finalization_offsets.end(), 0);
-        return;
-    }
-
-    const auto& increment = tail_loop_desc.increment;
-    for (size_t i = 0; i < loop_ports.size(); ++i) {
-        const auto& loop_port = loop_ports[i];
-        tail_loop_desc.ptr_increments[i] =
-            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
-                                                                                       : increment * loop_port.ptr_increment * loop_port.data_size;
-        if (!there_is_before_loop)
-            tail_loop_desc.finalization_offsets[i] =
-                LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
-                                                                                                 : loop_port.finalization_offset * loop_port.data_size;
-    }
-    if (there_is_before_loop) {
-        tail_loop_desc.finalization_offsets = last_execution_loop->finalization_offsets;
-        std::fill(last_execution_loop->finalization_offsets.begin(), last_execution_loop->finalization_offsets.end(), 0);
-    }
+    init_data_ptr_shifts(tail_loop_desc, loop_ports, skip_evaluation, there_is_before_loop, last_execution_loop);
 }
 
 void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager,
@@ -233,7 +151,7 @@ void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearI
             continue;
 
         RuntimeConfig::LoopDescriptor splited_tail_loop_desc;
-        const auto inner_vector_dest_it = m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::Vector);
+        auto inner_vector_dest_it = m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::Vector);
         OPENVINO_ASSERT(m_config.loops.at(inner_loop_id).size() == 1 && inner_vector_dest_it != m_config.loops.at(inner_loop_id).end(),
                         "Splited inner Loop should be already inited!");
         splited_tail_loop_desc.work_amount = tail_size;
@@ -247,9 +165,40 @@ void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearI
         }
         // If outer splited loop doesn't have Vector Loop, inner splited loop shouldn't have the Vector Loop as well
         if (!is_outer_vector_loop_needed) {
-            m_config.loops[inner_loop_id].erase(inner_vector_dest_it);
+            *inner_vector_dest_it = splited_tail_loop_desc;
+        } else {
+            m_config.loops[inner_loop_id].push_back(splited_tail_loop_desc);
         }
-        m_config.loops[inner_loop_id].push_back(splited_tail_loop_desc);
+    }
+}
+
+void RuntimeConfigurator::init_data_ptr_shifts(RuntimeConfig::LoopDescriptor& desc,
+                                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports,
+                                               bool skip_evaluation, bool is_there_prev_iter,
+                                               const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc) {
+    desc.ptr_increments.resize(loop_ports.size());
+    desc.finalization_offsets.resize(loop_ports.size());
+
+    if (skip_evaluation) {
+        std::fill(desc.ptr_increments.begin(), desc.ptr_increments.end(), 0);
+        std::fill(desc.finalization_offsets.begin(), desc.finalization_offsets.end(), 0);
+        return;
+    }
+
+    const auto& increment = desc.increment;
+    for (size_t i = 0; i < loop_ports.size(); ++i) {
+        const auto& loop_port = loop_ports[i];
+        desc.ptr_increments[i] =
+            LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.ptr_increment) ? loop_port.ptr_increment
+                                                                                       : increment * loop_port.ptr_increment * loop_port.data_size;
+        if (!is_there_prev_iter)
+            desc.finalization_offsets[i] =
+                LinearIR::LoopManager::LoopPort::is_dynamic_value(loop_port.finalization_offset) ? loop_port.finalization_offset
+                                                                                                 : loop_port.finalization_offset * loop_port.data_size;
+    }
+    if (is_there_prev_iter) {
+        desc.finalization_offsets = prev_iter_desc->finalization_offsets;
+        std::fill(prev_iter_desc->finalization_offsets.begin(), prev_iter_desc->finalization_offsets.end(), 0);
     }
 }
 
