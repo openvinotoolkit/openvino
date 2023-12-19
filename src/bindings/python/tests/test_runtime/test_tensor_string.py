@@ -254,3 +254,13 @@ def test_empty_tensor_populate(init_type, init_shape, string_data, data_getter):
     check_bytes_based(tensor, _string_data, to_flat=True)
     # Decoded:
     check_string_based(tensor, _string_data, to_flat=True)
+
+
+def test_invalid_bytes_replaced():
+    string_data = np.array(b"\xe2\x80")
+    tensor = ov.Tensor(string_data)
+
+    # Encoded:
+    check_bytes_based(tensor, string_data, to_flat=True)
+    # Decoded:
+    check_string_based(tensor, np.char.decode(string_data, encoding="utf=8", errors="replace"), to_flat=True)
