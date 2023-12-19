@@ -123,14 +123,13 @@ jobs:
 
       - name: Python API 1.0 Tests
         # if: fromJSON(inputs.affected-components).Python_API.test # Ticket: 127101
+        if: runner.arch != 'ARM64'
         run: |
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            # skipped API 1.0 tests for arm64 platforms
-            python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
-              --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-              --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
-              --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
-          fi
+          # skipped API 1.0 tests for arm64 platforms
+          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
@@ -158,8 +157,9 @@ jobs:
               "$skip_filter"
 
       - name: Python ONNX operators tests
-        if: fromJSON(inputs.affected-components).Python_API.test ||
-            fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' # Ticket: 123325
+        if: (fromJSON(inputs.affected-components).Python_API.test ||
+             fromJSON(inputs.affected-components).ONNX_FE.test) && 
+             runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
