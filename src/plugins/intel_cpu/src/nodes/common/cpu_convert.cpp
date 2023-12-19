@@ -571,6 +571,9 @@ void cpu_convert(const void *srcPtr,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size) {
+    if (size == 0) {
+        return;
+    }
     if (srcPtr == nullptr || dstPtr == nullptr)
         OPENVINO_THROW("cpu_convert has null data pointer");
 
