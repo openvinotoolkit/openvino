@@ -82,7 +82,8 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             const auto& first_child = consumer_inputs.begin()->get_node()->shared_from_this();
             // Note: RankNormalization of is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            if (is_type<op::RankNormalization>(first_child)) {
+            if (is_type<op::RankNormalization>(first_child) ||
+                is_type<op::Reshape>(first_child)) {
                 OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
                 parent_output = first_child->output(0);
                 consumer_inputs = parent_output.get_target_inputs();

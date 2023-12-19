@@ -79,15 +79,24 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT) {
                 const auto& out_connector = expr->get_output_port_connector(0);
                 manually_assigned_gprs[out_connector] = io_expr->get_index();
-                const auto& consumer_inputs = out_connector->get_consumers();
-                const auto& first_consumer = consumer_inputs.begin()->get_expr();
-                // TODO [96434]: Support RankNormalization (Reshape) in arbitrary place in pipeline, not just after inputs
-                if (ov::is_type<op::RankNormalization>(first_consumer->get_node())) {
-                    OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
-                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = io_expr->get_index();
+                // TODO [96434]: Support RankNormalization/Reshape in arbitrary place in pipeline, not just after inputs
+                // reshape rankNormalization sequence
+                auto consumer_inputs = out_connector->get_consumers();
+                auto child_exp = consumer_inputs.begin()->get_expr();
+                while (ov::is_type<op::RankNormalization>(child_exp->get_node()) ||
+                       ov::is_type<op::Reshape>(child_exp->get_node())) {
+                    OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization or Reshape is supposed to be the only consumer");
+                    manually_assigned_gprs[child_exp->get_output_port_connector(0)] = io_expr->get_index();
+                    consumer_inputs = child_exp->get_output_port_connector(0)->get_consumers();
+                    child_exp = consumer_inputs.begin()->get_expr();
                 }
             } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                // reshape before result
+                const auto &parent = expr->get_input_port_connector(0)->get_source().get_expr();
+                if (ov::is_type<op::Reshape>(parent->get_node())) {
+                    manually_assigned_gprs[parent->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                }
             } else {
                 OPENVINO_THROW("Unsupported io_type detected");
             }
@@ -97,6 +106,14 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
                         static_cast<Reg>(num_results + num_parameters + buffer_id);
+                // reshape in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
+                const auto& first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                if (ov::is_type<op::Reshape>(first_consumer->get_node())) {
+                    manually_assigned_gprs[first_consumer->get_input_port_connector(0)] =
+                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] =
+                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
                     static_cast<Reg>(num_results + num_parameters + buffer_id);

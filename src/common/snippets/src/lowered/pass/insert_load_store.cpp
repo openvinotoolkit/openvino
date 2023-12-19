@@ -36,12 +36,24 @@ size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     std::shared_ptr<Expression> data_expr = *data_expr_it;
-    auto consumer_inputs = data_expr->get_output_port_connector(0)->get_consumers();
-    const auto& first_consumer = consumer_inputs.begin()->get_expr();
-    if (is_type<op::RankNormalization>(first_consumer->get_node())) {
-        OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
-        data_expr = first_consumer;
-    }
+    const auto& consumer_inputs = data_expr->get_output_port_connector(0)->get_consumers();
+    auto first_reshape_consumer = [&]() {
+        auto current_exp = data_expr;
+        auto first_consumer = consumer_inputs.begin()->get_expr();
+        while (1) {
+            if (is_type<op::RankNormalization>(first_consumer->get_node()) ||
+                is_type<op::Reshape>(first_consumer->get_node())) {
+                current_exp = first_consumer;
+                first_consumer = first_consumer->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                // OPENVINO_ASSERT(current_exp->get_output_port_connector(0)->get_consumers().size() == 1,
+                //     "RankNormalization or Reshape is supposed to be the only consumer");
+            } else {
+                return current_exp;
+            }
+        }
+    };
+    data_expr = first_reshape_consumer();
+
     const auto& data_ngraph_output = data_expr->get_node()->output(0);
     bool was_inserted = false;
     const auto& data_out = data_expr->get_output_port_connector(0);
@@ -61,12 +73,17 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 }
 
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
-    const auto& data_expr = *data_expr_it;
-    const auto& parent_output = data_expr->get_input_port_connector(0)->get_source();
-    const auto& parent_expr = parent_output.get_expr();
-    const auto port = parent_output.get_index();
-    const auto& parent = parent_expr->get_node();
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    auto data_expr = *data_expr_it;
+    auto parent_output = data_expr->get_input_port_connector(0)->get_source();
+    auto parent_expr = parent_output.get_expr();
+    if (is_type<op::Reshape>(parent_expr->get_node())) {
+        data_expr = parent_expr;
+        parent_output = data_expr->get_input_port_connector(0)->get_source();
+        parent_expr = parent_output.get_expr();
+    }
+    auto port = parent_output.get_index();
+    auto parent = parent_expr->get_node();
+    auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 
