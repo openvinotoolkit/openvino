@@ -16,6 +16,8 @@ from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
+from torch._decomp import decomposition_table, register_decomposition, get_decompositions
+from torch._decomp.decompositions import aten, pw_cast_for_opmath
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
