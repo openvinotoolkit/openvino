@@ -54,7 +54,7 @@ if(WIN32)
 endif()
 
 #WA to support old compiler version, removes unused header which may block build
-if(NOT cxx_std_17 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND AARCH64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
     file(READ onnx/onnx/defs/parser.cc CONTENT)
     string(REPLACE "#include <string_view>" "" CONTENT "${CONTENT}")
     file(WRITE onnx/onnx/defs/parser.cc "${CONTENT}")
