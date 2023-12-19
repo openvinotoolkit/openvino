@@ -4,6 +4,7 @@
 
 #include "openvino/op/mvn.hpp"
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/reference/mvn.hpp"
 
@@ -91,20 +92,20 @@ ov::op::v6::MVN::MVN(const Output<Node>& data,
 
 void ov::op::v6::MVN::validate_and_infer_types() {
     OV_OP_SCOPE(v6_MVN_validate_and_infer_types);
-    const auto data = get_input_partial_shape(0);
-    const auto axes = get_input_partial_shape(1);
+    const auto& data = get_input_partial_shape(0);
+    const auto& axes = get_input_partial_shape(1);
 
     if (axes.is_static()) {
         NODE_VALIDATION_CHECK(this, is_vector(axes.to_shape()), "Expected 1D tensor for the 'axes' input. Got: ", axes);
 
-        NODE_VALIDATION_CHECK(
-            this,
-            data.rank().is_dynamic() || data.rank().get_length() >= static_cast<int64_t>(axes.get_shape()[0]),
-            "Expected rank for the 'data' input to be higher than axes shape. Got: ",
-            data);
+        const auto data_rank = data.rank();
+        NODE_VALIDATION_CHECK(this,
+                              data_rank.is_dynamic() || cmp::ge(data_rank.get_length(), axes.get_shape()[0]),
+                              "Expected rank for the 'data' input to be higher than axes shape. Got: ",
+                              data);
     }
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, get_input_element_type(0), data);
 }
 
 std::shared_ptr<ov::Node> ov::op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
