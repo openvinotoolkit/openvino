@@ -1643,6 +1643,45 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     ASSERT_TRUE(outputs.at("r2").get_memory()->get_layout().format == format::yxfb);
 }
 
+TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
+{
+    auto& engine = get_test_engine();
+
+    memory::ptr in = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 4, 4, 1 } });
+    layout r2_output(data_types::f32, format::b_fs_yx_fsv16, { 1, 4, 4, 1 });
+    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    set_values(scale_mem, { 2.0f });
+
+    topology tpl{
+        input_layout("in", in->get_layout()),
+        data("scale_data", scale_mem),
+        eltwise("eltwise", { input_info("in"), input_info("scale_data") }, eltwise_mode::prod),
+        reorder("r1", input_info("eltwise"), format::bfyx, data_types::f32, std::vector<float>{0, 0, 0, 1}),
+        reorder("r2", input_info("r1"), r2_output.with_padding(padding({ 0, 0, 1, 1 }, 0.f))),
+        eltwise("output", { input_info("r2"), input_info("scale_data") }, eltwise_mode::prod)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, tpl, config);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto executed_primitives = net.get_executed_primitives();
+
+    ASSERT_EQ(executed_primitives.count("r1"), 1);
+
+    // r2 would be removed, but the padding value should be remained at the input primitive of r2.
+    std::vector<int32_t> gt = {0, 0, 1, 1};
+    auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
+    auto upper_padding = r1_output_data_padding.upper_size().sizes();
+    auto lower_padding = r1_output_data_padding.lower_size().sizes();
+    for (int32_t i = 0 ; i < 4; i++) {
+        ASSERT_EQ(upper_padding[i], gt[i]);
+        ASSERT_EQ(lower_padding[i], gt[i]);
+    }
+}
+
 TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
 {
     auto& engine = get_test_engine();

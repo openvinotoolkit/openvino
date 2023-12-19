@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,6 +18,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
@@ -121,9 +121,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced,
                 ov::op::v0::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            weights_reduced_reshaped = ov::get_constant_from_source(weights_reduced_reshaped);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            weights_reduced_reshaped = ov::util::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<ov::op::v1::Add>(new_conv, weights_reduced_reshaped);
             auto mul =
                 std::make_shared<ov::op::v1::Multiply>(add, ov::op::v0::Constant::create(element::f32, Shape{}, {0.5}));

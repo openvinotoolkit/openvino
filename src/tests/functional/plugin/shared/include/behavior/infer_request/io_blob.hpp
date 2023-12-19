@@ -9,6 +9,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
@@ -344,11 +345,11 @@ TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
         ngraph::ParameterVector params = {param};
@@ -455,7 +456,7 @@ public:
     void SetUp()  override {
         std::tie(layout, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }

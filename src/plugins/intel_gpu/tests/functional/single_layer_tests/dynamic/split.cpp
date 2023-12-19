@@ -2,51 +2,50 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/select.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/variadic_split.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
         size_t,                    // Num splits
         int64_t,                   // Axis
-        ElementType,               // Net precision
+        ov::element::Type,         // Model type
         InputShape,                // Input shapes
         std::vector<size_t>        // Used outputs indices
 > splitDynamicGPUTestParams;
 
 class SplitLayerGPUDynamicTest : public testing::WithParamInterface<splitDynamicGPUTestParams>,
-                          virtual public SubgraphBaseTest {
+                          virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<splitDynamicGPUTestParams> obj) {
         std::ostringstream result;
-        size_t numSplits;
+        size_t num_splits;
         int64_t axis;
-        ElementType netPrecision;
-        InputShape inputShape;
-        std::vector<size_t> outIndices;
-        std::tie(numSplits, axis, netPrecision, inputShape, outIndices) = obj.param;
+        ov::element::Type model_type;
+        InputShape input_shape;
+        std::vector<size_t> out_indices;
+        std::tie(num_splits, axis, model_type, input_shape, out_indices) = obj.param;
 
         result << "IS=";
-        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({input_shape.first}) << "_";
         result << "TS=";
-        for (const auto& shape : inputShape.second) {
+        for (const auto& shape : input_shape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
-        result << "numSplits=" << numSplits << "_";
+        result << "num_splits=" << num_splits << "_";
         result << "axis=" << axis << "_";
-        if (!outIndices.empty()) {
-            result << "outIndices" << ov::test::utils::vec2str(outIndices) << "_";
+        if (!out_indices.empty()) {
+            result << "out_indices" << ov::test::utils::vec2str(out_indices) << "_";
         }
-        result << "netPRC=" << netPrecision << "_";
+        result << "netPRC=" << model_type << "_";
         return result.str();
     }
 
@@ -54,47 +53,46 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
-        size_t numSplits;
-        InputShape inputShape;
-        std::vector<size_t> outIndices;
-        ElementType netPrecision;
-        std::tie(numSplits, axis, netPrecision, inputShape, outIndices) = this->GetParam();
-        if (outIndices.empty()) {
-            for (size_t i = 0; i < numSplits; ++i) {
-                outIndices.push_back(i);
+        size_t num_splits;
+        InputShape input_shape;
+        std::vector<size_t> out_indices;
+        ov::element::Type model_type;
+        std::tie(num_splits, axis, model_type, input_shape, out_indices) = this->GetParam();
+        if (out_indices.empty()) {
+            for (size_t i = 0; i < num_splits; ++i) {
+                out_indices.push_back(i);
             }
         }
-        init_input_shapes({inputShape});
-        ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
+        init_input_shapes({input_shape});
+        ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
         auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
-        auto split = std::make_shared<ov::op::v1::Split>(dyn_params[0], split_axis_op, numSplits);
+        auto split = std::make_shared<ov::op::v1::Split>(dyn_params[0], split_axis_op, num_splits);
 
-        ngraph::ResultVector results;
-        for (size_t i = 0; i < outIndices.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
+        ov::ResultVector results;
+        for (size_t i = 0; i < out_indices.size(); i++) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(split->output(out_indices[i])));
         }
-        function = std::make_shared<ngraph::Function>(results, dyn_params, "split");
+        function = std::make_shared<ov::Model>(results, dyn_params, "split");
     }
 };
 
-TEST_P(SplitLayerGPUDynamicTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(SplitLayerGPUDynamicTest, Inference) {
     run();
 }
 
-const std::vector<InputShape> inputShapes4d = {
+const std::vector<InputShape> input_shapes4d = {
         {
             {-1, -1, -1, -1}, {{1, 4, 5, 7}, {3, 8, 5, 9}, {5, 16, 1, 8}}
         }
 };
 
-const std::vector<InputShape> inputShapes5d = {
+const std::vector<InputShape> input_shapes5d = {
         {
             {-1, -1, -1, -1, -1}, {{10, 20, 30, 40, 10}, {5, 18, 3, 10, 10}, {3, 10, 6, 2, 4}}
         }
 };
 
-const std::vector<InputShape> inputShapes6d = {
+const std::vector<InputShape> input_shapes6d = {
         {
             {-1, -1, -1, -1, -1, -1}, {{10, 32, 3, 4, 12, 24}, {5, 2, 3, 1, 32, 12}, {3, 1, 6, 2, 4, 18}}
         }
@@ -104,63 +102,63 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck4Dr, SplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(2),                                       // nSplits
                                 ::testing::Values(1),                                       // axes
-                                ::testing::Values(ElementType::f16),                         // netPrec
-                                ::testing::ValuesIn(inputShapes4d),                         // inShapes
-                                ::testing::Values(std::vector<size_t>({}))),                // outIndices
+                                ::testing::Values(ov::element::f16),                         // netPrec
+                                ::testing::ValuesIn(input_shapes4d),                         // inShapes
+                                ::testing::Values(std::vector<size_t>({}))),                // out_indices
                         SplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck5D, SplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(3),                                       // nSplits
                                 ::testing::Values(2),                                       // axes
-                                ::testing::Values(ElementType::f32),                         // netPrec
-                                ::testing::ValuesIn(inputShapes5d),                         // inShapes
-                                ::testing::Values(std::vector<size_t>({}))),                // outIndices
+                                ::testing::Values(ov::element::f32),                         // netPrec
+                                ::testing::ValuesIn(input_shapes5d),                         // inShapes
+                                ::testing::Values(std::vector<size_t>({}))),                // out_indices
                         SplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck6D, SplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(4),                                       // nSplits
                                 ::testing::Values(4),                                       // axes
-                                ::testing::Values(ElementType::i8),                         // netPrec
-                                ::testing::ValuesIn(inputShapes6d),                         // inShapes
-                                ::testing::Values(std::vector<size_t>({}))),                // outIndices
+                                ::testing::Values(ov::element::i8),                         // netPrec
+                                ::testing::ValuesIn(input_shapes6d),                         // inShapes
+                                ::testing::Values(std::vector<size_t>({}))),                // out_indices
                         SplitLayerGPUDynamicTest::getTestCaseName);
 
 typedef std::tuple<
         int64_t,                            // Axis
         std::vector<int32_t>,               // SplitLength
-        ElementType,                        // Net precision
+        ov::element::Type,                  // Model type
         InputShape,                         // Input shapes
-        ngraph::helpers::InputLayerType     // input type of splitLength
+        ov::test::utils::InputLayerType     // input type of split_length
 > varSplitDynamicGPUTestParams;
 
 class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varSplitDynamicGPUTestParams>,
-                          virtual public SubgraphBaseTest {
+                                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<varSplitDynamicGPUTestParams> obj) {
         std::ostringstream result;
         int64_t axis;
-        std::vector<int32_t> splitLength;
-        ElementType netPrecision;
-        InputShape inputShape;
-        ngraph::helpers::InputLayerType inputType;
-        std::tie(axis, splitLength, netPrecision, inputShape, inputType) = obj.param;
+        std::vector<int32_t> split_length;
+        ov::element::Type model_type;
+        InputShape input_shape;
+        ov::test::utils::InputLayerType inputType;
+        std::tie(axis, split_length, model_type, input_shape, inputType) = obj.param;
 
         result << "IS=";
-        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({input_shape.first}) << "_";
         result << "TS=";
-        for (const auto& shape : inputShape.second) {
+        for (const auto& shape : input_shape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
-        result << "SplitLen=" << ov::test::utils::vec2str(splitLength) << "_";
+        result << "SplitLen=" << ov::test::utils::vec2str(split_length) << "_";
         result << "axis=" << axis << "_";
-        result << "netPRC=" << netPrecision << "_";
+        result << "netPRC=" << model_type << "_";
         result << "restInputType=" << inputType << "_";
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -169,8 +167,8 @@ public:
             if (i == 1) {
                 tensor = ov::Tensor(ov::element::i64, targetInputStaticShapes[i]);
                 auto *dataPtr = tensor.data<ov::element_type_traits<ov::element::i64>::value_type>();
-                for (size_t i = 0; i < splitLength_vec.size(); i++) {
-                    dataPtr[i] = splitLength_vec[i];
+                for (size_t i = 0; i < split_length_vec.size(); i++) {
+                    dataPtr[i] = split_length_vec[i];
                 }
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
@@ -181,89 +179,88 @@ public:
     }
 
 protected:
-    std::vector<int32_t> splitLength_vec;
+    std::vector<int32_t> split_length_vec;
     size_t inferRequestNum = 0;
-    ElementType netPrecision;
+    ov::element::Type model_type;
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
-        InputShape inputShape;
-        std::vector<int32_t> splitLength;
-        ngraph::helpers::InputLayerType inputType;
-        std::tie(axis, splitLength, netPrecision, inputShape, inputType) = this->GetParam();
+        InputShape input_shape;
+        std::vector<int32_t> split_length;
+        ov::test::utils::InputLayerType inputType;
+        std::tie(axis, split_length, model_type, input_shape, inputType) = this->GetParam();
 
-        splitLength_vec = splitLength;
+        split_length_vec = split_length;
 
-        std::vector<InputShape> inputShapes;
-        inputShapes.push_back(inputShape);
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            inputShapes.push_back(InputShape({static_cast<int64_t>(splitLength.size())},
-                                  std::vector<ov::Shape>(inputShape.second.size(), {splitLength.size()})));
+        std::vector<InputShape> input_shapes;
+        input_shapes.push_back(input_shape);
+        if (inputType == ov::test::utils::InputLayerType::PARAMETER) {
+            input_shapes.push_back(InputShape({static_cast<int64_t>(split_length.size())},
+                                  std::vector<ov::Shape>(input_shape.second.size(), {split_length.size()})));
         }
-        init_input_shapes(inputShapes);
+        init_input_shapes(input_shapes);
 
-        ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
+        ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
 
-        auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
+        auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
 
-        std::shared_ptr<ov::Node> splitLengthOp;
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto splitLengthNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{splitLength.size()});
-            dyn_params.push_back(splitLengthNode);
-            splitLengthOp = splitLengthNode;
+        std::shared_ptr<ov::Node> split_lengthOp;
+        if (inputType == ov::test::utils::InputLayerType::PARAMETER) {
+            auto split_lengthNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{split_length.size()});
+            dyn_params.push_back(split_lengthNode);
+            split_lengthOp = split_lengthNode;
         } else {
-            splitLengthOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{splitLength.size()}, splitLength);
+            split_lengthOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{split_length.size()}, split_length);
         }
 
-        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(dyn_params[0], splitAxisOp, splitLengthOp);
-        ngraph::ResultVector results;
-        for (size_t i = 0; i < splitLength.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(varSplit->output(i)));
+        auto varSplit = std::make_shared<ov::op::v1::VariadicSplit>(dyn_params[0], splitAxisOp, split_lengthOp);
+        ov::ResultVector results;
+        for (size_t i = 0; i < split_length.size(); i++) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(varSplit->output(i)));
         }
-        function = std::make_shared<ngraph::Function>(results, dyn_params, "varSplit");
+        function = std::make_shared<ov::Model>(results, dyn_params, "varSplit");
     }
 };
 
-TEST_P(VariadicSplitLayerGPUDynamicTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(VariadicSplitLayerGPUDynamicTest, Inference) {
     run();
 }
 
-const std::vector<ngraph::helpers::InputLayerType> restInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::test::utils::InputLayerType> restInputTypes = {
+    ov::test::utils::InputLayerType::CONSTANT,
+    ov::test::utils::InputLayerType::PARAMETER
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(1),                                       // axes
-                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // splitLength
-                                ::testing::Values(ElementType::f16),                        // netPrec
-                                ::testing::ValuesIn(inputShapes4d),                         // inShapes
-                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // split_length
+                                ::testing::Values(ov::element::f16),                        // netPrec
+                                ::testing::ValuesIn(input_shapes4d),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck5D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(2),                                       // axes
-                                ::testing::Values(std::vector<int32_t>{2, -1}),             // splitLength
-                                ::testing::Values(ElementType::f32),                        // netPrec
-                                ::testing::ValuesIn(inputShapes5d),                         // inShapes
-                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                                ::testing::Values(std::vector<int32_t>{2, -1}),             // split_length
+                                ::testing::Values(ov::element::f32),                        // netPrec
+                                ::testing::ValuesIn(input_shapes5d),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(5),                                       // nSplits
-                                ::testing::Values(std::vector<int32_t>{2, 3, 2, -1}),       // splitLength
-                                ::testing::Values(ElementType::i8),                         // netPrec
-                                ::testing::ValuesIn(inputShapes6d),                         // inShapes
-                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                                ::testing::Values(std::vector<int32_t>{2, 3, 2, -1}),       // split_length
+                                ::testing::Values(ov::element::i8),                         // netPrec
+                                ::testing::ValuesIn(input_shapes6d),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 
-const std::vector<InputShape> inputShapes4d_static = {
+const std::vector<InputShape> input_shapes4d_static = {
         {
             {5, 16, 10, 8}, {{5, 16, 10, 8}, }
         }
@@ -272,10 +269,10 @@ const std::vector<InputShape> inputShapes4d_static = {
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D_static_input_dyn_output, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
                                 ::testing::Values(1),                                       // axes
-                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // splitLength
-                                ::testing::Values(ElementType::f16),                        // netPrec
-                                ::testing::ValuesIn(inputShapes4d_static),                         // inShapes
-                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // split_length
+                                ::testing::Values(ov::element::f16),                        // netPrec
+                                ::testing::ValuesIn(input_shapes4d_static),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
-} // namespace GPULayerTestsDefinitions
+} // namespace

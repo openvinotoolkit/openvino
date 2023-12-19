@@ -144,6 +144,8 @@ def test_convert_to_bool(destination_type, input_data):
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64),
+        pytest.param(Type.f32, (-8, 8), np.int32, np.float32),
+        pytest.param(Type.f64, (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -562,8 +564,8 @@ def test_sink_model_ctor():
     sinks = model.get_sinks()
     assert ["Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()

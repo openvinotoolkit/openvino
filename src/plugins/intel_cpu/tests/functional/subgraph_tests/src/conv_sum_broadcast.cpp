@@ -4,7 +4,6 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "internal_properties.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"

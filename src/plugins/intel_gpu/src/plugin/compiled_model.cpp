@@ -187,6 +187,9 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
+    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+        return;
+
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
@@ -263,6 +266,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},

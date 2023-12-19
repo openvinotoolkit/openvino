@@ -46,7 +46,7 @@ void SliceConcatTest::SetUp() {
 
     ngraph::Output<ngraph::Node> input = params[0];
     if (inputShape[0] != 1 || inputShape.size() != 2) {
-        input = std::make_shared<ngraph::opset8::Reshape>(params[0],
+        input = std::make_shared<ov::op::v1::Reshape>(params[0],
             ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
     }
 

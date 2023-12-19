@@ -8,7 +8,6 @@
 
 #include "mask_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -19,6 +18,7 @@
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -398,9 +398,7 @@ public:
                 return false;
             }
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto constant = ov::util::get_constant_from_source(m_shape.get_node_shared_ptr());
             if (!constant) {
                 OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
@@ -1136,9 +1134,7 @@ public:
 
             auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                constant = get_constant_from_source(m_weights.get_node_shared_ptr());
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
                     OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                                    << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1383,9 +1379,7 @@ public:
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(transpose);
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto input_order_node = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
             if (!input_order_node) {
                 OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
                                << " with no constant node " << m_weights.get_node()->get_friendly_name()
