@@ -76,11 +76,11 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 10,
-                                                                 1,
-                                                                 1);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 1;
+                in_data.range = 10;
+                in_data.resolution = 1;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};
             }

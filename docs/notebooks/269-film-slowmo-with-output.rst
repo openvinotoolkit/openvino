@@ -34,22 +34,34 @@ FILM is trained on regular video frame triplets, with the middle frame
 serving as the ground-truth for supervision.
 
 In this tutorial, we will use `TensorFlow Hub <https://tfhub.dev/>`__ as
-a model source. 
+a model source.
+
+   **NOTE**: To run this tutorial, your system is required to have a VP9
+   video encoder. Ubuntu has it preinstalled, but for Windows, you
+   should install it manually.
 
 **Table of contents:**
 
-- `Prerequisites <#prerequisites>`__
-- `Prepare images <#prepare-images>`__
-- `Load the model <#load-the-model>`__
-- `Infer the model <#infer-the-model>`__
-- `Single middle frame interpolation <#single-middle-frame-interpolation>`__
-- `Recursive frame generation <#recursive-frame-generation>`__
-- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
-- `Inference <#inference>`__
-- `Select inference device <#select-inference-device>`__
-- `Single middle frame interpolation <#single-middle-frame-interpolation>`__
-- `Recursive frame generation <#recursive-frame-generation>`__
-- `Interactive inference <#interactive-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare images <#prepare-images>`__
+-  `Load the model <#load-the-model>`__
+-  `Infer the model <#infer-the-model>`__
+
+   -  `Single middle frame
+      interpolation <#single-middle-frame-interpolation>`__
+   -  `Recursive frame generation <#recursive-frame-generation>`__
+
+-  `Convert the model to OpenVINO
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Inference <#inference>`__
+
+   -  `Select inference device <#select-inference-device>`__
+   -  `Single middle frame
+      interpolation <#single-middle-frame-interpolation>`__
+   -  `Recursive frame generation <#recursive-frame-generation>`__
+
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
 
@@ -60,9 +72,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q tensorflow tensorflow_hub numpy "opencv-python" tqdm matplotlib gradio Pillow
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
-    %pip install -q openvino-nightly
+    %pip install -q tensorflow tensorflow_hub numpy "opencv-python" tqdm matplotlib gradio Pillow "openvino>=2023.2.0"
 
 
 .. parsed-literal::
@@ -201,7 +211,8 @@ Hub <https://tfhub.dev/google/film/1>`__.
         x1=tf.keras.layers.Input(shape=(None, None, 3)),
         time=tf.keras.layers.Input(shape=(1)),
     )
-    film_layer = hub.KerasLayer("https://tfhub.dev/google/film/1")(inputs)
+    model_url = "https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1"
+    film_layer = hub.KerasLayer(model_url)(inputs)
     film_model = tf.keras.Model(inputs=inputs, outputs=film_layer)
 
 Infer the model

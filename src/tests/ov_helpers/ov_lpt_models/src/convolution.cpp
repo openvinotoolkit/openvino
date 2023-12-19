@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/convolution.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
@@ -52,7 +52,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         weights = ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(
-            weights, op::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
+            weights, ov::opset1::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
     std::shared_ptr<Node> convertedWeights;
@@ -266,7 +266,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         weights = ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(
-            weights, op::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
+            weights, ov::opset1::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
     const auto convertOnWeights = std::make_shared<ov::opset1::Convert>(weights, netPrecision);

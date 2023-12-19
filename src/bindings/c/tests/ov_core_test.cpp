@@ -154,7 +154,12 @@ TEST_P(ov_core_test, ov_core_compile_model) {
     ov_core_free(core);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 126283
+TEST_P(ov_core_test, DISABLED_ov_core_compile_model_with_property) {
+#else
 TEST_P(ov_core_test, ov_core_compile_model_with_property) {
+#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));

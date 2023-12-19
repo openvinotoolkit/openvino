@@ -66,7 +66,8 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ov::Shape>& targe
             const size_t start_from = 0;
             const size_t k = 1000;
             const int seed = 1;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, start_from, k, seed);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
+                                                             ov::test::utils::InputGenerateData(start_from, range, k, seed));
         } else if (i == 0) { // bboxes
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         } else { // roisnum
