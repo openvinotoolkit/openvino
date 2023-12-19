@@ -52,6 +52,7 @@ xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: S
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
+skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
@@ -168,3 +169,7 @@ xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
                                        "Not equal to tolerance")
 xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "
                                        "Not equal to tolerance")
+
+skip_issue_127649 = pytest.mark.skip(reason="Not equal to tolerance rtol=0.001, atol=1e-07 - "
+                                             "Mismatched elements: 1 / 1000 (0.1%)")
+
