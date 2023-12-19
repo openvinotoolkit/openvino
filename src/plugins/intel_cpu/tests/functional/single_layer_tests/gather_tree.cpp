@@ -95,13 +95,13 @@ protected:
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
             inp2 =
-                ov::test::utils::make_constant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ov::test::utils::make_constant<float>(netPrecision,
+                ov::test::utils::deprecated::make_constant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ov::test::utils::deprecated::make_constant<float>(netPrecision,
                                                         {inputShape.second.front().at(1)},
                                                         {},
                                                         true,
                                                         maxBeamIndex);
-            inp4 = ov::test::utils::make_constant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            inp4 = ov::test::utils::deprecated::make_constant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }

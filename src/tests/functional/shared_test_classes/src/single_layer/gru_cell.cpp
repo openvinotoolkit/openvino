@@ -82,7 +82,7 @@ void GRUCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ov::test::utils::make_constant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -91,7 +91,7 @@ void GRUCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ov::test::utils::make_constant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -100,7 +100,7 @@ void GRUCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ov::test::utils::make_constant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0], params[1], W, R, B, hidden_size, activations,

@@ -90,11 +90,11 @@ namespace LayerTestsDefinitions {
             seq_lengths_node = param;
         } else if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
                    m_mode == ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
-            seq_lengths_node = ov::test::utils::make_constant<int64_t>(ov::element::i64, inputShapes[2], {}, true,
+            seq_lengths_node = ov::test::utils::deprecated::make_constant<int64_t>(ov::element::i64, inputShapes[2], {}, true,
                                                              static_cast<int64_t>(seq_lengths), 0.f);
         } else {
             std::vector<int64_t> lengths(batch, seq_lengths);
-            seq_lengths_node = ov::test::utils::make_constant(ov::element::i64, inputShapes[2], lengths, false);
+            seq_lengths_node = ov::test::utils::deprecated::make_constant(ov::element::i64, inputShapes[2], lengths, false);
         }
 
         std::shared_ptr<ov::Node> W, R, B;
@@ -109,9 +109,9 @@ namespace LayerTestsDefinitions {
             params.push_back(R_param);
             params.push_back(B_param);
         } else {
-            W = ov::test::utils::make_constant<float>(ngPrc, W_shape, {}, true);
-            R = ov::test::utils::make_constant<float>(ngPrc, R_shape, {}, true);
-            B = ov::test::utils::make_constant<float>(ngPrc, B_shape, {}, true);
+            W = ov::test::utils::deprecated::make_constant<float>(ngPrc, W_shape, {}, true);
+            R = ov::test::utils::deprecated::make_constant<float>(ngPrc, R_shape, {}, true);
+            B = ov::test::utils::deprecated::make_constant<float>(ngPrc, B_shape, {}, true);
         }
 
         auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0], params[1], seq_lengths_node, W, R, B, hidden_size, direction,

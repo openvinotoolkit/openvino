@@ -86,7 +86,7 @@ void NmsRotatedOpTest::SetUp() {
 
 #define CONST_CASE(P, S, H, L)                                                                                             \
     case P:                                                                                                                \
-        inputs.push_back(ov::test::utils::make_constant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true,  \
+        inputs.push_back(ov::test::utils::deprecated::make_constant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true,  \
                             ov::element_type_traits<P>::value_type(H), ov::element_type_traits<P>::value_type(L)));        \
         break;
 

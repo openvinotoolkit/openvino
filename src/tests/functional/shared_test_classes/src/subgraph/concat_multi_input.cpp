@@ -100,7 +100,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         } else {
             auto min_max = (i % 2 == 0) ? 2 : 30;
             auto const_values = generateFloatNumbers(total_size, -min_max, min_max);
-            auto const_node = ov::test::utils::make_constant(ngPrc, {1, total_size}, const_values);
+            auto const_node = ov::test::utils::deprecated::make_constant(ngPrc, {1, total_size}, const_values);
             concatInputs.push_back(const_node);
         }
     }

@@ -26,7 +26,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
         }
-        auto conv_weights = ov::test::utils::make_constant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
+        auto conv_weights = ov::test::utils::deprecated::make_constant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
         auto conv = ov::test::utils::make_convolution(params[0],
                                                       conv_weights,
                                                       precision,
@@ -39,7 +39,7 @@ protected:
                                                       32,
                                                       true);
 
-        auto dw_conv_weights = ov::test::utils::make_constant(precision, std::vector<size_t>{32, 1, 1, 3, 3}, std::vector<float>{}, true);
+        auto dw_conv_weights = ov::test::utils::deprecated::make_constant(precision, std::vector<size_t>{32, 1, 1, 3, 3}, std::vector<float>{}, true);
         auto dw_conv = ov::test::utils::make_group_convolution(conv,
                                                                dw_conv_weights,
                                                                precision,
@@ -48,7 +48,7 @@ protected:
                                                                ov::CoordinateDiff{1, 1},
                                                                std::vector<size_t>{1, 1},
                                                                ov::op::PadType::EXPLICIT);
-        auto bias_const = ov::test::utils::make_constant(precision, {1, 32 , 1, 1}, std::vector<float>{}, true);
+        auto bias_const = ov::test::utils::deprecated::make_constant(precision, {1, 32 , 1, 1}, std::vector<float>{}, true);
         auto bias = std::make_shared<ov::opset10::Add>(dw_conv, bias_const);
         function = std::make_shared<ov::Model>(bias, params, "ConvDWConv");
     }

@@ -30,7 +30,7 @@ std::shared_ptr<Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
         std::vector<size_t> d_shape = {};
         auto defIdxNode = std::make_shared<ov::op::v0::Constant>(indicesType, d_shape, default_index);
         if (with_weights) {
-            auto weightsNode = ov::test::utils::make_constant<float>(dataType, {indices.size()}, {}, true);
+            auto weightsNode = ov::test::utils::deprecated::make_constant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(embTableNode,
                                                                           indicesNode,

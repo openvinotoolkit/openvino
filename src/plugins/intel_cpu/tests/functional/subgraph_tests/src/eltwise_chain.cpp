@@ -105,7 +105,7 @@ protected:
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));
                 inputNodes.push_back(
-                    ov::test::utils::make_constant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
+                    ov::test::utils::deprecated::make_constant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
             }
         }
 

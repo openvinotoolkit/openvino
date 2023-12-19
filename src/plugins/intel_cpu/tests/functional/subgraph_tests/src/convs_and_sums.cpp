@@ -69,7 +69,7 @@ protected:
                                                       {2.106050491333008});
 
         auto Const =
-            ov::test::utils::make_constant(netPrecision, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
+            ov::test::utils::deprecated::make_constant(netPrecision, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
         auto FQ_2 = ngraph::builder::makeFakeQuantize(Const,
                                                       netPrecision,
                                                       255,
@@ -97,7 +97,7 @@ protected:
                                                        {-3.2050728797912598},
                                                        {3.1800332069396973});
 
-        auto Const_ = ov::test::utils::make_constant(netPrecision,
+        auto Const_ = ov::test::utils::deprecated::make_constant(netPrecision,
                                                     {128, 512, 1},
                                                     std::vector<float>{-0.001183388871140778},
                                                     false);

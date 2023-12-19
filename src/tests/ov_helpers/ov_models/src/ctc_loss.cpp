@@ -31,10 +31,10 @@ std::shared_ptr<Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
     for (int i = 0; i < labels.size(); i++)
         std::copy(labels[i].begin(), labels[i].end(), labelsOneD.data() + i * T);
 
-    auto logitsLengthNode = ov::test::utils::make_constant(iType, {N}, logitsLength);
-    auto labelsNode = ov::test::utils::make_constant(iType, {N, T}, labelsOneD);
-    auto labelsLengthNode = ov::test::utils::make_constant(iType, {N}, labelsLength);
-    auto blankIndexNode = ov::test::utils::make_constant<int>(iType, {}, {blankIndex});
+    auto logitsLengthNode = ov::test::utils::deprecated::make_constant(iType, {N}, logitsLength);
+    auto labelsNode = ov::test::utils::deprecated::make_constant(iType, {N, T}, labelsOneD);
+    auto labelsLengthNode = ov::test::utils::deprecated::make_constant(iType, {N}, labelsLength);
+    auto blankIndexNode = ov::test::utils::deprecated::make_constant<int>(iType, {}, {blankIndex});
 
     auto ctcLossNode = std::make_shared<ov::op::v4::CTCLoss>(logitsNode,
                                                              logitsLengthNode,

@@ -67,7 +67,7 @@ public:
                                                       dilation,
                                                       ov::op::PadType::AUTO,
                                                       convOutChannels);
-        auto bias = ov::test::utils::make_constant<float>(ov::element::Type_t::f32,
+        auto bias = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32,
                                                          ov::Shape({1, convOutChannels, 1, 1}),
                                                          {},
                                                          true);

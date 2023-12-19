@@ -74,7 +74,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
             sequenceLenData[b] = len;
         }
 
-        return ov::test::utils::make_constant(ngIdxPrc, {B}, sequenceLenData);
+        return ov::test::utils::deprecated::make_constant(ngIdxPrc, {B}, sequenceLenData);
     }();
 
     // Cap blank index up to C - 1

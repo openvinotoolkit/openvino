@@ -77,12 +77,12 @@ protected:
         if (isFC) {
             ov::Shape weightShape = inShapes;
             std::swap(weightShape[0], weightShape[1]);
-            auto weightsNode = ov::test::utils::make_constant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
+            auto weightsNode = ov::test::utils::deprecated::make_constant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
             auto fq2 = ngraph::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             auto fc = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, false);
             fc->get_rt_info() = getCPUInfo();
             fc->set_friendly_name(nameMatmul);
-            auto biasWeightsNode = ov::test::utils::make_constant(ngPrec, {}, std::vector<float>{0.0f}, true);
+            auto biasWeightsNode = ov::test::utils::deprecated::make_constant(ngPrec, {}, std::vector<float>{0.0f}, true);
             matMul = std::make_shared<ov::op::v1::Add>(fc, biasWeightsNode);
         } else {
             auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
@@ -99,7 +99,7 @@ protected:
 
         // matmul->fq->matmul can cover x8*s8->x8 case
         auto filterWeightsShape = matMul->get_output_shape(0);
-        auto filterWeightsNode = ov::test::utils::make_constant(ov::element::f32, filterWeightsShape, std::vector<float>{}, true);
+        auto filterWeightsNode = ov::test::utils::deprecated::make_constant(ov::element::f32, filterWeightsShape, std::vector<float>{}, true);
         auto fq3 = ngraph::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         // only matmul avx2 support s8*s8 input
         auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);

@@ -72,13 +72,13 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         const ov::Shape weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ov::shape_size(weights_const_shape), 1);
         const auto weights_const =
-            ov::test::utils::make_constant(ov::element::i8, weights_const_shape, weights_const_values);
+            ov::test::utils::deprecated::make_constant(ov::element::i8, weights_const_shape, weights_const_values);
 
         const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
-            ov::test::utils::make_constant(ov::element::f32,
+            ov::test::utils::deprecated::make_constant(ov::element::f32,
                                           {numOutChannels, 1, 1, 1},
                                           std::vector<float>(numOutChannels, 1.0)));
 
@@ -101,7 +101,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                 fq_conv_data,
                 std::make_shared<ov::opset10::Reshape>(
                     weights_multiply,
-                    ov::test::utils::make_constant(
+                    ov::test::utils::deprecated::make_constant(
                         ov::element::i32,
                         {5},
                         std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),

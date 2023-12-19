@@ -47,7 +47,7 @@ void SliceConcatTest::SetUp() {
     ngraph::Output<ngraph::Node> input = params[0];
     if (inputShape[0] != 1 || inputShape.size() != 2) {
         input = std::make_shared<ov::op::v1::Reshape>(params[0],
-            ov::test::utils::make_constant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
+            ov::test::utils::deprecated::make_constant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
     }
 
     ov::Shape constShape = {begin.size()};
@@ -67,7 +67,7 @@ void SliceConcatTest::SetUp() {
 
     ngraph::Shape const_shape(inputShape.size(), 1);
     const_shape.back() = 32;
-    auto const_input = ov::test::utils::make_constant(ngPrc, const_shape, std::vector<float>{}, true);
+    auto const_input = ov::test::utils::deprecated::make_constant(ngPrc, const_shape, std::vector<float>{}, true);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_input, ss}, inputShape.size() - 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "StridedSliceConcatTest");

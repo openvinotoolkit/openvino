@@ -35,7 +35,7 @@ void ConcatFirstInputTest::SetUp() {
     for (auto&& shape : inputShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto const_second_param = ov::test::utils::make_constant(ngPrc, {1, 8}, std::vector<float>{-1.0f});
+    auto const_second_param = ov::test::utils::deprecated::make_constant(ngPrc, {1, 8}, std::vector<float>{-1.0f});
     auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{params[0], const_second_param}, 1);
     auto relu = std::make_shared<ov::op::v0::Relu>(concat);
 

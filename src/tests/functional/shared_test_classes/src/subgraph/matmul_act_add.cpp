@@ -36,7 +36,7 @@ void MatMulActAddTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{ 1, inputSize })};
 
-    auto mul_const = ov::test::utils::make_constant<float>(ngPrc, { outFormShapes[1], inputSize },
+    auto mul_const = ov::test::utils::deprecated::make_constant<float>(ngPrc, { outFormShapes[1], inputSize },
         ov::test::utils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], mul_const, false, true);

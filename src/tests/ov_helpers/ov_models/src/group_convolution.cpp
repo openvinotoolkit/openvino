@@ -36,7 +36,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode =
-        ov::test::utils::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     return makeGroupConvolution(in,
                                 filterWeightsNode,
@@ -64,7 +64,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
         std::make_shared<ov::op::v1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = ov::test::utils::make_constant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {

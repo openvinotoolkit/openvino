@@ -29,7 +29,8 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData
         }
     }
 
-    auto sequenceMaskNode = ov::test::utils::make_constant(inputData.get_element_type(), {T, B}, sequenceMaskData);
+    auto sequenceMaskNode =
+        ov::test::utils::deprecated::make_constant(inputData.get_element_type(), {T, B}, sequenceMaskData);
 
     auto CTCGreedyDecoderNode =
         std::make_shared<ov::op::v0::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);

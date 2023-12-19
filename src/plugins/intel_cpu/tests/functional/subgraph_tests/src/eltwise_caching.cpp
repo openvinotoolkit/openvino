@@ -178,7 +178,7 @@ protected:
                                                           256, fqInputShapes[1]);
         }
         if (needReshape) {
-            auto reshapeConstNode = ov::test::utils::make_constant(ov::element::Type(ov::element::Type_t::i32),
+            auto reshapeConstNode = ov::test::utils::deprecated::make_constant(ov::element::Type(ov::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }

@@ -36,7 +36,7 @@ void BroadcastPowerTest::SetUp() {
             inputs_shapes[1]);
     auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_pattern, false);
 
-    auto const_mult2 = ov::test::utils::make_constant<float>(ngPrc, {}, {-1.0f});
+    auto const_mult2 = ov::test::utils::deprecated::make_constant<float>(ngPrc, {}, {-1.0f});
     auto sum = ov::test::utils::make_eltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
     auto reshape_pattern_2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},

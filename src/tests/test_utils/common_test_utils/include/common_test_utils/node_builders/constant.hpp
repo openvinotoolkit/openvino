@@ -12,6 +12,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
+namespace deprecated {
 // Legacy implementation
 // Remove after transition to new one
 template <typename T>
@@ -67,6 +68,7 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
     }
 #undef makeNode
 }
+}  // namespace deprecated
 
 std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
                                         const ov::Shape& shape,

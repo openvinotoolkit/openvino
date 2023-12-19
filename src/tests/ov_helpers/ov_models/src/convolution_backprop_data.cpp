@@ -31,7 +31,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
     std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode =
-        ov::test::utils::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     return makeConvolutionBackpropData(in,
                                        filterWeightsNode,
@@ -78,7 +78,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = ov::test::utils::make_constant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {
@@ -105,7 +105,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
     std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode =
-        ov::test::utils::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     auto deconv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(in,
                                                                         filterWeightsNode,
@@ -130,7 +130,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = ov::test::utils::make_constant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {

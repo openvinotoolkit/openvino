@@ -211,7 +211,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB =
-            ov::test::utils::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
+            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
@@ -484,7 +484,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         std::shared_ptr<ov::Node> inputWeights =
-            ov::test::utils::make_constant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
+            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);

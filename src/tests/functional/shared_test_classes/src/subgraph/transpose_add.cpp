@@ -42,7 +42,7 @@ void TransposeAdd::SetUp() {
         ngraph::Shape{permute_order.size()}, permute_order);
     auto transpose_in = std::make_shared<ov::op::v1::Transpose>(params[0], transpose_in_params);
 
-    auto add_const = ov::test::utils::make_constant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);
+    auto add_const = ov::test::utils::deprecated::make_constant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);
     auto add = std::make_shared<ov::op::v1::Add>(transpose_in, add_const);
 
     function = std::make_shared<ngraph::Function>(add, params, "transpose_add");

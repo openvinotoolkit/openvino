@@ -68,7 +68,7 @@ protected:
         // ov::Model with only a transpose node
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(testPrec, ov::Shape(testShape))};
         auto order = std::vector<int32_t>{0, 3, 1, 2};
-        auto constOrder = ov::test::utils::make_constant(ov::element::i32, {order.size()}, order);
+        auto constOrder = ov::test::utils::deprecated::make_constant(ov::element::i32, {order.size()}, order);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 

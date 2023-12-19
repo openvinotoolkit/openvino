@@ -39,7 +39,7 @@ void InputSplitConcatTest::SetUp() {
     auto relu1 = std::make_shared<ov::op::v0::Relu>(split->output(0));
 
     auto const_vals = ov::test::utils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
-    auto constant = ov::test::utils::make_constant(ngPrc, inputShape, const_vals);
+    auto constant = ov::test::utils::deprecated::make_constant(ngPrc, inputShape, const_vals);
     auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{constant, split->output(1)}, 1);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(concat);
 

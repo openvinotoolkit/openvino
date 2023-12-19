@@ -18,7 +18,7 @@ std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
     std::shared_ptr<ov::Node> input;
     switch (inputType) {
     case ov::test::utils::InputLayerType::CONSTANT: {
-        input = ov::test::utils::make_constant<float>(type, shape, {}, true);
+        input = ov::test::utils::deprecated::make_constant<float>(type, shape, {}, true);
         break;
     }
     case ov::test::utils::InputLayerType::PARAMETER: {

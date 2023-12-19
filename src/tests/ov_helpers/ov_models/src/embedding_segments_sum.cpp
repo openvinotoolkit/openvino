@@ -33,7 +33,7 @@ std::shared_ptr<Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
     if (with_default_index) {
         auto defIdxNode = std::make_shared<ov::op::v0::Constant>(indicesType, shape_0, default_index);
         if (with_weights) {
-            auto weightsNode = ov::test::utils::make_constant<float>(dataType, {indices.size()}, {}, true);
+            auto weightsNode = ov::test::utils::deprecated::make_constant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<ov::op::v3::EmbeddingSegmentsSum>(embTableNode,
                                                                         indicesNode,

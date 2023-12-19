@@ -82,7 +82,7 @@ void ConstConvConcatTest::SetUp() {
     std::vector<size_t> outFormShapes =  {1,  outputChannels * widthAfterConv };
 
     auto const_values = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -0.2f, 0.2f);
-    auto constant = ov::test::utils::make_constant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
+    auto constant = ov::test::utils::deprecated::make_constant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{constant, conv}, 3);
 
     auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
