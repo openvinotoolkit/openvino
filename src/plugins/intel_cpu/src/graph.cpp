@@ -459,39 +459,35 @@ void Graph::ResolveEdgeConflicts() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
-    auto tryReuseReorder = [&](EdgePtr& edge) {
-        bool reused = false;
-        NodePtr parent = edge->getParent();
-        NodePtr child = edge->getChild();
+    auto reuseReorderForReadonlyChildren = [&](EdgePtr& edge) {
+        if (edge->inPlace(Edge::LOOK_DOWN))
+            return false;
 
-        // check parent whether has reorder child
-        const auto parentEdges = parent->getChildEdgesAtPort(edge->getInputNum());
-        const auto childPortConfig = &child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[edge->getOutputNum()];
-        const auto childReorderDesc = childPortConfig->getMemDesc()->as<BlockedMemoryDesc>();
-        for (size_t n = 0; n < parentEdges.size(); n++) {
-            auto siblingEdge = parentEdges[n];
+        const auto& dstDesc = edge->getOutputDesc();
+        for (auto siblingEdge : edge->getParent()->getChildEdgesAtPort(edge->getInputNum())) {
             if (siblingEdge == edge)
                 continue;
-            const auto siblingReorder = siblingEdge->getChild();
-            if (siblingReorder->getType() != Type::Reorder)
+            auto reorder = std::dynamic_pointer_cast<node::Reorder>(siblingEdge->getChild());
+            if (!reorder)
                 continue;
-            const auto siblingReorderPortConfig = &siblingReorder->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0];
-            const auto siblingReorderDesc = siblingReorderPortConfig->getMemDesc()->as<BlockedMemoryDesc>();
-            if (siblingReorderDesc->isCompatible(*childReorderDesc, BlockedMemoryDesc::FULL_MASK) &&
-                childPortConfig->inPlace() == -1 &&
-                siblingReorderPortConfig->inPlace() == -1) {
-                edge->drop();
-                reused = true;
+            if (!reorder->getOutput().isCompatible(dstDesc))
+                continue;
+            auto reorder_consumers = reorder->getChildEdgesAtPort(0);
+            if (std::any_of(reorder_consumers.begin(), reorder_consumers.end(), [](EdgePtr e) {
+                    return e->inPlace(Edge::LOOK_DOWN);
+                }))
+                continue;
 
-                EdgePtr newEdge(new Edge(siblingReorder, child, 0, edge->getOutputNum()));
-                child->parentEdges.push_back(newEdge);
-                siblingReorder->childEdges.push_back(newEdge);
-                graphEdges.push_back(newEdge);
-                break;
-            }
+            auto dstNode = edge->getChild();
+            EdgePtr newEdge(new Edge(reorder, dstNode, 0, edge->getOutputNum()));
+            dstNode->parentEdges.push_back(newEdge);
+            reorder->childEdges.push_back(newEdge);
+            graphEdges.push_back(newEdge);
+            edge->drop();
+            return true;
         }
 
-        return reused;
+        return false;
     };
 
     auto updateEdge = [&](ptrdiff_t& i) {
@@ -529,7 +525,7 @@ void Graph::ResolveEdgeConflicts() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                if (!tryReuseReorder(edge))
+                if (!reuseReorderForReadonlyChildren(edge))
                     insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
             }
             updateEdge(i);

@@ -93,7 +93,7 @@ public:
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
-std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& node);
+std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
