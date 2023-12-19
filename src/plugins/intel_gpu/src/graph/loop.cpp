@@ -810,6 +810,7 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
     } else {
         const size_t part_length = concat_mem_shape.at(axis) / num_iters;
+        const size_t inner_axis = axis + 1;
         auto output_shape = concat_mem_shape;
         auto out_data = pointers_to_data.data();
         output_shape[axis] = part_length;
@@ -821,14 +822,14 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
 
         // Format of concat_layout is invalid here : No mixed order
         size_t continuous_size = 1;
-        size_t inner_axis = axis + 1;
         for (auto iter = inner_axis ; iter < dims ; ++iter) {
             continuous_size *= ((output_shape.size() > iter) ? output_shape[iter] : 1);
         }
 
+        // Set stride values of inner axes to get a continuous copy size
         auto strides = ov::Strides(lower_bounds.size(), 1);
-        if (inner_axis < dims)
-            strides[inner_axis] = continuous_size;
+        for (size_t iter = inner_axis; iter < dims ; ++iter)
+            strides[iter] = upper_bounds[iter];
 
         const auto strides_copy_size = elem_size * continuous_size;
         const auto out_last = std::next(out_data, num_iters);
