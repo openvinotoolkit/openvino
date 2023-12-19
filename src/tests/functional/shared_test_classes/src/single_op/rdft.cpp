@@ -24,10 +24,6 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     std::tie(input_shape, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
 
     auto elemType = model_type;
-    bool inPrcSigned = elemType.is_signed();
-    int32_t data_start_from;
-    uint32_t data_range;
-    int32_t resolution;
 
     ov::test::utils::InputGenerateData inGenData;
     if (elemType.is_real()) {
