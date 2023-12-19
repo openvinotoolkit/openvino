@@ -10,8 +10,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "unsqueeze_shape_inference.hpp"
+#include "validation_util.hpp"
 
 ov::op::v0::Unsqueeze::Unsqueeze(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& axes)
     : Op({data, axes}) {
@@ -74,9 +74,7 @@ bool ov::op::v0::Unsqueeze::evaluate_upper(ov::TensorVector& output_values) cons
 bool ov::op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound())
         return false;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::default_label_evaluator(this, output_labels);
 }
 
 bool ov::op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

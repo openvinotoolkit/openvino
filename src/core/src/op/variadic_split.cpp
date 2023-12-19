@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
+#include "validation_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 namespace ov {
@@ -121,9 +121,8 @@ bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return variadic_split::has_axis_and_splits_bound_set(this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return variadic_split::has_axis_and_splits_bound_set(this) &&
+           ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v1
 }  // namespace op

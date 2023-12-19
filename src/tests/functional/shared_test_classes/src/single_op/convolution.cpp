@@ -19,7 +19,7 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
     std::vector<InputShape> shapes;
     std::string targetDevice;
     std::tie(conv_params, model_type, shapes, targetDevice) = obj.param;
-    ngraph::op::PadType pad_type;
+    ov::op::PadType pad_type;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t conv_out_channels;

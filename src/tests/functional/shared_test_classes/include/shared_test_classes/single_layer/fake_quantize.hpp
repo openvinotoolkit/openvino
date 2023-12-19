@@ -32,7 +32,7 @@ typedef std::tuple<
         std::vector<size_t>,            // fake quantize inputs shape
         std::vector<float>,             // fake quantize (inputLow, inputHigh, outputLow, outputHigh) or empty for random
         std::vector<float>,             // input generator data (low, high, resolution) or empty for default
-        ngraph::op::AutoBroadcastSpec   // fake quantize broadcast mode
+        ov::op::AutoBroadcastSpec   // fake quantize broadcast mode
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,

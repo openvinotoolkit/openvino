@@ -33,7 +33,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
                 std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
                 normalizeVariance,
                 1e-9,
-                op::MVNEpsMode::INSIDE_SQRT);
+                ov::op::MVNEpsMode::INSIDE_SQRT);
     }
     mvn->set_friendly_name("output");
     auto& rtInfo = mvn->get_rt_info();
@@ -78,7 +78,7 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
     std::shared_ptr<Node> mvn;
     if (opset_version == 2) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MVN>>(
-            op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
+            ov::op::v0::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
             dequantizationAfter.empty() ? precision : element::f32);
     } else if (opset_version == 6) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
                 std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
                 normalizeVariance,
                 1e-9,
-                op::MVNEpsMode::INSIDE_SQRT),
+                ov::op::MVNEpsMode::INSIDE_SQRT),
             dequantizationAfter.empty() ? precision : element::f32);
     }
     auto& rtInfo = mvn->get_rt_info();

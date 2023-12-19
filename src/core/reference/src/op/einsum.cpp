@@ -759,7 +759,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
         std::vector<int64_t> unsqueeze_axis2;
         for (const auto& sep_label2 : separate_labels2) {
             OPENVINO_ASSERT(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
-            auto label_dims = label_to_dim_map2[sep_label2];
+            const auto& label_dims = label_to_dim_map2[sep_label2];
             for (size_t dim_ind = 0; dim_ind < label_dims.size(); ++dim_ind) {
                 unsqueeze_axis1.push_back(unsqueeze_dim + static_cast<int64_t>(dim_ind));
             }

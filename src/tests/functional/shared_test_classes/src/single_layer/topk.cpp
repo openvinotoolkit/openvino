@@ -12,8 +12,8 @@ namespace LayerTestsDefinitions {
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     int64_t keepK, axis;
-    ngraph::opset4::TopK::Mode mode;
-    ngraph::opset4::TopK::SortType sort;
+    ov::op::v3::TopK::Mode mode;
+    ov::op::v3::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
@@ -33,20 +33,20 @@ void TopKLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     int64_t keepK, axis;
-    ngraph::opset4::TopK::Mode mode;
-    ngraph::opset4::TopK::SortType sort;
+    ov::op::v3::TopK::Mode mode;
+    ov::op::v3::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
-    auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-            std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+    auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+    auto topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(
+            std::make_shared<ov::op::v3::TopK>(params[0], k, axis, mode, sort));
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < topk->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");
 }

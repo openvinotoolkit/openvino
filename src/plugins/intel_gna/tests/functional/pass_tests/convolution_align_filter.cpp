@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -68,22 +69,22 @@ protected:
             std::accumulate(std::begin(splitInputShape), std::end(splitInputShape), 1, std::multiplies<size_t>());
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
         auto pattern1 =
-            std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, splitInputShape);
-        auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);
+            std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, splitInputShape);
+        auto reshape1 = std::make_shared<ov::opset8::Reshape>(params[0], pattern1, false);
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(reshape1, ngPrc, 2, 0);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        auto relu1 = std::make_shared<ngraph::opset8::Relu>(split->output(0));
-        auto relu2 = std::make_shared<ngraph::opset8::Relu>(split->output(1));
+        auto relu1 = std::make_shared<ov::opset8::Relu>(split->output(0));
+        auto relu2 = std::make_shared<ov::opset8::Relu>(split->output(1));
 
-        auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{relu1, relu2}, 0);
-        auto pattern2 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                                                                   ngraph::Shape{2},
-                                                                   ngraph::Shape{1, in_total_dims_size});
-        auto reshape2 = std::make_shared<ngraph::opset8::Reshape>(concat, pattern2, false);
+        auto concat = std::make_shared<ov::opset8::Concat>(ngraph::OutputVector{relu1, relu2}, 0);
+        auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                               ngraph::Shape{2},
+                                                               ngraph::Shape{1, in_total_dims_size});
+        auto reshape2 = std::make_shared<ov::opset8::Reshape>(concat, pattern2, false);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(reshape2)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
         function = std::make_shared<ngraph::Function>(results, params, "ConvAlignFilter");
         functionRefs = ngraph::clone_function(*function);
     }
