@@ -40,6 +40,7 @@ void register_implementations() {
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
     REGISTER_OCL(group_normalization);
+    REGISTER_OCL(kv_cache);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);

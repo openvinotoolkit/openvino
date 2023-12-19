@@ -3,6 +3,8 @@
 //
 #include "prepare_buffer_fusing.h"
 #include "pooling_inst.h"
+#include "kv_cache_inst.h"
+#include "gather_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -447,7 +449,7 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layout(0).data_padding;
-        if (node->is_type<read_value>())
+        if (node->is_type<read_value>() || node->is_type<kv_cache>())
             return true;
 
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
@@ -619,6 +621,63 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+        });
+        program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
+            auto kv_out_layout = node.get_output_layout();
+
+            program_node* rv_prim = nullptr;
+            program_node* gather_prim = nullptr;
+            if (node.get_dependency(0).is_type<read_value>()) {
+                rv_prim = &node.get_dependency(0);
+            } else {
+                if (node.get_dependency(0).is_type<gather>()) {
+                    gather_prim = &node.get_dependency(0);
+                } else {
+                    return;
+                }
+
+                if (gather_prim->get_dependency(0).is_type<read_value>()) {
+                    rv_prim = &gather_prim->get_dependency(0);
+                }
+            }
+
+            if (!rv_prim)
+                return;
+
+            if (kv_out_layout.data_type != rv_prim->get_output_layout().data_type)
+                return;
+
+            auto concat_axis_legacy = node.get_primitive()->concat_axis;
+            if (concat_axis_legacy >= 2) {
+                auto spatial_axis = concat_axis_legacy - 2;
+                // Default and minimum number of dimensions is 4
+                auto spatial_size = std::max<size_t>(kv_out_layout.get_partial_shape().size(), 4) - 2;
+                concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
+            }
+
+            if (kv_out_layout.is_dynamic()) {
+                // set dynamic pad dims for shape agnostic kernel
+                auto info_dynamic_pad = tensor(0).sizes();
+                info_dynamic_pad[concat_axis_legacy] = 1;
+                auto dynamic_pad_mask = tensor(info_dynamic_pad);
+                kv_out_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                node.set_output_layout(kv_out_layout);
+                node.can_share_buffer(false);
+
+                auto update_dep = [&dynamic_pad_mask](program_node* dep) {
+                    auto prev_layout = dep->get_output_layout();
+                    prev_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                    dep->set_output_layout(prev_layout);
+                    dep->can_share_buffer(false);
+                };
+
+                if (rv_prim) {
+                    update_dep(rv_prim);
+                }
+                if (gather_prim) {
+                    update_dep(gather_prim);
+                }
+            }
         });
         program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
             // Current implementation allows to avoid copy on read_value primitive
