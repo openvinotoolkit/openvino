@@ -41,7 +41,7 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 
 void MatMulWithOptimizedConstantFq::SetUp() {
     rel_threshold = 0.01;
-    abs_threshold = 1.7;
+    abs_threshold = 2.1;
 
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;

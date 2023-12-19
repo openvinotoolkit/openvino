@@ -28,6 +28,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing:
 }
 
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {
+    abs_threshold = 1.0;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

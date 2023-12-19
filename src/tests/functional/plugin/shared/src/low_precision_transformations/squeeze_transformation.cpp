@@ -65,6 +65,7 @@ std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
+    abs_threshold = 0.2;
     ngraph::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;

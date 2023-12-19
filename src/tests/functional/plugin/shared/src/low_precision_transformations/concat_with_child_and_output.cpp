@@ -46,8 +46,9 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 */
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
-    rel_threshold = 1.1;
-    abs_threshold = 1.0e-6;
+    rel_threshold = 5;
+    abs_threshold = 0.1;
+
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;

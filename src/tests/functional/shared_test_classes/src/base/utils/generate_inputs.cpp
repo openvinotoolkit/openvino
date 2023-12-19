@@ -3,6 +3,8 @@
 //
 
 #include <math.h>
+#include <algorithm>
+#include <functional>
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
@@ -325,25 +327,42 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
     }
 }
 
-bool get_const_scalar_value(const std::shared_ptr<ov::Node>& node, float& value) {
+using GetItemF = std::function<bool (const std::vector<float>&, float&)>;
+
+bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const GetItemF& get_item_func) {
     auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!const_node)
         return false;
 
     auto const_value = const_node->cast_vector<float>();
-    // check if it is not scalar
-    if (const_value.size() > 1)
-        return false;
+    return get_item_func(const_value, value);
 
-    value = const_value[0];
+    return true;
+}
+
+bool get_min_value(const std::vector<float>& v, float& value) {
+    const auto it = std::min_element(v.begin(), v.end());
+    if (it == v.end()) {
+        return false;
+    }
+    value = *it;
+    return true;
+}
+
+bool get_max_value(const std::vector<float>& v, float& value) {
+    const auto it = std::max_element(v.begin(), v.end());
+    if (it == v.end()) {
+        return false;
+    }
+    value = *it;
     return true;
 }
 
 bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
-    if (!get_const_scalar_value(node->get_input_node_shared_ptr(1), min_value))
+    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
         return false;
 
-    if (!get_const_scalar_value(node->get_input_node_shared_ptr(2), max_value))
+    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
         return false;
 
     //std::cout << "[EMUTEX DEBUG] [get_fq_scalar_range] min_value " << min_value << " max_value " << max_value << std::endl;

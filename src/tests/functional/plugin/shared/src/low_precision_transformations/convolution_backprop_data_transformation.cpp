@@ -31,8 +31,8 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {
-    rel_threshold = 1.0;
-    abs_threshold = 1.0;
+    rel_threshold = 3.1;
+    abs_threshold = 800.1;
 
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;

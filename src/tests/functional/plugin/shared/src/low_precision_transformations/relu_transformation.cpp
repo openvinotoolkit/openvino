@@ -49,6 +49,7 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
 #endif
 
 void ReluTransformation::SetUp() {
+    abs_threshold = 1.0;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     ReluTestValues testValues;

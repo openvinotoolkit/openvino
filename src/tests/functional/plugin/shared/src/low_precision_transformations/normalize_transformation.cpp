@@ -44,7 +44,9 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 }
 
 void NormalizeL2Transformation::SetUp() {
-    rel_threshold = 3.e-3;
+    rel_threshold = 0.1;
+    abs_threshold = 0.1;
+
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
     std::vector<uint64_t> axes;

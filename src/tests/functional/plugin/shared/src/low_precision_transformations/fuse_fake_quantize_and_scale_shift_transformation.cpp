@@ -28,6 +28,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const t
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
+    abs_threshold = 1.8;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

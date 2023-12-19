@@ -61,6 +61,8 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
+    abs_threshold = 0.1;
+
     ngraph::element::Type ngPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;

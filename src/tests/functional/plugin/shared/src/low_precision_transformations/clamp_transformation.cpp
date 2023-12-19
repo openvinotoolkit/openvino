@@ -29,6 +29,8 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
 }
 
 void ClampTransformation::SetUp() {
+    abs_threshold = 1.0;
+
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

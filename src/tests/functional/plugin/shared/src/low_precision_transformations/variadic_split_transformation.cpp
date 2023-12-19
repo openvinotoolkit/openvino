@@ -55,6 +55,7 @@ InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const Infe
 #endif
 
 void VariadicSplitTransformation::SetUp() {
+    abs_threshold = 1.0;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

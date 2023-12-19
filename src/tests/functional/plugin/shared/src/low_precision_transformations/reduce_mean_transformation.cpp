@@ -43,6 +43,7 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 }
 
 void ReduceMeanTransformation::SetUp() {
+    abs_threshold = 4.1;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

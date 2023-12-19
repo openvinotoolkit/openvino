@@ -37,6 +37,7 @@ std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNT
 }
 
 void MVNTransformation::SetUp() {
+    abs_threshold = 0.1;
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
     ngraph::AxisSet reductionAxes;

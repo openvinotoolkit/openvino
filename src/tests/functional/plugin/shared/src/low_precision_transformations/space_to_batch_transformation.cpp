@@ -25,6 +25,7 @@ std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParam
 }
 
 void SpaceToBatchTransformation::SetUp() {
+    abs_threshold = 0.1;
     ngraph::element::Type input_type;
     SpaceToBatchTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();

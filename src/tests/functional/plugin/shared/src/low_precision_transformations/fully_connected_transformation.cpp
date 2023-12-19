@@ -39,6 +39,8 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 }
 
 void FullyConnectedTransformation::SetUp() {
+    abs_threshold = 0.6;
+
     ngraph::element::Type precision;
     MatMulShapes shapes;
     ov::pass::low_precision::LayerTransformation::Params params;

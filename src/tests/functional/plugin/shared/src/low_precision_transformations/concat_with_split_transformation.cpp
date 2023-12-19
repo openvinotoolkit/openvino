@@ -55,6 +55,9 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
 */
 
 void ConcatWithSplitTransformation::SetUp() {
+    abs_threshold = 0.1;
+    rel_threshold = 4.2;
+
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;

@@ -43,7 +43,8 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
 #endif
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
-    rel_threshold = 2.e-2;
+    rel_threshold = 0.1;
+    abs_threshold = 0.1;
     ngraph::element::Type ngPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

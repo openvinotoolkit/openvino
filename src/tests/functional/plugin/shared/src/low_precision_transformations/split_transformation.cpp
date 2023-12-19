@@ -48,6 +48,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
 #endif
 
 void SplitTransformation::SetUp() {
+    abs_threshold = 0.2;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

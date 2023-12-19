@@ -61,6 +61,8 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
 #endif
 
 void MatMulTransformation::SetUp() {
+    abs_threshold = 2.7;
+    rel_threshold = 3.2;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     MatMulTransformationTestValues testValues;

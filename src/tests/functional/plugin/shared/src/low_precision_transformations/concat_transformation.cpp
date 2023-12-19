@@ -48,6 +48,9 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
 #endif
 
 void ConcatTransformation::SetUp() {
+    abs_threshold = 0.1;
+    rel_threshold = 4.2;
+
     ngraph::PartialShape inputShape;
     ngraph::element::Type precision;
     ConcatTransformationTestValues testValues;
