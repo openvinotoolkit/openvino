@@ -161,7 +161,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     const char * comma = "";
     auto node_id = [](Node & node) {
         auto id = node.getName();
-        if (id.size() > 20)
+        if (id.size() > 40 && node.getExecIndex() > 0)
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
         return id;
     };

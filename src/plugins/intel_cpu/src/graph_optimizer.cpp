@@ -2529,15 +2529,15 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
     //          As in the first case, we also replace Transpose+Reorder pattern with a new Reorder.
     //          Additionally, we insert another Reorder that performs the conversion from the input precision (inPrec)
     //          to the output precision (outPrec)
-    auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& parentNode, std::shared_ptr<Node>& childNode) {
-        auto parentParentNode = parentNode->getParentEdgesAtPort(0)[0]->getParent();
-        auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
-        auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
+    auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& trans_node, std::shared_ptr<Node>& reorder_node) {
+        //      pp ===> trans_node ===> reorder_node ===> cc0, cc1, ...
+        // is turned into
+        //      pp ===> reorder_layout ===> [reorder_convert] ==> cc0, cc1, ...
+        auto parentParentNode = trans_node->getParentEdgesAtPort(0)[0]->getParent();
+        auto parentParenPort = trans_node->getParentEdgesAtPort(0)[0]->getInputNum();
+        auto parentParentConstNode = trans_node->getParentEdgesAtPort(1)[0]->getParent();
 
-        // pp => transpose0 => reorder0 => cc0, cc1, ...
-        // Note: pp is abbrev of parentParentNode
-        //       cc0, cc1, ... are childChildNodes of same parent reorder node.
-        auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
+        auto remEdge = trans_node->getParentEdgesAtPort(1)[0];
         remEdge->drop();
         auto& edges = graph.GetEdges();
         for (auto it = edges.begin(); it != edges.end(); it++) {
@@ -2551,20 +2551,25 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
         // to prevent inPlace conflict we must check that the memory reference is unidirectional or
         // inPlace memory is not used
-        const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
-        const auto& childEdges = childNode->getChildEdgesAtPort(0);
+        const auto parentInPlace = trans_node->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+        const auto& childEdges = reorder_node->getChildEdgesAtPort(0);
+
+        // hold references to all children
+        std::vector<std::pair<NodePtr, int>> reorderChildren;
+        for (auto ccEdge : childEdges)
+            reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
+
         const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(),
             [](const EdgePtr& edge){ return edge->inPlace(Edge::LOOK_DOWN); });
 
         bool isOptimized = !(parentInPlace && childInPlace);
 
-        graph.DropNode(parentNode);
-        graph.DropNode(childNode);
+        graph.DropNode(trans_node);
+        graph.DropNode(reorder_node);
 
-        // after transpose0 & reorder0 were dropped
-        //      pp => cc0,cc1, ...
-        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
-        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        // pp ===> cc0, cc1, ...
+        auto inDesc = trans_node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+        auto outDesc = reorder_node->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
 
         auto inPrec = inDesc->getPrecision();
         auto outPrec = outDesc->getPrecision();
@@ -2575,91 +2580,75 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         std::string reorderlayerName = parentParentNode->getName() + "_" +
                 Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
 
-        DEBUG_LOG("mergeTransposeAndReorder ", parentNode->getName(), " and ", childNode->getName(), " -> ", reorderlayerName);
-
-        EdgePtr edge;
-        for (auto &childEdge : parentParentNode->getChildEdges()) {
-            if (childEdge.lock()->getChild() == childChildNode) {
-                edge = childEdge.lock();
-                break;
-            }
-        }
-        if (!edge) {
-            OPENVINO_THROW("Transpose node '", parentNode->getName(), "' has invalid edges.");
-        }
+        DEBUG_LOG("mergeTransposeAndReorder ", trans_node->getName(), " and ", reorder_node->getName(), " -> ", reorderlayerName);
 
         std::vector<int> srcPerm;
-        auto configReorder = [&]() {
-            // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
-            // cannot be optimized
-            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
-            // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
-            auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
-            if (transposeNode == nullptr) {
-                OPENVINO_THROW("[CPU] parent node of type:",
-                               parentNode->getTypeStr(),
-                               " with name: ",
-                               parentNode->getName(),
-                               " is not a transpose node");
+        // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
+        // cannot be optimized
+        // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
+        // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
+        auto* transposeNode = dynamic_cast<Transpose*>(trans_node.get());
+        if (transposeNode == nullptr) {
+            OPENVINO_THROW("[CPU] parent node of type:",
+                            trans_node->getTypeStr(),
+                            " with name: ",
+                            trans_node->getName(),
+                            " is not a transpose node");
+        }
+        auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+        auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
+        if (!isOptimized || inOrder.size() > outOrder.size()) {
+            isOptimized = false;
+            // inDesc should be permuted before calling reorder
+            auto & ord = transposeNode->getOrder();
+            srcPerm = std::vector<int>(ord.size());
+            for (size_t i = 0; i < ord.size(); i++) {
+                srcPerm[ord[i]] = i;
             }
-            auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
-            auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
-            if (!isOptimized || inOrder.size() > outOrder.size()) {
-                isOptimized = false;
-                // inDesc should be permuted before calling reorder
-                auto & ord = transposeNode->getOrder();
-                srcPerm = std::vector<int>(ord.size());
-                for (size_t i = 0; i < ord.size(); i++) {
-                    srcPerm[ord[i]] = i;
-                }
-            }
+        }
+        auto reorder_layout = std::make_shared<node::Reorder>(reorderlayerName, graph.getGraphContext());
+        reorder_layout->setDescs(*reorderInDesc, *reorderOutDesc);
+        reorder_layout->setOptimized(isOptimized);
+        reorder_layout->setSrcPermutation(srcPerm);
+        graph.GetNodes().push_back(reorder_layout);
+
+        auto connect = [&](const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port) {
+            auto new_edge = std::make_shared<Edge>(parent, child, pr_port, ch_port);
+            graph.GetEdges().push_back(new_edge);
+            parent->addEdge(new_edge);
         };
 
-        configReorder();
+        // remove all edges from pp to cc0,cc1,...
+        for (auto& ce : parentParentNode->getChildEdgesAtPort(parentParenPort))
+            graph.RemoveEdge(ce);
 
-        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, isOptimized, srcPerm);
+        connect(parentParentNode, reorder_layout, parentParenPort, 0);
 
         // case 2
-        auto finalReorder = reorderNode;
-        if (inPrec != outPrec) {
-            auto reorderInDesc2 = reorderOutDesc;
-            auto reorderOutDesc2 = outDesc;
+        auto reorder_last = reorder_layout;
+        if (reorderOutDesc->getPrecision() != outDesc->getPrecision()) {
+            auto childChildNode = reorder_node->getChildEdgeAt(0)->getChild();
+            std::string reorderLayerName2 = reorder_layout->getName() + "_" +
+                                            Reorder::getReorderArgs(*reorderOutDesc, *outDesc) + "_" +
+                                            childChildNode->getName();
 
-            std::string reorderLayerName2 = reorderNode->getName() + "_" +
-                                    Reorder::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
+            reorder_last = std::make_shared<node::Reorder>(reorderLayerName2, graph.getGraphContext());
+            reorder_last->setDescs(*reorderOutDesc, *outDesc);
+            reorder_last->setOptimized(false);
+            reorder_last->setSrcPermutation(srcPerm);
+            graph.GetNodes().push_back(reorder_last);
 
-            finalReorder = graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
+            connect(reorder_layout, reorder_last, 0, 0);
         }
-        // Graph::InsertReorder() only insert one reorder into one edge:
-        // all other children cc1,... still connect to pp directly:
-        //      pp => reorder1 => [reorder2] => cc0
-        //      pp => cc1, ...
-        // now connect the rest of them to the final reorder too:
-        //      pp => reorder1 => [reorder2] => cc0,cc1,...
-        for (auto& ce : childEdges) {
-            // skip cc0
-            if (edge->getChild() == ce->getChild() && edge->getOutputNum() == ce->getOutputNum())
-                continue;
 
-            EdgePtr pp2cc;
-            for (auto &cce : parentParentNode->getChildEdges()) {
-                if (cce.lock()->getChild() == ce->getChild()) {
-                    pp2cc = cce.lock();
-                    break;
-                }
-            }
-            if (!pp2cc)
-                continue;
+        // connect last reorder to all children
+        for (auto& cc : reorderChildren)
+            connect(reorder_last, cc.first, 0, cc.second);
 
-            // drop old edge
-            pp2cc->drop();
-
-            // connect to final reorder
-            EdgePtr new_edge(new Edge(finalReorder, pp2cc->getChild(), 0, pp2cc->getOutputNum()));
-            graph.GetEdges().push_back(new_edge);
-            new_edge->getChild()->parentEdges.push_back(new_edge);
-            new_edge->getParent()->childEdges.push_back(new_edge);
-        }
+        // initalize new nodes
+        graph.InsertNode(nullptr, nullptr, reorder_layout, 0, 0, true);
+        if (reorder_last != reorder_layout)
+            graph.InsertNode(nullptr, nullptr, reorder_last, 0, 0, true);
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
