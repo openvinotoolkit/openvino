@@ -550,14 +550,12 @@ ReferenceUnaryEltwiseTppEmitter::ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu
 }
 
 const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    auto a = ref_executor->get_reference_function();
-    return reinterpret_cast<const uintptr_t>(a);
+    return reinterpret_cast<const uintptr_t>(ref_executor.get());
 }
-
-void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ref_unary_function_ptr ref_kernel, void *in0, void *out0) {
-    assert(ref_kernel);
+void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ReferenceJITExecutor* ref_executor, void *in0, void *out0) {
+    assert(ref_executor);
     std::cerr << "ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel\n\n\n";
-    ref_kernel(in0, out0);
+    (*ref_executor)(in0, out0);
 }
 
 

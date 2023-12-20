@@ -148,76 +148,42 @@ public:
     ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr);
-    typedef std::function<void(void*, void*)> ref_unary_function;
-    // typedef void (*const* ref_unary_function_ptr)(void*, void*);
-    typedef void (*ref_unary_function_ptr)(void*, void*);
-    static void execute_unary_eltw_kernel(ref_unary_function_ptr eltwise_kernel, void *in0, void *out0);
-    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
-    const uintptr_t get_compiled_kernel_ptr() const override;
+    typedef std::function<void(void*, void*)> kernel_unary_function;
+    // TODO: Discuss if we need to support different precisions via template below.
+    //  If we don't, then remove commented code
+    // TODO: Discuss if we need to encapsulate executor into a separate class.
+    //  Theoretically, the same functionality could be achieved via the emitter method
     class ReferenceJITExecutor {
-            template<class T>
-            static void evaluate_reference_impl(const std::function<float(float)>& executor,
-                                                void* in0, void* out0, int N, int M, int LDI, int LDO) {
-                auto in_ptr = reinterpret_cast<T*>(in0);
-                auto out_ptr = reinterpret_cast<T*>(out0);
-                for (int n = 0; n < N; n++) {
-                        auto in_row = in_ptr;
-                        auto out_row = out_ptr;
-                        for (int m = 0; m < M; m++) {
-                            *out_row = static_cast<T>(executor(static_cast<float>(*in_row)));
-                            in_row++;
-                            out_row++;
-                        }
-                        in_ptr += LDI;
-                        out_ptr += LDO;
-                }
-            }
-            static void evaluate_reference_impl_float(const std::function<float(float)>& executor,
-                                                void* in0, void* out0, int N, int M, int LDI, int LDO) {
-                OPENVINO_THROW("dsaaaaaaaaaaa;l;;;;;;;;;;;;;;;laskd");
-                auto in_ptr = reinterpret_cast<float*>(in0);
-                auto out_ptr = reinterpret_cast<float*>(out0);
-                for (int n = 0; n < N; n++) {
-                        auto in_row = in_ptr;
-                        auto out_row = out_ptr;
-                        for (int m = 0; m < M; m++) {
-                            *out_row = static_cast<float>(executor(static_cast<float>(*in_row)));
-                            in_row++;
-                            out_row++;
-                        }
-                        in_ptr += LDI;
-                        out_ptr += LDO;
-                }
-            }
-            static void evaluate_test(void* in0, void* out0) {
-                std::cerr << "dsaaaaaaaaaaa;l;;;;;;;;;;;;;;;laskd\n\n\n";
-                OPENVINO_THROW("dsaaaaaaaaaaa;l;;;;;;;;;;;;;;;laskd");
-            }
+            // template<class T>
+            // static void evaluate_reference_impl(const std::function<float(float)>& executor,
+            //                                     void* in0, void* out0, int N, int M, int LDI, int LDO) {
+            //     auto in_ptr = reinterpret_cast<T*>(in0);
+            //     auto out_ptr = reinterpret_cast<T*>(out0);
+            //     for (int n = 0; n < N; n++) {
+            //             auto in_row = in_ptr;
+            //             auto out_row = out_ptr;
+            //             for (int m = 0; m < M; m++)
+            //                 out_row[m] = static_cast<T>(executor(static_cast<float>(in_row[m])));
+            //             in_ptr += LDI;
+            //             out_ptr += LDO;
+            //     }
+            // }
 
         public:
         typedef std::function<float(float)> unary_float_func;
         ReferenceJITExecutor(const libxsmm_meltw_unary_shape& shape, unary_float_func executor_func)
-            : executor(std::move(executor_func)) {
+            : m_N{shape.n}, m_M{shape.m}, m_LDI{shape.ldi}, m_LDO{shape.ldo}, m_executor(std::move(executor_func)) {
                 OPENVINO_ASSERT(shape.in0_type == shape.out_type, "ReferenceJITExecutor doesn't support precision conversion");
-                reference_function = evaluate_test;
-                // reference_function = std::make_shared<ref_unary_function>(std::bind(evaluate_reference_impl_float, \
-                //                                    executor, \
-                //                                    std::placeholders::_1, \
-                //                                    std::placeholders::_2, \
-                //                                    shape.n, \
-                //                                    shape.m, \
-                //                                    shape.ldi, \
-                //                                    shape.ldo));
-                // return;
+                OPENVINO_ASSERT(executor_func, "ReferenceJITExecutor: attempt to construct executor with invalid function pointer");
                 // #define GENERATE_REFERENCE_IMPL(PREC) \
-                //     reference_function = std::make_shared<ref_unary_function>(std::bind(evaluate_reference_impl<PREC>, \
-                //                                    executor, \
+                //     m_reference_function =  std::bind(evaluate_reference_impl<PREC>, \
+                //                                    m_executor, \
                 //                                    std::placeholders::_1, \
                 //                                    std::placeholders::_2, \
                 //                                    shape.n, \
                 //                                    shape.m, \
                 //                                    shape.ldi, \
-                //                                    shape.ldo));
+                //                                    shape.ldo);
 
                 // switch (shape.in0_type) {
                 // case LIBXSMM_DATATYPE_F32: GENERATE_REFERENCE_IMPL(float); break;
@@ -228,32 +194,31 @@ public:
                 // }
                 // #undef GENERATE_REFERENCE_IMPL
             }
-        ref_unary_function_ptr get_reference_function() {
-            {
-                int status;
-                const char* name = reference_function.target_type().name();
-                std::unique_ptr<char, void (*)(void*)> demangled_name(
-                                    abi::__cxa_demangle(name, nullptr, nullptr, &status),
-                                    std::free);
-                    std::cerr << "A:: " << demangled_name.get() << "\n";
+            inline void operator()(void* in0, void* out0) const {
+                    // m_reference_function(in0, out0);
+                    auto in_ptr = reinterpret_cast<float*>(in0);
+                    auto out_ptr = reinterpret_cast<float*>(out0);
+                    for (int n = 0; n < m_N; n++) {
+                        auto in_row = in_ptr;
+                        auto out_row = out_ptr;
+                        for (int m = 0; m < m_M; m++)
+                            *out_row++ = m_executor(*in_row++);
+                        in_ptr += m_LDI;
+                        out_ptr += m_LDO;
+                    }
             }
 
-            // void(*const* a)(void*, void*) = reference_function.target<void(*)(void*, void*)>();
-            auto a = reference_function.target<void(*)(void*, void*)>();
-            return *a;
-            // return reference_function.target<void(*)(void*, void*)>();
-        }
-        ~ReferenceJITExecutor() {
-            std::cerr << "EXECUTOR DEsctructor was called\n\n\n";
-        }
-
         private:
-            unary_float_func executor{nullptr};
-            ref_unary_function reference_function{nullptr};
+            int m_N{0};
+            int m_M{0};
+            int m_LDI{0};
+            int m_LDO{0};
+            unary_float_func m_executor{nullptr};
+            // kernel_unary_function m_reference_function;
     };
-    ~ReferenceUnaryEltwiseTppEmitter() {
-        std::cerr << "EMITTER DEsctructor was called\n\n\n";
-    }
+    static void execute_unary_eltw_kernel(ReferenceJITExecutor* ref_executor, void *in0, void *out0);
+    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
+    const uintptr_t get_compiled_kernel_ptr() const override;
 
 private:
     size_t in0_type_size{0};
