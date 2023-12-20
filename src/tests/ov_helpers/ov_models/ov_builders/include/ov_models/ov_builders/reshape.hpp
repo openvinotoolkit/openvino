@@ -7,7 +7,8 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
-namespace utils {
+namespace op {
+namespace util {
 /// \brief      Change shape of a value
 ///
 /// \param[in]  value  The value to be reshaped.
@@ -39,5 +40,6 @@ std::shared_ptr<Node> transpose(const Output<Node>& value);
 /// \return      The new value will be a 2D matrix representing the flattened input
 /// node.
 std::shared_ptr<Node> flatten(const Output<Node>& value, int axis);
-}  // namespace utils
+}  // namespace util
+}  // namespace op
 }  // namespace ov
