@@ -12,7 +12,7 @@
 
 #include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include "emitters/common/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
 #include "common/primitive_hashing_utils.hpp"

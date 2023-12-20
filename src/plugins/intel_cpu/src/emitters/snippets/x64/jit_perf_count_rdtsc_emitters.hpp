@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "emitters/common/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 

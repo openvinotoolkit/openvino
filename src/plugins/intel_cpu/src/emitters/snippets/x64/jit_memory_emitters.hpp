@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "emitters/common/x64/jit_emitter.hpp"
-#include "emitters/common/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
 
 namespace ov {

@@ -9,7 +9,7 @@
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "onednn/dnnl.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/common/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
 #include <algorithm>
 #include <cassert>

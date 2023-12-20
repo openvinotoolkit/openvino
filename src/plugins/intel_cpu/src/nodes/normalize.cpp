@@ -11,7 +11,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/common/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"

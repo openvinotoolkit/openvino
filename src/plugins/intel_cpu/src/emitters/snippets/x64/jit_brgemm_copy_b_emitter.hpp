@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "emitters/common/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 

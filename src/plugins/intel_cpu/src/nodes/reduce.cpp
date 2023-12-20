@@ -12,7 +12,7 @@
 #include "onednn/dnnl.h"
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/common/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "openvino/core/parallel.hpp"
 #include <algorithm>
 

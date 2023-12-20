@@ -8,7 +8,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
 #include "dnnl_extension_utils.h"
-#include "emitters/common/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
