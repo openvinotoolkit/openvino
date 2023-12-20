@@ -118,12 +118,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    config = {}
+    config = _get_config(options)
 
     if model_hash_str is not None:
-        if _is_cache_dir_in_config(options):
-            config = _get_config(options)
-        else:
+        if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)
