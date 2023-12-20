@@ -48,15 +48,6 @@
         "runtime/bin/intel64/Release/openvino_intel_gpu_plugin.dll"
       ]
     },
-    "gna": {
-      "ui_name": "OpenVINO Runtime for Intel(R) Gaussian Neural Accelerator",
-      "group": ["ie"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "runtime/bin/intel64/Release/gna.dll",
-        "runtime/bin/intel64/Release/openvino_intel_gna_plugin.dll"
-      ]
-    },
     "python": {
       "ui_name": "OpenVINO Python API",
       "group": ["python"],
