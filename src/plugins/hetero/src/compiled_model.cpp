@@ -17,6 +17,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "plugin.hpp"
 #include "properties.hpp"
 #include "xml_parse_utils.h"
@@ -43,9 +44,10 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
     // It may cause replacement of Constant by Parameter in such operations
     // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
     ov::pass::Manager manager;
+    // leave handling of const precision to hardware according to its capability
+    manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
-
     ov::SupportedOpsMap query_model_result;
     bool user_set_affinities = false;
     // Get user defined affinity
