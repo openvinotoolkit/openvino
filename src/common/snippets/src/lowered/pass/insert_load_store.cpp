@@ -46,7 +46,6 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
             return false;
 
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port_descriptor(0)));
-        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         linear_ir.insert_node(load, consumer_expr->get_loop_ids(), true, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
         was_inserted = true;
     }
@@ -66,7 +65,6 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 
     const auto& loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
-    PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
     linear_ir.insert_node(store, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
     return true;

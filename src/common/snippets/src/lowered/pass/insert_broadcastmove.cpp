@@ -57,7 +57,6 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                                 "Attempt to broadcast non-1 dimension. Target dim: ", broadcasted_dim,
                                 " This dim: ", last_dims[i]);
                 const auto broadcast = std::make_shared<op::BroadcastMove>(parent_node, broadcasted_dim);
-                PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), parent_port.get_descriptor_ptr()->clone());
                 const auto broadcast_expr = *linear_ir.insert_node(broadcast, loop_ids, true, expr_it, { expr->get_input_port(i) });
                 // Note that BroadcastMove modified the next expr input shape, so we need to set update
                 // expr's input port descriptor to reflect the changes
