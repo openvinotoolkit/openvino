@@ -33,12 +33,7 @@ class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphF
 class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
-#if 0
-    static InferenceEngine::Blob::Ptr GenerateInput(
-        const ngraph::element::Type precision,
-        const InferenceEngine::TensorDesc& tensorDesc,
-        const float k = 1.f);
-#endif
+
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);

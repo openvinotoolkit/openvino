@@ -29,24 +29,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
-#if 0
-InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    UnsqueezeTransformationParam squeezeParam;
-    std::string targetDevice;
-
-    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
-
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
-
-    return FuncTestUtils::createAndFillBlobConsistently(
-        info.getTensorDesc(),
-        static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
-        static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
-        1ul);
-}
-#endif
 
 std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;

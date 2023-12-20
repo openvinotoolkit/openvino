@@ -38,18 +38,6 @@ LayerTransformation::LayerTransformation() {
     abs_threshold = 1.0e-4;
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
-#if 0
-InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
-    const ngraph::element::Type precision,
-    const InferenceEngine::TensorDesc& tensorDesc,
-    const float k) {
-    const auto interval = getQuantizationInterval(precision);
-    const float low = interval.first / k;
-    const float hight = interval.second / k;
-
-    return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
-}
-#endif
 
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;

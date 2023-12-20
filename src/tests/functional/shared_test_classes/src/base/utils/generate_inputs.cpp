@@ -305,15 +305,8 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
-#if 0
-            std::cout << "[EMUTEX DEBUG] [generate] node " << node->get_friendly_name() <<
-                         " input shape " << node->get_input_shape(0) <<
-                         " output shape " << node->get_output_shape(0) <<
-                         " targetShape " << node->get_output_shape(0) << std::endl;
-#endif
             float min_value = {}, max_value = {};
             if (get_fq_scalar_range(node, min_value, max_value)) {
-//                std::cout << "[EMUTEX DEBUG] [CHECKPOINT]" << std::endl;
                 return ov::test::utils::create_and_fill_tensor_real_distribution(elemType, targetShape, min_value, max_value, 0);
             }
 
@@ -364,8 +357,6 @@ bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, 
 
     if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
         return false;
-
-    //std::cout << "[EMUTEX DEBUG] [get_fq_scalar_range] min_value " << min_value << " max_value " << max_value << std::endl;
 
     return true;
 }

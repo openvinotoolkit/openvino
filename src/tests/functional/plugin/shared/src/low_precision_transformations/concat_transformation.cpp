@@ -34,19 +34,6 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type netPrecision;
-    std::string targetDevice;
-    ConcatTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-#endif
-
 void ConcatTransformation::SetUp() {
     abs_threshold = 0.1;
     rel_threshold = 4.2;

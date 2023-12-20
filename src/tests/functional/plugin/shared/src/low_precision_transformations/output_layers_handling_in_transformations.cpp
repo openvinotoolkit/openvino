@@ -32,22 +32,6 @@ std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTest
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-#if 0
-InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    const float k = 1.f;
-    const float low = 0.f / k;
-    const float hight = 255.f / k;
-
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    return input;
-}
-#endif
 
 void OutputLayers::SetUp() {
     InferenceEngine::SizeVector inputShape;

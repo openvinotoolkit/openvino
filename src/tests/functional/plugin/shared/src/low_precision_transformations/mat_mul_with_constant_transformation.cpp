@@ -37,27 +37,6 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected layer name " << info.name();
-    }
-
-    size_t low;
-    size_t high;
-    if (info.name() == "input1") {
-        low = 1ul;
-        high = 5ul;
-    } else if (info.name() == "input2") {
-        low = 5ul;
-        high = 10ul;
-    } else {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
-}
-#endif
 
 void MatMulWithConstantTransformation::SetUp() {
     abs_threshold = 1.0e-3;

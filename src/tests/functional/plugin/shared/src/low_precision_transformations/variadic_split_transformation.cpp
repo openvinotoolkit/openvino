@@ -36,23 +36,6 @@ std::string VariadicSplitTransformation::getTestCaseName(const testing::TestPara
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    VariadicSplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
-    const auto& fqOnData = param.fakeQuantize;
-
-    return FuncTestUtils::createAndFillBlobConsistently(
-        info.getTensorDesc(),
-        static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
-        static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
-        1ul);
-}
-#endif
 
 void VariadicSplitTransformation::SetUp() {
     abs_threshold = 1.0;

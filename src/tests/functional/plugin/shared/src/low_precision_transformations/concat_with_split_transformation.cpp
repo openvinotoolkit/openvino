@@ -32,19 +32,6 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatWithSplitTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-#endif
 
 /*
 * FQ       FQ

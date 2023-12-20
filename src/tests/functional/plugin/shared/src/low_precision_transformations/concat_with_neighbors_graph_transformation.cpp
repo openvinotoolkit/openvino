@@ -26,21 +26,6 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
     return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
 }
 
-#if 0
-InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-#endif
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
     rel_threshold = 0.1;

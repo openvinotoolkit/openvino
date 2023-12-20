@@ -37,20 +37,6 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params trasformationParams;
-    bool transparentIntermediate;
-    bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-#endif
 
 /*
 * FQ       FQ

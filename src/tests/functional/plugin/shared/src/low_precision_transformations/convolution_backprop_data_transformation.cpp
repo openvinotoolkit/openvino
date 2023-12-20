@@ -84,7 +84,6 @@ void ConvolutionBackpropDataTransformation::run() {
 }
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {
-    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

@@ -215,7 +215,7 @@ void inline fill_data_ptr_real_random_float(T* pointer,
 
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(dist(gen));
-        //std::cout << "pointer[" << i << "] " << pointer[i] << std::endl;
+        // std::cout << "pointer[" << i << "] " << pointer[i] << std::endl;
     }
 }
 

@@ -35,20 +35,6 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const tes
     return result.str();
 }
 
-#if 0
-InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatWithDifferentChildrenTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-#endif
-
 void ConcatWithDifferentChildrenTransformation::SetUp() {
     abs_threshold = 0.1;
 

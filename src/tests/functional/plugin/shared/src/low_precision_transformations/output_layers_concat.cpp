@@ -32,25 +32,6 @@ std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<Lay
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-#if 0
-InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-    const float k = (info.name() == "input1") ? 1.f : 2.f;
-
-    const float low = 0.f / k;
-    const float hight = 255.f / k;
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    return input;
-}
-#endif
 
 /*
 *           FQ1     FQ2
