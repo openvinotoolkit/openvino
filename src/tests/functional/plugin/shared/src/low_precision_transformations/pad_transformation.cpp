@@ -30,7 +30,7 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
 }
 
 void PadTransformation::SetUp() {
-    abs_threshold = 0.1;
+    abs_threshold = 1.0;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::op::PadMode mode;

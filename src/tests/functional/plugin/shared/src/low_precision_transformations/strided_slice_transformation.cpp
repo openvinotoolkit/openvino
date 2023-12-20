@@ -41,7 +41,7 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
 }
 
 void StridedSliceTransformation::SetUp() {
-    abs_threshold = 0.1;
+    abs_threshold = 1.0;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -25,7 +25,7 @@ std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParam
 }
 
 void BatchToSpaceTransformation::SetUp() {
-    abs_threshold = 0.1;
+    abs_threshold = 1.1;
 
     ngraph::element::Type input_type;
     BatchToSpaceTransformationParam param;

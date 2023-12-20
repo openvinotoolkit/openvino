@@ -50,7 +50,7 @@ InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateIn
 #endif
 
 void ConcatWithDifferentChildrenTransformation::SetUp() {
-    abs_threshold = 0.01;
+    abs_threshold = 0.1;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;

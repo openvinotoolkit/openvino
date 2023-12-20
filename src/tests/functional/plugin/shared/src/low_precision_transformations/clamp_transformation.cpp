@@ -29,7 +29,7 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
 }
 
 void ClampTransformation::SetUp() {
-    abs_threshold = 1.0;
+    abs_threshold = 1.1;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

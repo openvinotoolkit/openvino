@@ -31,6 +31,7 @@ std::string ReduceMinTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceMinTransformation::SetUp() {
+    abs_threshold = 0.1;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
