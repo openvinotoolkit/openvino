@@ -619,6 +619,49 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Enum to define possible cache mode
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class CacheMode {
+    OPTIMIZE_SIZE = 0,   //!< smaller cache size
+    OPTIMIZE_SPEED = 1,  //!< faster loading time
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheMode& mode) {
+    switch (mode) {
+    case CacheMode::OPTIMIZE_SIZE:
+        return os << "optimize_size";
+    case CacheMode::OPTIMIZE_SPEED:
+        return os << "optimize_speed";
+    default:
+        OPENVINO_THROW("Unsupported cache mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "OPTIMIZE_SIZE" || str == "optimize_size") {
+        mode = CacheMode::OPTIMIZE_SIZE;
+    } else if (str == "OPTIMIZE_SPEED" || str == "optimize_speed") {
+        mode = CacheMode::OPTIMIZE_SPEED;
+    } else {
+        OPENVINO_THROW("Unsupported cache mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
+ * If optimize_size is selected, smaller cache files will be created.
+ * And if optimize_speed is selected, loading time will decrease but the cache file size will increase.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
+
+/**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
  *
