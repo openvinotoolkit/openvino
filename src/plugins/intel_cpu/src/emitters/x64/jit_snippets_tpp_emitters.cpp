@@ -546,16 +546,18 @@ ReferenceUnaryEltwiseTppEmitter::ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu
                                                                 dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                                 const ov::snippets::lowered::ExpressionPtr& expr) :
                                                                 UnaryEltwiseTppEmitter(h, isa, expr) {
- ref_executor = std::make_shared<ReferenceJITExecutor>(m_shape, static_cast<float(*)(float)>(&std::exp));
+ ref_executor = static_cast<float(*)(float)>(&std::exp);
 }
 
 const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(ref_executor.get());
+    return reinterpret_cast<const uintptr_t>(this);
 }
-void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ReferenceJITExecutor* ref_executor, void *in0, void *out0) {
-    assert(ref_executor);
-    std::cerr << "ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel\n\n\n";
-    (*ref_executor)(in0, out0);
+
+void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void *in0, void *out0) {
+    assert(ref_emitter);
+    // Note: we can instantiate template with different precision combinations here, if we need to
+    // Note: if switch(precision) is too expensive here, we can do it in the constructor and save the selected impl in function ptr
+    ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
 }
 
 

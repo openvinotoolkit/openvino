@@ -148,82 +148,37 @@ public:
     ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr);
-    typedef std::function<void(void*, void*)> kernel_unary_function;
-    // TODO: Discuss if we need to support different precisions via template below.
-    //  If we don't, then remove commented code
-    // TODO: Discuss if we need to encapsulate executor into a separate class.
-    //  Theoretically, the same functionality could be achieved via the emitter method
-    class ReferenceJITExecutor {
-            // template<class T>
-            // static void evaluate_reference_impl(const std::function<float(float)>& executor,
-            //                                     void* in0, void* out0, int N, int M, int LDI, int LDO) {
-            //     auto in_ptr = reinterpret_cast<T*>(in0);
-            //     auto out_ptr = reinterpret_cast<T*>(out0);
-            //     for (int n = 0; n < N; n++) {
-            //             auto in_row = in_ptr;
-            //             auto out_row = out_ptr;
-            //             for (int m = 0; m < M; m++)
-            //                 out_row[m] = static_cast<T>(executor(static_cast<float>(in_row[m])));
-            //             in_ptr += LDI;
-            //             out_ptr += LDO;
-            //     }
-            // }
-
-        public:
-        typedef std::function<float(float)> unary_float_func;
-        ReferenceJITExecutor(const libxsmm_meltw_unary_shape& shape, unary_float_func executor_func)
-            : m_N{shape.n}, m_M{shape.m}, m_LDI{shape.ldi}, m_LDO{shape.ldo}, m_executor(std::move(executor_func)) {
-                OPENVINO_ASSERT(shape.in0_type == shape.out_type, "ReferenceJITExecutor doesn't support precision conversion");
-                OPENVINO_ASSERT(executor_func, "ReferenceJITExecutor: attempt to construct executor with invalid function pointer");
-                // #define GENERATE_REFERENCE_IMPL(PREC) \
-                //     m_reference_function =  std::bind(evaluate_reference_impl<PREC>, \
-                //                                    m_executor, \
-                //                                    std::placeholders::_1, \
-                //                                    std::placeholders::_2, \
-                //                                    shape.n, \
-                //                                    shape.m, \
-                //                                    shape.ldi, \
-                //                                    shape.ldo);
-
-                // switch (shape.in0_type) {
-                // case LIBXSMM_DATATYPE_F32: GENERATE_REFERENCE_IMPL(float); break;
-                // case LIBXSMM_DATATYPE_I32: GENERATE_REFERENCE_IMPL(int32_t); break;
-                // case LIBXSMM_DATATYPE_U32: GENERATE_REFERENCE_IMPL(uint32_t); break;
-                // default:
-                //     OPENVINO_THROW("Unsupported data type in ReferenceUnaryEltwiseTppEmitter::get_dtype_byte_size");
-                // }
-                // #undef GENERATE_REFERENCE_IMPL
-            }
-            inline void operator()(void* in0, void* out0) const {
-                    // m_reference_function(in0, out0);
-                    auto in_ptr = reinterpret_cast<float*>(in0);
-                    auto out_ptr = reinterpret_cast<float*>(out0);
-                    for (int n = 0; n < m_N; n++) {
-                        auto in_row = in_ptr;
-                        auto out_row = out_ptr;
-                        for (int m = 0; m < m_M; m++)
-                            *out_row++ = m_executor(*in_row++);
-                        in_ptr += m_LDI;
-                        out_ptr += m_LDO;
-                    }
-            }
-
-        private:
-            int m_N{0};
-            int m_M{0};
-            int m_LDI{0};
-            int m_LDO{0};
-            unary_float_func m_executor{nullptr};
-            // kernel_unary_function m_reference_function;
-    };
-    static void execute_unary_eltw_kernel(ReferenceJITExecutor* ref_executor, void *in0, void *out0);
+    static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_executor, void *in0, void *out0);
     const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
     const uintptr_t get_compiled_kernel_ptr() const override;
 
 private:
     size_t in0_type_size{0};
     size_t out0_type_size{0};
-    std::shared_ptr<ReferenceJITExecutor> ref_executor{nullptr};
+    std::function<float(float)> ref_executor{nullptr};
+
+    template<class Tin, class Tout,
+             typename std::enable_if<!std::is_same<Tin, Tout>::value || !std::is_same<Tin, float>::value, bool>::type = true>
+    void evaluate_reference_impl(Tin* in0, Tout* out0) {
+        for (int n = 0; n < m_shape.n; n++) {
+                auto in0_row = in0;
+                auto out0_row = out0;
+                for (int m = 0; m < m_shape.m; m++)
+                    out0_row[m] = static_cast<Tout>(ref_executor(static_cast<float>(in0_row[m])));
+                in0 += m_shape.ldi;
+                out0 += m_shape.ldo;
+        }
+    }
+    void evaluate_reference_impl(float* in0, float* out0) {
+        for (int n = 0; n < m_shape.n; n++) {
+                auto in0_row = in0;
+                auto out0_row = out0;
+                for (int m = 0; m < m_shape.m; m++)
+                    out0_row[m] = ref_executor(in0_row[m]);
+                in0 += m_shape.ldi;
+                out0 += m_shape.ldo;
+        }
+    }
 };
 
 
