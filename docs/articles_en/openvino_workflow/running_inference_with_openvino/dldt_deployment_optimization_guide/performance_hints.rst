@@ -23,7 +23,7 @@ Performance Hints: Latency and Throughput
 
 As discussed in the :doc:`Optimization Guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>` there are a few different metrics associated with inference speed. Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
-Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::THROUGHPUT`` and ``ov::hint::PerformanceMode::LATENCY``. A special ``ov::hint::PerformanceMode::UNDEFINED`` hint acts the same as specifying no hint. 
+Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::THROUGHPUT`` and ``ov::hint::PerformanceMode::LATENCY``.
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 

@@ -125,43 +125,52 @@ void next_step(const std::string additional_info = "") {
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
 }
 
-ov::hint::PerformanceMode get_performance_hint(const std::string& device, const ov::Core& core) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+void handle_performance_hint(const std::string& device, const ov::Core& core, ov::AnyMap& config) {
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
     auto supported_properties = core.get_property(device, ov::supported_properties);
     if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
         supported_properties.end()) {
-        if (FLAGS_hint != "") {
+        // Use FLAGS_hint to decide performance mode:
+        //
+        // "throughput" or "tput": THROUGHPUT mode
+        // "cumulative_throughput" or "ctput": CUMULATIVE_THROUGHPUT mode
+        // "latency": LATENCY mode
+        // "none": not set ov::hint::performance_mode, let plugin use its default performance mode
+        // ""    : use default THROUGHPUT mode, if FLAG_api="sync" then set LATENCY mode
+        if (FLAGS_hint != "" && FLAGS_hint != "none") {
             if (FLAGS_hint == "throughput" || FLAGS_hint == "tput") {
                 ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
             } else if (FLAGS_hint == "latency") {
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
             } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
                 ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-            } else if (FLAGS_hint == "none") {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
-                OPENVINO_SUPPRESS_DEPRECATED_END
             } else {
                 throw std::logic_error(
                     "Incorrect performance hint. Please set -hint option to"
                     "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
             }
-        } else {
-            ov_perf_hint =
-                FLAGS_api == "async" ? ov::hint::PerformanceMode::THROUGHPUT : ov::hint::PerformanceMode::LATENCY;
-
+        } else if (FLAGS_hint == "") {
+            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            if (FLAGS_api == "sync") {
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            }
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
                        << device << ") performance hint will be set to " << ov_perf_hint << "." << slog::endl;
         }
+
+        if (FLAGS_hint != "none") {
+            // apply command line hint setting and override if hint exists
+            config[ov::hint::performance_mode.name()] = ov_perf_hint;
+        } else {
+            config.erase(ov::hint::performance_mode.name());
+        }
     } else {
-        if (FLAGS_hint != "") {
+        if (FLAGS_hint != "none" || FLAGS_hint != "") {
             slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
         }
     }
-    return ov_perf_hint;
+    return;
 }
 
 void setDeviceProperty(ov::Core& core,
@@ -367,20 +376,7 @@ int main(int argc, char* argv[]) {
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
-            auto ov_perf_hint = get_performance_hint(device, core);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (isFlagSetInCommandLine("hint")) {
-                if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
-                    // apply command line hint setting and override if hint exists
-                    device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
-                } else {
-                    device_config.erase(ov::hint::performance_mode.name());
-                }
-            } else if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
-                // keep hint setting in the config if no hint setting from command line
-                device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            handle_performance_hint(device, core, device_config);
 
             if (FLAGS_nireq != 0)
                 device_config[ov::hint::num_requests.name()] = unsigned(FLAGS_nireq);
@@ -443,8 +439,7 @@ int main(int argc, char* argv[]) {
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
-                           (FLAGS_api == "async")) {
+                } else if (FLAGS_api == "none" && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "

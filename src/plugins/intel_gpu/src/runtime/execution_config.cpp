@@ -30,8 +30,7 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_START
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
                mode == ov::hint::PerformanceMode::THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::LATENCY ||
-               mode == ov::hint::PerformanceMode::UNDEFINED;
+               mode == ov::hint::PerformanceMode::LATENCY;
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
