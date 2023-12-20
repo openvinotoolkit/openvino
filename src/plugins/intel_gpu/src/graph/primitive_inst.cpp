@@ -698,12 +698,16 @@ bool primitive_inst::update_impl() {
             o.data_padding.set_dynamic_pad(tensor(0));
         }
 
+        const auto is_current_impl_dynamic = _impl && _impl->is_dynamic();
         const auto& prog = get_network().get_program();
         auto& cache = prog->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
             cached_impl = cache.get(updated_params_no_dyn_pad);
             if (cached_impl) {
+                // Keep dynamic impl in memory and replace current impl with static one
+                if (is_current_impl_dynamic)
+                    _dynamic_impl = std::move(_impl);
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
@@ -713,7 +717,7 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
-            if (_dynamic_impl) {
+            if (_dynamic_impl || is_current_impl_dynamic) {
                 if (use_async_compilation()) {
                     auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
@@ -739,7 +743,8 @@ bool primitive_inst::update_impl() {
                     });
                 }
                 if (!can_be_optimized())  {
-                    _impl = _dynamic_impl->clone();
+                    if (!is_current_impl_dynamic)
+                        _impl = std::move(_dynamic_impl);
                     auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
                     _impl->update_dispatch_data(new_impl_params);
                     update_shape_info(new_impl_params);
