@@ -117,7 +117,7 @@ def fx_openvino(subgraph, example_inputs, options):
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
-        if openvino_model_caching is not None:
+        if openvino_model_caching is not None and openvino_model_caching:
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
