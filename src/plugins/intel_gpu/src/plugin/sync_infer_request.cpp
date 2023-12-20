@@ -160,7 +160,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port: \'", name, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "[GPU] Mismtach tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
-    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0},
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with name: ",
                     name,
                     ", because model input (shape=",
@@ -351,8 +351,8 @@ void SyncInferRequest::wait() {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (host): " << output_tensor->data() << std::endl;
         }
 
-        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || output_tensor_wrapper.actual_size >= output_memory->size(),
-                        "[GPU] Output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
+        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic || output_tensor_wrapper.actual_size >= output_memory->size(),
+                        "[GPU] Output port is static and output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
                         "than required (", output_memory->size(), ")");
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
@@ -371,6 +371,8 @@ void SyncInferRequest::wait() {
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
                 if (usm_host_tensor && output_memory)
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+                else if (!is_remote && output_memory)
+                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
 
                 if (need_reallocate) {
                     auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), *m_shape_predictor);
