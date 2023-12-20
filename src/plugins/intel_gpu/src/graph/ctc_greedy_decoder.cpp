@@ -8,6 +8,7 @@
 #include <string>
 
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
+#include "ctc_greedy_decoder_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
@@ -25,9 +26,6 @@ std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_deco
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<ctc_greedy_decoder>();
-    // auto input_layout = impl_param.get_input_layout();
-
-    ov::op::v6::CTCGreedyDecoderSeqLen op;
 
     std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < desc->input.size(); ++i) {
@@ -35,12 +33,25 @@ std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_deco
         input_shapes.push_back(input_shape);
     }
 
-    std::vector<ShapeType> output_shapes = ov::op::v6::shape_infer(&op, input_shapes);
+    if (desc->num_outputs == 1) {
+        ov::op::v0::CTCGreedyDecoder op;
 
-    for (size_t i = 0; i < desc->num_outputs; ++i) {
-        auto dt = desc->get_output_data_type(i).value_or(impl_param.get_input_layout(i).data_type);
-        layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
+        std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+
+        auto dt = desc->get_output_data_type(0).value_or(impl_param.get_input_layout(0).data_type);
+        layouts.push_back({output_shapes[0], dt, format::get_default_format(output_shapes[0].size())});
+
+    } else {
+        ov::op::v6::CTCGreedyDecoderSeqLen op;
+
+        std::vector<ShapeType> output_shapes = ov::op::v6::shape_infer(&op, input_shapes);
+
+        for (size_t i = 0; i < desc->num_outputs; ++i) {
+            auto dt = desc->get_output_data_type(i).value_or(impl_param.get_input_layout(i).data_type);
+            layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
+        }
     }
+
     return layouts;
 }
 
