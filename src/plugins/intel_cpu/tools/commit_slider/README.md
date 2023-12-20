@@ -145,9 +145,11 @@ To implement new `Traversal`, override `bypass(i1, i2, list, cfg, commitPath)` m
 
 'cachedPathConfig' option helps to speed up searching or to solve environment/building problems. There are two schemas: 'optional', which tunes bypass, if provided paths permit it and build commit in the other case. The aim is to increase performance and solve long-interval rebuilding issues (is to be implemented). 'Mandatory' supposes using only provided paths. Bypass is not impacted. Absent commits are marked as ignored (supposed to contain insignificant changes). Mostly intended for using with complex environment.
 
-1. add 'cachedPathConfig' field to config
-2. set up 'enable' and 'scheme' fields
-3. define 'cashMap'.
+1. add `cachedPathConfig` field to config
+2. set up `enable` and `scheme` fields
+3. define `cashMap`.
+4. `passCmdList` flag is true if commandList supposed to be ignored (no build is necessary)
+5. `changeAppPath` flag means, that cashed path substitutes `appPath`
 
 Example:
 ```
