@@ -82,14 +82,6 @@ ov::CompiledModel OVInferRequestVariableStateTest::prepare_network() {
     return core.compile_model(net, deviceName, configuration);
 }
 
-// Doesn't throw exception, need to fix
-// TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_QueryState_ExceptionTest) {
-//     auto executableNet = prepare_network();
-//     auto inferReq = executableNet.create_infer_request();
-
-//     EXPECT_ANY_THROW(inferReq.query_state());
-// }
-
 TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState) {
     auto executableNet = prepare_network();
     auto inferReq = executableNet.create_infer_request();
@@ -101,6 +93,36 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState)
         auto name = state.get_name();
         ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
             << "State " << name << "expected to be in memory states but it is not!";
+    }
+}
+
+TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
+    auto executableNet = prepare_network();
+    auto inferReq = executableNet.create_infer_request();
+
+    const float new_state_val = 13.0f;
+    for (auto&& state : inferReq.query_state()) {
+        state.reset();
+        auto state_val = state.get_state();
+        auto element_count = state_val.get_size();
+        float* new_state_data = new float[element_count];
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
+        }
+        ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
+        delete[] new_state_data;
+        state.set_state(state_tensor);
+    }
+
+    for (auto&& state : inferReq.query_state()) {
+        auto lastState = state.get_state();
+        auto last_state_size = lastState.get_size();
+        auto last_state_data = static_cast<float*>(lastState.data());
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+        for (int i = 0; i < last_state_size; i++) {
+            EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
+        }
     }
 }
 
