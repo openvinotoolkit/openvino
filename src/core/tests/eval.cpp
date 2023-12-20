@@ -3735,7 +3735,7 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
 }
 
-TEST(eval, evaluate_f8e5m3_const_from_f32) {
+TEST(eval, evaluate_f8e5m2_const_from_f32) {
     using namespace testing;
     constexpr auto et = element::f8e5m2;
 
@@ -3765,7 +3765,7 @@ TEST(eval, evaluate_f8e5m3_const_from_f32) {
     EXPECT_THAT(read_vector<ov::f8e5m2>(result), Pointwise(FloatEq(), output_data));
 }
 
-TEST(eval, evaluate_f8e5m3_const_seq_from_f32) {
+TEST(eval, evaluate_f8e5m2_const_seq_from_f32) {
     using namespace testing;
     constexpr auto et = element::f8e5m2;
 
