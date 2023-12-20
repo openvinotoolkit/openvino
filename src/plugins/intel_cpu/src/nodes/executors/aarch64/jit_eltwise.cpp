@@ -52,7 +52,9 @@ bool JitEltwiseExecutor::isSupported(
         ov::element::f16,
         ov::element::f32,
         ov::element::i32,
-        ov::element::u32
+        ov::element::u32,
+        ov::element::i8,
+        ov::element::u8
     };
 
     const auto parent = node->getParentEdgeAt(0)->getParent();

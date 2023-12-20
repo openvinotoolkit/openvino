@@ -2703,7 +2703,52 @@ void Eltwise::execute(dnnl::stream strm) {
             }
             args_ptrs.dst_offsets = execParams.outOffsets.data();
         }
+
+        // {
+        //     // TODO: debug
+        //     std::cout << std::endl << "input:" << std::endl;
+        //     for (size_t source_i = 0; source_i < memPtrs.size() - 1; source_i++) {
+        //         std::cout << "src_ptr[" << source_i << "]" << std::endl;
+        //         const size_t size = memPtrs[source_i]->getSize();
+        //         const dnnl::memory::data_type data_type = memPtrs[source_i]->getDataType();
+        //         //size_t data_type_size;
+        //         //switch(data_type) {
+        //         //    case dnnl::memory::data_type::
+        //         //}
+        //         const size_t length = size / 1;
+        //         const int8_t* src_ptr = static_cast<const int8_t*>(args_ptrs.src_ptr[source_i]);
+        //         for (size_t i = 0; i < length; i++) {
+        //             //std::cout << static_cast<int>(src_ptr[i]) << " ";
+        //             std::cout << i << ": " << static_cast<int>(src_ptr[i]) << std::endl;
+        //         }
+        //         std::cout << std::endl << std::endl;
+        //     }
+        // }
+
+        // // TODO: debug
+        // if (std::dynamic_pointer_cast<EltwiseJitExecutor>(execPtr) != nullptr) {
+        //     std::cout << "JIT is used: " << this->getTypeStr() << ":" << this->getName() << std::endl;
+        // } else if (
+        //     (std::dynamic_pointer_cast<EltwiseRefExecutor<dnnl::impl::float16_t>>(execPtr) != nullptr) ||
+        //     (std::dynamic_pointer_cast<EltwiseRefExecutor<float>>(execPtr) != nullptr)) {
+        //     std::cout << "REFERENCE is used: " << this->getTypeStr() << ":" << this->getName() << std::endl;
+        // } else {
+        //     std::cout << "UNKNOWN is used: " << this->getTypeStr() << ":" << this->getName() << std::endl;
+        // }
+
         execPtr->exec(args_ptrs, dims_out);
+
+        // {
+        //     // TODO: debug
+        //     std::cout << std::endl << "output:" << std::endl;
+        //     const auto size = memPtrs.back()->getSize();
+        //     const size_t length = size / 1;
+        //     const int8_t* src_ptr = static_cast<const int8_t*>(args_ptrs.dst_ptr);
+        //     for (size_t i = 0; i < length; i++) {
+        //         std::cout << i << ": " <<  static_cast<int>(src_ptr[i]) << " ";
+        //     }
+        //     std::cout << std::endl << std::endl;
+        // }
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getParentEdges().size(); i++) {

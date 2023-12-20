@@ -172,7 +172,7 @@ Engine::Engine() :
     });
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
-    scheduler_guard = SchedulerGuard::instance();
+    //scheduler_guard = SchedulerGuard::instance();
 #endif
 }
 

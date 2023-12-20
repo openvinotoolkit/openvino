@@ -168,6 +168,8 @@ void fill_data_roi(ov::runtime::Tensor& tensor,
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+//static int8_t value = 2;
+
 template <class T>
 void inline fill_data_random(T* pointer,
                              std::size_t size,
@@ -189,9 +191,26 @@ void inline fill_data_random(T* pointer,
     if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
         start_from = 0;
     }
+
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
     }
+
+    // TODO: debug
+    // T value = start_from;
+    // for (std::size_t i = 0; i < size; i++) {
+    //     pointer[i] = value;
+    //     value += seed;
+    //     if (value > (start_from + range)) {
+    //         value = start_from;
+    //     }
+    // }
+
+    // for (std::size_t i = 0; i < size; i++) {
+    //     pointer[i] = value;
+    // }
+
+    //value += 1;
 }
 
 /** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.

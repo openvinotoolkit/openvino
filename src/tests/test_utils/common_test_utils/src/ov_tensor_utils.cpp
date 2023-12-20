@@ -256,9 +256,19 @@ void compare(const ov::Tensor& expected,
 
     auto expected_data = expected.data<ExpectedT>();
     auto actual_data = actual.data<ActualT>();
+
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
+
+    // // TODO: debug
+    // std::ostringstream out_stream;
+    // std::cout << "\nvalues:\n";
+    // for (size_t i = 0; i < shape_size_cnt; ++i) {
+    //     std::cout << i << ": actual: " << static_cast<int>(actual_data[i]) << ", expected: " << static_cast<int>(expected_data[i]) << std::endl;
+    // }
+    // std::cout << "\n";
+
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
