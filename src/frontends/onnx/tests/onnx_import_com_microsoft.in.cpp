@@ -1266,10 +1266,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/gather_nd.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/gather_nd.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<int> data{{0, 1}, {2, 3}};
     const std::vector<int> indices{{0, 0}, {1, 1}};
