@@ -977,48 +977,30 @@ bool Node::isInPlace() const {
     return inplace == InPlaceType::InPlace;
 }
 
-bool Node::isConstant() {
-    if (constant == ConstantType::Unknown) {
-        std::vector<NodePtr> checkNodes;
-        for (size_t i = 0; i < getChildEdges().size(); i++) {
-            checkNodes.push_back(getChildEdgeAt(i)->getChild());
-        }
-        while (constant != ConstantType::NoConst && !checkNodes.empty()) {
-            constant = checkNodes.front()->checkConstant(LOOK_DOWN, checkNodes);
-            checkNodes.erase(checkNodes.begin());
-        }
-        if (constant != ConstantType::Const) {
-            constant = ConstantType::Unknown;
-            checkNodes.clear();
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                checkNodes.push_back(getParentEdgeAt(i)->getParent());
-            }
-            while (constant != ConstantType::NoConst && !checkNodes.empty()) {
-                constant = checkNodes.front()->checkConstant(LOOK_UP, checkNodes);
-                checkNodes.erase(checkNodes.begin());
-            }
-        }
-        if (constant == ConstantType::Unknown)
-            constant = ConstantType::NoConst;
-    }
-    return constant == ConstantType::Const;
+Node::ConstantType Node::getConstantType() const {
+    return constant;
 }
 
-Node::ConstantType Node::checkConstant(LOOK look, std::vector<NodePtr>& checkNodes) {
-    if (constant == ConstantType::Unknown) {
-        if (look == LOOK_DOWN) {
-            for (size_t i = 0; i < getChildEdges().size(); i++) {
-                if (std::find(checkNodes.begin(), checkNodes.end(), getChildEdgeAt(i)->getChild()) == checkNodes.end())
-                    checkNodes.push_back(getChildEdgeAt(i)->getChild());
-            }
-        } else {
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                if (std::find(checkNodes.begin(), checkNodes.end(), getParentEdgeAt(i)->getParent()) == checkNodes.end())
-                    checkNodes.push_back(getParentEdgeAt(i)->getParent());
-            }
+bool Node::isConstant() {
+    if (getConstantType() == ConstantType::Unknown)
+        updateConstantType();
+    return getConstantType() == ConstantType::Const;
+}
+
+void Node::updateConstantType() {
+    bool isConst = true;
+    for (const auto& parentEdge : getParentEdges()) {
+        isConst &= parentEdge.lock()->getParent()->isConstant();
+    }
+    constant = isConst ? ConstantType::Const : ConstantType::NoConst;
+
+    for (const auto& childEdge : getChildEdges()) {
+        const auto childNode = childEdge.lock()->getChild();
+        const auto childConstType = childNode->getConstantType();
+        if (childConstType != ConstantType::Unknown && childConstType != constant) {
+            childNode->updateConstantType();
         }
     }
-    return constant;
 }
 
 void Node::addOriginalLayer(const std::string& layerName) {
