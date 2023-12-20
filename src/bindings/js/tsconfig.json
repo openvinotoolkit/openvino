@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "declaration": true,
+    "esModuleInterop": true,
+    "target": "ES2017",
+    "lib": ["ES2017", "dom"],
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedParameters": false,
+    "alwaysStrict": true,
+    "strictNullChecks": true,
+    "pretty": true,
+    "allowUnreachableCode": false,
+    "incremental": true,
+    "newLine": "LF"
+  }
+}

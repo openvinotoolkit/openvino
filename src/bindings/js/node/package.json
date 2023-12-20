@@ -1,0 +1,26 @@
+{
+  "name": "openvinojs-node",
+  "version": "2023.3-preview",
+  "description": "OpenVINO™ utils for using from Node.js environment",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "build": "npm run tsc",
+    "prepare": "npm run build",
+    "lint": "eslint .",
+    "test": "node --test ./tests/",
+    "tsc": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.49.0",
+    "random-bigint": "^0.0.1",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=18.16.0"
+  }
+}

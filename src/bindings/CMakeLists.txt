@@ -3,4 +3,5 @@
 #
 
 add_subdirectory(c)
+add_subdirectory(js)
 add_subdirectory(python)
