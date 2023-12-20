@@ -46,13 +46,13 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
     const auto last_param_it = perf_count_begin_pos;
     perf_count_begin_pos = std::next(perf_count_begin_pos);
     const auto& perf_count_begin = std::make_shared<op::PerfCountBegin>();
-    linear_ir.insert_node(perf_count_begin, last_param_it->get()->get_loop_ids(), perf_count_begin_pos);
+    linear_ir.insert_node(perf_count_begin, last_param_it->get()->get_loop_ids(), false, perf_count_begin_pos);
 
     // insert perf_count_end before first result
     const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(perf_count_begin->output(0));
     perf_count_end->set_friendly_name("last_parameter_to_first_result");
     // PerfCountEnd doesn't need PortConnector to PerfCountBegin
-    linear_ir.insert_node(perf_count_end, std::vector<PortConnectorPtr>{}, perf_count_end_pos->get()->get_loop_ids(), perf_count_end_pos);
+    linear_ir.insert_node(perf_count_end, std::vector<PortConnectorPtr>{}, perf_count_end_pos->get()->get_loop_ids(), false, perf_count_end_pos);
 
     return true;
 }

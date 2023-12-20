@@ -141,43 +141,42 @@ public:
      * @brief Creates new Expression from `new_node` with PortConnectors `new_inputs`,
      *        sets `loops_ids` as loop identifiers and inserts the expression on the `place` in LinearIR.
      *        Also connects output ports to `consumers`
-     *        Notes:
-     *          - The helper doesn't set PortDescriptor - it's responsibility of developers
-     *          - The helper doesn't update LoopPorts of the corresponding loops - it's responsibility of developers
-     *        The helpers has these limitations because that's all depend on semantic of op.
      * @param new_node the target node
      * @param new_inputs vector of PortConnectorsPtr that will be inputs of the expression
      * @param loop_ids vector of loops ids that will be set for the expression
+     * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
      * @param place before this place expression will be inserted
      * @param consumers vector of expression port sets. These expression ports will be consumers of the expression.
      *        The vector may be empty or size of vector must be equal to output port count
      * @return new expression iterator in LinearIR
      */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                       const std::vector<size_t>& loop_ids, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers = {});
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs, const std::vector<size_t>& loop_ids,
+                       bool update_loop_ports, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers = {});
     /**
      * @brief Creates new Expression from `new_node` with PortConnectors that are output PortConnectors of parent Expressions.
      *        The notes are the same as in helper above
      * @param new_node the target node
      * @param loop_ids vector of loops ids that will be set for the expression
+     * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
      * @param place before this place expression will be inserted
      * @param consumers vector of expression port sets. These expression ports will be consumers of the expression.
      *        The vector may be empty or size of vector must be equal to output port count
      * @return new expression iterator in LinearIR
      */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids,
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
                        const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers);
     /**
      * @brief The same helper as the helper above but for case when new_node has only one output.
      *        So we don't need to pass vector of ExpressionPort sets
      * @param new_node the target node
      * @param loop_ids vector of loops ids that will be set for the expression
+     * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
      * @param place before this place expression will be inserted
      * @param consumers set of expression ports. These expression ports will be consumers of the expression output.
      * @return new expression iterator in LinearIR
      */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, const constExprIt& place,
-                       const std::set<ExpressionPort>& consumers = {});
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
+                       const constExprIt& place, const std::set<ExpressionPort>& consumers = {});
     /**
      * @brief Replace one `new_node` expression with a set of other expressions.
      *        Calls the helper `insert_node` and performs substitution: removes `old_exprs`.

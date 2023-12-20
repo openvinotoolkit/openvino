@@ -291,7 +291,7 @@ VectorDims LinearIR::get_master_shape() const {
 }
 
 LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                       const std::vector<size_t>& loop_ids, const constExprIt& place,
+                                       const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,
                                        const std::vector<std::set<ExpressionPort>>& consumers) {
     const auto new_expr = create_expression(new_node, new_inputs);
     new_expr->set_loop_ids(loop_ids);
@@ -303,23 +303,27 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
         replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
     }
 
+    if (update_loop_ports) {
+        m_loop_manager->update_loop_ports_by_inserted_expr(new_expr);
+    }
+
     return insert(place, new_expr);
 }
 
-LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, const constExprIt& place,
-                                       const std::vector<std::set<ExpressionPort>>& consumers) {
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
+                                       const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers) {
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         const auto& source = new_node->get_input_source_output(i);
         new_inputs[i] = get_expr_by_node(source.get_node_shared_ptr())->get_output_port_connector(source.get_index());
     }
-    return insert_node(new_node, new_inputs, loop_ids, place, consumers);
+    return insert_node(new_node, new_inputs, loop_ids, update_loop_ports, place, consumers);
 }
 
-LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, const constExprIt& place,
-                                       const std::set<ExpressionPort>& consumers) {
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
+                                       const constExprIt& place, const std::set<ExpressionPort>& consumers) {
     const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
-    return insert_node(new_node, loop_ids, place, consumers_py_port);
+    return insert_node(new_node, loop_ids, update_loop_ports, place, consumers_py_port);
 }
 
 LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs,
@@ -365,7 +369,10 @@ LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_nod
     for (size_t i = 0; i < new_node->get_output_size(); ++i)
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(new_node->output(i), last_old_expr->get_output_port_descriptor(0)->clone());
 
-    const auto new_expr_it = insert_node(new_node, new_inputs, loop_ids, place, consumers);
+    // Notes:
+    // - we cannot automatically updated loop ports in node insertion since there are old_exprs
+    // - we should update loop ports firstly and onlyt after that - remove old exprs from linearIR
+    const auto new_expr_it = insert_node(new_node, new_inputs, loop_ids, false, place, consumers);
     const auto input_ports = new_expr_it->get()->get_input_ports();
     const auto output_ports = new_expr_it->get()->get_output_ports();
     for (const auto& old_expr : old_exprs) {

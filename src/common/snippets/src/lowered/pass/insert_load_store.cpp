@@ -37,27 +37,17 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
         data_expr = first_consumer;
     }
-    const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_ngraph_output = data_expr->get_node()->output(0);
     bool was_inserted = false;
-    for (const auto& consumer_input :  data_expr->get_output_port_connector(0)->get_consumers()) {
+    for (const auto& consumer_input : data_expr->get_output_port_connector(0)->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
-        const auto port = consumer_input.get_index();
-        const auto& consumer = consumer_expr->get_node();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer);
-        if (ma && ma->is_memory_access_input_port(port))
+        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer_expr->get_node());
+        if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
             return false;
 
-        const auto& loop_ids = consumer_expr->get_loop_ids();
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
-        const auto load_expr =
-            *linear_ir.insert_node(load, loop_ids, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
-
-        // Need to update all the corresponding Loops with the same Entry Point
-        const auto& prev_entry_point = consumer_input;
-        const auto new_entry_point = load_expr->get_input_port(0);
-        loop_manager->update_loops_port(loop_ids, prev_entry_point, {new_entry_point}, true);
+        linear_ir.insert_node(load, consumer_expr->get_loop_ids(), true, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
         was_inserted = true;
     }
 
@@ -65,10 +55,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 }
 
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
-    const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
-    const auto& input_connector = data_expr->get_input_port_connector(0);
-    const auto& parent_output = input_connector->get_source();
+    const auto& parent_output = data_expr->get_input_port_connector(0)->get_source();
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
@@ -80,26 +68,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
-    const auto store_expr = *linear_ir.insert_node(store, loop_ids, insertion_pos, { data_expr->get_input_port(0) });
-
-    // Need to update all the corresponding Loops with the same Exit Point
-    const auto prev_exit_point = parent_output;
-    // The previous exit point but one output port can have several consumers that can be potential exit points
-    // So we should verify on the possible future exit points
-    const auto consumer_inputs = input_connector->get_consumers();
-    const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
-                                [&data_expr](const ExpressionPort& input_port) {
-                                    const auto expr = input_port.get_expr();
-                                    // Skip the current data expr since the input of the expr is changed to Store expr
-                                    if (expr == data_expr)
-                                        return false;
-                                    const auto& node = expr->get_node();
-                                    return ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Buffer>(node);
-                                });
-    const auto new_exit_point = store_expr->get_output_port(0);
-    const auto new_exit_points = should_be_saved ? std::vector<ExpressionPort>{prev_exit_point, new_exit_point}
-                                                 : std::vector<ExpressionPort>{new_exit_point};
-    loop_manager->update_loops_port(loop_ids, prev_exit_point, new_exit_points, false);
+    linear_ir.insert_node(store, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
     return true;
 }
 

@@ -109,6 +109,7 @@ public:
 
     // Return outer Loop IDs
     static std::vector<size_t> get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id);
+    static std::vector<size_t> get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs);
 
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
@@ -172,6 +173,10 @@ public:
             update_loop_port(loop_id, actual_port, target_ports, is_entry);
         }
     }
+    // Checks if there is a need to update Loop ports by new inserted expression
+    // if the expression and its sources (or consumers) have the same outer loop ids,
+    // the method tries to update ports of these loops
+    void update_loop_ports_by_inserted_expr(const ExpressionPtr& expr);
     // Sort Loop Ports by expression locations in Linear IR
     void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
 

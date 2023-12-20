@@ -194,6 +194,18 @@ std::vector<size_t> LinearIR::LoopManager::get_outer_expr_loops(const Expression
     return std::vector<size_t>(loop_ids.cbegin(), it);
 }
 
+std::vector<size_t> LinearIR::LoopManager::get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs) {
+    const auto& rhs_ids = rhs->get_loop_ids();
+    const auto& lhs_ids = lhs->get_loop_ids();
+    size_t idx = 0;
+    while (idx < std::min(rhs_ids.size(), lhs_ids.size())) {
+        if (rhs_ids[idx] != lhs_ids[idx])
+            break;
+        idx++;
+    }
+    return std::vector<size_t>(rhs_ids.cbegin(), rhs_ids.cbegin() + idx);
+}
+
 void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             size_t loop_id,
                                             LinearIR::constExprIt &loop_begin_pos,
@@ -491,6 +503,36 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const LoopPort& act
     port_it = ports.erase(port_it);
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
     is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
+}
+
+void LinearIR::LoopManager::update_loop_ports_by_inserted_expr(const ExpressionPtr& expr) {
+    auto output_ports = expr->get_output_ports();
+    for (size_t i = 0; i < expr->get_input_count(); ++i) {
+        const auto& source = expr->get_input_port_connector(i)->get_source();
+        const auto common_outer_loop_ids = get_common_outer_loops(expr, source.get_expr());
+        // The source output port can have several consumers (including the current expr) that can be potential exit points
+        // So we should verify on the possible future exit points
+        size_t count_of_common_outer_loops = common_outer_loop_ids.size();
+        for (const auto& source_consumer : source.get_connected_ports()) {
+            if (source_consumer.get_expr() == expr)
+                continue;
+            count_of_common_outer_loops = std::min(count_of_common_outer_loops, get_common_outer_loops(source.get_expr(), source_consumer.get_expr()).size());
+        }
+        update_loops_port({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports, false);
+        // Save previous port
+        if (count_of_common_outer_loops != common_outer_loop_ids.size()) {
+            output_ports.insert(output_ports.begin(), source);
+            update_loops_port({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports, false);
+        }
+    }
+    const auto input_ports = expr->get_input_ports();
+    for (size_t i = 0; i < expr->get_output_count(); ++i) {
+        const auto& consumers = expr->get_output_port_connector(i)->get_consumers();
+        for (const auto& consumer : consumers) {
+            const auto common_outer_loop_ids = get_common_outer_loops(expr, consumer.get_expr());
+            update_loops_port(common_outer_loop_ids, consumer, input_ports, true);
+        }
+    }
 }
 
 void LinearIR::LoopManager::expression_replacement(constExprIt new_expr_begin, constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,

@@ -17,7 +17,6 @@ namespace pass {
 bool InsertBroadcastMove::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBroadcastMove")
     bool modified = false;
-    const auto& loop_manager = linear_ir.get_loop_manager();
 
     auto supports_broadcasting = [](const std::shared_ptr<ov::Node>& n) {
       return ov::op::util::supports_auto_broadcast(n) ||
@@ -59,13 +58,10 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                                 " This dim: ", last_dims[i]);
                 const auto broadcast = std::make_shared<op::BroadcastMove>(parent_node, broadcasted_dim);
                 PortDescriptorUtils::set_port_descriptor_ptr(broadcast->output(0), parent_port.get_descriptor_ptr()->clone());
-                const auto broadcast_expr = *linear_ir.insert_node(broadcast, loop_ids, expr_it, { expr->get_input_port(i) });
+                const auto broadcast_expr = *linear_ir.insert_node(broadcast, loop_ids, true, expr_it, { expr->get_input_port(i) });
                 // Note that BroadcastMove modified the next expr input shape, so we need to set update
                 // expr's input port descriptor to reflect the changes
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());
-
-                // Copy Loop identifies
-                loop_manager->update_loops_port(loop_ids, expr->get_input_port(0), {broadcast_expr->get_input_port(0)}, true);
 
                 modified = true;
             }
