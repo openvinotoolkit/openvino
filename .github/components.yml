@@ -197,7 +197,6 @@ JS_API:
   revalidate:
     - samples
   build:
-    build:
     - CPU
     - HETERO
     - AUTO_BATCH
