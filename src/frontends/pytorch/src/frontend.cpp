@@ -200,7 +200,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
-    manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
@@ -210,7 +211,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     // Second pass of AlignTypesRemoval after all converting transformations
     manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 
     apply_pytorch_conversion_transforms(model);

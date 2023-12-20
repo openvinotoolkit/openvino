@@ -28,20 +28,18 @@
 
 #include "ov_lpt_models/depth_to_space.hpp"
 
-using namespace ngraph::opset1;
-
 namespace LayerTestsDefinitions {
 
 std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<DepthToSpaceTransformationParams>& obj) {
-    static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
-        {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
-        {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
+    static std::map<ov::op::v0::DepthToSpace::DepthToSpaceMode, std::string> names = {
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = obj.param;
@@ -55,7 +53,7 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
 void DepthToSpaceTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 

@@ -108,7 +108,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -192,7 +193,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -262,7 +264,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> OVDict:
+    def infer_new_request(self, inputs: Any = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -287,7 +289,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
@@ -297,7 +299,7 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
         *,
@@ -332,7 +334,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :param share_inputs: Enables `share_inputs` mode. Controls memory usage on inference's inputs.
 
                               If set to `False` inputs the data dispatcher will safely copy data
@@ -346,7 +348,8 @@ class CompiledModel(CompiledModelBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -464,7 +467,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!

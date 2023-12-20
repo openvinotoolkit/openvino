@@ -66,7 +66,11 @@ public:
             const auto& static_shape = targetInputStaticShapes[i];
             switch (i) {
             case 0: {
-                tensor = ov::test::utils::create_and_fill_tensor(param_type, static_shape, 2560, 0, 256);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 2560;
+                    in_data.resolution = 256;
+                    tensor = ov::test::utils::create_and_fill_tensor(param_type, static_shape, in_data);
                 break;
             }
             case 1: {

@@ -23,9 +23,9 @@ std::shared_ptr<ov::opset12::Gather> make_gather(std::shared_ptr<ov::Node> input
     const ov::Shape& input_shape = input_node->get_output_shape(0);
     const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
 
-    auto gather_indexes_node = ov::opset12::Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
+    auto gather_indexes_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
 
-    auto gather_axis_node = ov::opset12::Constant::create(ov::element::i64, ov::Shape{}, {axis});
+    auto gather_axis_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
 
     return std::make_shared<ov::opset12::Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }

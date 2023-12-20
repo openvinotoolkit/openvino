@@ -8,7 +8,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include <remote_blob_tests/remote_blob_helpers.hpp>
+#include <remote_tensor_tests/remote_blob_helpers.hpp>
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) {

@@ -59,9 +59,10 @@ static std::string getDeviceFullName() {
 #else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
-        char *ch = reinterpret_cast<char*>(&regs[0]);
+        char* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
-            brand_string += ch[j];
+            if (ch[j] != '\0')
+                brand_string += ch[j];
     }
 #else
 # error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
@@ -532,7 +533,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
                                                                            ov::element::Type_t::f16,
                                                                            ov::element::Type_t::f32,
                                                                            ov::element::Type_t::f64,
-                                                                           ov::element::Type_t::boolean};
+                                                                           ov::element::Type_t::boolean,
+                                                                           ov::element::Type_t::string};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",

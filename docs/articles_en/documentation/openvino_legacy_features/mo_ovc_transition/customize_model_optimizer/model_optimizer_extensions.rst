@@ -1,5 +1,7 @@
-# [LEGACY] Model Optimizer Extensions {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions}
+.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions}
 
+[LEGACY] Model Optimizer Extensions
+=====================================
 
 .. meta::
    :description: Learn about deprecated extensions, which enable injecting logic 

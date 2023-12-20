@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
-
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
-
-using namespace ngraph;
 
 /*
    In cases like: Parameter->Gather->Subgraph->AvgPool when input blob precision is forced to U8.
