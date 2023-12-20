@@ -14,6 +14,7 @@ Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. Th
 * [Docker images overview](#docker-images)
 * [Caches overview](#caches)
 * [How to add new tests](#adding-new-tests)
+* [Optimizing workflow based on PR changes](#optimizing-workflow-based-on-PR-changes)
 
 ## Workflows
 
@@ -260,6 +261,11 @@ The jobs in the workflows utilize appropriate caches based on a job's needs. Rea
 ## Adding New Tests
 
 If you would like to add new tests, refer to [this document](./adding_tests.md).
+
+## Optimizing workflow based on PR changes
+
+To optimize pre-commit workflow by running only those jobs that are actually required to validate changes in a pull 
+request, you can use Smart CI feature. Refer to [this document](./smart_ci.md) to learn more.
 
 ## See also
 

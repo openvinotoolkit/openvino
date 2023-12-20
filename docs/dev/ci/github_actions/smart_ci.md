@@ -18,7 +18,7 @@ Basic understanding of [GitHub Actions workflows](https://docs.github.com/en/act
 ## Implementation
 
 Smart CI is implemented as a [custom GitHub Action](https://docs.github.com/en/actions/creating-actions/about-custom-actions) 
-stored in openvino repository: [.github/actions/smart-ci](../../../.github/actions/smart-ci). In GitHub Actions 
+stored in openvino repository: [.github/actions/smart-ci](../../../../.github/actions/smart-ci). In GitHub Actions 
 workflows this action is called as a first step in a separate job:
 ```yaml
 jobs:
@@ -67,7 +67,7 @@ The way how we define product components and "smart" rules for them is described
 
 Smart CI operates based on the set of rules described in two configuration files, stored in openvino repository.
 
-### Product components definition: [.github/labeler.yml](../../../.github/labeler.yml)
+### Product components definition: [.github/labeler.yml](../../../../.github/labeler.yml)
 This file contains mapping of source code paths to corresponding component names. Essentially, this a configuration 
 for [actions/labeler](https://github.com/marketplace/actions/labeler?version=v4.3.0) GitHub Action, which we use to
 automatically assign labels to pull requests based on PR changeset. We reuse it for Smart CI purposes, so that each 
@@ -83,7 +83,7 @@ If PR changes at least one file matching any of the [minimatch glob patterns](ht
 above, label "category: CPU" will be assigned to this PR, and GitHub Actions workflows that use Smart CI feature will
 consider component named "CPU" changed ("category:" prefix is omitted in component name). 
 
-### Definition of dependencies between components: [.github/components.yml](../../../.github/components.yml)
+### Definition of dependencies between components: [.github/components.yml](../../../../.github/components.yml)
 Some components are not entirely independent, and changes in them may affect other components as well. In this case, 
 in addition to the validation for the changed component itself (build + tests), validation for dependent components 
 is also required (either only build or both build and tests). This file describes these relationships between components,
@@ -126,11 +126,11 @@ any of the patterns in labeler.yml configuration.
 
 ### Adding a new component
 
-1. Add a new record to [.github/labeler.yml](../../../.github/labeler.yml).
+1. Add a new record to [.github/labeler.yml](../../../../.github/labeler.yml).
 Root-level key is a component (label) name, and value is a set of globs to define which source code paths are related to 
 this component. See [labeler usage](https://github.com/marketplace/actions/labeler?version=v4.3.0) to get familiar with
 globs syntax.
-2. Add a new record to [.github/components.yml](../../../.github/components.yml). 
+2. Add a new record to [.github/components.yml](../../../../.github/components.yml). 
 Root-level key is a component name, which is the same as the label name defined in the previous step, but with prefix 
 "category:" omitted (if any). If there were spaces present in label name - replace them with underscores. Example:
 `'category: LP transformations'` in labeler.yml -> `LP_transformations` in components.yml.  To fill the value, review 
@@ -169,9 +169,9 @@ respective components.
 
 ### Adding validation for a component
 You may wish to add a new validation job to test your new component, or choose an existing one. For that, go to the 
-desired workflow in [.github/workflows](../../../.github/workflows) (the main ones are 
-[linux.yml](../../../.github/workflows/linux.yml), [windows.yml](../../../.github/workflows/windows.yml) and 
-[mac.yml](../../../.github/workflows/mac.yml)). If Smart CI is enabled for the pipeline, you will find Smart_CI job 
+desired workflow in [.github/workflows](../../../../.github/workflows) (the main ones are 
+[linux.yml](../../../../.github/workflows/linux.yml), [windows.yml](../../../../.github/workflows/windows.yml) and 
+[mac.yml](../../../../.github/workflows/mac.yml)). If Smart CI is enabled for the pipeline, you will find Smart_CI job 
 in the beginning of the workflow:
 ```yaml
 jobs:
@@ -261,7 +261,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 If needed, more parameters can be passed to "Get affected components" step, full list is available here:
-[.github/actions/smart-ci/action.yml](../../../.github/actions/smart-ci/action.yml).
+[.github/actions/smart-ci/action.yml](../../../../.github/actions/smart-ci/action.yml).
 
 After that, you can refer to the outputs from Smart_CI in validation jobs, as described in 
 [Adding validation for a component](#adding-validation-for-a-component) section. To learn more about the syntax of
@@ -318,7 +318,7 @@ Some components (like NVIDIA plugin or ONNX Runtime) are stored in their own rep
 defined via pattern matching on source code in openvino repository, while they still need to be validated together with 
 core OpenVINO. To add Smart CI rules for such components, skip the first step with modifying labeler configuration 
 in [Adding a new component](#adding-a-new-component) instruction and go directly to the next step:
-1. Add a new record to [.github/components.yml](../../../.github/components.yml),
+1. Add a new record to [.github/components.yml](../../../../.github/components.yml),
 with empty values for `revalidate` and `build` keys, like that:
     ```yaml
     NEW_EXTERNAL_COMPONENT:
