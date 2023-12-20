@@ -557,7 +557,7 @@ const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const
 void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ref_unary_function_ptr ref_kernel, void *in0, void *out0) {
     assert(ref_kernel);
     std::cerr << "ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel\n\n\n";
-    (*ref_kernel)(in0, out0);
+    ref_kernel(in0, out0);
 }
 
 

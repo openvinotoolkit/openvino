@@ -17,6 +17,7 @@
 // Matmul support:
 #include "libxsmm.h"
 
+#include <cxxabi.h>
 namespace ov {
 namespace intel_cpu {
 //todo: this class is largely a copy of BrgemmEmitter. It makes sense to develop a base class for
@@ -148,7 +149,8 @@ public:
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr);
     typedef std::function<void(void*, void*)> ref_unary_function;
-    typedef void (*const* ref_unary_function_ptr)(void*, void*);
+    // typedef void (*const* ref_unary_function_ptr)(void*, void*);
+    typedef void (*ref_unary_function_ptr)(void*, void*);
     static void execute_unary_eltw_kernel(ref_unary_function_ptr eltwise_kernel, void *in0, void *out0);
     const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
     const uintptr_t get_compiled_kernel_ptr() const override;
@@ -226,9 +228,19 @@ public:
                 // }
                 // #undef GENERATE_REFERENCE_IMPL
             }
-        ref_unary_function_ptr get_reference_function() const {
-            void(*const* a)(void*, void*) = reference_function.target<void(*)(void*, void*)>();
-            return a;
+        ref_unary_function_ptr get_reference_function() {
+            {
+                int status;
+                const char* name = reference_function.target_type().name();
+                std::unique_ptr<char, void (*)(void*)> demangled_name(
+                                    abi::__cxa_demangle(name, nullptr, nullptr, &status),
+                                    std::free);
+                    std::cerr << "A:: " << demangled_name.get() << "\n";
+            }
+
+            // void(*const* a)(void*, void*) = reference_function.target<void(*)(void*, void*)>();
+            auto a = reference_function.target<void(*)(void*, void*)>();
+            return *a;
             // return reference_function.target<void(*)(void*, void*)>();
         }
         ~ReferenceJITExecutor() {
