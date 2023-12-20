@@ -79,8 +79,6 @@ TEST_F(CompileModelsTests, ModelWithShapeOf) {
         return node->get_rt_info().at(ExecGraphInfoSerialization::LAYER_TYPE).as<std::string>();
     };
     const auto ops = runtime_model->get_ops();
-    std::cout << "ModelWithShapeOf ops" << std::endl;
-    for (auto& op : ops ) std::cout << op << std::endl;
     // one Input, one Eltwise and one Output
     EXPECT_EQ(3, ops.size());
     // ShapeOf is folded

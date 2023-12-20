@@ -225,6 +225,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          ])
     @pytest.mark.nightly
     @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
+    @pytest.mark.xfail(platform.machine() == 'arm64', reason='Ticket - 122716')
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
         if not use_new_frontend and op_type in ['BitwiseNot']:
