@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, \
@@ -96,7 +96,7 @@ class TestResize(OnnxRuntimeLayerTest):
         graph_def = onnx.helper.make_graph(nodes_list, 'test_model', [x], [y])
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
         onnx.checker.check_model(onnx_net)
 
         #

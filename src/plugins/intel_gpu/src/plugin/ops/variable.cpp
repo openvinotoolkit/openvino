@@ -8,8 +8,17 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
+#include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
+
+namespace ov {
+namespace op {
+namespace internal {
+using ReadValue = ov::intel_gpu::op::ReadValue;
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
 
 
 namespace ov {
@@ -41,6 +50,11 @@ void CreateReadValueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Read
     CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
 }
 
+void CreateReadValueOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::ReadValue>& op) {
+    validate_inputs_count(op, {0, 1});
+    CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
+}
+
 void CreateAssignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Assign>& op) {
     validate_inputs_count(op, {1});
     CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
@@ -62,6 +76,7 @@ REGISTER_FACTORY_IMPL(v3, Assign);
 REGISTER_FACTORY_IMPL(v6, Assign);
 REGISTER_FACTORY_IMPL(v3, ReadValue);
 REGISTER_FACTORY_IMPL(v6, ReadValue);
+REGISTER_FACTORY_IMPL(internal, ReadValue);
 
 }  // namespace intel_gpu
 }  // namespace ov
