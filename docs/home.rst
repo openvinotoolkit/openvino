@@ -61,12 +61,12 @@ OpenVINO 2023.2
 
       See latest benchmark numbers for OpenVINO and OpenVINO Model Server
 
-   .. grid-item-card:: Flexible Workflow
+   .. grid-item-card:: Work with Multiple Model Formats
       :link: openvino_docs_model_processing_introduction
       :link-alt: Supported Model Formats     
       :link-type: doc
 
-      Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format.
+      OpenVINO supports different model formats: PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle.
 
    .. grid-item-card:: Deploy at Scale with OpenVINO Model Server
       :link: ovms_what_is_openvino_model_server
