@@ -591,15 +591,9 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
         EdgePtr last_shared_edge = nullptr;
 
         // find cluster index
-        std::cout << "========5555 " << edge->name() << std::endl;
-        int cntxxx = 0;
         for (auto shared_edge = edge->getSharedEdge(std::nothrow);
             shared_edge;
             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            std::cout << "========6666 " << shared_edge->name() << std::endl;
-            cntxxx++;
-            if (cntxxx > 10)
-                asm("int3");
             auto shared_edge_it = edge_cluster_indices.find(shared_edge);
             if (shared_edge_it != edge_cluster_indices.end()) {
                 cluster_idx = shared_edge_it->second;
@@ -628,8 +622,6 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
 }
 
 void Graph::AllocateWithReuse() {
-    DEBUG_LOG("======================4444");
-    DEBUG_LOG(*this);
     edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();

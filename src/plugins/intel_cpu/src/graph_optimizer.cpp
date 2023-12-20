@@ -2530,9 +2530,9 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
     //          Additionally, we insert another Reorder that performs the conversion from the input precision (inPrec)
     //          to the output precision (outPrec)
     auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& trans_node, std::shared_ptr<Node>& reorder_node) {
-        //      pp ===> trans_node ===> reorder_node ===> cc0, cc1, ...
-        // is turned into
-        //      pp ===> reorder_layout ===> [reorder_convert] ==> cc0, cc1, ...
+        // parentParentNode ===> trans_node ===> reorder_node ===> cc0, cc1, ...
+        //      is transfomed into
+        // parentParentNode ===> reorder_nop ===> [reorder_convert] ==> cc0, cc1, ...
         auto parentParentNode = trans_node->getParentEdgesAtPort(0)[0]->getParent();
         auto parentParenPort = trans_node->getParentEdgesAtPort(0)[0]->getInputNum();
         auto parentParentConstNode = trans_node->getParentEdgesAtPort(1)[0]->getParent();
@@ -2568,14 +2568,9 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         graph.DropNode(reorder_node);
 
         // pp ===> cc0, cc1, ...
-        auto inDesc = trans_node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
-        auto outDesc = reorder_node->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
-
-        auto inPrec = inDesc->getPrecision();
-        auto outPrec = outDesc->getPrecision();
-
-        auto reorderInDesc = inDesc;
-        auto reorderOutDesc = outDesc->cloneWithNewPrecision(inPrec);
+        auto reorderInDesc = trans_node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+        auto finalDesc = reorder_node->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        auto reorderOutDesc = finalDesc->cloneWithNewPrecision(reorderInDesc->getPrecision());
 
         std::string reorderlayerName = parentParentNode->getName() + "_" +
                 Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
@@ -2610,7 +2605,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         reorder_layout->setDescs(*reorderInDesc, *reorderOutDesc);
         reorder_layout->setOptimized(isOptimized);
         reorder_layout->setSrcPermutation(srcPerm);
-        graph.GetNodes().push_back(reorder_layout);
 
         auto connect = [&](const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port) {
             auto new_edge = std::make_shared<Edge>(parent, child, pr_port, ch_port);
@@ -2626,26 +2620,21 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
         // case 2
         auto reorder_last = reorder_layout;
-        if (reorderOutDesc->getPrecision() != outDesc->getPrecision()) {
+        if (reorderOutDesc->getPrecision() != finalDesc->getPrecision()) {
             auto childChildNode = reorder_node->getChildEdgeAt(0)->getChild();
             std::string reorderLayerName2 = reorder_layout->getName() + "_" +
-                                            Reorder::getReorderArgs(*reorderOutDesc, *outDesc) + "_" +
+                                            Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_" +
                                             childChildNode->getName();
-
             reorder_last = std::make_shared<node::Reorder>(reorderLayerName2, graph.getGraphContext());
-            reorder_last->setDescs(*reorderOutDesc, *outDesc);
+            reorder_last->setDescs(*reorderOutDesc, *finalDesc);
             reorder_last->setOptimized(false);
             reorder_last->setSrcPermutation(srcPerm);
-            graph.GetNodes().push_back(reorder_last);
-
             connect(reorder_layout, reorder_last, 0, 0);
         }
 
-        // connect last reorder to all children
         for (auto& cc : reorderChildren)
             connect(reorder_last, cc.first, 0, cc.second);
 
-        // initalize new nodes
         graph.InsertNode(nullptr, nullptr, reorder_layout, 0, 0, true);
         if (reorder_last != reorder_layout)
             graph.InsertNode(nullptr, nullptr, reorder_last, 0, 0, true);
