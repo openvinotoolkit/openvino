@@ -251,7 +251,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
     } catch (...) {
-        FAIL() << "Expected Exception exception";
+        FAIL() << "Expected ov::Exception";
     }
 }
 
