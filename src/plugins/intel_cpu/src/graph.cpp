@@ -1627,40 +1627,41 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
-    EdgePtr beforeNode;
-    EdgePtr afterNode;
-    if (parent)
-        beforeNode = std::make_shared<Edge>(parent, node, parentPort, 0);
-    if (child)
-        afterNode = std::make_shared<Edge>(node, child, 0, childPort);
-
-    // Add edge for beforeNode
-    if (beforeNode) {
-        beforeNode->getChild()->parentEdges.push_back(beforeNode);
-        parent->childEdges.push_back(beforeNode);
-    }
-
-    // Add edge for afterNode
-    if (afterNode) {
-        afterNode->getParent()->childEdges.push_back(afterNode);
-        child->parentEdges.push_back(afterNode);
-    }
-
-    if (initNode) {
+void Graph::AddNodes(const std::vector<NodePtr>& new_nodes) {
+    for (auto& node : new_nodes) {
         node->getSupportedDescriptors();
         node->initSupportedPrimitiveDescriptors();
         node->filterSupportedPrimitiveDescriptors();
         node->selectOptimalPrimitiveDescriptor();
+    }
+    for (auto& node : new_nodes) {
         resolveInPlaceDirection(node);
+    }
+    for (auto& node : new_nodes) {
         node->initOptimalPrimitiveDescriptor();
     }
+    for (auto& node : new_nodes) {
+        graphNodes.push_back(node);
+    }
+}
 
-    if (beforeNode)
-        graphEdges.push_back(beforeNode);
-    if (afterNode)
-        graphEdges.push_back(afterNode);
-    graphNodes.push_back(node);
+bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
+    EdgePtr beforeNode(new Edge(parent, node, parentPort, 0));
+    EdgePtr afterNode(new Edge(node, child, 0, childPort));
+
+    // Add edge for beforeNode
+    beforeNode->getChild()->parentEdges.push_back(beforeNode);
+    parent->childEdges.push_back(beforeNode);
+    graphEdges.push_back(beforeNode);
+
+    // Add edge for afterNode
+    afterNode->getParent()->childEdges.push_back(afterNode);
+    child->parentEdges.push_back(afterNode);
+    graphEdges.push_back(afterNode);
+
+    if (initNode) {
+        AddNodes({node});
+    }
     return true;
 }
 

@@ -181,6 +181,11 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
+    /**
+     * @brief Initialize new nodes which has been connected into graph
+     */
+    void AddNodes(const std::vector<NodePtr>& new_nodes);
+
     std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }

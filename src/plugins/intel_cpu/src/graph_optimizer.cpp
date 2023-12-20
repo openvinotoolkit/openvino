@@ -2554,15 +2554,15 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         const auto parentInPlace = trans_node->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
         const auto& childEdges = reorder_node->getChildEdgesAtPort(0);
 
-        // hold references to all children
-        std::vector<std::pair<NodePtr, int>> reorderChildren;
-        for (auto ccEdge : childEdges)
-            reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
-
         const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(),
             [](const EdgePtr& edge){ return edge->inPlace(Edge::LOOK_DOWN); });
 
         bool isOptimized = !(parentInPlace && childInPlace);
+
+        // hold references to all children before dropping reorder_node
+        std::vector<std::pair<NodePtr, int>> reorderChildren;
+        for (auto ccEdge : childEdges)
+            reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
 
         graph.DropNode(trans_node);
         graph.DropNode(reorder_node);
@@ -2621,10 +2621,9 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         // case 2
         auto reorder_last = reorder_layout;
         if (reorderOutDesc->getPrecision() != finalDesc->getPrecision()) {
-            auto childChildNode = reorder_node->getChildEdgeAt(0)->getChild();
             std::string reorderLayerName2 = reorder_layout->getName() + "_" +
-                                            Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_" +
-                                            childChildNode->getName();
+                                            Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_x_" +
+                                            reorderChildren[0].first->getName();
             reorder_last = std::make_shared<node::Reorder>(reorderLayerName2, graph.getGraphContext());
             reorder_last->setDescs(*reorderOutDesc, *finalDesc);
             reorder_last->setOptimized(false);
@@ -2635,9 +2634,13 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         for (auto& cc : reorderChildren)
             connect(reorder_last, cc.first, 0, cc.second);
 
-        graph.InsertNode(nullptr, nullptr, reorder_layout, 0, 0, true);
-        if (reorder_last != reorder_layout)
-            graph.InsertNode(nullptr, nullptr, reorder_last, 0, 0, true);
+        // initialize and add nodes into graph
+        std::vector<NodePtr> new_nodes;
+        new_nodes.push_back(reorder_layout);
+        if (reorder_last != reorder_layout) {
+            new_nodes.push_back(reorder_last);
+        }
+        graph.AddNodes(new_nodes);
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {

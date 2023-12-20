@@ -376,7 +376,7 @@ std::ostream & operator<<(std::ostream & os, const Graph& g) {
     return os;
 }
 
-class OstreamAttributeVisitor : public ngraph::AttributeVisitor {
+class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream & os;
 
 public:
