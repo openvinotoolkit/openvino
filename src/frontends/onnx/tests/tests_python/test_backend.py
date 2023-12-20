@@ -393,6 +393,7 @@ tests_expected_to_fail = [
     (
         skip_bitwise_ui64,
         "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_or_ui64_bcast_3v1d_cpu",
     ),
     (
         xfail_issue_99949,
