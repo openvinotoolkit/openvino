@@ -38,11 +38,9 @@ protected:
     virtual void compile_model();
     virtual void infer();
     virtual void validate();
-    virtual void configure_model();
+    virtual void configure_model();;
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
-    bool is_allowed_convertion(ov::element::Type from, ov::element::Type to);
-    void get_convert_precision_map();
     void update_ref_model();
     void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
