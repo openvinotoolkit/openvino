@@ -46,7 +46,7 @@ public:
      * @param type the type of Loop
      * @return True if the loop descriptor has been found. Otherwise returns False
      */
-    bool contains(size_t loop_id, LoopDescriptor::Type type) const;
+    bool contains(size_t loop_id, const LoopDescriptor::Type& type) const;
     /**
      * @brief Find the LoopDescriptor and its ordered index by Loop ID and Type of descriptor
      * @param loop_id the corresponding loop ID
@@ -55,7 +55,7 @@ public:
      * @param index the reference of ordered index of loop in all loop descriptors
      * @return True if the loop descriptor has been found. Otherwise returns False
      */
-    bool get_loop_desc(size_t loop_id, LoopDescriptor::Type type, LoopDescriptor& desc, size_t& index) const;
+    bool get_loop_desc(size_t loop_id, const LoopDescriptor::Type& type, LoopDescriptor& desc, size_t& index) const;
     /**
      * @brief Find the LoopDescriptor by Loop ID and Type of descriptor.
      *        Since the method doesn't return ordered index of LoopDescriptor, this method is faster than previous.
@@ -64,25 +64,25 @@ public:
      * @param desc the reference of the target loop descriptor
      * @return True if the loop descriptor has been found. Otherwise returns False
      */
-    bool get_loop_desc(size_t loop_id, LoopDescriptor::Type type, LoopDescriptor& desc) const;
+    bool get_loop_desc(size_t loop_id, const LoopDescriptor::Type& type, LoopDescriptor& desc) const;
     /**
      * @brief Find the LoopDescriptor iterator by Loop ID and Type of descriptor.
      * @param loop_id the corresponding loop ID
      * @param type the type of Loop
      * @return Iterator of vector with LoopDescriptors
      */
-    LoopDescriptorList::iterator get_loop_desc_it(size_t loop_id, LoopDescriptor::Type type);
+    LoopDescriptorList::iterator get_loop_desc_it(size_t loop_id, const LoopDescriptor::Type& type);
 
     /**
      * @brief Return the loop descriptors
      * @return the const ref of the map [loop_id -> loop descriptors]
      */
-    const LoopMap& get_loops() const { return loops; }
+    const LoopMap& get_loops() const { return m_loops; }
     /**
      * @brief Return the Subgraph input and output data offsets
      * @return the const ref of vector with data offsets
      */
-    const std::vector<std::vector<size_t>>& get_data_offsets() const { return data_offsets; }
+    const std::vector<std::vector<size_t>>& get_data_offsets() const { return m_data_offsets; }
     /**
      * @brief Return the count of all loop descriptors
      * @return the count
@@ -96,10 +96,18 @@ public:
 private:
     RuntimeConfig() = default;
 
+    /**
+     * @brief Add to the end new empty descriptor of `type`
+     * @param loop_id the corresponding loop ID
+     * @param type the type of Loop
+     * @return Iterator of vector with LoopDescriptors
+     */
+    LoopDescriptorList::iterator push_new_desc(size_t loop_id, const LoopDescriptor::Type& type);
+
     // [loop_id -> loop descriptors]
-    LoopMap loops;
+    LoopMap m_loops;
     // offsets of subgraph input and output data
-    std::vector<std::vector<size_t>> data_offsets;
+    std::vector<std::vector<size_t>> m_data_offsets;
 };
 
 } // namespace lowered

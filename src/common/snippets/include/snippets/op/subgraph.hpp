@@ -151,7 +151,7 @@ public:
                                       const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>());
     std::shared_ptr<Subgraph> clone() const;
 
-    lowered::RuntimeConfig configure_runtime_args();
+    const lowered::RuntimeConfig& configure_runtime_args();
 
 private:
     void init_config();

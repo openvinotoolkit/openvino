@@ -401,12 +401,9 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     return result;
 }
 
-lowered::RuntimeConfig Subgraph::configure_runtime_args() {
-    // Firstly, update LoopInfo of loops
-    lowered::pass::ValidateShapes().run(*m_linear_ir);
-
-    // Secondly, configure lowered
-    return m_linear_ir->configure();
+const lowered::RuntimeConfig& Subgraph::configure_runtime_args() {
+    m_linear_ir->configure_runtime_args();
+    return m_linear_ir->get_runtime_config();
 }
 
 void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input_shapes,
@@ -477,6 +474,11 @@ void Subgraph::control_flow_transformations(const std::vector<snippets::lowered:
     // After transformations need to update shape infer
     m_linear_ir->update_shape_infer();
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
+
+    // After transformations configure runtime parameters
+    // If shapes are static - creates static loop descriptors with inited data ptr shifts
+    // If shapes are dynamic - creates full set of loop descriptor for the following initialization by static shapes
+    m_linear_ir->configure_runtime_args();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
@@ -524,7 +526,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
 
 VectorDims Subgraph::get_parallel_exec_domain() const {
     VectorDims parallel_exec_domain = m_linear_ir->get_master_shape();
-    const size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
+    const auto& loop_depth = m_linear_ir->get_config().m_loop_depth;
     for (size_t i = 0; i < loop_depth; i++)
         parallel_exec_domain[parallel_exec_domain.size() - 1 - i] = 1;
     parallel_exec_domain.insert(parallel_exec_domain.begin(), m_tensor_rank - parallel_exec_domain.size(), 1);

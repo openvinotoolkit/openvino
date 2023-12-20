@@ -40,6 +40,12 @@ int64_t get_output_stride(size_t dim, const VectorDims& shape) {
     }
     return stride;
 }
+inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    return *(layout.rbegin() + dim_idx);
+}
+inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
+}
 }  // namespace
 
 void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args) {
@@ -71,20 +77,19 @@ void InitLoops::init_ptr_increment(LinearIR::LoopManager::LoopPort& loop_port, s
 
     const auto& expr_port = loop_port.expr_port;
     if (expr_port->get_type() == ExpressionPort::Input) {
-        const auto source = *expr_port->get_connected_ports().begin();
         const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
         const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
-        const auto& dim = *(layout.rbegin() + loop_port.dim_idx);
+        const auto& dim = get_input_dim_idx(layout, loop_port.dim_idx);
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
         if (!(shape[dim] == 1 && work_amount != 1)) {
+            const auto& source = expr_port->get_port_connector_ptr()->get_source();
             // Input layout shows how we should read data by which order and strides
             loop_port.ptr_increment = get_input_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
         }
     } else if (expr_port->get_type() == ExpressionPort::Output) {
         const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
         const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
-        const auto original_dim = layout.size() - 1 - loop_port.dim_idx;
-        const auto& dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), original_dim));
+        const auto& dim = get_output_dim_idx(layout, loop_port.dim_idx);
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
         if (!(shape[dim] == 1 && work_amount != 1)) {
             // Output layout shows how we already written data by which order and strides
@@ -129,14 +134,16 @@ void InitLoops::init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_
     size_t work_amount = 1;
     for (const auto& loop_port : loop_info->get_entry_points()) {
         if (loop_port.is_incremented) {
-            const auto shape = utils::get_planar_vdims(*loop_port.expr_port);
-            broadcast(work_amount, *(shape.rbegin() + loop_port.dim_idx));
+            const auto& shape = loop_port.expr_port->get_descriptor_ptr()->get_shape();
+            const auto& layout = loop_port.expr_port->get_descriptor_ptr()->get_layout();
+            broadcast(work_amount, shape[get_input_dim_idx(layout, loop_port.dim_idx)]);
         }
     }
     for (const auto& loop_port : loop_info->get_exit_points()) {
         if (loop_port.is_incremented) {
-            const auto shape = utils::get_preordered_vdims(*loop_port.expr_port);
-            broadcast(work_amount, *(shape.rbegin() + loop_port.dim_idx));
+            const auto& shape = loop_port.expr_port->get_descriptor_ptr()->get_shape();
+            const auto& layout = loop_port.expr_port->get_descriptor_ptr()->get_layout();
+            broadcast(work_amount, shape[get_output_dim_idx(layout, loop_port.dim_idx)]);
         }
     }
     loop_info->set_work_amount(work_amount);

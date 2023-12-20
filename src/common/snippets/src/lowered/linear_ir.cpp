@@ -368,8 +368,11 @@ void LinearIR::update_shape_infer() {
     m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
 }
 
-RuntimeConfig LinearIR::configure() {
+void LinearIR::configure_runtime_args() {
     m_runtime_configurator->update(*this);
+}
+
+const RuntimeConfig& LinearIR::get_runtime_config() const {
     return m_runtime_configurator->get_config();
 }
 

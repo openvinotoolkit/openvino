@@ -23,7 +23,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     if (!target->is_supported())
         OPENVINO_THROW("unsupported architecture for code generation");
 
-    const auto runtime_config = linear_ir.configure();
+    const auto& runtime_config = linear_ir.get_runtime_config();
 
     std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
         return get_op_reg_type(op);

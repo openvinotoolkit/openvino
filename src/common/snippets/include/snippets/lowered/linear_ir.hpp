@@ -78,7 +78,7 @@ public:
 
     const container& get_ops() const { return m_expressions; }
     const io_container& get_IO_ops() const { return m_io_expressions; }
-    Config get_config() const { return m_config; }
+    const Config& get_config() const { return m_config; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -147,7 +147,8 @@ public:
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 
-    RuntimeConfig configure();
+    void configure_runtime_args();
+    const RuntimeConfig& get_runtime_config() const;
 
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

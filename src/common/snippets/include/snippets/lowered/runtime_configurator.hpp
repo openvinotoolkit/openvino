@@ -35,7 +35,7 @@ public:
      * @brief Get runtime config
      * @return config with runtime parameters
      */
-    RuntimeConfig get_config() const { return m_config; }
+    const RuntimeConfig& get_config() const { return m_config; }
 
 private:
     using LinearIR = lowered::LinearIR;
@@ -104,7 +104,7 @@ private:
      * @param prev_iter_desc iterator to the descriptor of the previos loop body
      */
     void init_data_ptr_shifts(RuntimeConfig::LoopDescriptor& desc,
-                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports,
+                              const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                               bool skip_evaluation, bool is_there_prev_iter,
                               const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc);
 
