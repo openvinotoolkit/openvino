@@ -76,6 +76,20 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
         }
     }
 
+protected:
+    kernel_arguments_data get_arguments(const typed_primitive_inst<gather>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<gather>();
+
+        if (desc->decompression_scale.is_valid())
+            args.inputs.push_back(instance.dep_memory_ptr(2));
+
+        if (desc->decompression_zero_point.is_valid())
+            args.inputs.push_back(instance.dep_memory_ptr(3));
+
+        return args;
+    }
+
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<gather>();
@@ -105,6 +119,22 @@ public:
 
         params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+
+        bool commpressed = primitive->decompression_scale.is_valid();
+        bool with_zp = primitive->decompression_zero_point.is_valid();
+        if (commpressed) {
+            params.compressed = true;
+            params.decompression_scale = convert_data_tensor(impl_param.get_input_layout(2));
+            if (with_zp) {
+                params.has_decompression_zp = true;
+                params.decompression_zero_point = convert_data_tensor(impl_param.get_input_layout(3));
+            } else if (primitive->decompression_zero_point_scalar.has_value()) {
+                params.has_decompression_zp = true;
+                params.scalar_zp = true;
+                params.zp_value = primitive->decompression_zero_point_scalar.value();
+            }
+        }
+
         return {params, optional_params};
     }
 
@@ -151,6 +181,8 @@ attach_gather_impl::attach_gather_impl() {
         data_types::f16,
         data_types::i8,
         data_types::u8,
+        data_types::i4,
+        data_types::u4,
         data_types::i32
     };
 
@@ -190,6 +222,8 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i4, format::bfyx),
+        std::make_tuple(data_types::u4, format::bfyx),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
