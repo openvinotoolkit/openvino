@@ -454,7 +454,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkConstantResultOnl
     EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
 }
 
-TEST_P(OVCompiledGraphImportExportTest, ovImportExportedFunction) {
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConvertPrecision) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     ov::CompiledModel execNet;
 
