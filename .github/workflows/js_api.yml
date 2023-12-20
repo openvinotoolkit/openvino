@@ -1,0 +1,91 @@
+name: JS API
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/bindings/js/**'
+      - '.github/workflows/js_api.yml'
+  push:
+    paths:
+      - 'src/bindings/js/**'
+      - '.github/workflows/js_api.yml'
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-js-api
+  cancel-in-progress: true
+
+jobs:
+  JS_API:
+    name: Configure and Test JS API Bindings
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - machine: 'manylinux2014'
+            shell: 'bash'
+# TODO: uncomment once they work
+#          - machine: 'windows-2022'
+#            shell: 'cmd'
+#          - machine: 'macos-11'
+#            shell: 'bash'
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    runs-on: ${{ matrix.machine }}
+    env:
+      OPENVINO_REPO: "${{ github.workspace }}/openvino"
+      JS_BINDINGS_DIR: "${{ github.workspace }}/openvino/src/bindings/js"
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+
+      #
+      # Install openvino dependencies
+      #
+
+      - name: Install openvino dependencies
+        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        run: sudo -E apt update && sudo ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
+
+      #
+      # Build openvino and install js bindings
+      #
+
+      - name: Configure openvino build
+        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        working-directory: ${{ env.OPENVINO_REPO }}
+        run: mkdir build && cd build && cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin ..
+
+      - name: Build openvino and install js bindings
+        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        working-directory: ${{ env.OPENVINO_REPO }}/build
+        run: make --jobs=$(nproc --all) install
+
+      #
+      # Configure JS API
+      #
+
+      - name: Configure JS API
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: npm i
+
+      #
+      # Tests
+      #
+
+      - name: Run tests (Unix)
+        if: ${{ !contains(matrix.machine, 'windows') }}
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: npm test
+
+      - name: Run tests (Windows)
+        if: ${{ contains(matrix.machine, 'windows') }}
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: call npm test
