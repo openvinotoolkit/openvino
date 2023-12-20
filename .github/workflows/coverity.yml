@@ -62,7 +62,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: 'releases/2023/3'
 
       #
       # Dependencies
