@@ -167,6 +167,56 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     }
 }
 
+TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) {
+    auto executableNet = prepare_network();
+    auto inferReq = executableNet.create_infer_request();
+    auto inferReq2 = executableNet.create_infer_request();
+
+    const float new_state_val = 13.0f;
+    for (auto&& state : inferReq.query_state()) {
+        state.reset();
+        auto state_val = state.get_state();
+        auto element_count = state_val.get_size();
+
+        float* new_state_data = new float[element_count];
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
+        }
+        ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
+        delete[] new_state_data;
+        state.set_state(state_tensor);
+    }
+    for (auto&& state : inferReq2.query_state()) {
+        state.reset();
+    }
+
+    auto states = inferReq.query_state();
+    auto states2 = inferReq2.query_state();
+    for (int i = 0; i < states.size(); ++i) {
+        auto lastState = states[i].get_state();
+        auto last_state_size = lastState.get_size();
+        auto last_state_data = static_cast<float*>(lastState.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (int j = 0; j < last_state_size; ++j) {
+            EXPECT_NEAR(13.0f, last_state_data[j], 1e-5);
+        }
+    }
+    for (int i = 0; i < states2.size(); ++i) {
+        auto lastState = states2[i].get_state();
+        auto last_state_size = lastState.get_size();
+        auto last_state_data = static_cast<float*>(lastState.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (int j = 0; j < last_state_size; ++j) {
+            EXPECT_NEAR(0, last_state_data[j], 1e-5);
+        }
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
