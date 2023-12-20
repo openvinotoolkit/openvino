@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - machine: 'manylinux2014'
+          - machine: 'ubuntu-22.04'
             shell: 'bash'
 # TODO: uncomment once they work
 #          - machine: 'windows-2022'
@@ -51,7 +51,7 @@ jobs:
       #
 
       - name: Install openvino dependencies
-        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        if: ${{ contains(matrix.machine, 'ubuntu-22.04') }}
         run: sudo -E apt update && sudo ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
 
       #
@@ -59,12 +59,12 @@ jobs:
       #
 
       - name: Configure openvino build
-        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        if: ${{ contains(matrix.machine, 'ubuntu-22.04') }}
         working-directory: ${{ env.OPENVINO_REPO }}
         run: mkdir build && cd build && cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin ..
 
       - name: Build openvino and install js bindings
-        if: ${{ contains(matrix.machine, 'manylinux2014') }}
+        if: ${{ contains(matrix.machine, 'ubuntu-22.04') }}
         working-directory: ${{ env.OPENVINO_REPO }}/build
         run: make --jobs=$(nproc --all) install
 
