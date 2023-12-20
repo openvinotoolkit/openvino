@@ -14,13 +14,13 @@ Brief tutorials that demonstrate how to use Python API for inference in OpenVINO
 
 .. showcase::
    :title: 004-hello-detection
-   :img: https://user-images.githubusercontent.com/36741649/128489933-bf215a3f-06fa-4918-8833-cb0bf9fb1cc7.jpg
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/004-hello-detection/004-hello-detection.png
 
    Text detection with OpenVINO.
 
 .. showcase::
    :title: 003-hello-segmentation
-   :img: https://user-images.githubusercontent.com/15709723/128290691-e2eb875c-775e-4f4d-a2f4-15134044b4bb.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/003-hello-segmentation/003-hello-segmentation.png
 
    Semantic segmentation with OpenVINO.
 
@@ -32,7 +32,7 @@ Brief tutorials that demonstrate how to use Python API for inference in OpenVINO
 
 .. showcase::
    :title: 001-hello-world
-   :img: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/001-hello-world/001-hello-world.png
 
    Classify an image with OpenVINO.
 
