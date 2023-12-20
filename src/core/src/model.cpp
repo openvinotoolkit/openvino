@@ -1195,7 +1195,7 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         auto batch_idx = bs_util::get_batch(layout, pshape);
         auto new_shape = param->get_partial_shape();
         new_shape[batch_idx] = batch_size;
-        new_shapes_map[f->input(i)] = new_shape;
+        new_shapes_map[f->input(i)] = std::move(new_shape);
     }
     try {
         f->reshape(new_shapes_map);

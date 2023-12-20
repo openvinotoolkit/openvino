@@ -230,7 +230,9 @@ public:
 
     void build_deps();
     void do_runtime_skip_reorder();
+    void do_runtime_skip_gather();
     void do_runtime_in_place_concat();
+    void do_runtime_in_place_kv_cache();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
