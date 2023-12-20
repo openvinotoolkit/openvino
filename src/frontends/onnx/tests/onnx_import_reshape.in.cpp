@@ -263,7 +263,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
     } catch (...) {
-        FAIL() << "Expected Exception exception";
+        FAIL() << "Expected ov::Exception";
     }
 }
 
@@ -287,13 +287,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
     try {
         convert_model("space_to_depth_invalid_input_shape.onnx");
-        FAIL() << "Expected Exception exception, but no exception was thrown";
+        FAIL() << "Expected ov::Exception, but no exception was thrown";
     } catch (const ov::Exception& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
             << "Could not find \"Input must be 4-dimensional\" in exception message: \"" << msg << "\"";
     } catch (...) {
-        FAIL() << "Expected Exception exception, got another type of exception";
+        FAIL() << "Expected ov::Exception, got another type of exception";
     }
 }
 
