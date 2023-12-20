@@ -47,12 +47,22 @@ jobs:
           path: 'openvino'
 
       #
+      # Init submodules
+      #
+
+      - name: Install openvino dependencies
+        if: ${{ contains(matrix.machine, 'ubuntu-22.04') }}
+        working-directory: ${{ env.OPENVINO_REPO }}
+        run: git submodule update --init --recursive
+
+      #
       # Install openvino dependencies
       #
 
       - name: Install openvino dependencies
         if: ${{ contains(matrix.machine, 'ubuntu-22.04') }}
-        run: sudo -E apt update && sudo ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
+        working-directory: ${{ env.OPENVINO_REPO }}
+        run: sudo -E apt update && sudo install_build_dependencies.sh
 
       #
       # Build openvino and install js bindings
