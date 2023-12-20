@@ -165,7 +165,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -173,7 +173,7 @@ jobs:
 
       - name: Upload openvino RPM packages
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_rpm_packages
           path: ${{ env.BUILD_DIR }}/*.rpm
@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -201,7 +201,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}

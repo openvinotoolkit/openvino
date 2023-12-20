@@ -60,6 +60,9 @@ Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bo
     m_pMemDesc(desc),
     m_mgrHandle(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), this),
     dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
+        }
         create(m_pMemDesc, data, pads_zeroing);
     }
 
@@ -68,6 +71,9 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
     m_eng(eng), m_pMemDesc(desc), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
+        }
         bool memAllocated = m_mgrHandle->getRawPtr();
 
         create(desc, nullptr, !memAllocated);
@@ -105,6 +111,9 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 }
 
 void Memory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
@@ -115,6 +124,9 @@ void Memory::nullify() {
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot accept a descriptor with a string type.");
+    }
     if (!desc->hasDefinedMaxSize()) {
         OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
     }
@@ -445,6 +457,9 @@ void DnnlMemoryMngr::notifyUpdate() {
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
+    }
     if (!m_pMemDesc->isDefined()) {
         OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
     }
@@ -511,6 +526,9 @@ void StaticMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
