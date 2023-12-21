@@ -52,13 +52,6 @@ PKG_INSTALL_CFG = {
         'extract_entry_points': True,
         'extract_extras': True,
     },
-    "pot": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot',
-        'black_list': ['*tests*'],
-        'prefix': 'pot',
-        'extract_entry_points': True,
-        'extract_requirements': True,
-    },
 }
 
 

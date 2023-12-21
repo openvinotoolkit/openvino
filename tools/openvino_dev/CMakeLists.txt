@@ -79,7 +79,6 @@ endfunction()
 
 set(INIT_FILES_TOOLS
 "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
-"${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
 "${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
 
 ov_check_init_files_alignment("${INIT_FILES_TOOLS}")
