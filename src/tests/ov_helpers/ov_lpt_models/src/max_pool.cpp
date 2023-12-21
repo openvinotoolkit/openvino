@@ -9,6 +9,7 @@
 #include "low_precision/network_helper.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -20,7 +21,7 @@ std::shared_ptr<ov::Model> MaxPoolFunction::getOriginal(
     const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
