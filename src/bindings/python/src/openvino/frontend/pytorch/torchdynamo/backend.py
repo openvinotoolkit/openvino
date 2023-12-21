@@ -127,7 +127,7 @@ def fx_openvino(subgraph, example_inputs, options):
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
-                compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, *example_inputs)
+                compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
                 def _call(*args):
                     res = execute_cached(compiled_model, *args)
                     return res

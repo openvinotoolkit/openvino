@@ -24,7 +24,8 @@ def _get_device(options) -> Optional[Any]:
             + device
             + " is not in the list of OpenVINO Available Devices"
         )
-
+    else:
+        device = "CPU"
     return device
 
 def _is_cache_dir_in_config(options) -> Optional[Any]:

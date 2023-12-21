@@ -43,7 +43,7 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
 
     return file_name
 
-def openvino_compile_cached_model(cached_model_path, *example_inputs, options):
+def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
