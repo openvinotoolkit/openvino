@@ -19,8 +19,8 @@
  * @brief Defines OpenVINO patch version
  */
 
-#define OPENVINO_VERSION_MAJOR 2023
-#define OPENVINO_VERSION_MINOR 3
+#define OPENVINO_VERSION_MAJOR 2024
+#define OPENVINO_VERSION_MINOR 0
 #define OPENVINO_VERSION_PATCH 0
 
 namespace ov {
