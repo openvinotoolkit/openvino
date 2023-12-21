@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/concat_multi_input.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -92,7 +93,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         }
         if (i == 0) {
             input_vector = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, total_size})};
-            auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+            auto relu = ov::test::utils::make_activation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
             concatInputs.push_back(relu);
         } else {
             auto min_max = (i % 2 == 0) ? 2 : 30;
