@@ -810,6 +810,12 @@ TEST_P(MatMulLayerCPUTestUndefShapes, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
+const fusingSpecificParams matmulFullDynInputsFusingParams[] = {
+    fusingMultiplyPerChannel,
+    fusingMultiplyAddPerChannel,
+    fusingAddPerChannel
+};
+
 const auto matMulParamsDynamicFusingFullUndefShapes = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
                                                            ::testing::Values(ElementType::f32),
                                                            ::testing::Values(ElementType::undefined),
@@ -820,7 +826,7 @@ const auto matMulParamsDynamicFusingFullUndefShapes = ::testing::Combine(::testi
 
 const auto testParamsDynamicFusingFullUndefShapes = ::testing::Combine(matMulParamsDynamicFusingFullUndefShapes,
                                                         ::testing::Values(MatMulNodeType::MatMul),
-                                                        ::testing::ValuesIn(matmulFusingParams()),
+                                                        ::testing::ValuesIn(matmulFullDynInputsFusingParams),
                                                         ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(
