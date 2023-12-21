@@ -158,6 +158,18 @@ inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
     fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode);
+
 void fill_data_roi(ov::runtime::Tensor& tensor,
                    const uint32_t range,
                    const int height,
@@ -165,8 +177,6 @@ void fill_data_roi(ov::runtime::Tensor& tensor,
                    const float omega,
                    const bool is_roi_max_mode,
                    const int seed = 1);
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <class T>
 void inline fill_data_random(T* pointer,

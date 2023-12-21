@@ -50,6 +50,8 @@ private:
     cldnn::memory::ptr m_memory = nullptr;
     size_t actual_size = 0;
 
+    const cldnn::layout m_initial_layout;
+
     void update_device_buffer();
     ov::element::Type get_user_specified_type() const;
 };

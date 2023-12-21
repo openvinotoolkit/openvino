@@ -83,7 +83,7 @@ protected:
         for (auto&& shape : {inShapeShapeOf, inShapeElt})
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
 
-        auto addOp1 = ov::test::utils::makeEltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
+        auto addOp1 = ov::test::utils::make_eltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
         addOp1->set_friendly_name("add1");
 
         auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(addOp1, ov::element::i64);
@@ -104,7 +104,7 @@ protected:
         auto reshapeOp1 = std::make_shared<ov::op::v1::Reshape>(addOp1, concatOp1, false);
         reshapeOp1->set_friendly_name("reshapeOp1");
 
-        auto addOp2 = ov::test::utils::makeEltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
+        auto addOp2 = ov::test::utils::make_eltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
         addOp2->set_friendly_name("add2");
 
         auto shapeOfOp2 = std::make_shared<ov::op::v3::ShapeOf>(addOp2, ov::element::i64);
@@ -122,7 +122,7 @@ protected:
         auto reshapeOp2 = std::make_shared<ov::op::v1::Reshape>(addOp2, concatOp2, false);
         reshapeOp2->set_friendly_name("reshapeOp2");
 
-        auto addOp3 = ov::test::utils::makeEltwise(reshapeOp1, reshapeOp2, ov::test::utils::EltwiseTypes::ADD);
+        auto addOp3 = ov::test::utils::make_eltwise(reshapeOp1, reshapeOp2, ov::test::utils::EltwiseTypes::ADD);
         addOp3->set_friendly_name("add3");
 
         auto shapeOf3 = std::make_shared<ov::op::v3::ShapeOf>(addOp3, ov::element::i64);

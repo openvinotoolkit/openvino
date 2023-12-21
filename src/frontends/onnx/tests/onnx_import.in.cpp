@@ -6117,3 +6117,47 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and) {
+    auto model = convert_model("bitwise_and.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {1, 0, 1, 4, 5});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and_broadcast_condition) {
+    auto model = convert_model("bitwise_and_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {0, 0, 0, 4, 4});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or) {
+    auto model = convert_model("bitwise_or.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {5, 7, 7, 5, 5});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or_broadcast_condition) {
+    auto model = convert_model("bitwise_or_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 4, 5});
+
+    test_case.run();
+}

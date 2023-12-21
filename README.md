@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/img/openvino-logo-purple-black.png" width="400px">
+<img src="docs/sphinx_setup/_static/images/img/openvino-logo-purple-black.png" width="400px">
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
@@ -33,7 +33,7 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, GNA, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
@@ -81,12 +81,6 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <td><a href="https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
             <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
             <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
-        </tr>
-        <tr>
-            <td>GNA</td>
-            <td><a href="https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_GNA.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-n-a">Intel GNA</a></td>
-            <td><b><i><a href="./src/plugins/intel_gna">openvino_intel_gna_plugin</a></i></b></td>
-            <td>Intel Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel Pentium Silver J5005 Processor, Intel Pentium Silver N5000 Processor, Intel Celeron J4005 Processor, Intel Celeron J4105 Processor, Intel Celeron Processor N4100, Intel Celeron Processor N4000, Intel Core i3-8121U Processor, Intel Core i7-1065G7 Processor, Intel Core i7-1060G7 Processor, Intel Core i5-1035G4 Processor, Intel Core i5-1035G7 Processor, Intel Core i5-1035G1 Processor, Intel Core i5-1030G7 Processor, Intel Core i5-1030G4 Processor, Intel Core i3-1005G1 Processor, Intel Core i3-1000G1 Processor, Intel Core i3-1000G4 Processor</td>
         </tr>
     </tbody>
 </table>
