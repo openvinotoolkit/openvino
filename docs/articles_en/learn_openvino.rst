@@ -17,7 +17,7 @@ Learn OpenVINO
    Interactive Tutorials (Python) <tutorials>
    Sample Applications (Python & C++) <openvino_docs_OV_UG_Samples_Overview>
    Generative AI Optimization and Deployment <gen_ai_guide>
-   Import TensorFlow and Pytorch Models <openvino_docs_model_processing_introduction_draft>
+   Import TensorFlow and PyTorch Models <openvino_docs_model_processing_introduction_draft>
 
 
 This section will help you get a hands-on experience with OpenVINO even if you are just starting 
