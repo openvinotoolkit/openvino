@@ -95,6 +95,19 @@ TEST(F8E4M3Test, f32_le_f8_lowest_not_within_round_to_lowest) {
     EXPECT_EQ(f8.to_bits(), 0xff);
 }
 
+TEST(F8E4M3Test, stream_operator) {
+    std::stringstream s;
+    s << ov::f8e4m3(2.5f);
+
+    EXPECT_EQ(s.str(), "2.5");
+}
+
+TEST(F8E4M3Test, to_string) {
+    const auto f8 = ov::f8e4m3::from_bits(0b00111010);
+
+    EXPECT_EQ(f8.to_string(), "1.250000");
+}
+
 const auto exp_floats = std::vector<float>{
     0.0f,       0.001953125f,  0.00390625f,  0.005859375f,  0.0078125f,  0.009765625f,  0.01171875f,  0.013671875f,
     0.015625f,  0.017578125f,  0.01953125f,  0.021484375f,  0.0234375f,  0.025390625f,  0.02734375f,  0.029296875f,

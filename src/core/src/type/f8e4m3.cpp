@@ -46,11 +46,6 @@ constexpr uint8_t f8e4m3_e_max = 0x0f;   // f8e4m3 exponent max value
 constexpr uint8_t f8e4m3_m_size = 3;     // f8e4m3 mantissa bits size
 constexpr uint8_t f8e4m3_m_mask = 0x07;  // f8e4m3 mantissa bit mask
 
-union f32_t {
-    float value;
-    uint32_t bits;
-};
-
 uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t f32_s_mask = 0x80000000;  // f32 sign bit mask
     constexpr uint32_t f32_e_mask = 0x7F800000;  // f32 exponent bits mask
@@ -67,6 +62,11 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t round_norm = 0x007fffff;  // value for normal round for f8
     constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f8
     constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f8
+
+    union f32_t {
+        float value;
+        uint32_t bits;
+    };
 
     const auto input = f32_t{.value = value};
     auto f8_bits = static_cast<uint8_t>((input.bits & f32_s_mask) >> three_bytes_shift);
