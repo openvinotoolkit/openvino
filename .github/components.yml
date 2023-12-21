@@ -21,7 +21,6 @@ preprocessing:
     - GNA
     - C_API
     - Python_API
-    - JS_API
 
 inference:
   revalidate: 'all'
@@ -96,7 +95,6 @@ TEMPLATE:
     - AUTO
     - C_API
     - Python_API
-    - JS_API
     - NVIDIA
   build:
     - IR_FE
@@ -132,7 +130,6 @@ ONNX_FE:
   build:
     - CPU
     - Python_API
-    - JS_API
 
 PDPD_FE:
   revalidate:
@@ -140,7 +137,6 @@ PDPD_FE:
   build:
     - CPU
     - Python_API
-    - JS_API
 
 TF_FE:
   revalidate:
@@ -148,7 +144,6 @@ TF_FE:
   build:
     - CPU
     - Python_API
-    - JS_API
 
 TFL_FE:
   revalidate:
@@ -156,7 +151,6 @@ TFL_FE:
   build:
     - CPU
     - Python_API
-    - JS_API
 
 PyTorch_FE:
   revalidate:
@@ -164,7 +158,6 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
-    - JS_API
 
 C_API:
   build:
@@ -203,11 +196,6 @@ JS_API:
     - TEMPLATE
     - AUTO
     - IR_FE
-    - ONNX_FE
-    - PDPD_FE
-    - TF_FE
-    - TFL_FE
-    - PyTorch_FE
 
 samples:
   build:
@@ -217,7 +205,6 @@ samples:
     - IR_FE
     - C_API
     - Python_API
-    - JS_API
 
 IE_Tests:
   revalidate:
