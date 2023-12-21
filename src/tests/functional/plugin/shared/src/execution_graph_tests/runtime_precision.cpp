@@ -18,6 +18,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "common_test_utils/node_builders/binary_convolution.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 #include "execution_graph_tests/runtime_precision.hpp"
 
@@ -31,7 +33,7 @@ std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<Inferenc
                                std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
                                                                        ov::Shape{1, 16, 5, 4})};
 
-    auto eltwise = ngraph::builder::makeEltwise(inputs[0], inputs[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(inputs[0], inputs[1], ngraph::helpers::EltwiseTypes::ADD);
     eltwise->set_friendly_name("Eltwise");
 
     auto function = std::make_shared<ngraph::Function>(eltwise, inputs, "EltwiseWithTwoDynamicInputs");
@@ -69,7 +71,7 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(cons
     auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
-    auto binConv = ngraph::builder::makeBinaryConvolution(fakeQuantize, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, 32, 0);
+    auto binConv = ov::test::utils::make_binary_convolution(fakeQuantize, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, 32, 0);
     binConv->set_friendly_name("BinaryConvolution");
 
     auto function = std::make_shared<ngraph::Function>(binConv, inputs, "FakeQuantizeBinaryConvolution");
