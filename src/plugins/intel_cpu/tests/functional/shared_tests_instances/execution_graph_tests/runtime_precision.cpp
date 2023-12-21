@@ -8,20 +8,19 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ExecutionGraphTests;
-using namespace InferenceEngine;
 
 namespace {
 
 const std::vector<RuntimePrecisionSpecificParams> params = {
         /* {Ngraph function builder, function input precision, expected runtime precisions} */
-        {makeEltwiseFunction, {Precision::FP32, Precision::FP32}, {{"Eltwise", Precision::FP32}}},
-        {makeEltwiseFunction, {Precision::U16, Precision::U16}, {{"Eltwise", Precision::I32}}},
-        {makeEltwiseFunction, {Precision::BF16, Precision::BF16}, {{"Eltwise", Precision::BF16}}},
-        {makeEltwiseFunction, {Precision::U8, Precision::U8}, {{"Eltwise", Precision::U8}}},
-        {makeEltwiseFunction, {Precision::I8, Precision::I8}, {{"Eltwise", Precision::I8}}},
-        {makeFakeQuantizeReluFunction, {Precision::FP32}, {{"Relu", Precision::FP32}}},
-        {makeFakeQuantizeReluFunction, {Precision::U8}, {{"Relu", Precision::U8}}},
-        {makeFakeQuantizeBinaryConvolutionFunction, {Precision::FP32}, {{"FakeQuantize", Precision::FP32}, {"BinaryConvolution", Precision::BIN}}},
+        {makeEltwiseFunction, {ov::element::f32, ov::element::f32}, {{"Eltwise", ov::element::f32}}},
+        {makeEltwiseFunction, {ov::element::u16, ov::element::u16}, {{"Eltwise", ov::element::i32}}},
+        {makeEltwiseFunction, {ov::element::bf16, ov::element::bf16}, {{"Eltwise", ov::element::bf16}}},
+        {makeEltwiseFunction, {ov::element::u8, ov::element::u8}, {{"Eltwise", ov::element::u8}}},
+        {makeEltwiseFunction, {ov::element::i8, ov::element::i8}, {{"Eltwise", ov::element::i8}}},
+        {makeFakeQuantizeReluFunction, {ov::element::f32}, {{"Relu", ov::element::f32}}},
+        {makeFakeQuantizeReluFunction, {ov::element::u8}, {{"Relu", ov::element::u8}}},
+        {makeFakeQuantizeBinaryConvolutionFunction, {ov::element::f32}, {{"FakeQuantize", ov::element::f32}, {"BinaryConvolution", ov::element::u1}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphRuntimePrecision,

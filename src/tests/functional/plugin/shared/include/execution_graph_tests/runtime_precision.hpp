@@ -4,24 +4,26 @@
 
 #pragma once
 
+#include <gtest/gtest.h>
+
 #include <tuple>
 #include <vector>
 #include <string>
 #include <memory>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ExecutionGraphTests {
 
-std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions);
-std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions);
-std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<InferenceEngine::Precision> &inputPrecisions);
+std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Type>& inputPrecisions);
+std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::element::Type>& inputPrecisions);
+std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<ov::element::Type> &inputPrecisions);
 
 struct RuntimePrecisionSpecificParams {
-    std::function<std::shared_ptr<ngraph::Function>(const std::vector<InferenceEngine::Precision>& inputPrecisions)> makeFunction;
-    std::vector<InferenceEngine::Precision> inputPrecisions;
-    std::map<std::string, InferenceEngine::Precision> expectedPrecisions;
+    std::function<std::shared_ptr<ov::Model>(const std::vector<ov::element::Type>& inputPrecisions)> makeFunction;
+    std::vector<ov::element::Type> inputPrecisions;
+    std::map<std::string, ov::element::Type> expectedPrecisions;
 };
 
 using ExecGraphRuntimePrecisionParams = std::tuple<
@@ -34,8 +36,8 @@ class ExecGraphRuntimePrecision : public testing::WithParamInterface<ExecGraphRu
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj);
     std::string targetDevice;
-    std::shared_ptr<ngraph::Function> fnPtr;
-    std::map<std::string, InferenceEngine::Precision> expectedPrecisions;
+    std::shared_ptr<ov::Model> fnPtr;
+    std::map<std::string, ov::element::Type> expectedPrecisions;
 protected:
     void SetUp() override;
 
