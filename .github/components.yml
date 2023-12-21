@@ -66,7 +66,6 @@ HETERO:
     - TEMPLATE
     - C_API
     - Python_API
-    - JS_API
   build:
     - IR_FE
 
@@ -80,7 +79,6 @@ AUTO_BATCH:
     - TEMPLATE
     - C_API
     - Python_API
-    - JS_API
   build:
     - IR_FE
 
@@ -105,7 +103,6 @@ AUTO:
     - AUTO
     - C_API
     - Python_API
-    - JS_API
   build:
     - IR_FE
 
@@ -191,10 +188,6 @@ JS_API:
     - samples
   build:
     - CPU
-    - HETERO
-    - AUTO_BATCH
-    - TEMPLATE
-    - AUTO
     - IR_FE
 
 samples:
