@@ -28,7 +28,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     m_num_samples_precision = ov::element::i32;
     m_output_precision = multinomial_op->get_convert_type();
 
-    constant = ConstantType::NoConst;
+    constant = ConstantType::StrictNoConst;
 
     m_const_batch = op->get_input_partial_shape(PROBS_PORT)[0].is_static();
     m_const_inputs[PROBS_PORT] = is_type<op::v0::Constant>(op->get_input_node_ptr(PROBS_PORT));

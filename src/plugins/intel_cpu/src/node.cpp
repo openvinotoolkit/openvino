@@ -988,16 +988,18 @@ bool Node::isConstant() {
 }
 
 void Node::updateConstantType() {
-    bool isConst = true;
-    for (const auto& parentEdge : getParentEdges()) {
-        isConst &= parentEdge.lock()->getParent()->isConstant();
+    if (constant != ConstantType::StrictNoConst) {
+        bool isConst = true;
+        for (const auto& parentEdge : getParentEdges()) {
+            isConst &= parentEdge.lock()->getParent()->isConstant();
+        }
+        constant = isConst ? ConstantType::Const : ConstantType::NoConst;
     }
-    constant = isConst ? ConstantType::Const : ConstantType::NoConst;
 
     for (const auto& childEdge : getChildEdges()) {
         const auto childNode = childEdge.lock()->getChild();
         const auto childConstType = childNode->getConstantType();
-        if (childConstType != ConstantType::Unknown && childConstType != constant) {
+        if (!one_of(childConstType, ConstantType::Unknown, ConstantType::StrictNoConst, constant)) {
             childNode->updateConstantType();
         }
     }

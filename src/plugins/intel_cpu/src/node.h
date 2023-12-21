@@ -210,7 +210,8 @@ public:
     enum class ConstantType {
         Unknown,
         Const,
-        NoConst
+        NoConst,
+        StrictNoConst,
     };
     ConstantType getConstantType() const;
     void updateConstantType();
