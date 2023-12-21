@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_trivial_permute_concat.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string SplitTrivialPermuteConcatTest::getTestCaseName(const testing::TestParamInfo<SplitTrivialPermuteConcatTuple>& obj) {
@@ -45,7 +46,7 @@ namespace SubgraphTestsDefinitions {
         auto permute_1 = std::make_shared<ov::op::v1::Transpose>(split->output(1), permute_in_params);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ permute_0, permute_1 }, concatAxis);
-        auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+        auto act = ov::test::utils::make_activation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
     }
 } // namespace SubgraphTestsDefinitions

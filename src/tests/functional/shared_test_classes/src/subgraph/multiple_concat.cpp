@@ -4,6 +4,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multiple_concat.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -49,7 +50,7 @@ void MultipleConcatTest::SetUp() {
     auto const_2 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
     auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_1, const_2}, 1);
 
-    auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto act = ov::test::utils::make_activation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     function = std::make_shared<ngraph::Function>(act, input_parameter, "multiple_concat");
 }

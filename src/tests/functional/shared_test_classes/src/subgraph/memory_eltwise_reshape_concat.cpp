@@ -6,6 +6,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_eltwise_reshape_concat.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -58,7 +59,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto memory_read = std::make_shared<ov::op::v3::ReadValue>(memory_constant, "memory");
     memory_read->set_friendly_name("memory_read");
 
-    auto mul = ngraph::builder::makeEltwise(input_parameter[0], memory_read, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(input_parameter[0], memory_read, ngraph::helpers::EltwiseTypes::MULTIPLY);
     mul->set_friendly_name("multiplication");
 
     auto memory_write = std::make_shared<ov::op::v3::Assign>(mul, "memory");
@@ -91,7 +92,7 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
 
-    auto mul = ngraph::builder::makeEltwise(input_parameter[0], memory_constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(input_parameter[0], memory_constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
     mul->set_friendly_name("multiplication");
 
     auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<size_t>({1, inputSize, concatSize}));

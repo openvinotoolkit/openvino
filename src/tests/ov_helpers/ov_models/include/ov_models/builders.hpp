@@ -253,10 +253,6 @@ std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
                                     size_t numSplits,
                                     int64_t axis);
 
-std::shared_ptr<ov::Node> makeVariadicSplit(const ov::Output<Node>& in,
-                                            const std::vector<size_t> numSplits,
-                                            int64_t axis);
-
 std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
                                          const element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
@@ -377,12 +373,6 @@ std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataTy
                                                      bool with_weights,
                                                      bool with_default_index);
 
-std::shared_ptr<ov::Node> makeEmbeddingBagPackedSum(const element::Type& dataType,
-                                                    const element::Type& indicesType,
-                                                    const ov::Output<Node>& emb_table_node,
-                                                    const std::vector<std::vector<size_t>>& indices,
-                                                    bool with_weights);
-
 std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
                                                    const element::Type& indicesType,
                                                    const ov::Output<Node>& emb_table_node,
@@ -457,14 +447,6 @@ std::shared_ptr<ov::Node> makeGRU(
     const std::vector<float>& activations_beta = {},
     float clip = 0.f,
     bool linear_before_reset = false,
-    bool make_sequence = false,
-    ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
-    ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
-
-std::shared_ptr<ov::Node> makeAUGRU(
-    const OutputVector& in,
-    const std::vector<ov::Shape>& constants,
-    std::size_t hidden_size,
     bool make_sequence = false,
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);

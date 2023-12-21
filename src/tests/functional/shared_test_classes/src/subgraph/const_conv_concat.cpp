@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/const_conv_concat.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +70,7 @@ void ConstConvConcatTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  0.0f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},

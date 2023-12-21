@@ -43,9 +43,12 @@ void VariadicSplitPad::SetUp() {
     std::tie(input_shape, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, element_type, targetDevice) =
         this->GetParam();
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_shape))};
-    auto split = ngraph::builder::makeVariadicSplit(input[0], numSplits, axis);
-    ov::ResultVector results;
 
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis);
+    auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(input[0], split_axis_op, num_split);
+
+    ov::ResultVector results;
     for (size_t i : connectIndexes) {
         auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padBegin.size()}, padBegin.data());
         auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padEnd.size()}, padEnd.data());

@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -61,7 +62,7 @@ void ConvReshapeAct::SetUp() {
         ov::Shape{permute_in_order});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(reshape_in, permute_in_params);
 
-    auto conv = ngraph::builder::makeConvolution(permute_in, model_type, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv = ov::test::utils::make_convolution(permute_in, model_type, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
         ov::op::PadType::VALID, output_channels);
 
     auto permute_out_params = std::make_shared<ov::op::v0::Constant>(ov::element::i64,

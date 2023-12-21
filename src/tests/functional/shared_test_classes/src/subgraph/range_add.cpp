@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/range_add.hpp"
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {
 namespace test {
@@ -38,7 +39,7 @@ void RangeAddSubgraphTest::SetUp() {
     auto range = std::make_shared<ov::op::v0::Range>(startConstant, stopConstant, stepConstant);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, range->get_shape())};
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
     function = std::make_shared<ov::Model>(results, params, "RangeEltwise");
 }
@@ -73,7 +74,7 @@ void RangeNumpyAddSubgraphTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, range->get_shape())};
 
-    auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(params.front(), range, ov::test::utils::EltwiseTypes::ADD);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
     function = std::make_shared<ov::Model>(results, params, "RangeEltwise");
 }

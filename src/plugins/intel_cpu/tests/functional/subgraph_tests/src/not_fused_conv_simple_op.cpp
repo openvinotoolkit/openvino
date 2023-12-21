@@ -40,9 +40,9 @@ protected:
                                                      numOutChannels);
         }
         const auto sharedNode = ngraph::builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
-        const auto postOpCandidate = ov::test::utils::makeEltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
+        const auto postOpCandidate = ov::test::utils::make_eltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
 
-        const auto secondConsumpt = ov::test::utils::makeEltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
+        const auto secondConsumpt = ov::test::utils::make_eltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
 
         NodeVector results{postOpCandidate, secondConsumpt};
         function = std::make_shared<ov::Model>(results, inputParams, "NotFusedConvSimpleOp");

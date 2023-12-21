@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ov_models/builders.hpp"
@@ -61,7 +62,7 @@ protected:
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(params[0], pattern1, false);
 
         auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, {1, 1, 1, 12}, {}, true);
-        auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
+        auto eltwise = ov::test::utils::make_eltwise(reshape1, constant1, eltwiseType);
 
         std::vector<size_t> outFormShapes2 = {1, 72};
         auto pattern2 =
@@ -111,7 +112,7 @@ protected:
 
         auto reshape2 = std::make_shared<ov::opset1::Reshape>(params[1], pattern1, false);
 
-        auto eltwise = ngraph::builder::makeEltwise(reshape1, reshape2, eltwiseType);
+        auto eltwise = ov::test::utils::make_eltwise(reshape1, reshape2, eltwiseType);
 
         std::vector<size_t> outFormShapes2 = {1, 72};
         auto pattern2 =

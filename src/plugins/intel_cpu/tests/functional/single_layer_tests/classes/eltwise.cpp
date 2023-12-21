@@ -213,7 +213,7 @@ void EltwiseLayerCPUTest::SetUp() {
             }
         }
     }
-    auto eltwise = utils::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 

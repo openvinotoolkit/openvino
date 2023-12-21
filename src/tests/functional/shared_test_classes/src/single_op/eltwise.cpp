@@ -135,7 +135,7 @@ void EltwiseLayerTest::SetUp() {
     parameters[0]->set_friendly_name("param0");
     secondary_input->set_friendly_name("param1");
 
-    auto eltwise = ov::test::utils::makeEltwise(parameters[0], secondary_input, eltwise_type);
+    auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondary_input, eltwise_type);
     function = std::make_shared<ov::Model>(eltwise, parameters, "Eltwise");
 }
 } //  namespace test

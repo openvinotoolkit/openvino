@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/convolution_relu_sequence.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -70,7 +71,7 @@ void ConvolutionReluSequenceTest::SetUp() {
 
         std::shared_ptr<ngraph::Node> conv =
             std::dynamic_pointer_cast<ngraph::Node>(
-                ngraph::builder::makeConvolution(
+                ov::test::utils::make_convolution(
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ov::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));

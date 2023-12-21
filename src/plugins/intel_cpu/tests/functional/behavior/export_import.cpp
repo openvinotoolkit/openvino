@@ -6,6 +6,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 #include <openvino/opsets/opset9.hpp>
 
@@ -24,7 +25,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
     auto add_const = ngraph::builder::makeConstant(precision, {1, 1024}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 
     ov::NodeVector results{softmax};

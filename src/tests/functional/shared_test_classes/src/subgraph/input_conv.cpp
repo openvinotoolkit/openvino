@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/input_conv.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -79,7 +80,7 @@ void InputConvTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto conv0 = ngraph::builder::makeConvolution(params[0],
+    auto conv0 = ov::test::utils::make_convolution(params[0],
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {kernelShape[0] > 1 ? stride : 1, stride},

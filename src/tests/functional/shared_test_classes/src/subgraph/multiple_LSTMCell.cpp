@@ -57,10 +57,10 @@ void MultipleLSTMCellTest::SetUp() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -230,10 +230,10 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -322,10 +322,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
