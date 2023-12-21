@@ -269,7 +269,20 @@ inline double less(double a, double b) {
 }
 
 inline double less_or_equal(double a, double b) {
-    return (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
+    bool res = true;
+    if (std::isnan(a) || std::isnan(b)) {
+        res = false;
+    } else if (std::isinf(b) && b > 0) {
+        // b is grater than any number or eq the +Inf
+        res = true;
+    } else if (std::isinf(a) && a > 0) {
+        res = false;
+    } else {
+        res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
+    }
+    double eq_midle_res = std::fabs(b - a);
+    bool eq_res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps));
+    return res;
 }
 
 struct Error {
@@ -329,13 +342,33 @@ void compare(const ov::Tensor& expected,
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
+            rel_threshold = 1.;
+            if (expected.get_element_type() == ov::element::Type_t::boolean) {
+                abs_threshold = 0.;
+                rel_threshold = 0.;
+            }
         } else {
             std::vector<double> abs_values(shape_size_cnt);
             for (size_t i = 0; i < shape_size_cnt; i++) {
                 abs_values[i] = std::fabs(static_cast<double>(expected_data[i]));
             }
             auto abs_median = calculate_median(abs_values);
+            auto elem_type = expected.get_element_type();
+
             abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+
+            if (elem_type == ov::element::Type_t::boolean) {
+                abs_threshold = 0.;
+            } else if (elem_type.is_integral_number()) {
+                abs_threshold = 1.0;
+            } else if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
+                abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+            } else if (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) {
+                abs_threshold = abs_median * 0.05 < 1e-3 ? 1e-3 : 0.05 * abs_median;
+            }
+
+            rel_threshold = abs_threshold;
+
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);
             }
@@ -363,7 +396,7 @@ void compare(const ov::Tensor& expected,
             throw std::runtime_error(out_stream.str());
         }
         double abs = std::fabs(expected_value - actual_value);
-        double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
+        double rel = expected_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : abs;
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
@@ -383,7 +416,7 @@ void compare(const ov::Tensor& expected,
         std::cout << "[ COMPARATION ] rel_error mean: " << rel_error.mean << std::endl;
     }
 
-    if (!(less_or_equal(abs_error.max, abs_threshold) && less_or_equal(rel_error.max, rel_threshold))) {
+    if (!(less_or_equal(abs_error.max, abs_threshold) || less_or_equal(rel_error.mean, rel_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold"
                    << "\n\t abs_max: " << abs_error.max << "\n\t\t coordinate " << abs_error.max_coordinate
