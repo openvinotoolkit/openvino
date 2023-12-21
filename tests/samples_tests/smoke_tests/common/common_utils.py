@@ -42,15 +42,6 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
     return p.returncode, stdout, stderr
 
 
-def parse_avg_err(speech_sample_out):
-    errors = []
-    for line in speech_sample_out:
-        if "avg error" in line:
-            errors.append(float(line.split(': ')[1]))
-    avg_error = round(np.mean(errors), 2)
-    return avg_error
-
-
 def fix_path(path, env_name, root_path=None):
     """
     Fix path: expand environment variables if any, make absolute path from
