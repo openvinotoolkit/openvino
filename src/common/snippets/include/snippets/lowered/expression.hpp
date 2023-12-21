@@ -10,7 +10,7 @@
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
-
+#include "snippets/op/loop.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
@@ -99,6 +99,14 @@ private:
 
     int64_t m_index = -1;
     io_type m_type = io_type::UNDEFINED;
+};
+
+class LoopExpression : public Expression {
+    friend class LinearIR;
+public:
+    bool needShapeInfer() const override { return false; }
+protected:
+    LoopExpression(const std::shared_ptr<op::LoopBase>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 };
 
 } // namespace lowered

@@ -213,6 +213,9 @@ ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnecto
     return expr;
 }
 
+LoopExpression::LoopExpression(const std::shared_ptr<op::LoopBase>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+    : Expression(n, factory) {}
+
 }// namespace lowered
 }// namespace snippets
 }// namespace ov
