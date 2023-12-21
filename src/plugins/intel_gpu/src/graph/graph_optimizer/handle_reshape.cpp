@@ -215,22 +215,23 @@ void handle_reshape::run(program& p) {
             auto reshape_layout = node->get_output_layout();
             auto target_format = format::get_default_format(reshape_layout.get_rank());
             auto input_layout = input_node.get_output_layout();
+            auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
 
-            if (!(node->is_output()) && ((reshape_layout.format != target_format) || (reshape_layout.format != input_layout.format))) {
-                auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
+            if (!(node->is_output()) && !reshape_layout.compatible(target_layout)) {
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
-                if ((!reshape_layout.compatible(target_layout)) || (reshape_layout.format != input_layout.format)) {
-                    auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
-                                                                   cldnn::input_info(input_node.id(), input_port),
-                                                                   target_format,
-                                                                   reshape_layout.data_type);
-                    GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
-                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
-                    auto& reshape_input_node = p.get_or_create(reshape_input);
-                    p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
-                    reshape_input_node.recalc_output_layout();
-
+                if ((reshape_layout.format != target_format) || (reshape_layout.format != input_layout.format)) {
+                    if (input_layout.format != format::get_default_format(input_layout.get_rank())) {
+                        auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
+                                                                    cldnn::input_info(input_node.id(), input_port),
+                                                                    target_format,
+                                                                    reshape_layout.data_type);
+                        GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
+                            << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+                        auto& reshape_input_node = p.get_or_create(reshape_input);
+                        p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
+                        reshape_input_node.recalc_output_layout();
+                    }
                     if (reshape_layout.format != target_format) {
                         auto reshape_users = node->get_users();
                         for (const auto& user : reshape_users) {
