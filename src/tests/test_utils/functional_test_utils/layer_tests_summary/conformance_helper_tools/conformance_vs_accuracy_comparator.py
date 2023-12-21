@@ -1,6 +1,7 @@
 # Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 import csv
 import os
 from argparse import ArgumentParser
@@ -40,7 +41,8 @@ def path_to_model(model_path: os.path, prefix: str):
     frameworks = {'tf', 'tf2', 'caffe', 'onnx', 'mxnet', 'paddle', 'kaldi'}
     precisions = {'FP16', 'FP32', 'INT8', 'INT1'}
     # remove share path + model.xml
-    model, _ = os.path.split(model_path.replace('\n', '').replace(prefix, ''))
+    model_path = model_path.replace('\n', '')
+    model, _ = os.path.split(re.sub(prefix, '', model_path))
     model, _ = os.path.split(model)
     model, _ = os.path.split(model)
     model_name, model_framework, model_prc = (None, None, None)
@@ -66,10 +68,20 @@ def process_model_list(model_list_file_path: os.path):
     with open(model_list_file_path, "r") as model_list_file:
         in_models = model_list_file.readlines()
         prefix = os.path.commonprefix(in_models)
+        prefix += '(.*?)/'
         for line in in_models:
             models.add(path_to_model(line, prefix))
         model_list_file.close()
     return models
+
+def convert_accuracy_res_to_bool(accuracy_status: str):
+    conformance_like_status = accuracy_status
+    if accuracy_status == "improvement":
+        conformance_like_status = "passed"
+    elif accuracy_status == "downgrade":
+        conformance_like_status = "failed"
+
+    return conformance_like_status
 
 def process_accuracy(accuracy_res_file: os.path, target_device:str):
     if not os.path.isfile(accuracy_res_file):
@@ -102,12 +114,12 @@ def process_accuracy(accuracy_res_file: os.path, target_device:str):
             model = Model(model_name=row[model_name_row_idx], model_framework=row[framework_row_idx], model_prc=row[precision_row_idx])
             if target_device in row[device_row_idx]:
                 if model in results.keys():
-                    old_status = results[model]
-                    new_status = row[accuracy_status_row_idx]
+                    old_status = convert_accuracy_res_to_bool(results[model])
+                    new_status = convert_accuracy_res_to_bool(row[accuracy_status_row_idx])
                     if old_status != new_status and (new_status == "passed" or old_status == "not_found" or old_status == ""):
                         results[model] = new_status
                 else:
-                    results.update({model: row[accuracy_status_row_idx]})
+                    results.update({model: convert_accuracy_res_to_bool(row[accuracy_status_row_idx])})
         csv_file.close()
     return results
 
@@ -123,6 +135,7 @@ def process_conformance(failed_models_path:os.path):
             model_paths.add(failed_model[0])
         csv_file.close()
     prefix = os.path.commonprefix(list(model_paths))
+    prefix += '(.*?)/'
     for model in model_paths:
         models.update({path_to_model(model, prefix): "failed"})
     return models
