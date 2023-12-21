@@ -3,28 +3,12 @@
 //
 
 #include "input.h"
-#include "common/cpu_memcpy.h"
-#include <dnnl_extension_utils.h>
 
-#include <string>
-#include <tuple>
-#include <algorithm>
-#include <cmath>
-#include <utils/general_utils.h>
+#include "cpu/x64/jit_generator.hpp"
 #include "openvino/core/parallel.hpp"
-#include <ie_ngraph_utils.hpp>
-#include "caseless.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/cpu_convert.h"
-#include "utils/cpu_utils.hpp"
-#include <cpu/x64/jit_generator.hpp>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace details;
-using namespace ov::op;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
@@ -234,11 +218,11 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
-            v0::Parameter::get_type_info_static(),
-            v0::Constant::get_type_info_static(),
-            v0::Result::get_type_info_static(),
-            v3::ReadValue::get_type_info_static(),
-            v6::ReadValue::get_type_info_static()))
+            op::v0::Parameter::get_type_info_static(),
+            op::v0::Constant::get_type_info_static(),
+            op::v0::Result::get_type_info_static(),
+            op::v3::ReadValue::get_type_info_static(),
+            op::v6::ReadValue::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
@@ -246,7 +230,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 
     constant = ConstantType::NoConst;
 
-    constOp = ov::as_type_ptr<ov::op::v0::Constant>(op);
+    constOp = ov::as_type_ptr<op::v0::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();
@@ -275,13 +259,29 @@ void Input::cloneBlobIfRequired() {
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
+            if (constOp->get_element_type() == element::string) {
+                memory = std::make_shared<StringMemory>(getEngine(), memDesc, constOp->get_data_ptr<element::string>());
+            } else {
+                memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
+            }
         } else {
-            memory = std::make_shared<Memory>(getEngine(), memDesc);
-            memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
+            if (constOp->get_element_type() == element::string) {
+                memory = std::make_shared<StringMemory>(getEngine(), memDesc);
+                auto src = constOp->get_data_ptr<StringMemory::OvString>();
+                auto dst = reinterpret_cast<StringMemory::OvString *>(memory->getData());
+                std::copy(src, src + size, dst);
+            } else {
+                memory = std::make_shared<Memory>(getEngine(), memDesc);
+                memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
+            }
         }
 
-        MemoryPtr ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+        MemoryPtr ptr;
+        if (memDesc.getPrecision() == element::string) {
+            ptr = std::make_shared<StringMemory>(getEngine(), memDesc);
+        } else {
+            ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+        }
         ptr->load(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;
@@ -381,7 +381,7 @@ void Input::cloneBlobIfRequired() {
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
-    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
+    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
@@ -420,14 +420,14 @@ MemoryCPtr Input::getMemoryPtr() const {
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
         if (!getParentEdges().empty())
-            OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
         if (getChildEdges().empty())
-            OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
     } else if (getType() == Type::Output) {
         if (getParentEdges().size() != 1)
-            OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
         if (!getChildEdges().empty())
-            OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
     }
 }
 
@@ -446,19 +446,19 @@ void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            OPENVINO_THROW("Destination memory didn't allocate for node ", getName()
-                              , " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
+            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+                              " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            OPENVINO_THROW("Destination memory didn't allocate for node ", getName()
-                              , " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
+            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+                              " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("doesn't have selected primitive descriptor.");
 }
 
 bool Input::created() const {
@@ -499,10 +499,6 @@ void Input::initSupportedPdFromMemDesc() {
         config.inConfs.push_back(portConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
-}
-
-void Input::resetMemoryPtr(const MemoryCPtr& mem) {
-    memoryPtr = mem;
 }
 
 }   // namespace node

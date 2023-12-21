@@ -26,6 +26,7 @@ public:
     virtual MemoryPtr input_mem() = 0;
     virtual MemoryPtr output_mem() = 0;
     virtual MemoryDescPtr internal_desc() const = 0;
+    virtual bool is_reset_state() const = 0;
 };
 
 class VariableStateBase : public IVariableState {
@@ -35,15 +36,21 @@ public:
     //ov::IVariableState
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
     ov::SoPtr<ov::ITensor> get_state() const override;
+    void reset() override final; // NOLINT
+    bool is_reset_state() const override final; // NOLINT
+    void commit() override final; // NOLINT
 
 protected:
     virtual MemoryPtr internal_state_mem() const = 0;
+    virtual void reset_impl() = 0;
+    virtual void commit_impl() = 0;
 
     static MemoryDescPtr to_static(const MemoryDescPtr& desc);
     static const dnnl::engine& get_engine();
 
-protected:
+private:
     MemoryDescPtr m_external_desc;
+    bool reset_state_flag = true;
 };
 
 class VariableStateDoubleBuffer : public VariableStateBase {
@@ -51,20 +58,17 @@ public:
     VariableStateDoubleBuffer(const std::string& name,
                               const MemoryPtr& first_buffer,
                               const MemoryPtr& second_buffer,
-                              const MemoryDescPtr& external_desc,
-                              const MemoryCPtr& init_val);
-
-    //ov::IVariableState
-    void reset() override;
-
-    //ov::intel_cpu::IVariableState
-    void commit() override;
+                              const MemoryDescPtr& external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
 
 private:
+    //ov::intel_cpu::VariableStateBase
+    void reset_impl() override;
+    void commit_impl() override;
+
     void reset_prime_mem(const MemoryPtr& mem) {
         m_internal_mem[buffer_num] = mem;
     }
@@ -93,19 +97,17 @@ class VariableStateSingleBuffer : public VariableStateBase {
 public:
     VariableStateSingleBuffer(const std::string& name,
                               const MemoryPtr& buffer,
-                              const MemoryDescPtr& external_desc,
-                              const MemoryCPtr& init_val);
-    //ov::IVariableState
-    void reset() override;
-
-    //ov::intel_cpu::IVariableState
-    void commit() override;
+                              const MemoryDescPtr& external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
 
 private:
+    //ov::intel_cpu::VariableStateBase
+    void reset_impl() override;
+    void commit_impl() override;
+
     MemoryPtr internal_state_mem() const override;
 
 private:

@@ -465,6 +465,12 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+void fill_random_string(std::string* dst,
+                        const size_t size,
+                        const size_t len_range = 10lu,
+                        const size_t start_from = 0lu,
+                        const int seed = 1);
+
 template <typename T>
 typename std::enable_if<std::is_signed<T>::value, T>::type inline ie_abs(const T& val) {
     return std::abs(val);
