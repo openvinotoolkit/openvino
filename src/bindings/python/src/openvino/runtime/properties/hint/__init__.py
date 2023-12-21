@@ -6,7 +6,7 @@
 from openvino._pyopenvino.properties.hint import Priority
 from openvino._pyopenvino.properties.hint import SchedulingCoreType
 from openvino._pyopenvino.properties.hint import ExecutionMode
-from openvino.runtime.properties.hint.overloads import PerformanceMode
+from openvino._pyopenvino.properties.hint import PerformanceMode
 
 # Properties
 from openvino._pyopenvino.properties.hint import inference_precision

@@ -23,19 +23,6 @@ from openvino.runtime.utils.data_helpers import (
 )
 
 
-def _deprecated_memory_arg(shared_memory: bool, share_inputs: bool) -> bool:
-    if shared_memory is not None:
-        warnings.warn(
-            "`shared_memory` is deprecated and will be removed in 2024.0. "
-            "Value of `shared_memory` is going to override `share_inputs` value. "
-            "Please use only `share_inputs` explicitly.",
-            FutureWarning,
-            stacklevel=3,
-        )
-        return shared_memory
-    return share_inputs
-
-
 class Model(ModelBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
@@ -70,8 +57,6 @@ class InferRequest(_InferRequestWrapper):
         inputs: Any = None,
         share_inputs: bool = False,
         share_outputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -129,22 +114,14 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
         return OVDict(super().infer(_data_dispatch(
             self,
             inputs,
-            is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+            is_shared=share_inputs,
         ), share_outputs=share_outputs))
 
     def start_async(
@@ -152,8 +129,6 @@ class InferRequest(_InferRequestWrapper):
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -202,21 +177,12 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self,
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )
@@ -302,8 +268,6 @@ class CompiledModel(CompiledModelBase):
         inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -369,15 +333,7 @@ class CompiledModel(CompiledModelBase):
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
         """
@@ -386,7 +342,7 @@ class CompiledModel(CompiledModelBase):
 
         return self._infer_request.infer(
             inputs,
-            share_inputs=_deprecated_memory_arg(shared_memory, share_inputs),
+            share_inputs=share_inputs,
             share_outputs=share_outputs,
         )
 
@@ -430,8 +386,6 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -476,21 +430,12 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self[self.get_idle_request_id()],
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )
