@@ -29,7 +29,6 @@
 #include "condition_inst.h"
 #include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "non_max_suppression_inst.h"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
