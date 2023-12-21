@@ -77,10 +77,18 @@ namespace SubgraphTestsDefinitions {
         auto mem_r = std::make_shared<ov::op::v3::ReadValue>(mem_c, "id");
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{mem_r, input[0]}, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
+
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{3 * memory_size, memory_size});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op, num_split);
+
         auto mem_w = std::make_shared<ov::op::v3::Assign>(split->output(1), "id");
 
-        auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
+        auto split_axis_op_variadic = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split_variadic = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2},
+                                                                         std::vector<size_t>{memory_size / 2, 3 * memory_size + memory_size / 2});
+        auto VariadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op_variadic, num_split_variadic);
+
         auto relu2 = std::make_shared<ov::op::v0::Sigmoid>(VariadicSplit->output(1));
 
         mem_w->add_control_dependency(mem_r);
@@ -103,9 +111,16 @@ namespace SubgraphTestsDefinitions {
 
         auto mem_c = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
         auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{mem_c, input[0]}, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, {3 * memory_size, memory_size}, 1);
 
-        auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {memory_size / 2, 3 * memory_size + memory_size / 2}, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{3 * memory_size, memory_size});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op, num_split);
+
+        auto split_axis_op_variadic = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split_variadic = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2},
+                                                                         std::vector<size_t>{memory_size / 2, 3 * memory_size + memory_size / 2});
+        auto VariadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op_variadic, num_split_variadic);
+
         auto relu2 = std::make_shared<ov::op::v0::Sigmoid>(VariadicSplit->output(1));
 
         function = std::make_shared<ngraph::Function>(relu2, input, "delayed_copy_layer_nonmemory");

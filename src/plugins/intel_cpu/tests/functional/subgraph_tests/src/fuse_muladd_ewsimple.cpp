@@ -47,8 +47,8 @@ void FuseMulAddAndEwSimpleTest1::CreateGraph() {
 
     auto clamp = ov::test::utils::make_activation(params[0], inPrec, ActivationTypes::Clamp, inputShape, {0, 100});
     auto tanh = ov::test::utils::make_activation(clamp, inPrec, ActivationTypes::Tanh);
-    auto mul1 = ov::test::utils::makeEltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
-    auto add = ov::test::utils::makeEltwise(tanh, mul1, EltwiseTypes::ADD);
+    auto mul1 = ov::test::utils::make_eltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
+    auto add = ov::test::utils::make_eltwise(tanh, mul1, EltwiseTypes::ADD);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
     function = std::make_shared<ov::Model>(results, params, "MulAdd_EwSimple");
@@ -73,8 +73,8 @@ void FuseMulAddAndEwSimpleTest2::CreateGraph() {
     auto tanh1 = ov::test::utils::make_activation(clamp1, inPrec, ActivationTypes::Tanh);
     auto clamp2 = ov::test::utils::make_activation(params[1], inPrec, ActivationTypes::Clamp, inputShape, {0, 100});
     auto tanh2 = ov::test::utils::make_activation(clamp2, inPrec, ActivationTypes::Tanh);
-    auto mul1 = ov::test::utils::makeEltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
-    auto add = ov::test::utils::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
+    auto mul1 = ov::test::utils::make_eltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
+    auto add = ov::test::utils::make_eltwise(mul1, params[2], EltwiseTypes::ADD);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
     function = std::make_shared<ov::Model>(results, params, "MulAdd_EwSimple_2");
@@ -96,11 +96,11 @@ void FuseMulAddAndEwSimpleTest3::CreateGraph() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrec, shape));
     }
 
-    auto mul1 = ov::test::utils::makeEltwise(params[0], params[1], EltwiseTypes::MULTIPLY);
-    auto add1 = ov::test::utils::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
+    auto mul1 = ov::test::utils::make_eltwise(params[0], params[1], EltwiseTypes::MULTIPLY);
+    auto add1 = ov::test::utils::make_eltwise(mul1, params[2], EltwiseTypes::ADD);
     auto tanh1 = ov::test::utils::make_activation(add1, inPrec, ActivationTypes::Tanh);
-    auto mul2 = ov::test::utils::makeEltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
-    auto add2 = ov::test::utils::makeEltwise(params[4], mul2, EltwiseTypes::ADD);
+    auto mul2 = ov::test::utils::make_eltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
+    auto add2 = ov::test::utils::make_eltwise(params[4], mul2, EltwiseTypes::ADD);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add2)};
     function = std::make_shared<ov::Model>(results, params, "MulAdd_EwSimple_3");
