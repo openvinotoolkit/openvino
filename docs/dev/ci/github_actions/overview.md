@@ -186,7 +186,7 @@ Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Pyt
 To understand which jobs have successfully passed, which are running and which have failed, check the following:
 * For Pull Requests:
   * Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 * For scheduled runs:
   * Navigate to the [OpenVINO Repository Actions](https://github.com/openvinotoolkit/openvino/actions)
   * Select the required workflow from the list on the left
@@ -197,13 +197,13 @@ To understand which jobs have successfully passed, which are running and which h
 
 To find artefacts for a pipeline, use the following steps:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit: 
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 2. Click `Details` to see more information about a job
 3. Click `Summary` above the list of the jobs: 
-  ![jobs_list](../../../_static/images/ci/completed_job_list.png)
+  ![jobs_list](../../../sphinx_setup/_static/images/ci/completed_job_list.png)
 4. Scroll to the bottom of the page
 5. You will find the artefacts produced by **all the jobs in this pipeline**:
-  ![pipeline_artefacts](../../../_static/images/ci/pipeline_artefacts.png)
+  ![pipeline_artefacts](../../../sphinx_setup/_static/images/ci/pipeline_artefacts.png)
 6. Click on the artefact name to download it
 
 **NOTE**: artefacts are available only for the completed, i.e., successful or failed, pipelines.
@@ -212,7 +212,7 @@ To find artefacts for a pipeline, use the following steps:
 
 To find logs for a pipeline:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 2. Click `Details` to see more information about a job
 3. Click on a step to see its logs
 
