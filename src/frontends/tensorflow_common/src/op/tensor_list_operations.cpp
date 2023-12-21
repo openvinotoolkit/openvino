@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <climits>
+
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -220,6 +222,36 @@ OutputVector translate_tensor_list_length_op(const NodeContext& node) {
 
     set_node_name(node.get_name(), list_length);
     return {list_length};
+}
+
+OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"TensorListConcatV2"});
+    auto input_handle = node.get_input(0);
+    auto size = node.get_input(1);
+
+    std::vector<int64_t> leading_dims;
+    get_const_input(node, 2, &leading_dims);
+
+    TENSORFLOW_OP_VALIDATION(node,
+                             leading_dims.size() == 0,
+                             "TensorListConcatV2 is not supported for non-empty leading_dims.");
+
+    TENSORFLOW_OP_VALIDATION(node,
+                             as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
+                             "TensorListConcatV2 is not supported with non-constant shape input");
+
+    std::vector<int64_t> list_elememt_shape;
+    get_const_input(node, 1, &list_elememt_shape);
+
+    list_elememt_shape[0] = list_elememt_shape[0] * input_handle.get_partial_shape()[0].get_max_length();
+    auto out = make_shared<v1::Reshape>(
+        input_handle,
+        make_shared<v0::Constant>(element::i64, Shape{list_elememt_shape.size()}, list_elememt_shape),
+        false);
+
+    set_node_name(node.get_name(), out);
+
+    return {out};
 }
 
 }  // namespace op
