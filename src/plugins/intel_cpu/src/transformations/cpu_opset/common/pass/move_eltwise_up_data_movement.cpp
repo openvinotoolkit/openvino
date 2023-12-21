@@ -53,33 +53,22 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
             return false;
         }
 
-        if (eltwise->get_output_size() == 0 ||
-            eltwise->get_input_size() == 0 ||
-            eltwise->get_output_target_inputs(0).size() != 1) {
+        if (eltwise->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
-        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(eltwise);
-        if (fq) {
-            // only support per-tensor fq
-            for (size_t i = 1; i < fq->get_input_size(); ++i) {
-                const auto& shape = fq->get_input_shape(i);
-                if (std::count_if(shape.begin(), shape.end(), [](size_t x) { return x > 1; }) > 1) {
-                    return false;
-                }
-            }
-        } else {
-            if (eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
+        for (size_t i = 1; i < eltwise->get_input_size(); ++i) {
+            if (!is_scalar_like(eltwise->get_input_node_shared_ptr(i))) {
                 return false;
             }
         }
 
-        bool is_binary_op = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise) != nullptr;
-        if (is_binary_op && !is_scalar_like(eltwise->get_input_node_shared_ptr(1))) {
-            return false;
+        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(eltwise);
+        if (!fq) {
+            if (eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
+                return false;
+            }
         }
-
-
 
         auto current = eltwise->get_input_node_shared_ptr(0);
         auto child = eltwise;
@@ -101,16 +90,12 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         }
 
         // eltwise constant shape should match new input shape
-        if (is_binary_op || fq) {
-            for (size_t i = 1; i < eltwise->get_input_size(); i++) {
-                if (current->get_output_partial_shape(0).rank().get_length() != eltwise->get_input_partial_shape(i).rank().get_length()) {
-                    auto old_eltwise_const = std::dynamic_pointer_cast<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
-                    auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
-
-                    ov::copy_runtime_info(old_eltwise_const, new_constant);
-                    ov::replace_node(old_eltwise_const, new_constant);
+        for (size_t i = 1; i < eltwise->get_input_size(); i++) {
+            if (current->get_output_partial_shape(0).size() != eltwise->get_input_partial_shape(i).size()) {
+                auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
+                auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
+                ov::replace_node_update_name(old_eltwise_const, new_constant);
                 }
-            }
         }
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
 
@@ -129,13 +114,6 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         newChild->set_friendly_name(child->get_friendly_name());
 
         ov::replace_node(child, newChild);
-        if (fq) {
-            auto current = newChild->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            while (is_data_movement_operation(current)) {
-                 current->validate_and_infer_types();
-                 current = current->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            }
-        }
         return true;
     };
 

@@ -647,6 +647,7 @@ void Transformations::PostLpt() {
             return false;
         },
         MoveEltwiseUpThroughDataMov);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
 
