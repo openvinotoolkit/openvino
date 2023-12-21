@@ -34,7 +34,7 @@ Example: Running ASpIRE Chain TDNN Model with the Speech Recognition Sample
 .. note::
 
    Before you continue with this part of the article, get familiar with the
-   :doc:`Speech Recognition sample <openvino_sample_automatic_speech_recognition>`.
+   `Speech Recognition sample <https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_speech_sample_README.html>`__.
 
 In this example, the input data contains one utterance from one speaker.
 
@@ -151,5 +151,5 @@ Run the Speech Recognition sample with the created ivector ``.ark`` file:
 
 
 Results can be decoded as described in "Use of Sample in Kaldi Speech Recognition Pipeline"
-in the :doc:`Speech Recognition Sample description <openvino_sample_automatic_speech_recognition>` article.
+in the `Speech Recognition Sample description <https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_speech_sample_README.html>` article.
 

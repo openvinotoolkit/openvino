@@ -214,10 +214,8 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
      :width: 400
 
-* Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-
-  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
-  * `Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition.html>`_
+* Visit the :ref:`Samples <code samples>` page for other C++ example applications 
+  to get you started with OpenVINO, such as `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
 
 You can also try the following things:
 
