@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/pad.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/pad.hpp"
