@@ -1,6 +1,6 @@
 .. {#troubleshooting_reshape_errors}
 
-Troubleshooting Reshape Errors
+[LEGACY] Troubleshooting Reshape Errors
 ==============================
 
 
@@ -9,6 +9,10 @@ Troubleshooting Reshape Errors
                  of non-reshape-able models and shape collision, which prevent 
                  normal shape propagation.
 
+
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
 How To Avoid Shape Collision
 ############################
