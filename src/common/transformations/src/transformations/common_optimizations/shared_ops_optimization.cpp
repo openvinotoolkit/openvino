@@ -147,6 +147,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
     return rewritten;
 }
 
+
 bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
@@ -169,6 +170,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
 }  // namespace
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
+
     bool rewritten = shape_of_upgrade(model);
     rewritten |= shared_node_optimization(model);
     return rewritten;

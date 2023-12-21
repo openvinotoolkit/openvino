@@ -85,6 +85,7 @@ xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")
+skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
@@ -156,13 +157,14 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
-xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
+skip_issue_91151 = pytest.mark.skip(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible") # Need to enable after bumping to 1.15
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
 
+# ONNX 1.14
 xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
                                        "half_pixel_symmetric - this type of coordinate transformation mode "
@@ -175,3 +177,16 @@ xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): 
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+
+# ONNX 1.15
+xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
+xfail_issue_125486 = xfail_test(reason="Gelu operation is not supported")
+xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
+xfail_issue_125487 = xfail_test(reason="GridSample doesn't support cubic and linear modes, and 4D tensor")
+skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
+xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
+xfail_issue_125492 = xfail_test(reason="DFT mismatch")
+xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
+xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
+xfail_issue_127812 = xfail_test(reason="Reduce* doesn't support zero dimensions")
+skip_misalignment = pytest.mark.skip(reason="Misalignment between onnx versions") # Need to enable after bumping to 1.15

@@ -329,7 +329,8 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
-    check_names();
+    if (!_program->is_loaded_from_cache())
+        check_names();
     build_insts_deps();
     build_exec_order();
     validate_primitives();
@@ -694,39 +695,12 @@ layout network::get_output_layout(const primitive_id& output_id) const {
 
 void network::allocate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("allocate_primitives");
-    std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
+    const auto& ao = _program->get_allocating_order();
+    for (auto& node_id : ao) {
+        allocate_primitive_instance(_program->get_node(node_id));
+    }
+
     auto& po = _program->get_processing_order();
-    for (auto node : po) {
-        nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
-    }
-
-    std::sort(nodes_to_allocate.begin(),
-              nodes_to_allocate.end(),
-              [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    auto lhs_layout = lhs->get_output_layout();
-                    auto rhs_layout = rhs->get_output_layout();
-                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
-                        lhs_layout.set_tensor(lhs_layout.get_tensor());
-                    }
-                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
-                        rhs_layout.set_tensor(rhs_layout.get_tensor());
-                    }
-
-                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
-                        return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    }
-
-                    if (rhs_layout.is_dynamic())
-                        return true;
-                    if (lhs_layout.is_dynamic())
-                        return false;
-
-                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
-              });
-
-    for (auto const& node : nodes_to_allocate) {
-        allocate_primitive_instance(*node);
-    }
 
     for (auto const& node : po) {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
@@ -1353,7 +1327,7 @@ void network::allocate_primitive_instance(program_node const& node) {
             _data_outputs.push_back(inst);
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0));
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1419,8 +1393,8 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout});
+void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type) {
+    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
 }
 
 }  // namespace cldnn

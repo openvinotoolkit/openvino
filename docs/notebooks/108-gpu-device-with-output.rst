@@ -246,7 +246,7 @@ for that property.
     GPU_QUEUE_THROTTLE            : Priority.MEDIUM
     GPU_ENABLE_LOOP_UNROLLING     : True
     CACHE_DIR                     : 
-    PERFORMANCE_HINT              : PerformanceMode.UNDEFINED
+    PERFORMANCE_HINT              : PerformanceMode.LATENCY
     COMPILATION_NUM_THREADS       : 20
     NUM_STREAMS                   : 1
     PERFORMANCE_HINT_NUM_REQUESTS : 0
