@@ -68,7 +68,7 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
         uint32_t bits;
     };
 
-    const auto input = f32_t{.value = value};
+    const auto input = f32_t{value};
     auto f8_bits = static_cast<uint8_t>((input.bits & f32_s_mask) >> three_bytes_shift);
 
     uint32_t f32_e_field = input.bits & f32_e_mask;
