@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ov_models/builders.hpp"
@@ -69,7 +70,7 @@ protected:
 
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
-        auto eltwise = ngraph::builder::makeEltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
+        auto eltwise = ov::test::utils::make_eltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
 
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
         function = std::make_shared<ngraph::Function>(results, params, "InputConstAdd");
