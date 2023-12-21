@@ -5,6 +5,7 @@
 #include "behavior/ov_infer_request/memory_states.hpp"
 
 #include <base/behavior_test_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -61,6 +62,7 @@ std::shared_ptr<ov::Model> OVInferRequestVariableStateTest::get_network() {
     auto mem_w1 = std::make_shared<ov::op::v3::Assign>(mul2, "r_1-3");
     auto sigm = std::make_shared<ov::op::v0::Sigmoid>(mul2);
     sigm->set_friendly_name("sigmod_state");
+    sigm->get_output_tensor(0).set_names({"sigmod_state"});
     mem_r1->set_friendly_name("Memory_1");
     mem_r1->get_output_tensor(0).set_names({"Memory_1"});
     mem_w1->add_control_dependency(mem_r1);
@@ -213,6 +215,74 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set
 
         for (int j = 0; j < last_state_size; ++j) {
             EXPECT_NEAR(0, last_state_data[j], 1e-5);
+        }
+    }
+}
+
+TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
+    auto executable_net = prepare_network();
+    auto infer_req = executable_net.create_infer_request();
+    auto infer_req2 = executable_net.create_infer_request();
+    const float new_state_val = 13.0f;
+
+    // set the input data for the network
+    auto input = executable_net.input();
+    auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
+    infer_req.set_tensor(input, tensor);
+    // }
+
+    // initial state for 2nd infer request
+    for (auto&& state : infer_req2.query_state()) {
+        auto state_val = state.get_state();
+        auto element_count = state_val.get_size();
+
+        float* new_state_data = new float[element_count];
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
+        }
+        ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
+        delete[] new_state_data;
+        state.set_state(state_tensor);
+    }
+
+    // reset state for 1st infer request
+    for (auto&& state : infer_req.query_state()) {
+        state.reset();
+    }
+
+    infer_req.infer();
+    auto states = infer_req.query_state();
+    auto states2 = infer_req2.query_state();
+    // check the output and state of 1st request
+    auto output_tensor = infer_req.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data();
+    auto data = static_cast<float*>(output_data);
+    for (int i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, data[i], 1e-5);
+    }
+    for (int i = 0; i < states.size(); ++i) {
+        auto last_state = states[i].get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (int j = 0; j < last_state_size; ++j) {
+            EXPECT_NEAR(0.0, last_state_data[j], 1e-5);
+        }
+    }
+
+    // // check the output and state of 2nd request
+    for (int i = 0; i < states2.size(); ++i) {
+        auto last_state = states2[i].get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (int j = 0; j < last_state_size; ++j) {
+            EXPECT_NEAR(new_state_val, last_state_data[j], 1e-5);
         }
     }
 }
