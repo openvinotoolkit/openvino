@@ -1,7 +1,7 @@
 .. {#troubleshooting_reshape_errors}
 
 [LEGACY] Troubleshooting Reshape Errors
-==============================
+=======================================
 
 
 .. meta::
