@@ -28,7 +28,6 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
             { "MULTI", "openvino_auto_plugin" },
             { "NPU", "openvino_intel_npu_plugin" },
             { "CPU", "openvino_intel_cpu_plugin" },
-            { "GNA", "openvino_intel_gna_plugin" },
             { "GPU", "openvino_intel_gpu_plugin" },
             { "TEMPLATE", "openvino_template_plugin" },
             { "NVIDIA", "openvino_nvidia_gpu_plugin" },

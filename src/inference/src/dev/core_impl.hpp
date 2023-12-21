@@ -286,7 +286,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override;
