@@ -9,7 +9,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ov_models/builders.hpp"
 
-InferenceEngine::CNNNetwork getTargetNetwork() {
+std::shared_ptr<ngraph::Function> getTargetNetwork() {
     ngraph::Shape shape = {1, 200};
     ngraph::element::Type type = ngraph::element::f32;
 
@@ -19,13 +19,11 @@ InferenceEngine::CNNNetwork getTargetNetwork() {
     auto mul = std::make_shared<ov::op::v1::Multiply>(mem_r, input);
     auto mem_w = std::make_shared<ngraph::op::v3::Assign>(mul, "r_1-3");
     auto sigm = std::make_shared<ov::op::v0::Sigmoid>(mul);
-    mem_r->set_friendly_name("Memory_1");
+    mem_r->output(0).set_names({"Memory_1"});
     mem_w->add_control_dependency(mem_r);
     sigm->add_control_dependency(mem_w);
-
-    auto function =
-        std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
-    return InferenceEngine::CNNNetwork{function};
+    sigm->output(0).set_names({"Sigmoid"});
+    return std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
 }
 
 std::vector<addOutputsParams> testCases = {
