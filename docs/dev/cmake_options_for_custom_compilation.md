@@ -19,8 +19,6 @@ This document provides description and default values for CMake options that can
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
         * `ON` is default for x86 platforms; not available, otherwise.
-    * `ENABLE_INTEL_GNA` enables GNA plugin compilation:
-        * `ON` is default for x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:
         * `ON` is default.
     * `ENABLE_MULTI` enables MULTI plugin build:
@@ -58,9 +56,6 @@ This document provides description and default values for CMake options that can
     * `ON` if requirements are satisfied (auto-discovered by CMake).
 * `ENABLE_TESTS` enables tests compilation:
     * `OFF` is default.
-* `ENABLE_IR_V7_READER` enables IR v7 reader:
-    * `ON` is default.
-    **Note:** must be turned `OFF` when building OpenVINO runtime as static
 * `ENABLE_DOCS` enables building the OpenVINO documentation:
     * `OFF` is on Debian (Ubuntu) OSes
     * `OFF` is in other cases.
