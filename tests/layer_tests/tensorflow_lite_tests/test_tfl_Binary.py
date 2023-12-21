@@ -1,3 +1,4 @@
+import platform
 import pytest
 import tensorflow as tf
 
