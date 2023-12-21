@@ -25,11 +25,11 @@ void dynamic_shape_gather_opts::run(program& p) {
             continue;
         auto idx_rank = impl_params->get_input_layout(1).get_partial_shape().size();
 
-        if (idx_rank > 1) {
+        if (idx_rank != 1) {
             continue;
         }
         auto axis = impl_params->typed_desc<gather>()->axis;
-        if (impl_params->get_input_layout(0).get_partial_shape()[axis]  == -1
+        if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1
             || impl_params->get_input_layout(1).get_partial_shape()[0] == -1
             || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
             // May be skipepd
