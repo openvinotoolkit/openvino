@@ -208,10 +208,10 @@ public:
     }
 
     enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst,
-        StrictNoConst,
+        Unknown,        // Unknown ConstantType is used before the constancy determination procedure run
+        Const,          // Node is placed in a constant subgraph
+        NoConst,        // Node is placed in a non-constant subgraph
+        StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the parent nodes' ConstantType.
     };
     ConstantType getConstantType() const;
     void updateConstantType();
