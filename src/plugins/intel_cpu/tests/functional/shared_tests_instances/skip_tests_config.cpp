@@ -212,13 +212,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321
         R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
-        // Issue:
-        R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*\(5.1\)\(5.1\)\(5.1\)\(4.1\)\(4.1\)\(4\).*relu.relu.relu.*_clip=0_.*modelType=f16.*)",
-        R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*\(5.1\)\(5.10\)\(5.10\)\(40.1\)\(40.10\)\(40\).*relu.relu.relu.*_clip=0_.*modelType=f16.*)",
-        R"(.*smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.Inference/mode=PURE_SEQ_RAND_SEQ_LEN.*relu.relu.relu.*modelType=f16.*)",
-        R"(.*smoke_MaxPool_ExplicitPad_CeilRounding/PoolingLayerTest.Inference/.*K\(3.3\).*(S\(1.2\)|S\(2.2\)).*PE\(0.2\).*modelType=f16.*)",
-        R"(.*smoke_MaxPoolv8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inference/.*K\(3.3\).*(S\(1.2\)|S\(2.2\)).*D\(1.1\).*PE\(0.2\).*modelType=f16.*)",
-        R"(.*smoke_MemoryTest/MemoryLayerTest.Inference.*trgDev=HETERO:CPU.*)",
         // Issue: 123427
         R"(.*RDFTLayerTest.*SignalSize=().*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
