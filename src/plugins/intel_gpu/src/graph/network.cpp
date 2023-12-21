@@ -1327,7 +1327,7 @@ void network::allocate_primitive_instance(program_node const& node) {
             _data_outputs.push_back(inst);
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0));
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1393,8 +1393,8 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout});
+void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type) {
+    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
 }
 
 }  // namespace cldnn

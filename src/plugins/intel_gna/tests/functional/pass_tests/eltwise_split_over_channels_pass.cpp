@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -52,7 +53,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
 
-        auto mul = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mul = ov::test::utils::make_eltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
         function = std::make_shared<ngraph::Function>(mul, params, "EltwiseSplitOverChannelsPassTest");
     }
 };

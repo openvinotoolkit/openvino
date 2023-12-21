@@ -24,6 +24,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {
 namespace test {
@@ -44,8 +45,8 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov:
     params[1]->set_friendly_name("param_1");
     params[2]->get_output_tensor(0).set_names({"input_tensor_2"});
     params[2]->set_friendly_name("param_2");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise2 = ngraph::builder::makeEltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise2 = ov::test::utils::make_eltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
     eltwise2->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise2->set_friendly_name("result_0");
 
@@ -61,7 +62,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
     params[1]->set_friendly_name("param_1");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::MULTIPLY);
     eltwise->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise->set_friendly_name("result_0");
 
@@ -81,9 +82,9 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
     params[2]->set_friendly_name("param_2");
     params[3]->get_output_tensor(0).set_names({"input_tensor_3"});
     params[3]->set_friendly_name("param_3");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise2 = ngraph::builder::makeEltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise3 = ngraph::builder::makeEltwise(eltwise2, params[3], ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise2 = ov::test::utils::make_eltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise3 = ov::test::utils::make_eltwise(eltwise2, params[3], ngraph::helpers::EltwiseTypes::MULTIPLY);
     eltwise3->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise3->set_friendly_name("result_0");
 

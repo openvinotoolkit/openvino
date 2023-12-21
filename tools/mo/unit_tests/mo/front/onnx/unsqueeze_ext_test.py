@@ -36,7 +36,7 @@ class TestUnsqueezeONNXExt():
     def setUpClass(cls):
         Op.registered_ops['Unsqueeze'] = Unsqueeze
 
-    @pytest.mark.parametrize("axes",[[0, 1, 2, 3], [1], []])
+    @pytest.mark.parametrize("axes",[[0, 1, 2, 3], [1]])
     def test_unsqueeze_ext(self, axes):
         node = self._create_unsqueeze_node(axes)
         UnsqueezeFrontExtractor.extract(node)

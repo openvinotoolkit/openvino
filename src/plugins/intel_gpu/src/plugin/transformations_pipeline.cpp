@@ -30,6 +30,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/op/gather.hpp"
 
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -116,9 +117,11 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gather_to_compressed.hpp"
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/move_convert_after_gather.hpp"
+#include "plugin/transformations/kv_cache_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -147,7 +150,7 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
-static bool is_non_decompression_multiply(const std::shared_ptr<const ov::Node> node) {
+static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
     auto get_single_consumer = [](const std::shared_ptr<const ov::Node> node) -> std::shared_ptr<ov::Node> {
         const auto consumers = node->get_output_target_inputs(0);
         if (consumers.size() != 1)
@@ -159,17 +162,17 @@ static bool is_non_decompression_multiply(const std::shared_ptr<const ov::Node> 
     if (!consumer)
         return true;
 
-    if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+    if (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer)) {
         return false;
     } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
             return false;
         }
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
             return false;
         }
     }
@@ -188,8 +191,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
-        ov::pass::Manager initial_transformations_manager;
-        initial_transformations_manager.set_per_pass_validation(false);
+        ov::pass::Manager manager;
+        auto pass_config = manager.get_pass_config();
+        manager.set_per_pass_validation(false);
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
@@ -197,9 +201,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        initial_transformations_manager.register_pass<ov::pass::InitNodeInfo>();
-        initial_transformations_manager.register_pass<EinsumDecomposition>();
+        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
+        if (enableInt8) {
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+                std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
+        }
+
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<EinsumDecomposition>();
 
         precisions_map fp_convert_precision_map = {
                 {ov::element::f64, ov::element::f32}
@@ -248,19 +258,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         type_to_fuse_map empty_fuse_map = {};
-        initial_transformations_manager.register_pass<ov::pass::Validate>();
+        manager.register_pass<ov::pass::Validate>();
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
-        initial_transformations_manager.register_pass<ov::pass::SoftmaxFusion>();
-        initial_transformations_manager.register_pass<ov::pass::MVNFusion>();
+        manager.register_pass<ov::pass::SoftmaxFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
-        initial_transformations_manager.register_pass<ov::pass::MVN6Decomposition>();
+        manager.register_pass<ov::pass::MVN6Decomposition>();
         // Run these broadcast optimizations earlier to ensure that those are executed before NopElimination/ConstantFolding
-        initial_transformations_manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
-        initial_transformations_manager.register_pass<ov::pass::BroadcastTransition>();
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastTransition>();
 
-        initial_transformations_manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
-        initial_transformations_manager.get_pass_config()->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
+        manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
+        pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
             [](const_node_ptr& node) -> bool {
                 auto next_node = node->get_output_target_inputs(0).begin()->get_node();
                 if (is_type<ov::op::v0::Convert>(next_node)) {
@@ -269,31 +279,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        initial_transformations_manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8,
-                                                                                                                    ov::element::u4,
-                                                                                                                    ov::element::i4}, true);
-
-        // Ignore nodes that are not related to FullyConnected and allow ConstantFolding to be applied to them
-        initial_transformations_manager.get_pass_config()->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_decompression_multiply);
-        initial_transformations_manager.run_passes(func);
-
-        ov::pass::Manager manager;
-        auto pass_config = manager.get_pass_config();
-
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
         // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
-        if (enableInt8) {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-                std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
-        }
+        if (!is_model_quantized)
+            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
         manager.register_pass<ov::intel_gpu::MoveConvertAfterGather>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
+        const bool store_original_precision_as_rt_attribute = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision);
+                                                          convert_input_output_precision,
+                                                          store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
@@ -697,7 +697,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>();
+        manager.register_pass<ov::intel_gpu::KVCacheFusion>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
