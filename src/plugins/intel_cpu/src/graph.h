@@ -184,7 +184,7 @@ public:
     /**
      * @brief Initialize new nodes which has been connected into graph
      */
-    void AddNodes(const std::vector<NodePtr>& new_nodes);
+    void AddNodes(const std::vector<NodePtr>& new_nodes, bool initNode = false);
 
     std::shared_ptr<ov::Model> dump() const;
 

@@ -1627,18 +1627,20 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-void Graph::AddNodes(const std::vector<NodePtr>& new_nodes) {
-    for (auto& node : new_nodes) {
-        node->getSupportedDescriptors();
-        node->initSupportedPrimitiveDescriptors();
-        node->filterSupportedPrimitiveDescriptors();
-        node->selectOptimalPrimitiveDescriptor();
-    }
-    for (auto& node : new_nodes) {
-        resolveInPlaceDirection(node);
-    }
-    for (auto& node : new_nodes) {
-        node->initOptimalPrimitiveDescriptor();
+void Graph::AddNodes(const std::vector<NodePtr>& new_nodes, bool initNode) {
+    if (initNode) {
+        for (auto& node : new_nodes) {
+            node->getSupportedDescriptors();
+            node->initSupportedPrimitiveDescriptors();
+            node->filterSupportedPrimitiveDescriptors();
+            node->selectOptimalPrimitiveDescriptor();
+        }
+        for (auto& node : new_nodes) {
+            resolveInPlaceDirection(node);
+        }
+        for (auto& node : new_nodes) {
+            node->initOptimalPrimitiveDescriptor();
+        }
     }
     for (auto& node : new_nodes) {
         graphNodes.push_back(node);
@@ -1659,9 +1661,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     child->parentEdges.push_back(afterNode);
     graphEdges.push_back(afterNode);
 
-    if (initNode) {
-        AddNodes({node});
-    }
+    AddNodes({node}, initNode);
     return true;
 }
 

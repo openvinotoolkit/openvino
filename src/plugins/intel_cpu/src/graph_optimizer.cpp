@@ -2640,7 +2640,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         if (reorder_last != reorder_layout) {
             new_nodes.push_back(reorder_last);
         }
-        graph.AddNodes(new_nodes);
+        graph.AddNodes(new_nodes, true);
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
