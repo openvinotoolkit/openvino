@@ -61,6 +61,20 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
                 childEdge->collectConsumers(result);
             }
         }
+    } else if (!this->getChild()->getChildEdges().empty()) {
+        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+            bool isBaseEdge = false;
+            for (size_t i = 0; i < this->getChild()->getChildEdges().size(); i++) {
+                auto peerOutPlacePort = peerChildSPD->getConfig().outConfs[i].inPlace();
+                if (peerOutPlacePort == this->getOutputNum()) {
+                    isBaseEdge = true;
+                    for (auto childEdge : this->getChild()->getChildEdgesAtPort(i))
+                        childEdge->collectConsumers(result);
+                }
+            }
+            if (!isBaseEdge)
+                result.push_back(this->getChild());
+        }
     } else {
         auto childNode = this->getChild();
         if (Type::ShapeOf == childNode->getType()) {
