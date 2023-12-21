@@ -36,7 +36,7 @@ Make sure you use the most recent supported driver for your hardware setup.
 
       The Intel® NPU driver for Windows is available through Windows Update but
       it may also be installed manually by downloading the 
-      `NPU driver package <https://www.intel.com/content/www/us/en/download-center/home.html>`__ and following the 
+      `NPU driver package <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__ and following the 
       `Windows driver installation guide <https://support.microsoft.com/en-us/windows/update-drivers-manually-in-windows-ec62f46c-ff14-c91d-eead-d7126dc1f7b6>`__.
 
       If a driver has already been installed you should be able to find 
