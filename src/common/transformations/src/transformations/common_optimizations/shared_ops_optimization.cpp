@@ -28,7 +28,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -263,7 +262,6 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         RECORD_NO_ATTRIBUTES(v8::Slice),
         RECORD_NO_ATTRIBUTES(v0::Squeeze),
         RECORD_NO_ATTRIBUTES(v0::Tile),
-        RECORD_NO_ATTRIBUTES(v1::Transpose),
         RECORD_NO_ATTRIBUTES(v0::Unsqueeze),
         RECORD_NO_ATTRIBUTES(v3::ScatterUpdate),
         RECORD_NO_ATTRIBUTES(v0::Relu),
