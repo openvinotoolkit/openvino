@@ -28,7 +28,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::boolean, py::dtype("bool")}, {ov::element::u1, py::dtype("uint8")},
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
-        {ov::element::f8e5m2, py::dtype("uint8")},
+        {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
     };
     return ov_type_to_dtype_mapping;
 }

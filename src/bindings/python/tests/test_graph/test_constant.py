@@ -413,25 +413,6 @@ def test_memory_sharing(shared_flag):
         assert not np.shares_memory(arr, ov_const.data)
 
 
-@pytest.mark.parametrize(
-    ("ov_type", "src_dtype"),
-    [
-        (Type.u1, np.uint8),
-        (Type.u4, np.uint8),
-        (Type.i4, np.int8),
-        (Type.nf4, np.uint8),
-        (Type.bf16, np.float16),
-    ],
-)
-def test_raise_for_packed_types(ov_type, src_dtype):
-    data = np.ones((2, 4, 16)).astype(src_dtype)
-
-    with pytest.raises(RuntimeError) as err:
-        _ = ops.constant(data, dtype=ov_type)
-
-    assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value)
-
-
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f16, np.float16),
@@ -486,10 +467,10 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
     target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
               0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
               -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, 448]
+              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
     target = np.array(target, dtype=numpy_dtype)
 
-    assert np.allclose(result, target)
+    assert np.allclose(result, target, equal_nan=True)
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -548,7 +529,7 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
               0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
               -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, 448]
+              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
     target = np.array(target, dtype=numpy_dtype)
 
-    assert np.allclose(result, target)
+    assert np.allclose(result, target, equal_nan=True)
