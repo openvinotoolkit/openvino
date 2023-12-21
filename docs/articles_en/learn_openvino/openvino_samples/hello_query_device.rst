@@ -187,3 +187,5 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
+- `Hello Query Device Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_query_device/README.md>`__
+- `Hello Query Device C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_query_device/README.md>`__

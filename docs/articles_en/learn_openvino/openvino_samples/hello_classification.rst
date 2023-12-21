@@ -278,3 +278,6 @@ Additional Resources
 - :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 - :doc:`C API Reference <pot_compression_api_README>`
+- `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
+- `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
+- `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__

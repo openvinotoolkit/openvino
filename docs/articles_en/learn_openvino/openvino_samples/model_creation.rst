@@ -299,3 +299,5 @@ Additional Resources
 - :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
 - :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- `Model Creation Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/model_creation_sample/README.md>`__
+- `Model Creation C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/model_creation_sample/README.md>`__
