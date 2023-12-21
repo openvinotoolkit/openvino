@@ -11,8 +11,8 @@ if(CMAKE_VERSION VERSION_LESS 3.14)
     return()
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND AARCH64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
-    message(WARNING "JS API is not support compiler version less than 7, skipping")
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+    message(WARNING "JS API is not support gcc compiler version less than 7, skipping")
     return()
 endif()
 
