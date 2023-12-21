@@ -27,9 +27,6 @@ public:
     template <typename I>
     explicit float8_e5m2(I value) : m_value{float8_e5m2{static_cast<float>(value)}.m_value} {}
 
-    std::string to_string() const;
-    size_t size() const;
-
     template <typename T>
     bool operator==(const T& other) const;
     template <typename T>

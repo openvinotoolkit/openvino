@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/float8_e5m2.hpp"
+
 #include <gtest/gtest.h>
 
 #include <climits>
 
 #include "common_test_utils/float_util.hpp"
-#include "openvino/core/type/float8_e5m2.hpp"
 
 namespace ov {
 namespace test {
@@ -22,7 +23,7 @@ TEST(F8E5M2Test, stream_operator) {
 TEST(F8E5M2Test, to_string) {
     const auto f8 = ov::float8_e5m2::from_bits(0b00111010);
 
-    EXPECT_EQ(f8.to_string(), "0.750000");
+    EXPECT_EQ(std::to_string(f8), "0.750000");
 }
 
 template <class TContainer>

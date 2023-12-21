@@ -105,7 +105,7 @@ TEST(F8E4M3Test, stream_operator) {
 TEST(F8E4M3Test, to_string) {
     const auto f8 = ov::float8_e4m3::from_bits(0b00111010);
 
-    EXPECT_EQ(f8.to_string(), "1.250000");
+    EXPECT_EQ(std::to_string(f8), "1.250000");
 }
 
 const auto exp_floats = std::vector<float>{

@@ -42,15 +42,7 @@ float8_e5m2::operator float() const {
     return static_cast<float>(float16::from_bits((static_cast<uint16_t>(m_value) << byte_shift)));
 }
 
-size_t float8_e5m2::size() const {
-    return sizeof(m_value);
-}
-
 uint8_t float8_e5m2::to_bits() const {
     return m_value;
-}
-
-std::string float8_e5m2::to_string() const {
-    return std::to_string(static_cast<float>(*this));
 }
 }  // namespace ov

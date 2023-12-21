@@ -213,12 +213,6 @@ struct ValueToString : ov::element::NotSupported<std::string> {
     }
 
     template <ov::element::Type_t ET,
-              typename std::enable_if<ET == element::f8e5m2 || ET == element::f8e4m3>::type* = nullptr>
-    static result_type visit(const Constant* const c, const size_t index) {
-        return c->get_element_value<ET>(index).to_string();
-    }
-
-    template <ov::element::Type_t ET,
               typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
     static result_type visit(const Constant* const c, const size_t index) {
         return c->get_element_value<ET>(index);

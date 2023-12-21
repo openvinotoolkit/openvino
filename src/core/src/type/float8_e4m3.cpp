@@ -133,14 +133,6 @@ float8_e4m3::operator float() const {
     return float_value;
 }
 
-std::string float8_e4m3::to_string() const {
-    return std::to_string(static_cast<float>(*this));
-}
-
-size_t float8_e4m3::size() const {
-    return sizeof(m_value);
-}
-
 uint8_t float8_e4m3::to_bits() const {
     return m_value;
 }
