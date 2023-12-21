@@ -1,54 +1,28 @@
-.. {#Supported_Model_Formats}
+.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR}
 
-Supported Model Formats
-=======================
 
+Convert to OpenVINO IR
+=============================================
 
 .. meta::
-   :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.
+   :description: Convert models from the original framework to OpenVINO representation.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   Convert from PyTorch <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>
+   Convert from TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>
+   Convert from ONNX <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>
+   Convert from TensorFlow_Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>
+   Convert from PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>
 
 
-| **OpenVINO IR (Intermediate Representation)**
-| The proprietary format of OpenVINO™, benefiting from the full extent of its features. 
-  It is obtained by :doc:`converting a model <openvino_docs_model_processing_introduction>` 
-  from one of the remaining supported formats using the Python model conversion API or the 
-  OpenVINO Converter.
-| Consider storing your model in this format to minimize first-inference latency, 
-  perform model optimizations, and save space on your drive, in some cases.
+:doc:`IR (Intermediate Representation) <openvino_ir>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
+Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
-
-| **PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle**
-| These supported model formats can be read, compiled, and converted to OpenVINO IR,
-  either automatically or explicitly.
-
-
-In the Python API, these options are provided as three separate methods: 
-``read_model()``, ``compile_model()``, and ``convert_model()``.
-
-The ``convert_model()`` method enables you to perform additional adjustments 
-to the model, such as setting shapes, changing model input types or layouts, 
-cutting parts of the model, freezing inputs, etc. For a detailed description 
-of the conversion process, see the 
-:doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-
-
-
-
-
-Note that for PyTorch models, Python API
-is the only conversion option. 
-
-TensorFlow may present additional considerations
-:doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
-
-
-
-
-
-
-
-
-
+Convert Models
+##############################################
 
 Here are code examples of how to use these methods with different model formats:
 
@@ -557,49 +531,57 @@ Here are code examples of how to use these methods with different model formats:
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 * :doc:`How to convert PyTorch <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>`
 * :doc:`How to convert ONNX <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>`
 * :doc:`How to convert TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
 * :doc:`How to convert TensorFlow Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`
 * :doc:`How to convert PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>`
 
-To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`
+To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`.
 
-Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`
+Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
+
+IR Conversion Benefits
+################################################
+
+
+| **Saving to IR to improve first inference latency**
+|    When first inference latency matters, rather than convert the framework model each time it is loaded, which may take some time depending on its size, it is better to do it once. Save the model as an OpenVINO IR with ``save_model`` and then load it with ``read_model`` as needed. This should improve the time it takes the model to make the first inference as it avoids the conversion step.
+
+| **Saving to IR in FP16 to save space**
+|    Save storage space, even more so if FP16 is used as it may cut the size by about 50%, especially useful for large models, like Llama2-7B.
+
+| **Saving to IR to avoid large dependencies in inference code**
+|    Frameworks such as TensorFlow and PyTorch tend to be large dependencies (multiple gigabytes), and not all inference environments have enough space to hold them. 
+|    Converting models to OpenVINO IR allows them to be used in an environment where OpenVINO is the only dependency, so much less disk space is needed. 
+|    Loading and compiling with OpenVINO directly usually takes less runtime memory than loading the model in the source framework and then converting and compiling it.
+
+An example showing how to take advantage of OpenVINO IR, saving a model in OpenVINO IR once, using it many times, is shown below:
+
+.. code-block:: py
+
+   # Run once
+
+   import openvino as ov
+   import tensorflow as tf
+
+   # 1. Convert model created with TF code
+   model = tf.keras.applications.resnet50.ResNet50(weights="imagenet")
+   ov_model = ov.convert_model(model)
+
+   # 2. Save model as OpenVINO IR
+   ov.save_model(ov_model, 'model.xml', compress_to_fp16=True) # enabled by default
+
+   # Repeat as needed
+
+   import openvino as ov
+
+   # 3. Load model from file
+   core = ov.Core()
+   ov_model = core.read_model("model.xml")
+
+   # 4. Compile model from memory
+   compiled_model = core.compile_model(ov_model)
 
 Additional Resources
 ####################

@@ -22,7 +22,7 @@ Running Inference with OpenVINO™
 
 OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API
 to deploy inference on the platform of your choice. You can run any of the 
-:doc:`supported model formats <Supported_Model_Formats>` directly or convert the model
+:doc:`supported model formats <openvino_docs_model_processing_introduction>` directly or convert the model
 and save it to the :doc:`OpenVINO IR <openvino_ir>` format, for maximum performance.
 
 Why is OpenVINO IR inference faster? Even if you run a supported model directly, it is
@@ -37,7 +37,7 @@ OpenVINO IR provides by far the best first-inference latency scores.
 .. note::
 
    For more detailed information on how to convert, read, and compile supported model formats
-   see the :doc:`Supported Formats article <Supported_Model_Formats>`.
+   see the :doc:`Model Preparation article <openvino_docs_model_processing_introduction>`.
    
    Note that TensorFlow models can be run using the
    :doc:`torch.compile feature <pytorch_2_0_torch_compile>`, as well as the standard ways of
