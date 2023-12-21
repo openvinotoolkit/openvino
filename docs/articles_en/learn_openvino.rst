@@ -33,3 +33,6 @@ as well as an experienced user.
 
 | :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>`
 | Detailed information on how OpenVINO accelerates Generative AI use cases and what models it supports. This tutorial provides instructions for running Generative AI models using Hugging Face Optimum Intel and Native OpenVINO APIs.
+
+| :doc:`Import TensorFlow and PyTorch Models <openvino_docs_model_processing_introduction_draft>`
+| Learn about different import methods for TensorFlow and PyTorch models. 

@@ -1,6 +1,6 @@
 .. {#openvino_docs_model_processing_introduction_draft}
 
-Convert TensorFlow and PyTorch Models
+Import TensorFlow and PyTorch Models
 ==============================================
 
 In OpenVINO you can load a model in different formats. 
