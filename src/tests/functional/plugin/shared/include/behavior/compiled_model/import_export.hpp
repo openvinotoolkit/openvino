@@ -292,8 +292,7 @@ static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConvertPrecision) {
-    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionDoubleInputOutput) {
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -303,22 +302,20 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConvertPrecision) 
     std::stringstream strm;
     execNet.export_model(strm);
 
-    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, target_device, any_copy(configuration));
+    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
-    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
+    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+    EXPECT_NO_THROW(importedExecNet.input("param1"));
+    EXPECT_NO_THROW(importedExecNet.input("param2"));
     EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op1"]);
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op2"]);
+    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+    EXPECT_NO_THROW(importedExecNet.output("concat_op1"));
+    EXPECT_NO_THROW(importedExecNet.output("concat_op2"));
 
-    const auto prc = InferenceEngine::details::convertPrecision(elementType);
-
-    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op1"]->getPrecision());
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("param1").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("param2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("concat_op2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("concat_op1").get_element_type());
 }
 
 //
