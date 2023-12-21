@@ -19,9 +19,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/f8e5m2.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
 
 /**
  * @defgroup ov_element_cpp_api Element types
@@ -231,7 +231,7 @@ OPENVINO_API Type from<ov::float16>();
 template <>
 OPENVINO_API Type from<ov::float8_e4m3>();
 template <>
-OPENVINO_API Type from<ov::f8e5m2>();
+OPENVINO_API Type from<ov::float8_e5m2>();
 template <>
 OPENVINO_API Type from<std::string>();
 

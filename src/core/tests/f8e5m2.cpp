@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/f8e5m2.hpp"
-
 #include <gtest/gtest.h>
 
 #include <climits>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
 
 namespace ov {
 namespace test {
 
 TEST(F8E5M2Test, stream_operator) {
     std::stringstream s;
-    s << ov::f8e5m2(2.5f);
+    s << ov::float8_e5m2(2.5f);
 
     EXPECT_EQ(s.str(), "2.5");
 }
 
 TEST(F8E5M2Test, to_string) {
-    const auto f8 = ov::f8e5m2::from_bits(0b00111010);
+    const auto f8 = ov::float8_e5m2::from_bits(0b00111010);
 
     EXPECT_EQ(f8.to_string(), "0.750000");
 }
@@ -116,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(convert,
 TEST_P(F8E5M2PTest, f8_bits_to_f32) {
     const auto& params = GetParam();
     const auto& exp_value = std::get<1>(params);
-    const auto f8 = ov::f8e5m2::from_bits(std::get<0>(params));
+    const auto f8 = ov::float8_e5m2::from_bits(std::get<0>(params));
 
     if (std::isnan(exp_value)) {
         EXPECT_TRUE(std::isnan(static_cast<float>(f8)));
@@ -129,7 +128,7 @@ TEST_P(F8E5M2PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& value = std::get<1>(params);
     const auto& exp_value = std::isnan(value) ? (std::signbit(value) ? 0xfe : 0x7e) : std::get<0>(params);
-    const auto f8 = ov::f8e5m2(value);
+    const auto f8 = ov::float8_e5m2(value);
 
     EXPECT_EQ(f8.to_bits(), exp_value);
 }

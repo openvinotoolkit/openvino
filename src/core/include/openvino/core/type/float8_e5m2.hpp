@@ -18,14 +18,14 @@ namespace ov {
 /**
  * @brief Class to represent the f8e5m2 type.
  */
-class OPENVINO_API f8e5m2 {
+class OPENVINO_API float8_e5m2 {
 public:
-    f8e5m2() = default;
-    f8e5m2(uint32_t sign, uint32_t biased_exponent, uint32_t fraction);
-    f8e5m2(float value);
+    float8_e5m2() = default;
+    float8_e5m2(uint32_t sign, uint32_t biased_exponent, uint32_t fraction);
+    float8_e5m2(float value);
 
     template <typename I>
-    explicit f8e5m2(I value) : m_value{f8e5m2{static_cast<float>(value)}.m_value} {}
+    explicit float8_e5m2(I value) : m_value{float8_e5m2{static_cast<float>(value)}.m_value} {}
 
     std::string to_string() const;
     size_t size() const;
@@ -46,35 +46,35 @@ public:
     template <typename T>
     bool operator>=(const T& other) const;
     template <typename T>
-    f8e5m2 operator+(const T& other) const;
+    float8_e5m2 operator+(const T& other) const;
     template <typename T>
-    f8e5m2 operator+=(const T& other);
+    float8_e5m2 operator+=(const T& other);
     template <typename T>
-    f8e5m2 operator-(const T& other) const;
+    float8_e5m2 operator-(const T& other) const;
     template <typename T>
-    f8e5m2 operator-=(const T& other);
+    float8_e5m2 operator-=(const T& other);
     template <typename T>
-    f8e5m2 operator*(const T& other) const;
+    float8_e5m2 operator*(const T& other) const;
     template <typename T>
-    f8e5m2 operator*=(const T& other);
+    float8_e5m2 operator*=(const T& other);
     template <typename T>
-    f8e5m2 operator/(const T& other) const;
+    float8_e5m2 operator/(const T& other) const;
     template <typename T>
-    f8e5m2 operator/=(const T& other);
+    float8_e5m2 operator/=(const T& other);
 
     operator float() const;
 
-    static constexpr f8e5m2 from_bits(uint8_t bits) {
-        return f8e5m2(bits, true);
+    static constexpr float8_e5m2 from_bits(uint8_t bits) {
+        return float8_e5m2(bits, true);
     }
     uint8_t to_bits() const;
-    friend std::ostream& operator<<(std::ostream& out, const f8e5m2& obj) {
+    friend std::ostream& operator<<(std::ostream& out, const float8_e5m2& obj) {
         out << static_cast<float>(obj);
         return out;
     }
 
 private:
-    constexpr f8e5m2(uint8_t x, bool) : m_value{x} {}
+    constexpr float8_e5m2(uint8_t x, bool) : m_value{x} {}
 
     uint8_t m_value;
 };
@@ -84,7 +84,7 @@ private:
 #    pragma warning(disable : 4756)
 #endif
 template <typename T>
-bool f8e5m2::operator==(const T& other) const {
+bool float8_e5m2::operator==(const T& other) const {
 #if defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wfloat-equal"
@@ -96,62 +96,62 @@ bool f8e5m2::operator==(const T& other) const {
 }
 
 template <typename T>
-bool f8e5m2::operator<(const T& other) const {
+bool float8_e5m2::operator<(const T& other) const {
     return (static_cast<float>(*this) < static_cast<float>(other));
 }
 
 template <typename T>
-bool f8e5m2::operator<=(const T& other) const {
+bool float8_e5m2::operator<=(const T& other) const {
     return (static_cast<float>(*this) <= static_cast<float>(other));
 }
 
 template <typename T>
-bool f8e5m2::operator>(const T& other) const {
+bool float8_e5m2::operator>(const T& other) const {
     return (static_cast<float>(*this) > static_cast<float>(other));
 }
 
 template <typename T>
-bool f8e5m2::operator>=(const T& other) const {
+bool float8_e5m2::operator>=(const T& other) const {
     return (static_cast<float>(*this) >= static_cast<float>(other));
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator+(const T& other) const {
+float8_e5m2 float8_e5m2::operator+(const T& other) const {
     return {static_cast<float>(*this) + static_cast<float>(other)};
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator+=(const T& other) {
+float8_e5m2 float8_e5m2::operator+=(const T& other) {
     return *this = *this + other;
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator-(const T& other) const {
+float8_e5m2 float8_e5m2::operator-(const T& other) const {
     return {static_cast<float>(*this) - static_cast<float>(other)};
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator-=(const T& other) {
+float8_e5m2 float8_e5m2::operator-=(const T& other) {
     return *this = *this - other;
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator*(const T& other) const {
+float8_e5m2 float8_e5m2::operator*(const T& other) const {
     return {static_cast<float>(*this) * static_cast<float>(other)};
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator*=(const T& other) {
+float8_e5m2 float8_e5m2::operator*=(const T& other) {
     return *this = *this * other;
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator/(const T& other) const {
+float8_e5m2 float8_e5m2::operator/(const T& other) const {
     return {static_cast<float>(*this) / static_cast<float>(other)};
 }
 
 template <typename T>
-f8e5m2 f8e5m2::operator/=(const T& other) {
+float8_e5m2 float8_e5m2::operator/=(const T& other) {
     return *this = *this / other;
 }
 #if defined(_MSC_VER)

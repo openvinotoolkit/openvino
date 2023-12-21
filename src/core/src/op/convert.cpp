@@ -20,7 +20,7 @@ constexpr bool is_lp_type(const element::Type_t et) {
 }
 
 #define CONVERT_ET_LIST \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, f8e4m3, element::f8e5m2
+    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;

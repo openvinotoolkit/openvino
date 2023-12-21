@@ -3745,9 +3745,9 @@ TEST(eval, evaluate_f8e5m2_const_from_f32) {
         4.5f,         9.f,          18.f,         36.f,         72.f,        144.f,      288.f,
     };
     /* Rounded to f8e5m2 vals */
-    std::vector<ov::f8e5m2> output_data{0.015625f, 0.0234375f, 0.0234375f, 0.03125f, 0.03125f, 0.0625f, 0.125f,
-                                        0.25f,     0.5f,       1.f,        1.5,      2.f,      2.f,     4.f,
-                                        4.f,       8.f,        16.f,       32.f,     64.f,     128.f,   256.f};
+    std::vector<ov::float8_e5m2> output_data{0.015625f, 0.0234375f, 0.0234375f, 0.03125f, 0.03125f, 0.0625f, 0.125f,
+                                             0.25f,     0.5f,       1.f,        1.5,      2.f,      2.f,     4.f,
+                                             4.f,       8.f,        16.f,       32.f,     64.f,     128.f,   256.f};
 
     const auto data_shape = Shape{input_data.size()};
 
@@ -3762,7 +3762,7 @@ TEST(eval, evaluate_f8e5m2_const_from_f32) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    EXPECT_THAT(read_vector<ov::f8e5m2>(result), Pointwise(FloatEq(), output_data));
+    EXPECT_THAT(read_vector<ov::float8_e5m2>(result), Pointwise(FloatEq(), output_data));
 }
 
 TEST(eval, evaluate_f8e5m2_const_seq_from_f32) {
@@ -3773,9 +3773,9 @@ TEST(eval, evaluate_f8e5m2_const_seq_from_f32) {
                                   -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
 
     /* Rounded to f8e5m2 vals */
-    std::vector<ov::f8e5m2> output_data{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
-                                        0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
-                                        -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f};
+    std::vector<ov::float8_e5m2> output_data{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
+                                             0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
+                                             -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f};
 
     const auto data_shape = Shape{input_data.size()};
 
@@ -3790,7 +3790,7 @@ TEST(eval, evaluate_f8e5m2_const_seq_from_f32) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    EXPECT_THAT(read_vector<ov::f8e5m2>(result), Pointwise(FloatEq(), output_data));
+    EXPECT_THAT(read_vector<ov::float8_e5m2>(result), Pointwise(FloatEq(), output_data));
 }
 
 TEST(eval, evaluate_f8e4m3_const_seq_from_f32) {

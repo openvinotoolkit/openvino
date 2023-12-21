@@ -245,7 +245,7 @@ std::string Constant::convert_value_to_string(size_t index) const {
                     u64,
                     nf4,
                     f8e4m3,
-                    ov::element::f8e5m2,
+                    f8e5m2,
                     string>::apply<ValueToString>(get_element_type(), this, index);
 }
 
