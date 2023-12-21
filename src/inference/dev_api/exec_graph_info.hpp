@@ -12,7 +12,6 @@
 
 #include <string>
 
-#include "ie_parameter.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 

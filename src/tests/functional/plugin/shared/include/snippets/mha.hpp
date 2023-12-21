@@ -34,7 +34,7 @@ protected:
     void SetUp() override;
 
     void compile_model() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph();
 
     bool m_with_mul = false;
@@ -44,7 +44,7 @@ protected:
 
 class MHASelect : public MHA {
 protected:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 

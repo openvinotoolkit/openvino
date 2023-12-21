@@ -14,8 +14,9 @@
 #include "fake_quantize_helper.hpp"
 #include "function_helper.hpp"
 
-namespace LayerTestsDefinitions {
-
+namespace ov {
+namespace test {
+namespace snippets {
 std::string FakeQuantizeDecompositionTest::getTestCaseName(testing::TestParamInfo<testsParams> obj) {
     std::ostringstream result;
     const auto values = std::get<0>(obj.param);
@@ -65,7 +66,6 @@ void FakeQuantizeDecompositionTest::SetUp() {
 }
 
 TEST_P(FakeQuantizeDecompositionTest, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
     const auto operation = std::get<1>(this->GetParam());
@@ -74,5 +74,6 @@ TEST_P(FakeQuantizeDecompositionTest, CompareWithRefImpl) {
 
     validateNumSubgraphs();
 };
-
-}  // namespace LayerTestsDefinitions
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

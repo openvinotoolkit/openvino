@@ -3,7 +3,6 @@
 //
 
 #include "single_layer_tests/classes/transpose.hpp"
-#include "shared_test_classes/single_layer/transpose.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;

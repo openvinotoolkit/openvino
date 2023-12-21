@@ -3,7 +3,6 @@
 //
 
 #include "single_layer_tests/classes/pooling.hpp"
-#include "shared_test_classes/single_layer/pooling.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 

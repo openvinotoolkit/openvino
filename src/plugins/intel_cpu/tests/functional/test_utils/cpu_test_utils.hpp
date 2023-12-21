@@ -11,7 +11,6 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 // To be removed
-#include "ie_system_conf.h"
 #include "exec_graph_info.hpp"
 
 namespace CPUTestUtils {

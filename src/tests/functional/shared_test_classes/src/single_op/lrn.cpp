@@ -60,7 +60,7 @@ void LrnLayerTest::SetUp() {
     auto lrn = std::make_shared<ov::op::v0::LRN>(param, axes_node, alpha, beta, bias, size);
 
     auto result = std::make_shared<ov::op::v0::Result>(lrn);
-    function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{param}, "lrn");
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "lrn");
 }
 }  // namespace test
 }  // namespace ov

@@ -9,7 +9,6 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;

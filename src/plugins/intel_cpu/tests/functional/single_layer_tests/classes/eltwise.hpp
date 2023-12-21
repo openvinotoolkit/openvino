@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/eltwise.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/single_op/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -18,7 +18,7 @@ namespace ov {
 namespace test {
 
 typedef std::tuple<
-        subgraph::EltwiseTestParams,
+        EltwiseTestParams,
         CPUSpecificParams,
         fusingSpecificParams,
         bool> EltwiseLayerCPUTestParamsSet;

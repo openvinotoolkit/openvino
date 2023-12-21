@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 

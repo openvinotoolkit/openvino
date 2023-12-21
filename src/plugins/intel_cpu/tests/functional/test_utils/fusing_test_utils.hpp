@@ -7,8 +7,8 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "ov_models/builders.hpp"
 #include "ov_models/utils/data_utils.hpp"
-#include "shared_test_classes/single_layer/activation.hpp"
 
 using namespace ov::test;
 

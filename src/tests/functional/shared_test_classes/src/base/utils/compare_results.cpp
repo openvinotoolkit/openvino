@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/ops.hpp"
+#include <gtest/gtest.h>
+
+#include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -17,8 +18,8 @@ namespace utils {
 namespace {
 void compare(const std::shared_ptr<ov::Node> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
@@ -26,8 +27,8 @@ void compare(const std::shared_ptr<ov::Node> &node,
 
 void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
         ASSERT_EQ(expected.get_size(), actual.get_size());
@@ -102,8 +103,8 @@ inline void validate_colors(const ov::Tensor& expected, const ov::Tensor& actual
 
 void compare(const std::shared_ptr<ov::op::v8::I420toRGB> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
@@ -115,8 +116,8 @@ void compare(const std::shared_ptr<ov::op::v8::I420toRGB> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::I420toBGR> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
@@ -128,8 +129,8 @@ void compare(const std::shared_ptr<ov::op::v8::I420toBGR> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::NV12toRGB> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
@@ -141,8 +142,8 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toRGB> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::NV12toBGR> &node,
              size_t port,
-             const ov::runtime::Tensor &expected,
-             const ov::runtime::Tensor &actual,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
@@ -155,11 +156,11 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toBGR> &node,
 template<typename T>
 void compareResults(const std::shared_ptr<ov::Node> &node,
                     size_t port,
-                    const ov::runtime::Tensor &expected,
-                    const ov::runtime::Tensor &actual,
+                    const ov::Tensor &expected,
+                    const ov::Tensor &actual,
                     double absThreshold,
                     double relThreshold) {
-    return compare(ngraph::as_type_ptr<T>(node), port, expected, actual, absThreshold, relThreshold);
+    return compare(ov::as_type_ptr<T>(node), port, expected, actual, absThreshold, relThreshold);
 }
 
 } // namespace

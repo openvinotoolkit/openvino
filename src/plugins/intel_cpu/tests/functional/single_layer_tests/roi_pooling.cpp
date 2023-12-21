@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/single_layer/roi_pooling.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/file_utils.hpp"

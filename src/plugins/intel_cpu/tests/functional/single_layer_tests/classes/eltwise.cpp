@@ -17,14 +17,14 @@ namespace ov {
 namespace test {
 
 std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
-    subgraph::EltwiseTestParams basicParamsSet;
+    EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     bool enforceSnippets;
     std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = obj.param;
 
     std::ostringstream result;
-    result << subgraph::EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<subgraph::EltwiseTestParams>(
+    result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(
                                                               basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -102,7 +102,7 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void EltwiseLayerCPUTest::SetUp() {
-    subgraph::EltwiseTestParams basicParamsSet;
+    EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     bool enforceSnippets;
