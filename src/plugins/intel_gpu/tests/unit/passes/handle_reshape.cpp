@@ -287,8 +287,6 @@ TEST(handle_reshape, reshape_input_reorder) {
 TEST(handle_reshape, reshape_opt_out_layout_update) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    // if (!engine.get_device_info().supports_immad)
-    //     return;
 
     auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { 1, 512, 30, 4 } });
     auto weights1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 512, 512, 3, 3 } });
@@ -322,7 +320,7 @@ TEST(handle_reshape, reshape_opt_out_layout_update) {
     auto reshape_layout_in = prog->get_node("reshape").get_input_layouts()[0];
     auto reshape_layout_out = prog->get_node("reshape").get_output_layout();
 
-    // The format should have default format(bfyx) for both input/output
+    // The format should have default format(bfyx) for both input/output when properly handling reshape
     ASSERT_EQ(reshape_layout_in.format, format::bfyx);
     ASSERT_EQ(reshape_layout_out.format, format::bfyx);
 }
