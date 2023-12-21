@@ -3801,7 +3801,7 @@ TEST(eval, evaluate_f8e4m3_const_seq_from_f32) {
                                   -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
 
     /* Rounded to f8e4m3 vals */
-    std::vector<ov::f8e4m3> output_data{
+    std::vector<ov::float8_e4m3> output_data{
         0.f,  0.1015625f,  0.203125f,  0.3125f,  0.40625f,  0.5f,  0.625f,  0.6875f,  0.8125f,  0.875f,  1.f,
         -0.f, -0.1015625f, -0.203125f, -0.3125f, -0.40625f, -0.5f, -0.625f, -0.6875f, -0.8125f, -0.875f, -1.f};
 
@@ -3818,7 +3818,7 @@ TEST(eval, evaluate_f8e4m3_const_seq_from_f32) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    EXPECT_THAT(read_vector<ov::f8e4m3>(result), Pointwise(FloatEq(), output_data));
+    EXPECT_THAT(read_vector<ov::float8_e4m3>(result), Pointwise(FloatEq(), output_data));
 }
 
 TEST(eval, evaluate_fake_convert_f32_seq_to_f8e5m2_scale_shift) {

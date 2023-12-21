@@ -111,28 +111,28 @@ INSTANTIATE_TEST_SUITE_P(
                                                2.5f,
                                                1.5f,
                                                3.5f},
-                      std::vector<ov::f8e4m3>{0.f,
-                                              0.1015625f,
-                                              0.203125f,
-                                              0.3125f,
-                                              0.40625f,
-                                              0.5f,
-                                              0.625f,
-                                              0.6875f,
-                                              0.8125f,
-                                              0.875f,
-                                              1.f,
-                                              1.5f,
-                                              2.5f,
-                                              1.5f,
-                                              3.5f}),
+                      std::vector<ov::float8_e4m3>{0.f,
+                                                   0.1015625f,
+                                                   0.203125f,
+                                                   0.3125f,
+                                                   0.40625f,
+                                                   0.5f,
+                                                   0.625f,
+                                                   0.6875f,
+                                                   0.8125f,
+                                                   0.875f,
+                                                   1.f,
+                                                   1.5f,
+                                                   2.5f,
+                                                   1.5f,
+                                                   3.5f}),
 
         ConvertParams(ConversionTypes::CONVERT,
                       ov::PartialShape{1, 1, 3},
 
                       ov::element::f8e4m3,
                       ov::element::f16,
-                      std::vector<ov::f8e4m3>{0.5f, 1.5f, 0.f},
+                      std::vector<ov::float8_e4m3>{0.5f, 1.5f, 0.f},
                       std::vector<ov::float16>{0.5f, 1.5f, 0.f}),
 
         ConvertParams(ConversionTypes::CONVERT,
@@ -140,8 +140,8 @@ INSTANTIATE_TEST_SUITE_P(
 
                       ov::element::f8e4m3,
                       ov::element::f8e4m3,
-                      std::vector<ov::f8e4m3>{0.5f, 1.5f, 0.f},
-                      std::vector<ov::f8e4m3>{0.5f, 1.5f, 0.f}),
+                      std::vector<ov::float8_e4m3>{0.5f, 1.5f, 0.f},
+                      std::vector<ov::float8_e4m3>{0.5f, 1.5f, 0.f}),
 
         ConvertParams(ConversionTypes::CONVERT,
                       ov::PartialShape{1, 1, 2},
@@ -164,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(
 
                       ov::element::f8e4m3,
                       ov::element::f32,
-                      std::vector<ov::f8e4m3>{0.5f, 1.5f},
+                      std::vector<ov::float8_e4m3>{0.5f, 1.5f},
                       std::vector<float>{0.5f, 1.5f}),
 
         ConvertParams(ConversionTypes::CONVERT,
@@ -172,14 +172,14 @@ INSTANTIATE_TEST_SUITE_P(
 
                       ov::element::f8e4m3,
                       ov::element::f16,
-                      std::vector<ov::f8e4m3>{0.5f, 1.5f},
+                      std::vector<ov::float8_e4m3>{0.5f, 1.5f},
                       std::vector<ov::float16>{0.5f, 1.5f}),
 
         ConvertParams(ConversionTypes::CONVERT,
                       ov::PartialShape{1, 1, 3, 2},
                       ov::element::f8e4m3,
                       ov::element::f32,
-                      std::vector<ov::f8e4m3>{
+                      std::vector<ov::float8_e4m3>{
                           0.5f,
                           1.5f,
                           0.5f,
@@ -196,8 +196,21 @@ INSTANTIATE_TEST_SUITE_P(
             ov::element::f8e4m3,
             std::
                 vector<float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
-            std::vector<
-                ov::f8e4m3>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+            std::vector<ov::float8_e4m3>{0.5f,
+                                         1.5f,
+                                         0.5f,
+                                         2.5f,
+                                         1.5f,
+                                         0.5f,
+                                         3.5f,
+                                         2.5f,
+                                         0.5f,
+                                         0.5f,
+                                         2.5f,
+                                         0.5f,
+                                         0.5f,
+                                         0.5f,
+                                         1.5f}),
 
         // destination bf16
         ConvertParams(

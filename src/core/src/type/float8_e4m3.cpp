@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/f8e4m3.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
 
 #include <array>
 #include <cmath>
@@ -10,10 +10,10 @@
 
 namespace ov {
 
-static_assert(sizeof(f8e4m3) == 1, "class f8e4m3 must be exactly 1 byte");
-static_assert(std::is_trivially_constructible<f8e4m3, f8e4m3>::value, "should be trivially constructible");
-static_assert(std::is_trivially_copyable<f8e4m3>::value, "must be trivially copyable");
-static_assert(std::is_trivially_destructible<f8e4m3>::value, "must be trivially destructible");
+static_assert(sizeof(float8_e4m3) == 1, "class f8e4m3 must be exactly 1 byte");
+static_assert(std::is_trivially_constructible<float8_e4m3, float8_e4m3>::value, "should be trivially constructible");
+static_assert(std::is_trivially_copyable<float8_e4m3>::value, "must be trivially copyable");
+static_assert(std::is_trivially_destructible<float8_e4m3>::value, "must be trivially destructible");
 
 namespace {
 constexpr auto float_nan = std::numeric_limits<float>::quiet_NaN();
@@ -117,13 +117,13 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
 }
 }  // namespace
 
-f8e4m3::f8e4m3(const uint32_t sign, const uint32_t biased_exponent, const uint32_t fraction)
+float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, const uint32_t fraction)
     : m_value(((sign & 0x01U) << (f8e4m3_e_size + f8e4m3_m_size)) |
               (biased_exponent & (f8e4m3_e_mask >> f8e4m3_m_size)) << f8e4m3_m_size | (fraction & f8e4m3_m_mask)) {}
 
-f8e4m3::f8e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
+float8_e4m3::float8_e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
 
-f8e4m3::operator float() const {
+float8_e4m3::operator float() const {
     union {
         float float_value;
         uint32_t bit_value;
@@ -133,15 +133,15 @@ f8e4m3::operator float() const {
     return float_value;
 }
 
-std::string f8e4m3::to_string() const {
+std::string float8_e4m3::to_string() const {
     return std::to_string(static_cast<float>(*this));
 }
 
-size_t f8e4m3::size() const {
+size_t float8_e4m3::size() const {
     return sizeof(m_value);
 }
 
-uint8_t f8e4m3::to_bits() const {
+uint8_t float8_e4m3::to_bits() const {
     return m_value;
 }
 }  // namespace ov

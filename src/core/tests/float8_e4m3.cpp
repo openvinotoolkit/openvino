@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/f8e4m3.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
 
 #include <gtest/gtest.h>
 
@@ -24,72 +24,72 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
 }
 
 TEST(F8E4M3Test, f32_inf) {
-    const auto f8 = ov::f8e4m3(std::numeric_limits<float>::infinity());
+    const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::infinity());
 
     EXPECT_EQ(f8.to_bits(), 0x7f);
 }
 
 TEST(F8E4M3Test, f32_minus_inf) {
-    const auto f8 = ov::f8e4m3(-std::numeric_limits<float>::infinity());
+    const auto f8 = ov::float8_e4m3(-std::numeric_limits<float>::infinity());
     // f8 is NaN as there is no infinity
     EXPECT_EQ(f8.to_bits(), 0xff);
 }
 
 TEST(F8E4M3Test, f32_nan) {
-    const auto f8 = ov::f8e4m3(std::numeric_limits<float>::quiet_NaN());
+    const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::quiet_NaN());
 
     EXPECT_EQ(f8.to_bits(), 0x7f);
 }
 
 TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
-    const auto f8 = ov::f8e4m3(0.0009765625f);
+    const auto f8 = ov::float8_e4m3(0.0009765625f);
 
     EXPECT_EQ(f8.to_bits(), 0x00);
 }
 
 TEST(F8E4M3Test, f32_gt_zero_gt_f8_half_lowest_subnormal) {
-    const auto f8 = ov::f8e4m3(0.00097656273283064365387f);
+    const auto f8 = ov::float8_e4m3(0.00097656273283064365387f);
 
     EXPECT_EQ(f8.to_bits(), 0x01);
 }
 
 TEST(F8E4M3Test, f32_normal_fractional_rounding) {
-    const auto f8 = ov::f8e4m3(0.129f);
+    const auto f8 = ov::float8_e4m3(0.129f);
 
     // Rounded to 0.140625f -> 0x21
     EXPECT_EQ(f8.to_bits(), 0x20);
 }
 
 TEST(F8E4M3Test, f32_normal_negative_fractional_rounding) {
-    const auto f8 = ov::f8e4m3(-0.281f);
+    const auto f8 = ov::float8_e4m3(-0.281f);
 
     // Rounded to -0.28125f -> 0x21
     EXPECT_EQ(f8.to_bits(), 0xa9);
 }
 
 TEST(F8E4M3Test, f32_ge_f8_max_within_round_to_max) {
-    const auto f8 = ov::f8e4m3(460.0f);
+    const auto f8 = ov::float8_e4m3(460.0f);
 
     // Rounded to 448.0f -> 0x7e
     EXPECT_EQ(f8.to_bits(), 0x7e);
 }
 
 TEST(F8E4M3Test, f32_ge_f8_max_not_within_round_to_max) {
-    const auto f8 = ov::f8e4m3(560.0f);
+    const auto f8 = ov::float8_e4m3(560.0f);
 
     // f8 has no such value (NaN)
     EXPECT_EQ(f8.to_bits(), 0x7f);
 }
 
 TEST(F8E4M3Test, f32_le_f8_lowest_within_round_to_lowest) {
-    const auto f8 = ov::f8e4m3(-460.0f);
+    const auto f8 = ov::float8_e4m3(-460.0f);
 
     // Rounded to -448.0f -> 0xfe
     EXPECT_EQ(f8.to_bits(), 0xfe);
 }
 
 TEST(F8E4M3Test, f32_le_f8_lowest_not_within_round_to_lowest) {
-    const auto f8 = ov::f8e4m3(-760.0f);
+    const auto f8 = ov::float8_e4m3(-760.0f);
 
     // f8 has no such value (NaN)
     EXPECT_EQ(f8.to_bits(), 0xff);
@@ -97,13 +97,13 @@ TEST(F8E4M3Test, f32_le_f8_lowest_not_within_round_to_lowest) {
 
 TEST(F8E4M3Test, stream_operator) {
     std::stringstream s;
-    s << ov::f8e4m3(2.5f);
+    s << ov::float8_e4m3(2.5f);
 
     EXPECT_EQ(s.str(), "2.5");
 }
 
 TEST(F8E4M3Test, to_string) {
-    const auto f8 = ov::f8e4m3::from_bits(0b00111010);
+    const auto f8 = ov::float8_e4m3::from_bits(0b00111010);
 
     EXPECT_EQ(f8.to_string(), "1.250000");
 }
@@ -153,7 +153,7 @@ INSTANTIATE_TEST_SUITE_P(convert,
 TEST_P(F8E4M3PTest, f8_bits_to_f32) {
     const auto& params = GetParam();
     const auto& exp_value = std::get<1>(params);
-    const auto f8 = ov::f8e4m3::from_bits(std::get<0>(params));
+    const auto f8 = ov::float8_e4m3::from_bits(std::get<0>(params));
 
     if (std::isnan(exp_value)) {
         EXPECT_TRUE(std::isnan(static_cast<float>(f8)));
@@ -166,7 +166,7 @@ TEST_P(F8E4M3PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& exp_value = std::get<0>(params);
     const auto& value = std::get<1>(params);
-    const auto f8 = ov::f8e4m3(value);
+    const auto f8 = ov::float8_e4m3(value);
 
     EXPECT_EQ(f8.to_bits(), exp_value);
 }

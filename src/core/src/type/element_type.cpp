@@ -263,7 +263,7 @@ Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
 template <>
-Type from<ov::f8e4m3>() {
+Type from<ov::float8_e4m3>() {
     return Type_t::f8e4m3;
 }
 template <>

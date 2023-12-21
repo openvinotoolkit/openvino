@@ -106,11 +106,12 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                                              abs_threshold);
         break;
     case ov::element::f8e4m3:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::f8e4m3, ov::f8e4m3>(refBlob.data<const ov::f8e4m3>(),
-                                                                           outBlob.data<const ov::f8e4m3>(),
-                                                                           actual_comparision_size,
-                                                                           threshold,
-                                                                           abs_threshold);
+        LayerTestsUtils::LayerTestsCommon::Compare<ov::float8_e4m3, ov::float8_e4m3>(
+            refBlob.data<const ov::float8_e4m3>(),
+            outBlob.data<const ov::float8_e4m3>(),
+            actual_comparision_size,
+            threshold,
+            abs_threshold);
         break;
     case ov::element::f8e5m2:
         LayerTestsUtils::LayerTestsCommon::Compare<ov::f8e5m2, ov::f8e5m2>(refBlob.data<const ov::f8e5m2>(),
