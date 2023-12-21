@@ -275,47 +275,31 @@ TEST_P(OVCompiledGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
-static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
-    auto to_config_string = [] (const Any& any) -> std::string {
-        if (any.is<bool>()) {
-            return any.as<bool>() ? "YES" : "NO";
-        } else {
-            std::stringstream strm;
-            any.print(strm);
-            return strm.str();
-        }
-    };
-    std::map<std::string, std::string> result;
-    for (auto&& value : params) {
-        result.emplace(value.first, to_config_string(value.second));
-    }
-    return result;
-}
-
 TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionDoubleInputOutput) {
-    ov::CompiledModel execNet;
+    ov::CompiledModel compiledModel;
 
     // Create simple function
     function = ov::test::utils::make_multiple_input_output_double_concat({1, 2, 24, 24}, elementType);
-    execNet = core->compile_model(function, target_device, configuration);
+    compiledModel = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
-    execNet.export_model(strm);
+    compiledModel.export_model(strm);
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_NO_THROW(importedExecNet.input("param1"));
-    EXPECT_NO_THROW(importedExecNet.input("param2"));
-    EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op1"));
-    EXPECT_NO_THROW(importedExecNet.output("concat_op2"));
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input("data1").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.input("data2").get_node());
 
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("param1").get_element_type());
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("param2").get_element_type());
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("concat_op2").get_element_type());
-    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("concat_op1").get_element_type());
+    EXPECT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output("concat1"));
+    EXPECT_NO_THROW(importedCompiledModel.output("concat2"));
+
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data1").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("concat2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("concat1").get_element_type());
 }
 
 //
