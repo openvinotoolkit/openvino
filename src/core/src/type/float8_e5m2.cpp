@@ -19,7 +19,6 @@ namespace {
 
 constexpr uint8_t byte_shift = 8;
 
-constexpr uint8_t f8e5m2_s_mask = 0x80;  // f8e5m2 sign bit mask
 constexpr uint8_t f8e5m2_e_size = 5;     // f8e5m2 exponent bit size
 constexpr uint8_t f8e5m2_e_mask = 0x7c;  // f8e5m2 exponent bit mask
 constexpr uint8_t f8e5m2_m_size = 2;     // f8e5m2 mantissa bits size
