@@ -233,9 +233,11 @@ void handle_reshape::run(program& p) {
                     auto reshape_users = node->get_users();
                     for (const auto& user : reshape_users) {
                         auto reshape_output = std::make_shared<reorder>("reorder:_reshape_output_" + node->id(),
-                                                                        user->id(),
+                                                                        node->id(),
                                                                         reshape_layout.format,
                                                                         reshape_layout.data_type);
+                        GPU_DEBUG_LOG << "reshape_handler: " << reshape_output->id
+                            << " input_info : " << reshape_output->dependencies().front().to_string() << std::endl;
                         auto& reshape_output_node = p.get_or_create(reshape_output);
                         p.add_intermediate(reshape_output_node,
                                            *user,
@@ -243,6 +245,7 @@ void handle_reshape::run(program& p) {
                                            reshape_output_node.get_dependencies().empty());
                         reshape_output_node.recalc_output_layout();
                     }
+                    node->recalc_output_layout();
                 }
             }
         }
