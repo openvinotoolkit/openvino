@@ -85,10 +85,10 @@ ov::CompiledModel OVInferRequestVariableStateTest::prepare_network() {
 }
 
 TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState) {
-    auto executableNet = prepare_network();
-    auto inferReq = executableNet.create_infer_request();
+    auto executable_net = prepare_network();
+    auto infer_req = executable_net.create_infer_request();
 
-    auto states = inferReq.query_state();
+    auto states = infer_req.query_state();
     ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
     for (auto&& state : states) {
@@ -99,11 +99,11 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState)
 }
 
 TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
-    auto executableNet = prepare_network();
-    auto inferReq = executableNet.create_infer_request();
+    auto executable_net = prepare_network();
+    auto infer_req = executable_net.create_infer_request();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.query_state()) {
+    for (auto&& state : infer_req.query_state()) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
@@ -117,10 +117,10 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
         state.set_state(state_tensor);
     }
 
-    for (auto&& state : inferReq.query_state()) {
-        auto lastState = state.get_state();
-        auto last_state_size = lastState.get_size();
-        auto last_state_data = static_cast<float*>(lastState.data());
+    for (auto&& state : infer_req.query_state()) {
+        auto last_state = state.get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         for (int i = 0; i < last_state_size; i++) {
             EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
@@ -129,11 +129,11 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
 }
 
 TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
-    auto executableNet = prepare_network();
-    auto inferReq = executableNet.create_infer_request();
+    auto executable_net = prepare_network();
+    auto infer_req = executable_net.create_infer_request();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.query_state()) {
+    for (auto&& state : infer_req.query_state()) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
@@ -148,13 +148,13 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
         state.set_state(state_tensor);
     }
 
-    inferReq.query_state().front().reset();
+    infer_req.query_state().front().reset();
 
-    auto states = inferReq.query_state();
+    auto states = infer_req.query_state();
     for (int i = 0; i < states.size(); ++i) {
-        auto lastState = states[i].get_state();
-        auto last_state_size = lastState.get_size();
-        auto last_state_data = static_cast<float*>(lastState.data());
+        auto last_state = states[i].get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         if (i == 0) {
@@ -170,12 +170,12 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
 }
 
 TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) {
-    auto executableNet = prepare_network();
-    auto inferReq = executableNet.create_infer_request();
-    auto inferReq2 = executableNet.create_infer_request();
+    auto executable_net = prepare_network();
+    auto infer_req = executable_net.create_infer_request();
+    auto infer_req2 = executable_net.create_infer_request();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.query_state()) {
+    for (auto&& state : infer_req.query_state()) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
@@ -189,16 +189,16 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set
         delete[] new_state_data;
         state.set_state(state_tensor);
     }
-    for (auto&& state : inferReq2.query_state()) {
+    for (auto&& state : infer_req2.query_state()) {
         state.reset();
     }
 
-    auto states = inferReq.query_state();
-    auto states2 = inferReq2.query_state();
+    auto states = infer_req.query_state();
+    auto states2 = infer_req2.query_state();
     for (int i = 0; i < states.size(); ++i) {
-        auto lastState = states[i].get_state();
-        auto last_state_size = lastState.get_size();
-        auto last_state_data = static_cast<float*>(lastState.data());
+        auto last_state = states[i].get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -207,9 +207,9 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set
         }
     }
     for (int i = 0; i < states2.size(); ++i) {
-        auto lastState = states2[i].get_state();
-        auto last_state_size = lastState.get_size();
-        auto last_state_data = static_cast<float*>(lastState.data());
+        auto last_state = states2[i].get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
