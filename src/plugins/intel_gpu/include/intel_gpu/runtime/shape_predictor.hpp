@@ -63,7 +63,7 @@ private:
 
     // Iterations mode preallocation
     const size_t _next_iters_preallocation_count = 10;
-    const size_t _max_per_iter_size = 16 * 1024; // 16KB => maximum preallocation size is 16KB * 10iters = 160KB
+    const size_t _max_per_iter_size = 32 * 1024; // 32KB => maximum preallocation size is 32KB * 10iters = 320KB
     const size_t _max_per_dim_diff = 2;
 
     // Percentage mode preallocation
