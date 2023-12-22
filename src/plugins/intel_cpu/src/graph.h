@@ -4,17 +4,13 @@
 
 #pragma once
 
-#include "cache/multi_cache.h"
 #include "config.h"
 #include "cpu_memory.h"
-#include "dnnl_scratch_pad.h"
 #include "edge.h"
 #include "graph_context.h"
 #include "node.h"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
-#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -116,9 +112,14 @@ public:
 
     void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
 
+    void CreateEdge(const NodePtr& parent,
+                 const NodePtr& child,
+                 int parentPort = 0,
+                 int childPort = 0);
+    void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void RemoveEdge(const EdgePtr& edge);
+    void AddNode(NodePtr node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
