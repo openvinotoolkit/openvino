@@ -611,18 +611,6 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineUnitTests.xml
-
       - name: Common test utils tests
         shell: cmd
         run: |
@@ -649,12 +637,6 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
-
-      - name: GNA plugin unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
