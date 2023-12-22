@@ -163,9 +163,6 @@ install(EXPORT OpenVINOTargets
 
 # build tree
 
-if(ENABLE_INTEL_GNA)
-    list(APPEND PATH_VARS "GNA_PATH")
-endif()
 if(DNNL_USE_ACL)
     list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH;CMAKE_ARCHIVE_OUTPUT_DIRECTORY")
     set(FIND_ACL_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
@@ -191,10 +188,6 @@ string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 
 set(OV_TBB_DIR "${OV_TBB_DIR_INSTALL}")
 set(OV_TBBBIND_DIR "${OV_TBBBIND_DIR_INSTALL}")
-set(GNA_PATH "${OV_CPACK_RUNTIMEDIR}")
-if(WIN32)
-    set(GNA_PATH "${OV_CPACK_LIBRARYDIR}/../Release")
-endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
