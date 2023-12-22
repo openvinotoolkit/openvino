@@ -63,11 +63,8 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
             }
         }
 
-        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(eltwise);
-        if (!fq) {
-            if (eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
-                return false;
-            }
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(eltwise) && eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
+            return false;
         }
 
         auto current = eltwise->get_input_node_shared_ptr(0);
@@ -93,9 +90,11 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         for (size_t i = 1; i < eltwise->get_input_size(); i++) {
             if (current->get_output_partial_shape(0).size() != eltwise->get_input_partial_shape(i).size()) {
                 auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
-                auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
-                ov::replace_node_update_name(old_eltwise_const, new_constant);
+                if (old_eltwise_const->get_shape().size() != 0) {
+                    auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
+                    ov::replace_node_update_name(old_eltwise_const, new_constant);
                 }
+            }
         }
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
 
