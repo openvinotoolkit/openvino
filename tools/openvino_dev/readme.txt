@@ -5,9 +5,6 @@ Components and their third party programs:
 
     * OpenVINO(TM) Development Tools (Apache 2.0): 
         - Model Optimizer: <install_root>/dev-third-party-programs.txt
-        - Benchmark Tool: <install_root>/dev-third-party-programs.txt
-        - Post-Training Optimization Toolkit: <install_root>/dev-third-party-programs.txt
-        - Accuracy Checker: <install_root>/omz-third-party-programs.txt
         - Open Model Zoo Tools: <install_root>/omz-third-party-programs.txt
 
 ------------------------------------------------------------------------
