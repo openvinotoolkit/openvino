@@ -9,6 +9,7 @@ Legacy Conversion API
    :hidden:
 
    Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>
+   Troubleshooting Reshape Errors <troubleshooting_reshape_errors>
    Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>
    Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>
    Compressing a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>
