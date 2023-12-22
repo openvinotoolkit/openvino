@@ -35,9 +35,9 @@ std::string OVInferRequestVariableStateTest::getTestCaseName(const testing::Test
 }
 
 void OVInferRequestVariableStateTest::SetUp() {
-    std::tie(net, statesToQuery, deviceName, configuration) = GetParam();
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::tie(net, statesToQuery, deviceName, configuration) = GetParam();
     OVInferRequestTestBase::SetUp();
 }
 
