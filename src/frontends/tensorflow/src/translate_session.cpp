@@ -13,6 +13,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/common_util.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -52,6 +53,26 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     }
     return resulted_ops;
 };
+
+std::string make_output_tensor_name(std::string tensor_name, std::string node_name) {
+    std::string operation_name;
+    size_t port_index;
+    std::string port_type;
+    ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name, operation_name, port_index, port_type);
+
+    std::string op_name_from_res_node;
+    size_t port_index_node;
+    ov::frontend::tensorflow::extract_operation_name_and_port(node_name,
+                                                              op_name_from_res_node,
+                                                              port_index_node,
+                                                              port_type);
+
+    if (op_name_from_res_node == operation_name && tensor_name != "") {
+        return operation_name + ":" + std::to_string(port_index);
+    } else {
+        return op_name_from_res_node + ":" + std::to_string(port_index_node);
+    }
+}
 
 /// \brief Adjusts names of the tensor by mapping internal names to user specific ones using the model signature
 /// and mark unused tensor names that must be removed
@@ -116,7 +137,8 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
             signature_passed = false;
         }
         if (tensor_names_need_indices) {
-            ov_output.set_names({ov_output.get_node_shared_ptr()->get_friendly_name() + ":0"});
+            auto tensor_name = ov_output.get_names().size() > 0 ? ov_output.get_any_name() : "";
+            ov_output.set_names({make_output_tensor_name(tensor_name, results[0]->get_friendly_name())});
         }
     }
 
@@ -652,11 +674,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     // it iterates through these tensors and adjusts their names
     // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
+
+    auto tf_input_model = std::dynamic_pointer_cast<ov::frontend::tensorflow::InputModel>(input_model);
+    FRONT_END_GENERAL_CHECK(tf_input_model, "Got unexpected InputModel class");
+
     for (auto ov_tensor : ov_tensors) {
         adjust_saved_model_names(ov_tensor,
                                  saved_model_inputs,
                                  saved_model_outputs,
-                                 input_model->tensor_names_need_indices());
+                                 tf_input_model->tensor_names_need_indices());
     }
 
     // reorder Parameter and Result nodes according to the requested order
