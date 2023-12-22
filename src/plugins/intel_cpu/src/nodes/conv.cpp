@@ -1545,7 +1545,7 @@ MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it
         auto shape = getOutputShapeAtPort(0);
         auto minDims = shape.getMinDims();
         auto maxDims = shape.getMaxDims();
-        for (int i = 0; i < maxDims.size(); i++) {
+        for (size_t i = 0; i < maxDims.size(); i++) {
             if (maxDims[i] > minDims[i]) {
                 if (minDims[i] > 1)
                     minDims[i] = 1;
