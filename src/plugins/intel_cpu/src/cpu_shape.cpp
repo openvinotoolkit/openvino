@@ -65,10 +65,9 @@ Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
     VectorDims resultMaxDims(lhsMaxDims.size());
 
     for (size_t i = 0; i < resultMinDims.size(); ++i) {
-        OPENVINO_ASSERT(lhsMinDims[i] <= rhsMaxDims[i], "Couldn't merge shapes as the dims intervals are not overlapping.");
-        OPENVINO_ASSERT(rhsMinDims[i] <= lhsMaxDims[i], "Couldn't merge shapes as the dims intervals are not overlapping.");
         resultMinDims[i] = std::max(lhsMinDims[i], rhsMinDims[i]);
         resultMaxDims[i] = std::min(lhsMaxDims[i], rhsMaxDims[i]);
+        OPENVINO_ASSERT(resultMinDims[i] <= resultMaxDims[i], "Couldn't merge shapes as the dims intervals are not overlapping.");
     }
     return Shape{resultMinDims, resultMaxDims};
 }

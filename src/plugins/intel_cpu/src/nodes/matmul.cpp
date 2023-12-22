@@ -357,7 +357,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     }
 
     OPENVINO_ASSERT((in0.getRank() == in1.getRank()) && (in1.getRank() == out.getRank()),
-        "Can't create dummy inputs if argument shapes rank is not equal");
+        "Can't create dummy inputs if argument shapes ranks are not equal");
 
     auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
         if (transposeIn[0]) {
