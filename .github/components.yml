@@ -18,7 +18,6 @@ LP_transformations:
 preprocessing:
   revalidate:
     - inference
-    - GNA
     - C_API
     - Python_API
 
@@ -29,6 +28,7 @@ CPU:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
     - ONNX_RT
     - PyTorch_FE
@@ -48,18 +48,10 @@ GPU:
     - IR_FE
     - PROXY
 
-GNA:
-  build:
-    - HETERO
-    - AUTO_BATCH
-    - TEMPLATE
-    - IR_FE
-
 HETERO:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -72,7 +64,6 @@ AUTO_BATCH:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -85,7 +76,6 @@ TEMPLATE:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -115,6 +105,7 @@ IR_FE:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
   build:
     - CPU
@@ -181,6 +172,13 @@ Python_API:
     - TFL_FE
     - PyTorch_FE
 
+JS_API:
+  revalidate:
+    - samples
+  build:
+    - CPU
+    - IR_FE
+
 samples:
   build:
     - CPU
@@ -194,7 +192,6 @@ IE_Tests:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
