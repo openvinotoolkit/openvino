@@ -102,7 +102,7 @@ private:
     const MemoryDesc& getDesc() const;
     bool enforceReorder();
 
-    void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
+    void collectConsumers(std::vector<std::shared_ptr<Node>>& result, bool nested = false) const;
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
     void allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate);
