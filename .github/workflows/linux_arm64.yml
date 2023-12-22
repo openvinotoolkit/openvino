@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
         uses: actions/checkout@v4
@@ -36,6 +37,8 @@ jobs:
           commit_sha: ${{ github.sha }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
       - name: Show affected components
         run: |
@@ -68,8 +71,8 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: 'ubuntu20_aarch64_Release'
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
-    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Install git
@@ -149,7 +152,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -225,7 +227,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -233,7 +235,7 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
@@ -241,7 +243,7 @@ jobs:
 
       - name: Upload openvino debian packages
         if: ${{ 'false' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -249,7 +251,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz

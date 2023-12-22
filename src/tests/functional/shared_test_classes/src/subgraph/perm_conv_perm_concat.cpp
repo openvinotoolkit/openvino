@@ -7,6 +7,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -63,7 +64,7 @@ void PermConvPermConcat::SetUp() {
     auto conv_in_shape = permute_in->get_output_shape(0);
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
     auto conv =
-        ngraph::builder::makeConvolution(permute_in,
+        ov::test::utils::make_convolution(permute_in,
                                          element_type,
                                          {kernel_shape[0], kernel_shape[1]},
                                          {1, 1},

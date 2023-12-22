@@ -260,7 +260,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
                 std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
                     inputNode = nextNodePtr;
                 }
             }
@@ -295,57 +295,6 @@ void SubgraphBaseTest::configure_model() {
     function = p.build();
 }
 
-bool SubgraphBaseTest::is_allowed_convertion(ov::element::Type from, ov::element::Type to) {
-// based on logic from /src/common/transformations/src/transformations/convert_precision.cpp
-// and some restrictions on converting real to integral and vice versa from ops
-    if (from == to) {
-        return false;
-    }
-    if (from.is_real()) {
-        if ((from == ov::element::Type_t::f32 && to == ov::element::Type_t::f16) || to == ov::element::Type_t::f32) {
-            return true;
-        }
-    } else if (from.is_integral() && from.is_signed()) {
-        if ((from == ov::element::Type_t::i8 && to == ov::element::Type_t::i64) ||
-            (from != ov::element::Type_t::i8 && to == ov::element::Type_t::i32)) {
-            return true;
-        }
-    } else {
-        // integral and unsigned
-        if (to == ov::element::Type_t::i32) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void SubgraphBaseTest::get_convert_precision_map() {
-    try {
-        ov::element::Type inf_prec = core->get_property(targetDevice, ov::hint::inference_precision);
-        {
-            auto& params = function->get_parameters();
-            for (size_t i = 0; i < params.size(); i++) {
-                ov::element::Type param_type = params[i]->get_element_type();
-                if (is_allowed_convertion(param_type, inf_prec)) {
-                    convert_precisions.insert({ param_type , inf_prec });
-                }
-            }
-        }
-
-        {
-            auto results = function->get_results();
-            for (size_t i = 0; i < results.size(); i++) {
-                ov::element::Type result_type = results[i]->get_element_type();
-                if (is_allowed_convertion(result_type, inf_prec)) {
-                    convert_precisions.insert({ result_type , inf_prec });
-                }
-            }
-        }
-    } catch (const std::exception& ex) {
-        std::cout << "[ REFERENCE      ] Ref model will not be converted to plugin inference presicion: " << ex.what() << std::endl;
-    }
-}
-
 void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
@@ -354,7 +303,6 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     core_configuration(this);
-    get_convert_precision_map();
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
