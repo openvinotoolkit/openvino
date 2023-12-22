@@ -57,21 +57,29 @@ void RuntimeConfigurator::init_loop_descriptors(const lowered::LinearIR::LoopMan
                         "If it's an first initialization, there should not be loop descriptors");
         if (!m_inited) m_config.m_loops[loop_id] = {};
 
+        // Corner case when there not outer vector loop desc but there is outer tail loop with inner splitted tails
+        if (m_inited && m_config.m_loops[loop_id].size() == 1) {
+            auto& desc = m_config.m_loops[loop_id].front();
+            if (desc.type == RuntimeConfig::LoopDescriptor::SplitedTail) {
+                init_vector_loop_descriptor(loop_info, loop_id, desc);
+            }
+        }
+
         if (is_first_iter_loop_needed(loop_info)) {
             auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::First)
-                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
+                                     : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "First Loop Descriptor has not been found!");
             init_first_iter_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_vector_loop_needed(loop_info)) {
             auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Vector)
-                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
+                                     : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
             init_vector_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_tail_loop_needed(loop_info)) {
             auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Tail)
-                                           : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
+                                     : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "Tail Loop Descriptor has not been found!");
             init_tail_loop_descriptor(loop_info, loop_id, *desc_it);
             // Inner splited Loop update
@@ -157,20 +165,36 @@ void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearI
         if (inner_dim_idx != outer_dim_idx)
             continue;
 
+        // Possible situations:
+        // If it's a first initialization (m_inited = false) - there must be splitted vector loop desc
+        // If it's not the first initialization there might be:
+        //  - There is outer vector loop (is_outer_vector_loop_needed = true) - there must be splitted vector loop desc too
+        //  - There no outer vector loop (is_outer_vector_loop_needed = false) - there no splitted vector loop desc.
+        //    But existing SplitedTail has been inited as vector loop.
         auto splited_tail_desc_it = !m_inited ? m_config.push_new_desc(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail)
                                               : m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail);
         auto inner_vector_dest_it = m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::Vector);
-        OPENVINO_ASSERT(inner_vector_dest_it != m_config.m_loops.at(inner_loop_id).end(), "Splited inner Loop should be already inited!");
+        RuntimeConfig::LoopDescriptor inner_vector_desc;
+        OPENVINO_ASSERT(utils::implication(!m_inited, inner_vector_dest_it != m_config.m_loops.at(inner_loop_id).end()),
+                        "Splited inner Loop should be already inited!");
+        if (inner_vector_dest_it != m_config.m_loops.at(inner_loop_id).end()) {
+            inner_vector_desc = *inner_vector_dest_it;
+        } else {
+            // Corner case when there is not outer vector
+            OPENVINO_ASSERT(!is_outer_vector_loop_needed, "Splited inner Loop should be already inited!");
+            // The existing splited tail loop has been inited like vector loop.
+            inner_vector_desc = *splited_tail_desc_it;
+        }
         splited_tail_desc_it->work_amount = tail_size;
-        splited_tail_desc_it->increment = std::min(inner_vector_dest_it->increment, tail_size);
-        splited_tail_desc_it->ptr_increments = inner_vector_dest_it->ptr_increments;
-        splited_tail_desc_it->finalization_offsets = inner_vector_dest_it->finalization_offsets;
+        splited_tail_desc_it->increment = std::min(inner_vector_desc.increment, tail_size);
+        splited_tail_desc_it->ptr_increments = inner_vector_desc.ptr_increments;
+        splited_tail_desc_it->finalization_offsets = inner_vector_desc.finalization_offsets;
         // rescale offsets
         for (auto& offset : splited_tail_desc_it->finalization_offsets) {
-            offset = offset / static_cast<int64_t>(inner_vector_dest_it->work_amount) * static_cast<int64_t>(splited_tail_desc_it->work_amount);
+            offset = offset / static_cast<int64_t>(inner_vector_desc.work_amount) * static_cast<int64_t>(splited_tail_desc_it->work_amount);
         }
         // If outer splited loop doesn't have Vector Loop, inner splited loop shouldn't have the Vector Loop as well
-        if (!is_outer_vector_loop_needed) {
+        if (!is_outer_vector_loop_needed && inner_vector_dest_it != m_config.m_loops.at(inner_loop_id).end()) {
             m_config.m_loops.at(inner_loop_id).erase(inner_vector_dest_it);
         }
     }
