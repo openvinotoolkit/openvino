@@ -43,10 +43,6 @@ data, logging each step in a standard output stream.
    .. tab-item:: C++
       :sync: cpp
 
-      .. important::
-      
-         **Deprecation Notice:** This sample has been deprecated since June 1, 2020. The date of removal was set to December 1, 2020.
-      
       .. scrollbox::
       
          .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
