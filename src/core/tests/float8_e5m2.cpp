@@ -37,6 +37,9 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
     return enum_values;
 }
 
+constexpr auto f32_qnan = std::numeric_limits<float>::quiet_NaN();
+constexpr auto f32_inf = std::numeric_limits<float>::infinity();
+
 // clang-format off
 const auto exp_floats = std::vector<float>{
     0.0f,               1.52587890625e-05f,     3.0517578125e-05f,      4.57763671875e-05f,
@@ -70,7 +73,7 @@ const auto exp_floats = std::vector<float>{
     8192.0f,            10240.0f,               12288.0f,               14336.0f,
     16384.0f,           20480.0f,               24576.0f,               28672.0f,
     32768.0f,           40960.0f,               49152.0f,               57344.0f,
-    INFINITY,           NAN,                    NAN,                    NAN,
+    f32_inf,            f32_qnan,               f32_qnan,               f32_qnan,
     -0.0f,              -1.52587890625e-05f,    -3.0517578125e-05f,     -4.57763671875e-05f,
     -6.103515625e-05f,  -7.62939453125e-05f,    -9.1552734375e-05f,     -0.0001068115234375f,
     -0.0001220703125f,  -0.000152587890625f,    -0.00018310546875f,     -0.000213623046875f,
@@ -102,7 +105,7 @@ const auto exp_floats = std::vector<float>{
     -8192.0f,           -10240.0f,              -12288.0f,              -14336.0f,
     -16384.0f,          -20480.0f,              -24576.0f,              -28672.0f,
     -32768.0f,          -40960.0f,              -49152.0f,              -57344.0f,
-    -INFINITY,          -NAN,                   -NAN,                   -NAN};
+    -f32_inf,           -f32_qnan,              -f32_qnan,              -f32_qnan};
 // clang-format on
 
 using f8m5e2_params = std::tuple<int, float>;

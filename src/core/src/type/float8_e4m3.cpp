@@ -46,6 +46,11 @@ constexpr uint8_t f8e4m3_e_max = 0x0f;   // f8e4m3 exponent max value
 constexpr uint8_t f8e4m3_m_size = 3;     // f8e4m3 mantissa bits size
 constexpr uint8_t f8e4m3_m_mask = 0x07;  // f8e4m3 mantissa bit mask
 
+union f32_t {
+    float value;
+    uint32_t bits;
+};
+
 uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t f32_s_mask = 0x80000000;  // f32 sign bit mask
     constexpr uint32_t f32_e_mask = 0x7F800000;  // f32 exponent bits mask
@@ -62,11 +67,6 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t round_norm = 0x007fffff;  // value for normal round for f8
     constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f8
     constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f8
-
-    union f32_t {
-        float value;
-        uint32_t bits;
-    };
 
     const auto input = f32_t{value};
     auto f8_bits = static_cast<uint8_t>((input.bits & f32_s_mask) >> three_bytes_shift);
@@ -90,11 +90,11 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
         fractional &= f8_m_mask;
 
         // set exponent and mantissa on f8 bits
-        if (f8_biased_exp > 15) {
+        if (f8_biased_exp > f8e4m3_e_max) {
             // Use NAN as this type has no infinity
             f8_bits |= (f8e4m3_e_mask | f8e4m3_m_mask);
         } else if (f8_biased_exp > 0) {
-            f8_bits |= ((f8_biased_exp) << f8e4m3_m_size) | (fractional >> three_bytes_shift);
+            f8_bits |= (f8_biased_exp << f8e4m3_m_size) | (fractional >> three_bytes_shift);
         } else {
             // Restore the hidden 1 in f8 mantissa for subnormal calculation
             fractional = f8_m_hidden_one_mask | (input.bits & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
@@ -124,13 +124,9 @@ float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, co
 float8_e4m3::float8_e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
 
 float8_e4m3::operator float() const {
-    union {
-        float float_value;
-        uint32_t bit_value;
-    };
-    float_value = f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)];
-    bit_value |= (m_value & f8e4m3_s_mask) << three_bytes_shift;
-    return float_value;
+    auto converted = f32_t{f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]};
+    converted.bits |= (m_value & f8e4m3_s_mask) << three_bytes_shift;
+    return converted.value;
 }
 
 uint8_t float8_e4m3::to_bits() const {
