@@ -27,6 +27,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<RDFTParams>& obj);
 
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 }  // namespace test
