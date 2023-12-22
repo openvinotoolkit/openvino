@@ -22,6 +22,12 @@ public:
     RuntimeConfigurator() = default;
 
     /**
+     * @brief Initialize port descs of io expressions and their data sizes
+     * @param linear_ir the updated LinearIR
+     */
+    void init_linear_info(const lowered::LinearIR& linear_ir);
+
+    /**
      * @brief Initialize config using LinearIR state
      * @param linear_ir the updated LinearIR
      */
@@ -107,6 +113,11 @@ private:
                               const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                               bool skip_evaluation, bool is_there_prev_iter,
                               const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc);
+    /**
+     * @brief Initialize input and output of LinearIR descriptors and data sizes.
+     * @param linear_ir target linear ir
+     */
+    void init_io_info(const LinearIR& linear_ir);
 
     /**
      * @brief Check if first iter is needed
@@ -134,6 +145,11 @@ private:
     inline static bool is_tail_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
         return (loop_info->get_work_amount() % loop_info->get_increment() != 0) || (loop_info->is_dynamic() && loop_info->get_increment() > 1);
     }
+
+    size_t m_io_num = 0;
+    size_t m_in_num = 0;
+    std::vector<PortDescriptorPtr> m_io_descs = {};
+    std::vector<size_t> m_io_data_sizes = {};
 
     RuntimeConfig m_config;
     bool m_is_first_init = true;

@@ -15,7 +15,16 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+void RuntimeConfigurator::init_linear_info(const lowered::LinearIR& linear_ir) {
+    init_io_info(linear_ir);
+}
+
 void RuntimeConfigurator::update(const lowered::LinearIR& linear_ir) {
+    if (m_is_first_init) {
+        reset();
+        init_linear_info(linear_ir);
+    }
+
     const auto& loop_manager = linear_ir.get_loop_manager();
     init_loop_descriptors(loop_manager);
     init_data_offsets(linear_ir);
@@ -202,17 +211,16 @@ void RuntimeConfigurator::init_data_ptr_shifts(RuntimeConfig::LoopDescriptor& de
     }
 }
 
-void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::RuntimeConfig::init_data_offsets")
-
-    const auto& tensor_rank = linear_ir.get_config().m_tensor_rank;
+void RuntimeConfigurator::init_io_info(const LinearIR& linear_ir) {
     const auto& io_exprs = linear_ir.get_IO_ops();
-    m_config.m_data_offsets.resize(io_exprs.size());
+    m_io_num = io_exprs.size();
+    m_config.m_data_offsets.resize(m_io_num);
+    m_io_descs.resize(m_io_num);
+    m_io_data_sizes.resize(m_io_num);
+    m_in_num = 0;
 
     size_t idx = 0;
     for (const auto& expr : io_exprs) {
-        lowered::PortDescriptorPtr desc = nullptr;
-        size_t data_size;
         switch (expr->get_type()) {
             case lowered::IOExpression::io_type::INPUT: {
                 // Note that here we consider only the first child (which is usually load),
@@ -226,21 +234,32 @@ void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
-                        desc = child_input.get_descriptor_ptr();
+                        m_io_descs[idx] = child_input.get_descriptor_ptr();
                     }
                 }
-                data_size = expr->get_node()->get_output_element_type(0).size();
+                m_io_data_sizes[idx] = expr->get_node()->get_output_element_type(0).size();
+                m_in_num++;
                 break;
             }
             case lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
-                data_size = expr->get_node()->get_input_element_type(0).size();
+                m_io_descs[idx] = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                m_io_data_sizes[idx] = expr->get_node()->get_input_element_type(0).size();
                 break;
             } default : {
                 OPENVINO_THROW("Detected unsupported io_type");
             }
         }
-        offset_calculation(desc, data_size, expr->get_type() == lowered::IOExpression::io_type::INPUT, tensor_rank, m_config.m_data_offsets[idx++]);
+        idx++;
+    }
+}
+
+void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::RuntimeConfig::init_data_offsets")
+
+    const auto& tensor_rank = linear_ir.get_config().m_tensor_rank;
+
+    for (size_t i = 0; i < m_io_num; ++i) {
+        offset_calculation(m_io_descs[i], m_io_data_sizes[i], i < m_in_num, tensor_rank, m_config.m_data_offsets[i]);
     }
 }
 

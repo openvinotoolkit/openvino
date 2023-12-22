@@ -61,7 +61,9 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
+    // Make a copy to move loop descriptors but after init linear ir info by cloned version
     cloned->m_runtime_configurator = std::make_shared<RuntimeConfigurator>(*m_runtime_configurator);
+    cloned->m_runtime_configurator->init_linear_info(*cloned);
     cloned->update_shape_infer();
     return cloned;
 }
