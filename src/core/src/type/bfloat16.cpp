@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,14 +19,13 @@
 //  limitations under the License.
 //==============================================================================
 
-#include "ngraph/type/bfloat16.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <limits>
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static_assert(sizeof(bfloat16) == 2, "class bfloat16 must be exactly 2 bytes");
 
@@ -56,11 +55,22 @@ size_t bfloat16::size() const {
     return sizeof(m_value);
 }
 
+#if defined __GNUC__ && __GNUC__ == 11
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+
 bfloat16::operator float() const {
-    uint32_t tmp = (static_cast<uint32_t>(m_value) << 16);
-    const float* f = reinterpret_cast<const float*>(&tmp);
+    uint32_t tmp = 0;
+    uint32_t* ptmp = &tmp;
+    *ptmp = (static_cast<uint32_t>(m_value) << 16);
+    const float* f = reinterpret_cast<const float*>(ptmp);
     return *f;
 }
+
+#if defined __GNUC__ && __GNUC__ == 11
+#    pragma GCC diagnostic pop
+#endif
 
 uint16_t bfloat16::to_bits() const {
     return m_value;

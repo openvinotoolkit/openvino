@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
@@ -10,9 +13,6 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace detail {
-Output<ngraph::Node> get_zero_point(const OutputVector& inputs);
-}
 
 namespace set_1 {
 OutputVector dequantize_linear(const Node& node);
@@ -21,11 +21,11 @@ OutputVector dequantize_linear(const Node& node);
 
 namespace set_13 {
 namespace detail {
-OutputVector dequantize_linear(Output<ngraph::Node> x,
-                               Output<ngraph::Node> scale,
-                               Output<ngraph::Node> zero_point,
+OutputVector dequantize_linear(const Output<ngraph::Node>& x,
+                               const Output<ngraph::Node>& scale,
+                               const std::shared_ptr<ngraph::Node>& zero_point,
                                int64_t axis,
-                               Node node);
+                               const Node& node);
 }
 OutputVector dequantize_linear(const Node& node);
 }  // namespace set_13
@@ -35,3 +35,4 @@ OutputVector dequantize_linear(const Node& node);
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

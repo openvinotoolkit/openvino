@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,7 @@
 typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
     QueueCallbackFunction;
 
-/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
-/// time.
+/// @brief Handles asynchronous callbacks and calculates execution time
 class InferReqWrap final {
 public:
     using Ptr = std::shared_ptr<InferReqWrap>;
@@ -128,7 +127,7 @@ public:
         // Inference Request guarantee that it will wait for all asynchronous internal tasks in destructor
         // So it should be released before any context that the request can use inside internal asynchronous tasks
         // For example all members of InferRequestsQueue would be destroyed before `requests` vector
-        // So requests can try to use this members from `putIdleRequest()` that would be called from request callback
+        // So requests can try to use this members from `put_idle_request()` that would be called from request callback
         // To avoid this we should move this vector declaration after all members declaration or just clear it manually
         // in destructor
         requests.clear();
@@ -169,11 +168,7 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             if (inferenceException) {
-                try {
-                    std::rethrow_exception(inferenceException);
-                } catch (const std::exception& ex) {
-                    throw ex;
-                }
+                std::rethrow_exception(inferenceException);
             }
             return _idleIds.size() > 0;
         });
@@ -187,11 +182,7 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             if (inferenceException) {
-                try {
-                    std::rethrow_exception(inferenceException);
-                } catch (const std::exception& ex) {
-                    throw ex;
-                }
+                std::rethrow_exception(inferenceException);
             }
             return _idleIds.size() == requests.size();
         });

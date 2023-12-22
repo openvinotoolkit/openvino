@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -28,6 +28,12 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
                 "the attribute align_corners must be False"
     assert not resize.half_pixel_centers or (resize.half_pixel_centers and not resize.align_corners), \
         attrs_msg.format(resize_name, resize.op)
+
+    if resize.has_valid('data_type') and not np.issubdtype(resize.data_type, np.floating):
+       input_cast = Cast(graph, {'name': resize_name + '/to_f32', 'dst_type': np.float32}).create_node()
+       resize.in_port(0).get_connection().insert_node(input_cast, "source")
+       # casted tensor is not present in TF model, we don't need to propagate any name to output of this Convert
+       # therefore we use "source" attributes_save_mode for insert_node
 
     shape = Shape(graph, {'name': resize_name + '/shapeof'}).create_node()
 

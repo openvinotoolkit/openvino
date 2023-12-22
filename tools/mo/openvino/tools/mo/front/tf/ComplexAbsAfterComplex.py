@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
-from openvino.tools.mo.ops.elementwise import Add, Pow
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.elementwise import Add, Pow
 
 
 class ComplexAbsAfterComplex(FrontReplacementSubgraph):

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,24 +18,22 @@
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/pass/serialize.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "common_test_utils/crash_handler.hpp"
 
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
-#include "functional_test_utils/layer_test_utils/environment.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/environment.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 namespace LayerTestsUtils {
-
-
 
 using TargetDevice = std::string;
 
@@ -51,7 +49,7 @@ enum RefMode {
     IE
 };
 
-class LayerTestsCommon : public CommonTestUtils::TestsCommon {
+class LayerTestsCommon : public ov::test::TestsCommon {
 public:
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 
@@ -106,7 +104,7 @@ public:
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            const auto absoluteDifference = ov::test::utils::ie_abs(res - ref);
             if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
                 IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with absolute threshold " << abs_threshold
@@ -117,9 +115,9 @@ public:
             }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+                max = static_cast<double>(std::max(ov::test::utils::ie_abs(T_NGRAPH(res)), ov::test::utils::ie_abs(ref)));
             } else {
-                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+                max = static_cast<double>(std::max(ov::test::utils::ie_abs(res), ov::test::utils::ie_abs(T_IE(ref))));
             }
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
@@ -145,6 +143,8 @@ protected:
     virtual void ConfigureNetwork();
 
     virtual void LoadNetwork();
+
+    virtual void ExpectLoadNetworkToThrow(const std::string& msg);
 
     virtual void GenerateInputs();
 

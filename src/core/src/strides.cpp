@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/strides.hpp"
+#include "openvino/core/strides.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
     s << "Strides{";
-    s << ngraph::join(strides);
+    s << ov::util::join(strides);
     s << "}";
     return s;
 }
@@ -32,5 +32,3 @@ ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
     static_cast<std::vector<size_t>*>(this)->operator=(v);
     return *this;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Strides>);

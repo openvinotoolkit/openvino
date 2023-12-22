@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/rt_map.hpp"
 #include "pyngraph/variant.hpp"
@@ -30,6 +29,7 @@ public:
 };
 
 namespace impl {
+namespace {
 py::dict get_attributes(const std::shared_ptr<ngraph::Node>& node) {
     util::DictAttributeSerializer dict_serializer(node);
     return dict_serializer.get_attributes();
@@ -42,6 +42,7 @@ void set_attribute(std::shared_ptr<ngraph::Node>& node, const std::string& atr_n
     util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
     node->visit_attributes(dict_deserializer);
 }
+}  // namespace
 }  // namespace impl
 
 namespace py = pybind11;
@@ -276,16 +277,6 @@ void regclass_pyngraph_Node(py::module m) {
                 get_rt_info : PyRTMap
                     A dictionary of user defined data.
              )");
-    node.def("get_version",
-             &ngraph::Node::get_version,
-             R"(
-                Returns operation's version of the node.
-
-                Returns
-                ----------
-                get_version : int
-                    Operation version.
-             )");
 
     node.def("set_argument", &ngraph::Node::set_argument);
     node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::NodeVector& args) {
@@ -300,7 +291,6 @@ void regclass_pyngraph_Node(py::module m) {
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
-    node.def_property_readonly("version", &ngraph::Node::get_version);
     node.def_property_readonly("type_info", &ngraph::Node::get_type_info);
     node.def_property("friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 

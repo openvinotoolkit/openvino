@@ -1,15 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
 from argparse import Namespace
 
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def deduce_legacy_frontend_by_namespace(argv: Namespace):
-    if not argv.framework:
+    if not hasattr(argv, 'framework') or not argv.framework:
         if getattr(argv, 'saved_model_dir', None) or getattr(argv, 'input_meta_graph', None):
             argv.framework = 'tf'
         elif getattr(argv, 'input_symbol', None) or getattr(argv, 'pretrained_model_name', None):
@@ -39,4 +38,3 @@ def guess_framework_by_ext(input_model_path: str) -> int:
         return 'kaldi'
     elif re.match(r'^.*\.onnx$', input_model_path):
         return 'onnx'
-

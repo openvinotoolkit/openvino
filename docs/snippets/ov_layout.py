@@ -1,9 +1,11 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+import openvino as ov
+import openvino.runtime.opset12 as ops
 
 # ! [ov:layout:simple]
-from openvino.runtime import Layout
+from openvino import Layout
 layout = Layout('NCHW')
 # ! [ov:layout:simple]
 # ! [ov:layout:complex]
@@ -52,3 +54,27 @@ layout_helpers.width_idx(Layout('...HW'))
 layout = Layout('NCHW')
 print(layout)    # prints [N,C,H,W]
 # ! [ov:layout:dump]
+
+
+def create_simple_model():
+    # This example shows how to create ov::Function
+    #
+    # Parameter--->Multiply--->Add--->Result
+    #    Constant---'          /
+    #              Constant---'
+    data = ops.parameter([3, 1, 2], ov.Type.f32, name="input_tensor_name")
+    mul_constant = ops.constant([1.5], ov.Type.f32)
+    mul = ops.multiply(data, mul_constant)
+    add_constant = ops.constant([0.5], ov.Type.f32)
+    add = ops.add(mul, add_constant)
+    res = ops.result(add)
+    return ov.Model([res], [data], "model")
+
+model = create_simple_model()
+
+# ! [ov:layout:get_from_model]
+# Get layout for model input
+layout = layout_helpers.get_layout(model.input("input_tensor_name"))
+# Get layout for model with single output
+layout = layout_helpers.get_layout(model.output())
+# ! [ov:layout:get_from_model]

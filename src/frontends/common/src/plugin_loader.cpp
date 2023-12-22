@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Windows.h>
 #    include <direct.h>
+#    include <windows.h>
 #else  // _WIN32
 #    include <dirent.h>
 #    include <dlfcn.h>
@@ -16,16 +16,31 @@
 
 #include <sys/stat.h>
 
-#include <openvino/util/log.hpp>
 #include <string>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_loader.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
+
+// Note, static methods below are required to create an order of initialization of static variables
+// e.g. if users (not encouraged) created ov::Model globally, we need to ensure proper order of initialization
+
+/// \return map of shared object per frontend <frontend_name, frontend_so_ptr>
+std::unordered_map<std::string, std::shared_ptr<void>>& ov::frontend::get_shared_objects_map() {
+    static std::unordered_map<std::string, std::shared_ptr<void>> shared_objects_map;
+    return shared_objects_map;
+}
+
+/// \return Mutex to guard access the shared object map
+std::mutex& ov::frontend::get_shared_objects_mutex() {
+    static std::mutex shared_objects_map_mutex;
+    return shared_objects_map_mutex;
+}
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -45,7 +60,9 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
+            {"pytorch", "pytorch"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {
@@ -129,19 +146,28 @@ bool PluginInfo::load() {
         m_load_failed = true;
         return false;
     }
+
+    std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
+    get_shared_objects_map().emplace(get_creator().m_name, get_so_pointer());
+
     return true;
 }
 
 bool PluginInfo::load_internal() {
     std::shared_ptr<void> so;
     try {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        so = ov::util::load_shared_object(ov::util::string_to_wstring(m_file_path).c_str());
+#else
         so = ov::util::load_shared_object(m_file_path.c_str());
+#endif
     } catch (const std::exception& ex) {
-        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what()
+                       << " Please check that frontend library doesn't have unresolved dependencies." << std::endl;
         return false;
     }
 
-    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetAPIVersion"));
+    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_api_version"));
     if (!info_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
         return false;
@@ -155,7 +181,7 @@ bool PluginInfo::load_internal() {
         return false;
     }
 
-    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetFrontEndData"));
+    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_front_end_data"));
     if (!creator_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
         return false;

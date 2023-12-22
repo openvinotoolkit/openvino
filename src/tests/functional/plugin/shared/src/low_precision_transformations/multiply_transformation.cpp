@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "lpt_ngraph_functions/multiply_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_lpt_models/multiply_partial_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -56,7 +56,7 @@ void MultiplyTransformation::SetUp() {
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+    function = ngraph::builder::subgraph::MultiplyPartialFunction::get(
         precision,
         inputShape,
         param.broadcast1,
@@ -66,7 +66,7 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantizeAfter,
         param.secondInputIsConstant);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void MultiplyTransformation::Run() {
@@ -77,13 +77,13 @@ void MultiplyTransformation::Run() {
     auto to_string = [](const ngraph::element::Type& precision) -> std::string {
         switch (precision) {
             case ngraph::element::f32: {
-                return "FP32";
+                return "f32";
             }
             case ngraph::element::i8: {
-                return "I8";
+                return "i8";
             }
             case ngraph::element::u8: {
-                return "U8";
+                return "u8";
             }
             default: {
                 return "";
@@ -97,6 +97,7 @@ void MultiplyTransformation::Run() {
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

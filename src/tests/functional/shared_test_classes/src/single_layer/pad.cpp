@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
       obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-    result << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+    result << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
     if (padMode == ngraph::helpers::PadMode::CONSTANT) {
         result << "Value=" << argPadValue << "_";
     }
@@ -43,11 +43,9 @@ void PadLayerTest::SetUp() {
     std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) =
     this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    auto pad = CreatePadOp(params[0], padsBegin, padsEnd, argPadValue, padMode);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
 }
 }  // namespace LayerTestsDefinitions

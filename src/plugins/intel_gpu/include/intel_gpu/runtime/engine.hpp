@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "device.hpp"
-#include "engine_configuration.hpp"
 #include "event.hpp"
 #include "memory_caps.hpp"
 #include "memory_pool.hpp"
 #include "layout.hpp"
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "execution_config.hpp"
+#include "engine_configuration.hpp"
 
 #include <memory>
 #include <set>
@@ -79,17 +79,19 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
+    virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
+
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
 
     /// Returns preferred allocation type which can be mapped to host ptr
-    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
+    allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
+
+    /// Returns preferred device allocation type which may be not lockable
+    allocation_type get_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
-
-    /// Returns configuration of current engine
-    const engine_configuration& configuration() const { return _configuration; }
 
     /// Returns device structure which represents stores device capabilities
     device_info get_device_info() const;
@@ -122,55 +124,49 @@ public:
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
 
+    /// Returns the size of the larger of the GPU memory and CPU memory.
+    uint64_t get_max_memory_size() const;
+
+    /// Returns the size of CPU memory.
+    uint64_t get_host_memory_size() const;
+
     /// Create stream object for current engine
-    virtual stream_ptr create_stream() const = 0;
+    virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
 
     /// Creates stream object from user handle
-    virtual stream_ptr create_stream(void *handle) const = 0;
+    virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    virtual stream& get_program_stream() const = 0;
+    virtual stream& get_service_stream() const = 0;
+
+    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Creates onednn engine object which shares device and context with current engine
+    virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
+
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
-    /// Return GPU plugin internal task executor
-    const InferenceEngine::ITaskExecutor::Ptr get_task_executor();
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
-    /// @param task_executor GPU plugin internal task executor
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
-                                                 runtime_types runtime_type,
-                                                 const device::ptr device,
-                                                 const engine_configuration& configuration = engine_configuration(),
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
-                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
-    /// @param task_executor GPU plugin internal task executor
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
-                                                 runtime_types runtime_type,
-                                                 const engine_configuration& configuration = engine_configuration(),
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
-                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);
 
 protected:
     /// Create engine for given @p device and @p configuration
-    engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor);
-    const InferenceEngine::ITaskExecutor::Ptr _task_executor;
+    engine(const device::ptr device);
     const device::ptr _device;
-    engine_configuration _configuration;
     mutable std::mutex _mutex;
 
     std::map<allocation_type, std::atomic<uint64_t>> _memory_usage_map;

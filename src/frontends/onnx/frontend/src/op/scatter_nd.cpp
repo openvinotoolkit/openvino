@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 #include <memory>
 
 #include "default_opset.hpp"
+#include "exceptions.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -20,6 +22,13 @@ OutputVector scatter_nd(const Node& node) {
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);
     auto updates = ng_inputs.at(2);
+    if (node.has_attribute("reduction")) {
+        const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
+        CHECK_VALID_NODE(node,
+                         reduction == "none",
+                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got:",
+                         reduction);
+    }
 
     return {std::make_shared<default_opset::ScatterNDUpdate>(data, indices, updates)};
 }
@@ -31,3 +40,4 @@ OutputVector scatter_nd(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

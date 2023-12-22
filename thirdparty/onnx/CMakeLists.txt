@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,7 @@
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-set(OV_ONNX_NAMESPACE ngraph_onnx)
+set(OV_ONNX_NAMESPACE openvino_onnx)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
     set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
@@ -19,13 +18,17 @@ else()
     set(ONNX_USE_LITE_PROTO_DEFAULT ON)
 endif()
 
-set(ONNX_USE_PROTOBUF_SHARED_LIBS CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ov_add_compiler_flags(/wd4244)
+endif()
+
+set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
-if(CMAKE_CROSSCOMPILING)
-    set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
-endif()
+set(ONNX_CUSTOM_PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}")
 
 # build targets
 
@@ -36,23 +39,44 @@ endfunction()
 
 ov_onnx_build_static()
 
-target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
-target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+foreach(_onnx_target onnx onnx_proto)
+    target_include_directories(${_onnx_target} SYSTEM PRIVATE
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
+endforeach()
+
+if(WIN32)
+    # from onnx==1.13.1 it requires C++17 when compiling on Windows
+    target_compile_features(onnx PRIVATE cxx_std_17)
+    # OPTIONAL is a reserved word for mingw at least
+    if(MINGW)
+        target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
+    endif()
+endif()
+
+# WA to support old compiler version, removes unused header which may block build
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+    file(READ onnx/onnx/defs/parser.cc CONTENT)
+    string(REPLACE "#include <string_view>" "" CONTENT "${CONTENT}")
+    file(WRITE onnx/onnx/defs/parser.cc "${CONTENT}")
+endif()
 
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install
 
-ov_install_static_lib(onnx core)
-ov_install_static_lib(onnx_proto core)
+ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
-if(NOT BUILD_SHARED_LIBS)
+# in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
+if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
-        install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+        set(protobuf_target_name libprotobuf-lite)
     else()
-        install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+        set(protobuf_target_name libprotobuf)
     endif()
+
+    install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
+            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 endif()

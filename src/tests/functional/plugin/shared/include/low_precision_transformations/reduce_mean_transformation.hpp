@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -14,6 +14,9 @@ class ReduceMeanOperation {
 public:
     std::vector<int64_t> constantValues;
     bool keepDims;
+
+    ReduceMeanOperation();
+    ReduceMeanOperation(const std::vector<int64_t>& constantValues, const bool keepDims);
 };
 
 class ReduceMeanTransformationParam {
@@ -31,7 +34,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ReduceMeanTransformationParam
 > ReduceMeanTransformationParams;
 

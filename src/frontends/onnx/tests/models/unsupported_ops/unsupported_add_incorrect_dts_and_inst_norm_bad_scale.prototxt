@@ -1,0 +1,105 @@
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "A"
+    output: "B"
+    op_type: "DepthToSpace"
+    attribute {
+      name: "blocksize"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "mode"
+      s: "blocks_first"
+      type: STRING
+    }
+  }
+  node {
+    input: "B"
+    output: "D"
+    op_type: "Abs"
+  }
+  node {
+    input: "B"
+    input: "D"
+    output: "Y"
+    op_type: "UnsupportedAdd"
+    domain: "test_domain"
+  }
+  node {
+    input: "Y"
+    input: "scale"
+    input: "bias"
+    output: "Z"
+    op_type: "InstanceNormalization"
+    attribute {
+      name: "epsilon"
+      f: 0.01
+      type: FLOAT
+    }
+  }
+  name: "compute_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "scale"
+    type {
+      tensor_type {
+        elem_type: 4
+        shape {
+          dim {
+            dim_value: 2
+          }
+
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+
+        }
+      }
+    }
+  }
+  output {
+    name: "Z"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

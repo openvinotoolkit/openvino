@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lrn.h"
-#include <string>
+
 #include <dnnl_extension_utils.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
+
+#include <memory>
+#include <string>
 
 using namespace InferenceEngine;
 
@@ -20,11 +24,12 @@ namespace {
 struct LrnKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
-    mkldnn::algorithm alg;
+    dnnl::algorithm alg;
     size_t size;
     int k;
     float alpha;
     float beta;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
@@ -36,7 +41,7 @@ size_t LrnKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
+    seed = hash_combine(seed, get_md_hash(*inp0->getDnnlDesc().get()));
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, alg);
     seed = hash_combine(seed, size);
@@ -59,9 +64,9 @@ bool LrnKey::operator==(const LrnKey &rhs) const {
 }
 } // namespace
 
-bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto lrn = ngraph::as_type_ptr<const ngraph::opset1::LRN>(op);
+        auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
         if (!lrn) {
             errorMessage = "Only opset1 LRN operation is supported";
             return false;
@@ -72,7 +77,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }
-        auto axesNode = ngraph::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
+        auto axesNode = ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
         if (!axesNode) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
@@ -85,7 +90,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
         } else {
             std::vector<bool> norm(dataRank, false);
             for (auto &axis : axes) {
-                if (axis < 0 || axis >= dataRank) {
+                if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
                     errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                     return false;
                 }
@@ -105,22 +110,22 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";
 
-        auto lrn = ngraph::as_type_ptr<const ngraph::opset1::LRN>(op);
-        auto axes = ngraph::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
+        auto axes = ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
         bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
-        alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
+        alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
         k = static_cast<float>(lrn->get_bias());
         size = lrn->get_nsize();
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -129,14 +134,14 @@ void Lrn::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 
-    InferenceEngine::Precision precision = getOriginalOutputPrecisionAtPort(0);
-    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
+    if (precision != ov::element::f32 && precision != ov::element::bf16)
+        precision = ov::element::f32;
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto &parentShape = getInputShapeAtPort(0);
 
@@ -146,62 +151,76 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
         }
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
 }
 
 void Lrn::prepareParams() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " input memory did not allocate";
+        OPENVINO_THROW(errorPrefix, " input memory did not allocate");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << "destination memory did not allocate";
+        OPENVINO_THROW(errorPrefix, "destination memory did not allocate");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << errorPrefix << "preferable primitive descriptor did not set";
+        OPENVINO_THROW(errorPrefix, "preferable primitive descriptor did not set");
 
-    auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
-    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta};
+    dnnl::primitive_attr attr;
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
     auto engine = getEngine();
 
-    auto builder = [&engine](const LrnKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
+    auto builder = [&engine](const LrnKey& key) -> executorPtr {
+        auto prim_desc = dnnl::lrn_forward::primitive_desc(
+            engine,
+            dnnl::prop_kind::forward_inference,
+            key.alg,
+            key.inp0->getDnnlDesc(),
+            key.inp0->getDnnlDesc(),
+            key.size,
+            key.alpha,
+            key.beta,
+            key.k,
+            key.attr);
 
-        mkldnn::lrn_forward::primitive_desc prim_desc;
-        dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
-        while (static_cast<bool>(itpd)) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                return nullptr;
-        }
-        return std::make_shared<mkldnn::lrn_forward>(prim_desc);
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+
+        if (!found)
+            return nullptr;
+
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    execPtr = result.first;
+    if (!execPtr) {
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
-    prim = result.first;
 
-    auto src = srcMemPtr->GetPrimitive();
-    auto dst = dstMemPtr->GetPrimitive();
-    primArgs = { {DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst} };
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 bool Lrn::created() const {
@@ -209,21 +228,34 @@ bool Lrn::created() const {
 }
 
 void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                     const std::vector<MemoryDescPtr> &outputDesc) {
+                           const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
+    auto desc = dnnl::lrn_forward::primitive_desc(
+        getEngine(),
+        dnnl::prop_kind::forward_inference,
+        alg,
+        in_candidate,
+        in_candidate,
+        size,
+        alpha,
+        beta,
+        k);
+
     descs.push_back(desc);
 }
 
-std::vector<VectorDims> Lrn::shapeInfer() const {
-    return { getParentEdgesAtPort(0).front()->getMemory().getStaticDims() };
+void Lrn::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
+    }
 }
 
-void Lrn::executeDynamicImpl(mkldnn::stream strm) {
+void Lrn::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

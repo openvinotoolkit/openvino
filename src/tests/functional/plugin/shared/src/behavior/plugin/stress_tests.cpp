@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/plugin/stress_tests.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,7 +22,7 @@ std::string MultipleAllocations::getTestCaseName(const testing::TestParamInfo<Mu
 void MultipleAllocations::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, m_allocationsCount) = this->GetParam();
-    function = ngraph::builder::subgraph::makeSplitConvConcat();
+    function = ov::test::utils::make_split_conv_concat();
 }
 
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {

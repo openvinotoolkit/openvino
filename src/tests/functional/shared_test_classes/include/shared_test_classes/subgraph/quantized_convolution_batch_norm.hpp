@@ -4,9 +4,15 @@
 
 #pragma once
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
+
+enum class ConvType {
+    CONVOLUTION,
+    CONVOLUTION_BACKPROP,
+};
 
 enum class QuantizeType {
     FAKE_QUANTIZE,
@@ -15,10 +21,15 @@ enum class QuantizeType {
     COMPRESSED_WEIGHTS_NO_SHIFT,
 };
 
-using QuantizedConvolutionBatchNormParams = std::tuple<QuantizeType, bool, std::string>;
+enum class IntervalsType {
+    PER_TENSOR,
+    PER_CHANNEL,
+};
+
+using QuantizedConvolutionBatchNormParams = std::tuple<ConvType, QuantizeType, IntervalsType, bool, std::string>;
 
 class QuantizedConvolutionBatchNorm : public testing::WithParamInterface<QuantizedConvolutionBatchNormParams>,
-                                            virtual public LayerTestsUtils::LayerTestsCommon {
+                                      virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantizedConvolutionBatchNormParams>& obj);
 
@@ -27,4 +38,5 @@ protected:
     void TearDown() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_prior_grid_generator.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
@@ -58,8 +58,10 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
 
     init_input_shapes(param.inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
-    auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes)
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+
     auto experimentalDetectron = std::make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(
         params[0], // priors
         params[1], // feature_map
@@ -70,8 +72,19 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
             "ExperimentalDetectronPriorGridGenerator");
 }
 
+namespace {
+template<typename T>
+ov::runtime::Tensor generateTensorByShape(const Shape &shape) {
+    return ov::test::utils::create_tensor<T>(
+            ov::element::from<T>(),
+            shape,
+            std::vector<T>(0., shape_size(shape)));
+}
+}
+
 void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<1>(GetParam());
+    auto netPrecision = std::get<2>(GetParam());
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -79,17 +92,16 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     auto i = 0ul;
     for (; i < inputTensors.second.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
     }
-
     for (auto j = i; j < funcInputs.size(); ++j) {
-        ov::runtime::Tensor inputTensor = ov::test::utils::create_tensor<float>(
-            ov::element::f32,
-            targetInputStaticShapes[j],
-            std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));
+        ov::runtime::Tensor inputTensor = (netPrecision == element::f16)
+                                          ? generateTensorByShape<ov::float16>(targetInputStaticShapes[j])
+                                          : generateTensorByShape<float>(
+                        targetInputStaticShapes[j]);
 
         inputs.insert({funcInputs[j].get_node_shared_ptr(), inputTensor});
     }

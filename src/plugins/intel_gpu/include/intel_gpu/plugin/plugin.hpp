@@ -1,94 +1,69 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/runtime/iplugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include <map>
 #include <string>
 #include <memory>
-#include "intel_gpu/runtime/engine.hpp"
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
-#include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
-using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
+class Plugin : public ov::IPlugin {
+private:
+    std::string m_default_device_id = "0";
+    std::map<std::string, cldnn::device::ptr> m_device_map;
+    std::map<std::string, ExecutionConfig> m_configs_map;
+    ov::AnyMap m_compiled_model_runtime_properties;
 
-class Plugin : public InferenceEngine::IInferencePlugin,
-               public InferenceEngine::gpu::details::param_map_obj_getter {
-    struct impl;
-    std::shared_ptr<impl> _impl;
-    bool streamsSet = false;
-    bool throttlingSet = false;
+    mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
+    mutable std::once_flag m_default_contexts_once;
 
-    // key: device_id, value: cldnn device
-    std::map<std::string, cldnn::device::ptr> device_map;
-    // key: cldnn context, value: memory statistics
-    mutable std::map<RemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
-    mutable std::mutex engine_mutex;
+    std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
-    mutable RemoteCLContext::Ptr m_defaultContext;
+    std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network, const ExecutionConfig& config) const;
+    void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
+    void register_primitives() const;
+    std::string get_device_id_from_config(const ov::AnyMap& config) const;
+    std::string get_device_id(const ov::AnyMap& config) const;
+    std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id) const;
 
-    cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
-    InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
-                                                         const Config& config) const;
+    std::vector<ov::PropertyName> get_caching_properties() const;
+    std::vector<ov::PropertyName> get_supported_properties() const;
+    std::vector<ov::PropertyName> get_supported_internal_properties() const;
+    std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
+    uint32_t get_optimal_batch_size(const ov::AnyMap& options) const;
+    uint32_t get_max_batch_size(const ov::AnyMap& options) const;
 
-    std::map<std::string, std::string> ConvertPerfHintsToConfig(const std::map<std::string, std::string>& network_config,
-                                                                const Config& plugin_config) const;
+    ov::AnyMap preprocess_config(const ov::AnyMap& orig_config) const;
+    bool is_metric(const std::string& name) const;
+    ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 
-    void RegisterPrimitives();
-    void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
-    void UpdateStatistics(const RemoteCLContext::Ptr& context) const;
 public:
     Plugin();
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                        const std::map<std::string, std::string> &config) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                        const std::shared_ptr<InferenceEngine::RemoteContext> &context,
-                                                                        const std::map<std::string, std::string> &config) override;
-
-    void SetConfig(const std::map<std::string, std::string> &config) override;
-    std::string GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const;
-    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                     const std::map<std::string, std::string>& config) const override;
-
-    std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override;
-    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
-
-    struct PluginParams {
-        cldnn::queue_types queue_type;
-        cldnn::engine_types engine_type;
-        cldnn::runtime_types runtime_type;
-        bool use_unified_shared_memory;
-        InferenceEngine::ITaskExecutor::Ptr task_executor;
-    };
-
-    static PluginParams GetParams(const Config& config, const cldnn::device::ptr& dev,
-                                  InferenceEngine::gpu_handle_param external_queue = nullptr) {
-        PluginParams params;
-        params.engine_type = cldnn::engine_types::ocl;
-        params.runtime_type = cldnn::runtime_types::ocl;
-        if (external_queue) {
-            params.queue_type = cldnn::stream::detect_queue_type(params.engine_type, external_queue);
-        } else if (dev->get_info().supports_immad) {
-            params.queue_type = cldnn::queue_types::in_order;
-        } else {
-            params.queue_type = cldnn::queue_types::out_of_order;
-        }
-        params.use_unified_shared_memory = true;
-        params.task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(config.task_exec_config);
-        return params;
-    }
+    void set_property(const ov::AnyMap& properties) override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

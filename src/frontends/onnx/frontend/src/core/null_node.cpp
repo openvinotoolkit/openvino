@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,12 @@
 #include <string>
 
 #include "ngraph/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
-constexpr NodeTypeInfo NullNode::type_info;
-
-std::shared_ptr<ngraph::Node> NullNode::clone_with_new_inputs(const OutputVector& /* new_args */) const {
+std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector& /* new_args */) const {
     return std::make_shared<NullNode>();
 }
 }  // namespace onnx_import
@@ -29,3 +29,4 @@ bool ngraph::op::is_null(const std::shared_ptr<ngraph::Node>& node) {
 bool ngraph::op::is_null(const Output<ngraph::Node>& output) {
     return is_null(output.get_node());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

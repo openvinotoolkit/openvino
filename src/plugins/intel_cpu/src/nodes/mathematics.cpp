@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 #include <vector>
 #include <string>
 
-#include <ngraph/ops.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -17,16 +17,16 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (getInitializers().find(op->get_type_info()) == getInitializers().end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;
         }
 
-        if (one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::get_type_info_static(), ngraph::op::v0::Selu::get_type_info_static())) {
-            auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-            auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (one_of(op->get_type_info(), ov::op::v0::HardSigmoid::get_type_info_static(), ov::op::v0::Selu::get_type_info_static())) {
+            auto firstConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+            auto secondConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!firstConst || !secondConst) {
                 errorMessage = "Constant expected as the second and third inputs.";
                 return false;
@@ -38,14 +38,17 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-Math::Math(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), alpha(0.f), beta(0.f), gamma(0.f) {
+Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PassThroughShapeInferFactory()),
+      alpha(0.f),
+      beta(0.f),
+      gamma(0.f) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    initializers[op->get_type_info()](op, *this);
+    getInitializers()[op->get_type_info()](op, *this);
 }
 
 void Math::initSupportedPrimitiveDescriptors() {
@@ -54,26 +57,22 @@ void Math::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (size_t i = 0; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-std::vector<VectorDims> Math::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-}
-
-void Math::executeDynamicImpl(mkldnn::stream strm) {
+void Math::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Math::execute(mkldnn::stream strm) {
-    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+void Math::execute(dnnl::stream strm) {
+    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
+    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     switch (getAlgorithm()) {
         case Algorithm::MathAbs:
@@ -138,11 +137,6 @@ void Math::execute(mkldnn::stream strm) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
             });
             break;
-        case Algorithm::MathLog:
-            parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(src_data[i]);
-            });
-            break;
         case Algorithm::MathNegative:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = -src_data[i];
@@ -198,7 +192,7 @@ void Math::execute(mkldnn::stream strm) {
             });
             break;
         default:
-            IE_THROW() << "Incorrect Reduce layer type";
+            OPENVINO_THROW("Incorrect Reduce layer type");
     }
 }
 
@@ -206,72 +200,72 @@ bool Math::created() const {
     return getType() == Type::Math;
 }
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>> Math::initializers {
-        {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAbs;
-        }},
-        {ngraph::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAcos;
-        }},
-        {ngraph::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAcosh;
-        }},
-        {ngraph::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAsin;
-        }},
-        {ngraph::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAsinh;
-        }},
-        {ngraph::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAtan;
-        }},
-        {ngraph::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCeiling;
-        }},
-        {ngraph::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCos;
-        }},
-        {ngraph::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCosh;
-        }},
-        {ngraph::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathFloor;
-        }},
-        {ngraph::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathHardSigmoid;
-            node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathLog;
-        }},
-        {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathNegative;
-        }},
-        {ngraph::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSelu;
-            node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSign;
-        }},
-        {ngraph::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSin;
-        }},
-        {ngraph::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSinh;
-        }},
-        {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSoftPlus;
-        }},
-        {ngraph::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathTan;
-        }},
-        {ngraph::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAtanh;
-        }}
-};
+std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>& Math::getInitializers() {
+    static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>> initializers {
+            {ov::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAbs;
+            }},
+            {ov::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAcos;
+            }},
+            {ov::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAcosh;
+            }},
+            {ov::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAsin;
+            }},
+            {ov::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAsinh;
+            }},
+            {ov::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAtan;
+            }},
+            {ov::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCeiling;
+            }},
+            {ov::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCos;
+            }},
+            {ov::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCosh;
+            }},
+            {ov::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathFloor;
+            }},
+            {ov::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathHardSigmoid;
+                node.alpha = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+                node.beta = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+            }},
+            {ov::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathNegative;
+            }},
+            {ov::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSelu;
+                node.alpha = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+                node.gamma = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+            }},
+            {ov::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSign;
+            }},
+            {ov::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSin;
+            }},
+            {ov::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSinh;
+            }},
+            {ov::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSoftPlus;
+            }},
+            {ov::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathTan;
+            }},
+            {ov::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAtanh;
+            }}
+    };
+    return initializers;
+}
 
 }   // namespace node
 }   // namespace intel_cpu

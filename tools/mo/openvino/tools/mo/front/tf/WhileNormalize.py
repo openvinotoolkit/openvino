@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -34,7 +34,7 @@ class WhileNormalize(FrontReplacementSubgraph):
 
         # connect execution condition port
         exec_cond_node = Const(graph, {'name': loop_name + '/ExecutionConditionValue',
-                                       'value': mo_array(True, dtype=np.bool)}).create_node()
+                                       'value': mo_array(True, dtype=bool)}).create_node()
         loop_node.in_port(1).get_connection().set_source(exec_cond_node.out_port(0))
 
         loop_node.body.clean_up()

@@ -1,3 +1,0 @@
-# ConvolutionBackpropDataTransformation transformation {#openvino_docs_IE_DG_lpt_ConvolutionBackpropDataTransformation}
-
-ngraph::pass::low_precision::ConvolutionBackpropDataTransformation class represents the `ConvolutionBackpropData` operation transformation.

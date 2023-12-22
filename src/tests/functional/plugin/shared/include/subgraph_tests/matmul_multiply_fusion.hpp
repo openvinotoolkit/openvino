@@ -1,18 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "shared_test_classes/subgraph/matmul_multiply_fusion.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(MatMulMultiplyFusion, CompareWithRefs) {
-    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
 }
 
 TEST_P(QuantizedMatMulMultiplyFusion, CompareWithRefs) {
-    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

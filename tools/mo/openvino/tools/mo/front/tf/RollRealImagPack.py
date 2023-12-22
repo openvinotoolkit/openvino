@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -41,10 +41,6 @@ class RollRealImagPack(FrontReplacementSubgraph):
     there are negative axes for Roll, we need subtract 1 from such axes indices.
     """
     enabled = True
-
-    def run_after(self):
-        from openvino.tools.mo.front.tf.SSliceComplex import SSliceComplex
-        return [SSliceComplex]
 
     def run_before(self):
         from openvino.tools.mo.front.Pack import Pack

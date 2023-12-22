@@ -1,19 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
-
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
     lrn_norm_region_within_channel
@@ -33,6 +25,8 @@ typedef enum { /*:int32_t*/
 struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
 
+    lrn() : primitive_base("", {}) {}
+
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -42,15 +36,14 @@ struct lrn : public primitive_base<lrn> {
     /// @param beta Hyper parameter "beta".
     /// @param lrn_norm_region Normalize across or within channel
     lrn(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         uint32_t size,
         float k,
         float alpha,
         float beta,
         lrn_norm_region lrn_norm_region,
-        const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           size(size),
           k(k),
           alpha(alpha),
@@ -58,17 +51,55 @@ struct lrn : public primitive_base<lrn> {
           norm_region(lrn_norm_region) {}
 
     /// @brief Size of normalization.
-    uint32_t size;
+    uint32_t size = 0;
     /// @brief Hyper parameter "k".
-    float k;
+    float k = 0.0f;
     /// @brief Hyper parameter "alpha".
-    float alpha;
+    float alpha = 0.0f;
     /// @brief Hyper parameter "beta".
-    float beta;
+    float beta = 0.0f;
     /// @brief Normalize across or within channel
-    lrn_norm_region norm_region;
+    lrn_norm_region norm_region = lrn_norm_region::lrn_norm_region_within_channel;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, size);
+        seed = hash_combine(seed, k);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        seed = hash_combine(seed, norm_region);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lrn>(rhs);
+
+        return size == rhs_casted.size &&
+               k == rhs_casted.k &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               norm_region == rhs_casted.norm_region;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lrn>::save(ob);
+        ob << size;
+        ob << k;
+        ob << alpha;
+        ob << beta;
+        ob << make_data(&norm_region, sizeof(lrn_norm_region));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lrn>::load(ib);
+        ib >> size;
+        ib >> k;
+        ib >> alpha;
+        ib >> beta;
+        ib >> make_data(&norm_region, sizeof(lrn_norm_region));
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

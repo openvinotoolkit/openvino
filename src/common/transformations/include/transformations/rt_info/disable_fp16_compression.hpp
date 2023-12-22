@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,29 @@ TRANSFORMATIONS_API void disable_fp16_compression(const std::shared_ptr<Node>& n
 
 TRANSFORMATIONS_API void enable_fp16_compression(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API bool fp16_compression_is_disabled(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API bool fp16_compression_is_disabled(const std::shared_ptr<const Node>& node);
+
+TRANSFORMATIONS_API void postpone_fp16_compression(RTMap& rt_info);
+
+TRANSFORMATIONS_API bool is_fp16_compression_postponed(const RTMap& rt_info);
+
+TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
 
 /**
  * @ingroup ie_runtime_attr_api
  * @brief DisableFP16Compression class represents runtime info attribute that marks operation
- * as prohibitted to convert to FP16 as part of Compressed Only format.
+ * as prohibited to convert to lower precision (e.g. to FP16) and they should be inferred precisely in the original
+ * precision.
  */
 class TRANSFORMATIONS_API DisableFP16Compression : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("disable_fp16_compression", "0");
+    OPENVINO_RTTI("precise", "0");
 
     DisableFP16Compression() = default;
+
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        return true;
+    }
 
     bool is_copyable() const override {
         return false;

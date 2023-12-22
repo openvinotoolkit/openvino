@@ -1,0 +1,111 @@
+ir_version: 3
+producer_name: "OV ONNX FE"
+graph {
+  node {
+    output: "B"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2
+        dims: 2
+        data_type: 1
+        float_data: 1
+        float_data: 2
+        float_data: 3
+        float_data: 4
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "A"
+    input: "B"
+    output: "X"
+    name: "add_node1"
+    op_type: "Add"
+  }
+  node {
+    input: "X"
+    input: "C"
+    output: "Y"
+    name: "add_node2"
+    op_type: "Add"
+  }
+  name: "test_graph"
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 1
+    name: "A"
+    external_data {
+        key: "location",
+        value: "tensors_data/tensor_offset_not_aligned_with_page_3.data"
+    }
+    external_data {
+        key: "offset",
+        value: "4088"
+    }
+    external_data {
+        key: "length",
+        value: "16"
+    }
+    external_data {
+        key: "checksum",
+        value: "bcc11eee9c25e3b505b07b3157ca42c12f92d94f"
+    }
+    data_location: 1
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "C"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

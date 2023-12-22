@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
+
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj) {
@@ -13,7 +15,7 @@ std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<Bro
     std::tie(inputs_shapes, netPrecision, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "inputShape=" << CommonTestUtils::vec2str(inputs_shapes) << "_";
+    result << "inputShape=" << ov::test::utils::vec2str(inputs_shapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     for (auto const& configItem : configuration) {
@@ -28,17 +30,17 @@ void BroadcastPowerTest::SetUp() {
     std::tie(inputs_shapes, netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputs_shapes[0]});
-    auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[1].size()},
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputs_shapes[0]))};
+    auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[1].size()},
             inputs_shapes[1]);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshape_pattern, false);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_pattern, false);
 
     auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
-    auto sum = ngraph::builder::makeEltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto sum = ov::test::utils::make_eltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
-    auto reshape_pattern_2 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},
+    auto reshape_pattern_2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},
             inputs_shapes[0]);
-    auto reshape_2 = std::make_shared<ngraph::opset1::Reshape>(sum, reshape_pattern_2, false);
+    auto reshape_2 = std::make_shared<ov::op::v1::Reshape>(sum, reshape_pattern_2, false);
     function = std::make_shared<ngraph::Function>(reshape_2, params, "BroadcastPowerPass");
 }
 } // namespace SubgraphTestsDefinitions

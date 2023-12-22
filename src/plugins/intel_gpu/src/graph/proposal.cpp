@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "proposal_inst.h"
+#include "proposal_shape_inference.hpp"
 #include "primitive_type_base.h"
 #include "json_object.h"
 
@@ -20,21 +21,52 @@ static void generate_anchors(unsigned base_size,
                              bool shift_anchors,
                              bool round_ratios);
 
-primitive_type_id proposal::type_id() {
-    static primitive_type_base<proposal> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(proposal)
 
-layout proposal_inst::calc_output_layout(proposal_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for proposal_node!");
-    auto desc = node.get_primitive();
-    layout input_layout = node.get_dependency(cls_scores_index).get_output_layout();
+    auto desc = impl_param.typed_desc<proposal>();
+    layout input_layout = impl_param.get_input_layout(cls_scores_index);
 
     return layout(input_layout.data_type,
                   format::bfyx,
-                  {input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
+                  {input_layout.batch() * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
 }
+
+template<typename ShapeType>
+std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param) {
+    std::vector<layout> layouts;
+
+    auto desc = impl_param.typed_desc<proposal>();
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto class_probs_shape = input0_layout.get<ShapeType>();
+
+    ov::op::v4::Proposal op;
+    ov::op::v0::Proposal::Attributes attrs;
+    attrs.base_size = desc->base_bbox_size;
+    attrs.pre_nms_topn = desc->pre_nms_topn;
+    attrs.post_nms_topn = desc->post_nms_topn;
+    op.set_attrs(attrs);
+
+    ShapeType bbox_deltas_shape = impl_param.get_input_layout(1).get<ShapeType>();
+    ShapeType image_shape_shape = impl_param.get_input_layout(2).get<ShapeType>();
+    std::vector<ShapeType> input_shapes = {
+        class_probs_shape,
+        bbox_deltas_shape,
+        image_shape_shape
+    };
+
+    const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes);
+
+    for (size_t i = 0; i < desc->num_outputs; ++i) {
+        auto dt = desc->output_data_types[i].value_or(input0_layout.data_type);
+        layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
+    }
+    return layouts;
+}
+
+template std::vector<layout> proposal_inst::calc_output_layouts<ov::PartialShape>(proposal_node const& node, const kernel_impl_params& impl_param);
 
 static inline std::string stringify_vector(std::vector<float> v) {
     std::stringstream s;
@@ -109,13 +141,13 @@ std::string proposal_inst::to_string(proposal_node const& node) {
 }
 
 proposal_inst::typed_primitive_inst(network& network, proposal_node const& node) : parent(network, node) {
-    generate_anchors(argument.base_bbox_size,
-                     argument.ratios,
-                     argument.scales,
+    generate_anchors(argument->base_bbox_size,
+                     argument->ratios,
+                     argument->scales,
                      _anchors,
-                     argument.coordinates_offset,
-                     argument.shift_anchors,
-                     argument.round_ratios);
+                     argument->coordinates_offset,
+                     argument->shift_anchors,
+                     argument->round_ratios);
 }
 
 static void generate_anchors(unsigned int base_size,

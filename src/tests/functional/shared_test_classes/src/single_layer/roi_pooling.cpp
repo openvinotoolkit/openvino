@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,9 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
 
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(coordsShape) << "_";
-        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "CS=" << ov::test::utils::vec2str(coordsShape) << "_";
+        result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
             case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
@@ -51,7 +51,7 @@ namespace LayerTestsDefinitions {
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
+                ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
                                                                                  height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
@@ -72,15 +72,15 @@ namespace LayerTestsDefinitions {
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0],
-                                                                                    paramOuts[1],
-                                                                                    poolShape,
-                                                                                    spatial_scale,
-                                                                                    pool_method);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
+        ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
+        std::shared_ptr<ov::Node> roi_pooling;
+        if (ov::test::utils::ROIPoolingTypes::ROI_MAX == pool_method) {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "max");
+        } else {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
+        }
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
     }
 }  // namespace LayerTestsDefinitions

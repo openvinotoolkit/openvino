@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API Proposal : public Op {
 public:
     OPENVINO_OP("Proposal", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     // base_size       Anchor sizes
     // pre_nms_topn    Number of boxes before nms
     // post_nms_topn   Number of boxes after nms
@@ -65,6 +64,13 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+
+    /**
+     * @brief Set the Proposal operator attributes.
+     * @param attrs  Attributes to be set.
+     */
+    void set_attrs(Attributes attrs);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
@@ -79,8 +85,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Proposal : public op::v0::Proposal {
 public:
-    OPENVINO_OP("Proposal", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Proposal", "opset4", op::v0::Proposal);
     Proposal() = default;
     /// \brief Constructs a Proposal operation
     ///
@@ -95,9 +100,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    const Attributes& get_attrs() const {
-        return m_attrs;
-    }
 };
 }  // namespace v4
 }  // namespace op

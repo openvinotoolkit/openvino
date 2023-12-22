@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/embedding_segments_sum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -19,9 +19,9 @@ std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestPa
     std::tie(embTableShape, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = params;
 
     std::ostringstream result;
-    result << "ETS=" << CommonTestUtils::vec2str(embTableShape) << "_";
-    result << "I"  << CommonTestUtils::vec2str(indices) << "_";
-    result << "SI" << CommonTestUtils::vec2str(segmentIds) << "_";
+    result << "ETS=" << ov::test::utils::vec2str(embTableShape) << "_";
+    result << "I"  << ov::test::utils::vec2str(indices) << "_";
+    result << "SI" << ov::test::utils::vec2str(segmentIds) << "_";
     result << "NS" << numSegments << "_";
     result << "DI" << defaultIndex << "_";
     result << "WW" << withWeights << "_";
@@ -44,13 +44,13 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indPrecision);
 
-    auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(embTableShape));
+    auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(embTableShape));
     ngraph::ParameterVector params = {emb_table_node};
 
-    auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingSegmentsSum>(
+    auto embBag = std::dynamic_pointer_cast<ov::op::v3::EmbeddingSegmentsSum>(
             ngraph::builder::makeEmbeddingSegmentsSum(
                 ngPrc, ngIdxPrc, emb_table_node, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingSegmentsSum");
 }
 }  // namespace LayerTestsDefinitions

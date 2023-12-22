@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,19 +23,21 @@
 
 #ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
+#        if defined(__INTEL_COMPILER) || defined(_MSC_VER) || defined(__GNUC__)
 #            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#    elif defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2))
 #        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
 
-#if defined _WIN32 || defined __CYGWIN__
+#if defined(_WIN32) || defined(__CYGWIN__)
 #    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
 #    define OPENVINO_CORE_EXPORTS __declspec(dllexport)
 #    define _OPENVINO_HIDDEN_METHOD
-#elif defined(__GNUC__) && __GNUC__ >= 4
+#elif defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
 #    define OPENVINO_CORE_IMPORTS   __attribute__((visibility("default")))
 #    define OPENVINO_CORE_EXPORTS   __attribute__((visibility("default")))
 #    define _OPENVINO_HIDDEN_METHOD __attribute__((visibility("hidden")))
@@ -43,4 +45,25 @@
 #    define OPENVINO_CORE_IMPORTS
 #    define OPENVINO_CORE_EXPORTS
 #    define _OPENVINO_HIDDEN_METHOD
+#endif
+
+// see https://sourceforge.net/p/predef/wiki/Architectures/
+#if defined(__arm__) || defined(_M_ARM) || defined(__ARMEL__)
+#    define OPENVINO_ARCH_ARM
+#    define OPENVINO_ARCH_32_BIT
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#    define OPENVINO_ARCH_ARM64
+#    define OPENVINO_ARCH_64_BIT
+#elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_I86) || \
+    defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__386) ||    \
+    defined(__ILP32__) || defined(_ILP32) || defined(__wasm32__) || defined(__wasm32)
+#    define OPENVINO_ARCH_X86
+#    define OPENVINO_ARCH_32_BIT
+#elif defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || \
+    defined(_M_AMD64)
+#    define OPENVINO_ARCH_X86_64
+#    define OPENVINO_ARCH_64_BIT
+#elif defined(__riscv)
+#    define OPENVINO_ARCH_RISCV64
+#    define OPENVINO_ARCH_64_BIT
 #endif

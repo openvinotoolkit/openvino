@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,12 @@ std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerT
 
     std::ostringstream result;
     const char separator = '_';
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << separator;
     result << "Alpha=" << alpha << separator;
     result << "Beta=" << beta << separator;
     result << "Bias=" << bias << separator;
     result << "Size=" << size << separator;
-    result << "Axes=" << CommonTestUtils::vec2str(axes) << separator;
+    result << "Axes=" << ov::test::utils::vec2str(axes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -41,13 +41,11 @@ void LrnLayerTest::SetUp() {
     std::tie(alpha, beta, bias, size, axes, netPrecision, inPrc, outPrc, inputShapes, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto paramIn =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
-    auto axes_node = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{axes.size()}, axes.data());
-    auto lrn = std::make_shared<ngraph::opset3::LRN>(paramIn[0], axes_node, alpha, beta, bias, size);
-    ngraph::ResultVector results {std::make_shared<ngraph::opset3::Result>(lrn)};
+    auto axes_node = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{axes.size()}, axes.data());
+    auto lrn = std::make_shared<ov::op::v0::LRN>(params[0], axes_node, alpha, beta, bias, size);
+    ngraph::ResultVector results {std::make_shared<ov::op::v0::Result>(lrn)};
     function = std::make_shared<ngraph::Function>(results, params, "lrn");
 }
 }  // namespace LayerTestsDefinitions

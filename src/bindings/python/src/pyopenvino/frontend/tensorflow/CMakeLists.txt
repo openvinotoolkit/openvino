@@ -2,5 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(${PYTHON_SOURCE_DIR}/pyopenvino/frontend/frontend_module.cmake)
-frontend_module(py_tensorflow_frontend tensorflow tests)
+include(${pyopenvino_SOURCE_DIR}/frontend/frontend_module.cmake)
+frontend_module(py_tensorflow_frontend tensorflow ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})

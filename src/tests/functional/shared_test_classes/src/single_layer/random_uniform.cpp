@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/op/parameter.hpp>
 #include "shared_test_classes/single_layer/random_uniform.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,7 +19,7 @@ std::string RandomUniformLayerTest::getTestCaseName(
     std::tie(output_shape, randomUniformTypeSpecificParams, global_seed, op_seed, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "outputShape=" << CommonTestUtils::vec2str(output_shape) << "_";
+    result << "outputShape=" << ov::test::utils::vec2str(output_shape) << "_";
     result << "global_seed=" << global_seed << "_";
     result << "op_seed=" << op_seed << "_";
     result << "outputType=" << randomUniformTypeSpecificParams.precision.name() << "_";
@@ -63,26 +63,28 @@ void RandomUniformLayerTest::SetUp() {
     std::string targetName;
     std::tie(output_shape, randomUniformParams, global_seed, op_seed, targetDevice) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(randomUniformParams.precision);
-    auto out_shape_ = std::make_shared<ov::opset8::Constant>(ov::element::i64,
-                                                             ov::Shape{output_shape.size()},
-                                                             output_shape);
+
+    // Use Parameter as input with desired precision to properly configure execution configuration
+    // in CoreConfiguration() function
+    auto input = std::make_shared<ov::op::v0::Parameter>(precision, output_shape);
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input);
 
     auto min_value = createConstant(randomUniformParams.precision, randomUniformParams.min_value);
     auto max_value = createConstant(randomUniformParams.precision, randomUniformParams.max_value);
-    auto random_uniform = std::make_shared<ngraph::op::v8::RandomUniform>(out_shape_,
+    auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(shape_of,
                                                                           min_value,
                                                                           max_value,
                                                                           precision,
                                                                           global_seed,
                                                                           op_seed);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(random_uniform)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "random_uniform");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input}, "random_uniform");
 }
 
 void RandomUniformLayerTest::ConvertRefsParams() {
     // we shouldn't use default conversion from f16 to f32
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(
             functionRefs);
 }
 

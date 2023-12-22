@@ -1,35 +1,40 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "validation_util.hpp"
 
-ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
+ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto axis = ngraph::opset3::Constant::create(element::i64, {1}, {0});
+    auto axis = ov::op::v0::Constant::create(element::i64, {1}, {0});
 
     auto broadcast_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indices, broadcast_shape);
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(indices, broadcast_shape);
 
-    auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis);
+    auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(data, broadcast, updates, axis);
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
         auto axis_const =
-            std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
 
         if (!axis_const) {
             return false;
@@ -56,7 +61,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             return false;
         }
 
-        const size_t axis = ngraph::normalize_axes(scatter->get_friendly_name(),
+        const auto axis = ov::util::normalize_axes(scatter->get_friendly_name(),
                                                    axis_const->cast_vector<int64_t>(),
                                                    data_pshape.rank())[0];
 
@@ -64,7 +69,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             uint64_t l, r;
             Range(const uint64_t& l, const uint64_t& r) : l(l), r(r) {
                 if (l > r)
-                    throw ngraph_error("Range values are inconsistent");
+                    OPENVINO_THROW("Range values are inconsistent");
             }
 
             uint64_t size() const {
@@ -173,9 +178,9 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             const auto indices_shape = indices_pshape.get_shape();
             Shape indices_new_shape(updates_shape.begin() + axis, updates_shape.begin() + updates_last.l);
             if (indices_shape != indices_new_shape) {
-                indices_input = std::make_shared<ngraph::opset3::Reshape>(
+                indices_input = std::make_shared<ov::op::v1::Reshape>(
                     indices_input,
-                    opset3::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape),
+                    ov::op::v0::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape),
                     false);
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
@@ -197,24 +202,24 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             if (indices_rank > 1) {
                 std::vector<int64_t> squeeze_axes(indices_rank - 1ul);
                 std::iota(squeeze_axes.begin(), squeeze_axes.end(), 1);
-                indices_input = std::make_shared<ngraph::opset3::Squeeze>(
+                indices_input = std::make_shared<ov::op::v0::Squeeze>(
                     indices_input,
-                    opset3::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
+                    ov::op::v0::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
         }
 
-        auto scatter_update = std::make_shared<ngraph::opset3::ScatterUpdate>(scatter->input_value(0),
-                                                                              indices_input,
-                                                                              scatter->input_value(2),
-                                                                              scatter->input_value(3));
+        auto scatter_update = std::make_shared<ov::op::v3::ScatterUpdate>(scatter->input_value(0),
+                                                                          indices_input,
+                                                                          scatter->input_value(2),
+                                                                          scatter->input_value(3));
         new_ops.push_back(scatter_update);
         scatter_update->set_friendly_name(scatter->get_friendly_name());
-        ngraph::copy_runtime_info({scatter, broadcast}, {new_ops});
-        ngraph::replace_node(scatter, scatter_update);
+        ov::copy_runtime_info({scatter, broadcast}, {new_ops});
+        ov::replace_node(scatter, scatter_update);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, matcher_name);
+    auto m = std::make_shared<pass::pattern::Matcher>(scatter, matcher_name);
     register_matcher(m, callback);
 }

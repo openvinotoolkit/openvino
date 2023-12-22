@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,9 @@
 #include <memory>
 #include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +26,8 @@ using GRUSequenceParams = typename std::tuple<
         std::vector<std::string>,                 // activations
         float,                                    // clip
         bool,                                     // linear_before_reset
-        ngraph::op::RecurrentSequenceDirection,   // direction
+        ov::op::RecurrentSequenceDirection,   // direction
+        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 
@@ -37,8 +39,6 @@ public:
 protected:
     void SetUp() override;
     void GenerateInputs() override;
-
-private:
     ngraph::helpers::SequenceTestsMode m_mode;
     int64_t m_max_seq_len = 0;
 };

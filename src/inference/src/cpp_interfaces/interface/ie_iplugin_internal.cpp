@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,18 @@
 #include <istream>
 #include <map>
 #include <memory>
+#include <openvino/runtime/remote_context.hpp>
 #include <string>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
 
+#include "any_copy.hpp"
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "dev/converter_utils.hpp"
 #include "exec_graph_info.hpp"
+#include "ie_algorithm.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
@@ -30,7 +35,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -76,13 +83,11 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
-IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
+IInferencePlugin::IInferencePlugin() : _executorManager(ov::threading::executor_manager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
-    _dsc = v.description;
-    _buildNumber = v.buildNumber;
-    description = _dsc.c_str();
-    buildNumber = _buildNumber.c_str();
+    description = v.description;
+    buildNumber = v.buildNumber;
     apiVersion = v.apiVersion;
 }
 
@@ -146,11 +151,9 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    const auto& core = GetCore();
-    if (function && core && !core->isNewAPI()) {
-        auto& rt_info = function->get_rt_info();
-        if (rt_info.find("version") == rt_info.end()) {
-            rt_info["version"] = int64_t(10);
+    if (function && !IsNewAPI()) {
+        if (!function->has_rt_info("version")) {
+            function->set_rt_info(int64_t(10), "version");
 
             // re-create `network` with new patched `function`
             using namespace InferenceEngine;
@@ -160,9 +163,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
-                                                                            orig_impl->getExtensions(),
-                                                                            GetCore()->isNewAPI());
+            auto new_impl =
+                std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
@@ -193,11 +195,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     return impl;
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const std::string& modelPath,
-    const std::map<std::string, std::string>& config) {
+ov::SoPtr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) {
     auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-    return GetCore()->LoadNetwork(cnnNet, GetName(), config)._ptr;
+    return GetCore()->LoadNetwork(cnnNet, GetName(), config);
 }
 
 void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
@@ -206,6 +207,10 @@ void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
 
 void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
+}
+
+void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
+    SetConfig(any_copy(config));
 }
 
 Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
@@ -252,13 +257,20 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
     IE_ASSERT(!core.expired());
     _core = core;
+    auto locked_core = _core.lock();
+    if (locked_core)
+        _isNewAPI = locked_core->isNewAPI();
 }
 
 std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
 }
 
-const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+bool IInferencePlugin::IsNewAPI() const noexcept {
+    return _isNewAPI;
+}
+
+const std::shared_ptr<ov::threading::ExecutorManager>& IInferencePlugin::executorManager() const {
     return _executorManager;
 }
 
@@ -294,10 +306,35 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    const auto& core = GetCore();
-    bool newAPI = core && core->isNewAPI();
+    bool newAPI = IsNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                const std::shared_ptr<const ov::Model>& transformedFunction) {
+    std::unordered_set<std::string> result = {};
+    std::unordered_set<std::string> transformedNodeNames = {};
+
+    for (auto&& node : transformedFunction->get_ops()) {
+        transformedNodeNames.emplace(node->get_friendly_name());
+        for (auto&& fusedLayerName : ov::getFusedNamesVector(node))
+            transformedNodeNames.emplace(fusedLayerName);
+    }
+
+    for (auto&& originalNode : originalFunction->get_ops()) {
+        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+            result.emplace(originalNode->get_friendly_name());
+    }
+
+    return result;
+}
+
+std::unordered_set<std::string> GetSupportedNodes(
+    const std::shared_ptr<const ov::Model>& model,
+    std::function<void(std::shared_ptr<ov::Model>&)> transform,
+    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
+    return ov::get_supported_nodes(model, transform, is_node_supported);
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
@@ -311,10 +348,8 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     std::unordered_set<std::string> leaf_names;
     bool add_operation_names = false;
-    const auto& rt_info = function->get_rt_info();
-    const auto it = rt_info.find("version");
-    if (it != rt_info.end()) {
-        const int64_t ir_version = it->second.as<int64_t>();
+    if (function->has_rt_info("version")) {
+        const int64_t ir_version = function->get_rt_info<int64_t>("version");
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
@@ -376,7 +411,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
-        const std::string res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(res_name);
         fake_param->set_element_type(
             InferenceEngine::details::convertPrecision(outputsInfo.at(res_name)->getPrecision()));
@@ -399,6 +434,10 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
+}
+
+std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
+    return ov::legacy_convert::convert_plugin(from);
 }
 
 }  //  namespace InferenceEngine

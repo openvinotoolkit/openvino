@@ -1,8 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/paddle/frontend.hpp"
+
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <map>
@@ -10,19 +20,25 @@
 #include <vector>
 
 #include "decoder_proto.hpp"
+#include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_fakequantize.hpp"
+#include "internal/pass/transform_if.hpp"
+#include "internal/pass/transform_tensorarray.hpp"
+#include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "so_extension.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
-using namespace ov::opset7;
+using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
 using namespace ov::frontend;
 
@@ -55,7 +71,7 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
     NamedOutputs outputs;
     // In case the conversion function throws exception
     try {
-        outputs = creator_it->second(NodeContext(DecoderProto(op_place), named_inputs));
+        outputs = creator_it->second(paddle::NodeContext(op_place->get_decoder(), named_inputs));
     } catch (std::exception& ex) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
     }
@@ -85,7 +101,10 @@ NamedOutputs make_framework_node(const std::map<paddle::TensorName, Output<Node>
         }
     }
 
-    auto node = std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
+    auto decoder_proto = std::dynamic_pointer_cast<DecoderProto>(op_place->get_decoder());
+    if (!decoder_proto)
+        FRONT_END_THROW("Failed to cast to DecoderProto.");
+    auto node = std::make_shared<FrameworkNode>(decoder_proto, inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -96,7 +115,7 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto creator_it = CREATORS_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(), "No creator found for ", type, " node.");
 
-    auto new_node_outputs = creator_it->second(NodeContext(node->get_decoder(), node->get_named_inputs()));
+    auto new_node_outputs = creator_it->second(paddle::NodeContext(node->get_decoder(), node->get_named_inputs()));
     auto new_node = new_node_outputs.begin()->second[0].get_node_shared_ptr();
     new_node->set_friendly_name(node->get_friendly_name());
     auto node_outputs = node->return_named_outputs();
@@ -117,28 +136,120 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
-std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_stream) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
+    } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+        auto& aligned_weights_buffer = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+        ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+        FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
+        return &ss;
     } else if (variant.is<std::string>()) {
         const auto& model_path = variant.as<std::string>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        fs.open(model_path, std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        fs.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #endif
-    FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
-    return &ext_stream;
+    return nullptr;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
 
-std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
+std::vector<std::shared_ptr<ov::Model>> FrontEnd::convert_each_node(
     const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
+    std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
+                                                      const std::shared_ptr<OpPlace>&)> func) {
+    auto model = std::dynamic_pointer_cast<InputModel>(frontend_model);
+    FRONT_END_GENERAL_CHECK(model, "Invalid input model");
+    std::vector<std::shared_ptr<TensorPlace>> input_tensors;
+    std::vector<std::shared_ptr<TensorPlace>> output_tensors;
+    for (const auto& _inp_place : model->get_inputs()) {
+        const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
+        input_tensors.emplace_back(inp_place);
+    }
+    for (const auto& _outp_place : model->get_outputs()) {
+        const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
+        output_tensors.emplace_back(outp_place);
+    }
+    auto funcs = convert_each_node_recursive(model, 0, input_tensors, output_tensors, func);
+    std::vector<std::shared_ptr<Model>> funcs_vec;
+    for (auto&& item : funcs) {
+        funcs_vec.emplace_back(item.second);
+    }
+
+    return funcs_vec;
+}
+
+// Paddle's subblock does not has 'feed' and 'fetch' and the sub-model's parameters and results
+//  could not be generated just like the main model. We extract the information from 'conditional_block'
+//  and 'while' ops
+using SubblockInfo = std::map<
+    int32_t,
+    std::tuple<std::string, std::vector<std::shared_ptr<TensorPlace>>, std::vector<std::shared_ptr<TensorPlace>>>>;
+void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockInfo& subblock_info) {
+    const auto& op_desc = op_place->get_desc();
+    if (op_desc.type() == "conditional_block") {
+        std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
+        std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
+
+        auto outp_ports = op_place->get_output_ports();
+        for (auto outp_port : outp_ports["Out"]) {
+            auto outp_tensor = outp_port->get_target_tensor_paddle();
+            outp_tensors.push_back(outp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(outp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto inp_ports = op_place->get_input_ports();
+        for (auto inp_port : inp_ports["Input"]) {
+            auto inp_tensor = inp_port->get_source_tensor_paddle();
+            inp_tensors.push_back(inp_tensor);
+        }
+
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
+        auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
+
+        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
+    } else if (op_desc.type() == "while") {
+        std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
+        std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
+
+        auto outp_ports = op_place->get_output_ports();
+        for (auto outp_port : outp_ports["Out"]) {
+            auto outp_tensor = outp_port->get_target_tensor_paddle();
+            outp_tensors.push_back(outp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(outp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto inp_ports = op_place->get_input_ports();
+        for (auto inp_port : inp_ports["X"]) {
+            auto inp_tensor = inp_port->get_source_tensor_paddle();
+            inp_tensors.push_back(inp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(inp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
+        auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
+
+        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
+    }
+}
+
+std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recursive(
+    const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
+    const int32_t block_idx,
+    const std::vector<std::shared_ptr<TensorPlace>>& input_tensors,
+    const std::vector<std::shared_ptr<TensorPlace>>& output_tensors,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlace>&)> func) {
     auto model = std::dynamic_pointer_cast<InputModel>(frontend_model);
@@ -146,8 +257,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
+    OutputVector output_nodes;
 
-    for (const auto& _inp_place : model->get_inputs()) {
+    SubblockInfo subblock_inputs_outputs;  // keep info of controlflow ops
+
+    for (const auto& _inp_place : input_tensors) {
         const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
         const auto& var = inp_place->get_desc();
         const auto& shape = inp_place->get_partial_shape();
@@ -159,13 +273,15 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
         parameter_nodes.push_back(param);
     }
 
-    const auto& op_places = model->get_op_places();
+    const auto& op_places = model->get_op_places(block_idx);
     for (const auto& op_place : op_places) {
         const auto& op_desc = op_place->get_desc();
         if (op_desc.type() == "feed" || op_desc.type() == "fetch") {
             // inputs and outputs are stored in the model already
             continue;
         } else {
+            try_update_sublock_info(op_place, subblock_inputs_outputs);
+
             paddle::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
@@ -180,16 +296,15 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
                     // TODO: figure a way to safely handle unused outputs
                     if (named_outputs.count(port.parameter())) {
                         const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == (size_t)port.arguments_size(),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
-                            const auto& var_name = port.arguments()[idx];
+                            const auto& var_name = port.arguments()[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
-                            // usually means that it was overwritten using setTensorValue
-                            if (!nodes_dict.count(var_name))
-                                nodes_dict[var_name] = ng_outputs[idx];
+                            // usually means that it was overwritten using set_tensor_value
+                            nodes_dict[var_name] = ng_outputs[idx];
                         }
                     }
                 }
@@ -197,21 +312,68 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
         }
     }
 
-    for (const auto& _outp_place : model->get_outputs()) {
+    for (const auto& _outp_place : output_tensors) {
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
         auto var = outp_place->get_desc();
         auto input_var_name = var.name();
         auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
         result->set_friendly_name(input_var_name + "/Result");
         result_nodes.push_back(result);
+        output_nodes.push_back(nodes_dict.at(input_var_name));
     }
 
-    return std::make_shared<ov::Model>(result_nodes, parameter_nodes);
+    std::shared_ptr<ov::Model> main_block_func;
+    if (parameter_nodes.size() > 0) {
+        main_block_func = std::make_shared<ov::Model>(result_nodes, parameter_nodes);
+    } else {
+        main_block_func = std::make_shared<ov::Model>(output_nodes);
+    }
+
+    // convert each sub block
+    std::map<int32_t, std::shared_ptr<ov::Model>> block_funcs;
+    block_funcs.insert({block_idx, main_block_func});
+
+    for (auto& item : subblock_inputs_outputs) {
+        auto ctl_op_info = item.second;
+        auto sub_block_func =
+            convert_each_node_recursive(model, item.first, std::get<1>(ctl_op_info), std::get<2>(ctl_op_info), func);
+        block_funcs.insert(sub_block_func.begin(), sub_block_func.end());
+    }
+
+    return block_funcs;
+}
+
+void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
+        manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
+        manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
+}
+
+void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // FrontEnd can only load model specified by one path, one file or two files.
-    if (variants.empty() || variants.size() > 2)
+    if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
     // Validating first path, it must contain a model
@@ -233,7 +395,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -241,15 +403,25 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
-        auto p_model_stream = variants[0].as<std::istream*>();
+        // step 1:
+        // PDPD API ParseFromIstream always deconstructs the context in model stream.
+        // So, make a copy for variants[0] to avoid breaking the context in variants[0].
+        const auto p_model_stream = variants[0].as<std::istream*>();
+        std::istream copy_model_stream(p_model_stream->rdbuf());
         ::paddle::framework::proto::ProgramDesc fw;
-        return fw.ParseFromIstream(p_model_stream);
+        auto ret = fw.ParseFromIstream(&copy_model_stream);
+        // step 2:
+        // reset the stream position to the beginning.
+        p_model_stream->seekg(0, p_model_stream->beg);
+        return ret;
     }
     return false;
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
@@ -267,12 +439,12 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             auto p_model_stream = variants[0].as<std::istream*>();
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
-    } else if (variants.size() == 2) {
+    } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
-        std::ifstream model_stream;
-        std::ifstream weights_stream;
-        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_stream);
-        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_stream);
+        std::fstream model_fstream, weights_fstream;
+        std::stringstream model_sstream, weights_sstream;
+        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_fstream, model_sstream);
+        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_fstream, weights_sstream);
         if (p_model_stream && p_weights_stream) {
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
                                                 m_telemetry);
@@ -288,7 +460,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -302,7 +474,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
-    return f;
+
+    fuse_fakequantize_ops(f);
+    try_remove_internal_ops(f);
+    normalize(f[0]);
+    return f[0];
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
@@ -314,6 +490,10 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+
+    fuse_fakequantize_ops({partiallyConverted});
+    try_remove_internal_ops({partiallyConverted});
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -323,7 +503,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -343,7 +523,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             }
             return named_outputs;
         });
-    return f;
+
+    fuse_fakequantize_ops(f);
+    try_remove_internal_ops(f);
+    normalize(f[0]);
+    return f[0];
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -351,7 +535,8 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
     FRONT_END_GENERAL_CHECK(paddle_model != nullptr, "Invalid input model");
 
     auto f = convert_each_node(paddle_model, paddle::make_framework_node);
-    return f;
+    FRONT_END_GENERAL_CHECK(f.size() == 1, "Input model has subblocks, currently 'decode' could not support it");
+    return f[0];
 }
 
 std::string FrontEnd::get_name() const {
@@ -379,19 +564,32 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
+}
+
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion GetAPIVersion() {
+PADDLE_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* GetFrontEndData() {
+PADDLE_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
         return std::make_shared<ov::frontend::paddle::FrontEnd>();
     };
+
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
+    google::protobuf::SetLogHandler(nullptr);
+#    endif
+#endif
     return res;
 }

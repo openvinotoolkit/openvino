@@ -1,20 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include <gtest/gtest.h>
+
+#include "openvino/op/op.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
 
 enum class TuringModel { XL400, XL1200 };
 
@@ -31,13 +25,8 @@ class AttributeAdapter<TuringModel> : public EnumAttributeAdapterBase<TuringMode
 public:
     AttributeAdapter(TuringModel& value) : EnumAttributeAdapterBase<TuringModel>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<TuringModel>", static_cast<uint64_t>(0)};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<TuringModel>");
 };
-
-constexpr DiscreteTypeInfo AttributeAdapter<TuringModel>::type_info;
 
 struct Position {
     float x;
@@ -64,21 +53,16 @@ public:
         visitor.on_attribute("z", m_ref.z);
         return true;
     }
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", static_cast<uint64_t>(0)};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<Position>");
 
 protected:
     Position& m_ref;
 };
-
-constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
 }  // namespace ov
 
 // Given a Turing machine program and data, return scalar 1 if the program would
 // complete, 1 if it would not.
-class Oracle : public op::Op {
+class Oracle : public ov::op::Op {
 public:
     Oracle(const Output<Node>& program,
            const Output<Node>& data,
@@ -368,10 +352,10 @@ protected:
 };
 
 TEST(attributes, user_op) {
-    NodeBuilder::get_ops().register_factory<Oracle>();
-    auto program = make_shared<op::Parameter>(element::i32, Shape{200});
-    auto data = make_shared<op::Parameter>(element::i32, Shape{200});
-    auto result = make_shared<op::Result>(data);
+    ov::test::NodeBuilder::get_ops().register_factory<Oracle>();
+    auto program = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
+    auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
+    auto result = make_shared<ov::op::v0::Result>(data);
     auto oracle = make_shared<Oracle>(program,
                                       data,
                                       TuringModel::XL1200,
@@ -407,7 +391,7 @@ TEST(attributes, user_op) {
                                       NodeVector{program, result, data},
                                       ParameterVector{data, data, program},
                                       ResultVector{result});
-    NodeBuilder builder;
+    ov::test::NodeBuilder builder;
     AttributeVisitor& saver = builder.get_node_saver();
     AttributeVisitor& loader = builder.get_node_loader();
     loader.register_node(program, "program");

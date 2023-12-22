@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API MatMul : public Op {
 public:
     OPENVINO_OP("MatMul", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     MatMul() = default;
     /// \brief Constructs an Matrix Multiplication operation.
     ///
@@ -32,9 +31,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     bool get_transpose_a() const {

@@ -1,21 +1,21 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino as ov
 
-#! [auto_compilation]
-import openvino.runtime as ov
-
-compiled_model = ov.compile_model("model.xml")
-#! [auto_compilation]
+from utils import get_path_to_model, get_image
 
 #! [properties_example]
+import openvino.runtime.opset12 as ops
+
 core = ov.Core()
 
-input_a = ov.opset8.parameter([8])
-res = ov.opset8.absolute(input_a)
+input_a = ops.parameter([8], name="input_a")
+res = ops.absolute(input_a)
 model = ov.Model(res, [input_a])
 compiled = core.compile_model(model, "CPU")
+model.outputs[0].tensor.set_names({"result_0"})  # Add name for Output
 
 print(model.inputs)
 print(model.outputs)
@@ -23,6 +23,10 @@ print(model.outputs)
 print(compiled.inputs)
 print(compiled.outputs)
 #! [properties_example]
+
+#! [auto_compilation]
+compiled_model = ov.compile_model(model)
+#! [auto_compilation]
 
 #! [tensor_basics]
 data_float64 = np.ones(shape=(2,8))
@@ -35,6 +39,7 @@ data_int32 = np.ones(shape=(2,8), dtype=np.int32)
 tensor = ov.Tensor(data_int32)
 assert tensor.element_type == ov.Type.i32
 #! [tensor_basics]
+
 
 #! [tensor_shared_mode]
 data_to_share = np.ones(shape=(2,8))
@@ -49,17 +54,6 @@ assert shared_tensor.data[0][2] == 6.0
 shared_tensor.data[0][2] = 0.6
 assert data_to_share[0][2] == 0.6
 #! [tensor_shared_mode]
-
-#! [tensor_slice_mode]
-data_to_share = np.ones(shape=(2,8))
-
-# Specify slice of memory and the shape
-shared_tensor = ov.Tensor(data_to_share[1][:] , shape=ov.Shape([8]))
-
-# Editing of the numpy array affects Tensor's data
-data_to_share[1][:] = 2
-assert np.array_equal(shared_tensor.data, data_to_share[1][:])
-#! [tensor_slice_mode]
 
 infer_request = compiled.create_infer_request()
 data = np.random.randint(-5, 3 + 1, size=(8))
@@ -89,13 +83,28 @@ results = infer_request.infer(inputs={0: data})
 results = compiled_model(inputs={0: data})
 #! [sync_infer]
 
+#! [ov_dict]
+results = compiled_model(inputs={0: data})
+
+# Access via string
+_ = results["result_0"]
+# Access via index
+_ = results[0]
+# Access via output port
+_ = results[compiled_model.outputs[0]]
+# Use iterator over keys
+_ = results[next(iter(results))]
+# Iterate over values
+_ = next(iter(results.values()))
+#! [ov_dict]
+
 #! [asyncinferqueue]
 core = ov.Core()
 
 # Simple model that adds two inputs together
-input_a = ov.opset8.parameter([8])
-input_b = ov.opset8.parameter([8])
-res = ov.opset8.add(input_a, input_b)
+input_a = ops.parameter([8])
+input_b = ops.parameter([8])
+res = ops.add(input_a, input_b)
 model = ov.Model(res, [input_a, input_b])
 compiled = core.compile_model(model, "CPU")
 
@@ -131,3 +140,56 @@ infer_queue.wait_all()
 
 assert all(data_done)
 #! [asyncinferqueue_set_callback]
+
+unt8_data = np.ones([100], dtype=np.uint8)
+
+#! [packing_data]
+from openvino.helpers import pack_data
+
+packed_buffer = pack_data(unt8_data, ov.Type.u4)
+# Create tensor with shape in element types
+t = ov.Tensor(packed_buffer, [100], ov.Type.u4)
+#! [packing_data]
+
+#! [unpacking]
+from openvino.helpers import unpack_data
+
+unpacked_data = unpack_data(t.data, t.element_type, t.shape)
+assert np.array_equal(unpacked_data , unt8_data)
+#! [unpacking]
+
+model_path = get_path_to_model()
+image = get_image()
+
+
+#! [releasing_gil]
+import openvino as ov
+from threading import Thread
+
+input_data = []
+
+# Processing input data will be done in a separate thread
+# while compilation of the model and creation of the infer request
+# is going to be executed in the main thread.
+def prepare_data(input, image):
+    shape = list(input.shape)
+    resized_img = np.resize(image, shape)
+    input_data.append(resized_img)
+
+core = ov.Core()
+model = core.read_model(model_path)
+# Create thread with prepare_data function as target and start it
+thread = Thread(target=prepare_data, args=[model.input(), image])
+thread.start()
+# The GIL will be released in compile_model.
+# It allows a thread above to start the job,
+# while main thread is running in the background.
+compiled = core.compile_model(model, "CPU")
+# After returning from compile_model, the main thread acquires the GIL
+# and starts create_infer_request which releases it once again.
+request = compiled.create_infer_request()
+# Join the thread to make sure the input_data is ready
+thread.join()
+# running the inference
+request.infer(input_data)
+#! [releasing_gil]

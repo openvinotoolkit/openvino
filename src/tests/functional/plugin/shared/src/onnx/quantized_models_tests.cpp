@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <file_utils.h>
+#include "common_test_utils/file_utils.hpp"
 #include "onnx/quantized_models_tests.hpp"
 
 namespace ONNXTestsDefinitions {
@@ -19,18 +20,17 @@ void QuantizedModelsTests::SetUp() {
 }
 
 static std::string getModelFullPath(const char* path) {
-    return FileUtils::makePath<char>(TEST_MODELS, path);
+    return FileUtils::makePath<char>(
+        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
-void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {
-    threshold = thr;
-    auto ie = getCore();
-    auto network = ie->ReadNetwork(getModelFullPath(model));
-    function = network.getFunction();
-    Run();
-    auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
+void QuantizedModelsTests::run_model(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {
+    abs_threshold = thr;
+    function = core->read_model(getModelFullPath(model));
+    ov::test::SubgraphBaseStaticTest::run();
+    auto runtime_model = compiledModel.get_runtime_model();
     int ops_found = 0;
-    for (const auto& node : runtime_function->get_ordered_ops()) {
+    for (const auto& node : runtime_model->get_ordered_ops()) {
         const auto& name = node->get_friendly_name();
         if (expected_layer_input_types.count(name)) {
             ops_found++;
@@ -45,21 +45,21 @@ void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& ex
 }
 
 TEST_P(QuantizedModelsTests, MaxPoolQDQ) {
-    runModel("max_pool_qdq.onnx", {{"890_original", {ngraph::element::u8}}}, 1e-5);
+    run_model("max_pool_qdq.onnx", {{"890_original", {ov::element::u8}}}, 1e-5);
 }
 
 TEST_P(QuantizedModelsTests, MaxPoolFQ) {
-    runModel("max_pool_fq.onnx", {{"887_original", {ngraph::element::u8}}}, 1e-5);
+    run_model("max_pool_fq.onnx", {{"887_original", {ov::element::u8}}}, 1e-5);
 }
 
 TEST_P(QuantizedModelsTests, ConvolutionQDQ) {
     // activations have type uint8 and weights int8
-    runModel("convolution_qdq.onnx", {{"908_original", {ngraph::element::u8, ngraph::element::i8}}}, 1.5e-2);
+    run_model("convolution_qdq.onnx", {{"908_original", {ov::element::u8, ov::element::i8}}}, 1.5e-2);
 }
 
 TEST_P(QuantizedModelsTests, ConvolutionFQ) {
     // activations have type uint8 and weights int8
-    runModel("convolution_fq.onnx", {{"902_original", {ngraph::element::u8, ngraph::element::i8}}}, 1.5e-2);
+    run_model("convolution_fq.onnx", {{"902_original", {ov::element::u8, ov::element::i8}}}, 1.5e-2);
 }
 
 } // namespace ONNXTestsDefinitions

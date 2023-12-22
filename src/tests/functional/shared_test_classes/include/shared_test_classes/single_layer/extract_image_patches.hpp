@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ using extractImagePatchesTuple = typename std::tuple<
         std::vector<size_t>,               // kernel size
         std::vector<size_t>,               // strides
         std::vector<size_t>,               // rates
-        ngraph::op::PadType,               // pad type
+        ov::op::PadType,               // pad type
         InferenceEngine::Precision,        // Network precision
         InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Output precision

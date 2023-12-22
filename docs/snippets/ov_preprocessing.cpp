@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/runtime/core.hpp>
@@ -23,7 +23,7 @@ ppp.input("input").preprocess().mean(128).scale(127);
 ppp.input("input").model().set_layout("NCHW"); // N=1, C=3, H=224, W=224
 // Mean/Scale has 3 values which matches with C=3
 ppp.input("input").preprocess()
-  .mean({103.94, 116.78, 123.68}).scale({57.21, 57.45, 57.73});
+  .mean({103.94f, 116.78f, 123.68f}).scale({57.21f, 57.45f, 57.73f});
 //! [ov:preprocess:mean_scale_array]
 
 //! [ov:preprocess:convert_element_type]
@@ -165,7 +165,7 @@ int main() {
  //! [ov:preprocess:save_headers]
 
 void save_example() {
- //! [ov:preprocess:save]
+ //! [ov:preprocess:save_model]
  // ========  Step 0: read original model =========
  ov::Core core;
  std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.onnx");
@@ -186,8 +186,8 @@ void save_example() {
         .convert_element_type()
         .convert_color(ov::preprocess::ColorFormat::RGB)
         .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR)
-        .mean({123.675, 116.28, 103.53}) // Subtract mean after color conversion
-        .scale({58.624, 57.12, 57.375});
+        .mean({123.675f, 116.28f, 103.53f}) // Subtract mean after color conversion
+        .scale({58.624f, 57.12f, 57.375f});
  // Dump preprocessor
  std::cout << "Preprocessor: " << prep << std::endl;
  model = prep.build();
@@ -200,7 +200,7 @@ void save_example() {
  std::string xml = "/path/to/some_model_saved.xml";
  std::string bin = "/path/to/some_model_saved.bin";
  ov::serialize(model, xml, bin);
- //! [ov:preprocess:save]
+ //! [ov:preprocess:save_model]
 
 }
 

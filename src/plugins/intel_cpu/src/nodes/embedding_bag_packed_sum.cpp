@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_packed_sum.h"
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset3.hpp>
 
 using namespace InferenceEngine;
 
@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
+        const auto embBagPackedSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;
@@ -27,15 +27,16 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+      EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 }
 
 void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
@@ -43,24 +44,24 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
         return;
 
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
-    static const std::set<Precision> supportedPrecisions =
-            {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+    static const std::set<ov::element::Type> supportedPrecisions =
+            {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (inDataPrecision == Precision::BF16)
-        inDataPrecision = Precision::FP32;
+    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16))
+        inDataPrecision = ov::element::f32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     } else {
-        static const std::set<Precision> defaultSupportedPrecisions =
-                {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+        static const std::set<ov::element::Type> defaultSupportedPrecisions =
+                {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
-                                                       {LayoutType::ncsp, Precision::I32}});
+                                                       {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
@@ -74,12 +75,12 @@ void EmbeddingBagPackedSum::prepareParams() {
 }
 
 void EmbeddingBagPackedSum::initFromInputs() {
-    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
+    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
 }
 
-void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _batch * _indicesPerBag)
-        IE_THROW() << "Invalid embedding bag index.";
+void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
+        OPENVINO_THROW("Invalid embedding bag index.");
 
     withWeight = true;
 
@@ -89,7 +90,7 @@ void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t
     weightsIdx = embIndex * _indicesPerBag;
 }
 
-void EmbeddingBagPackedSum::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingBagPackedSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -97,16 +98,15 @@ bool EmbeddingBagPackedSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPackedSum::execute(mkldnn::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
+        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBagSum::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
-                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
+    EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
+                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
 }
 
 bool EmbeddingBagPackedSum::created() const {

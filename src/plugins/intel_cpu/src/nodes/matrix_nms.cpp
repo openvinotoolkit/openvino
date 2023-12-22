@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "matrix_nms.h"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -10,9 +11,10 @@
 #include <string>
 #include <vector>
 
-#include "ie_parallel.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils/general_utils.h"
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -20,12 +22,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
-using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
+using ngNmsSortResultType = ov::op::v8::MatrixNms::SortResultType;
+using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
 
-bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
+        const auto nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
         if (!nms) {
             errorMessage = "Only MatrixNms operation is supported";
             return false;
@@ -33,12 +35,12 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
         if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Does not support SortResultType mode: " + ngraph::as_string(sortType);
+            errorMessage = "Does not support SortResultType mode: " + ov::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
         if (!one_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
-            errorMessage = "Does not support DcayFunction " + ngraph::as_string(decayType);
+            errorMessage = "Does not support DcayFunction " + ov::as_string(decayType);
             return false;
         }
     } catch (...) {
@@ -47,34 +49,37 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
 
+    if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>::get_type_info_static()))
+        m_outStaticShape = true;
+
     if (getOriginalInputsNumber() != 2)
-        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
+        OPENVINO_THROW(m_errorPrefix, "has incorrect number of input edges: ", getOriginalInputsNumber());
 
     if (getOriginalOutputsNumber() != 3)
-        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
+        OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
 
-    const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
+    const auto matrix_nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
-    if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::CLASSID)
+    if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID)
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::SCORE)
+    else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE)
         m_sortResultType = MatrixNmsSortResultType::SCORE;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::NONE)
+    else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::NONE)
         m_sortResultType = MatrixNmsSortResultType::NONE;
 
-    if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN)
+    if (attrs.decay_function == ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN)
         m_decayFunction = GAUSSIAN;
-    else if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::LINEAR)
+    else if (attrs.decay_function == ov::op::v8::MatrixNms::DecayFunction::LINEAR)
         m_decayFunction = LINEAR;
 
     m_sortResultAcrossBatch = attrs.sort_result_across_batch;
@@ -98,20 +103,20 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engi
 
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
     if (boxes_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input rank: ", boxes_dims.size());
     if (boxes_dims[2] != 4)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
     if (scores_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
 }
 
 void MatrixNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32};
-    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
+    const std::vector<ov::element::Type> supportedFloatPrecision = {ov::element::f32, ov::element::f16};
+    const std::vector<ov::element::Type> supportedIntOutputPrecision = {ov::element::i32, ov::element::i64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", m_inType);
@@ -120,11 +125,11 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", m_outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", m_outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref_any);
 }
 
@@ -190,11 +195,11 @@ size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, Box
     std::vector<float> iouMax(originalSize);
 
     iouMax[0] = 0.;
-    InferenceEngine::parallel_for(originalSize - 1, [&](size_t i) {
+    ov::parallel_for(originalSize - 1, [&](size_t i) {
         float max_iou = 0.;
         size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
-        for (int64_t j = 0; j < actual_index; j++) {
+        for (size_t j = 0; j < actual_index; j++) {
             auto idx_b = candidateIndex[j];
             auto iou = intersectionOverUnion(boxesData + idx_a * 4, boxesData + idx_b * 4, m_normalized);
             max_iou = std::max(max_iou, iou);
@@ -247,7 +252,7 @@ void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
-        IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
+        OPENVINO_THROW(m_errorPrefix, "has incompatible 'boxes' and 'scores' input dmensions");
     }
 
     m_numBatches = boxes_dims[0];
@@ -257,7 +262,7 @@ void MatrixNms::prepareParams() {
 
     int64_t max_output_boxes_per_class = 0;
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
-        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
+        static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopk >= 0)
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     else
@@ -278,7 +283,7 @@ void MatrixNms::prepareParams() {
     m_classOffset.resize(m_numClasses, 0);
 
     for (size_t i = 0, count = 0; i < m_numClasses; i++) {
-        if (i == m_backgroundClass)
+        if (i == static_cast<size_t>(m_backgroundClass))
             continue;
         m_classOffset[i] = (count++) * m_realNumBoxes;
     }
@@ -288,7 +293,7 @@ bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MatrixNms::executeDynamicImpl(mkldnn::stream strm) {
+void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -296,12 +301,12 @@ void MatrixNms::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MatrixNms::execute(mkldnn::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
+void MatrixNms::execute(dnnl::stream strm) {
+    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
+    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
 
-    InferenceEngine::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
-        if (classIdx == m_backgroundClass) {
+    ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
+        if (classIdx == static_cast<size_t>(m_backgroundClass)) {
             m_numPerBatchClass[batchIdx][classIdx] = 0;
             return;
         }
@@ -313,25 +318,24 @@ void MatrixNms::execute(mkldnn::stream strm) {
         m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
     });
 
-    InferenceEngine::parallel_for(m_numBatches, [&](size_t batchIdx) {
+    ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];
-        auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), 0);
+        auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), int64_t(0));
         auto start_offset = numPerClass[0];
 
         for (size_t i = 1; i < numPerClass.size(); i++) {
             auto offset_class = m_classOffset[i];
-            for (size_t j = 0; j < numPerClass[i]; j++) {
+            for (int64_t j = 0; j < numPerClass[i]; j++) {
                 batchFilteredBox[start_offset + j] = batchFilteredBox[offset_class + j];
             }
             start_offset += numPerClass[i];
         }
         auto keepNum = numDet;
         if (m_keepTopk > -1) {
-            auto k = static_cast<size_t>(m_keepTopk);
-            if (keepNum > k)
-                keepNum = k;
+            if (keepNum > m_keepTopk)
+                keepNum = m_keepTopk;
         }
 
         std::partial_sort(batchFilteredBox, batchFilteredBox + keepNum, batchFilteredBox + numDet, [](const BoxInfo& lhs, const BoxInfo rhs) {
@@ -344,7 +348,7 @@ void MatrixNms::execute(mkldnn::stream strm) {
     auto startOffset = m_numPerBatch[0];
     for (size_t i = 1; i < m_numPerBatch.size(); i++) {
         auto offset_batch = i * m_realNumClasses * m_realNumBoxes;
-        for (size_t j = 0; j < m_numPerBatch[i]; j++) {
+        for (int64_t j = 0; j < m_numPerBatch[i]; j++) {
             m_filteredBoxes[startOffset + j] = m_filteredBoxes[offset_batch + j];
         }
         startOffset += m_numPerBatch[i];
@@ -370,21 +374,23 @@ void MatrixNms::execute(mkldnn::stream strm) {
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
     auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (isDynamicNode()) {
-        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
+    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
+    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
+    if (!m_outStaticShape) {
+        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
-    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
-    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
-    std::copy(m_numPerBatch.begin(), m_numPerBatch.end(), validOutputs);
+    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->getData());
+    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->getData());
+    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->getData());
+    for (size_t i = 0; i < m_numPerBatch.size(); i++)
+        validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
 
     int64_t outputOffset = 0;
     int64_t originalOffset = 0;
     for (size_t i = 0; i < m_numBatches; i++) {
         auto real_boxes = m_numPerBatch[i];
-        for (size_t j = 0; j < real_boxes; j++) {
+        for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
@@ -395,9 +401,9 @@ void MatrixNms::execute(mkldnn::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        if (!isDynamicNode()) {
-            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
+
+        if (m_outStaticShape) {
+            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;
             originalOffset += real_boxes;
@@ -408,9 +414,9 @@ void MatrixNms::execute(mkldnn::stream strm) {
     }
 }
 
-void MatrixNms::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MatrixNms::checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name, const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
-        IE_THROW() << m_errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
+        OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
 }
 
 }   // namespace node

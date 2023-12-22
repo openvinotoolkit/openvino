@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_nd_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "gather_nd_inst.h"
 #include "gather/gather_nd_kernel_selector.h"
 #include "gather/gather_nd_kernel_ref.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -17,52 +14,80 @@ namespace ocl {
 struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
     using parent = typed_primitive_impl_ocl<gather_nd>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_nd_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_nd_params, kernel_selector::gather_nd_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_nd_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_nd_impl>(*this);
     }
 
-    static primitive_impl* create(const gather_nd_node& arg) {
-        auto gather_nd_params = get_default_params<kernel_selector::gather_nd_params>(arg);
-        auto gather_nd_optional_params =
-            get_default_optional_params<kernel_selector::gather_nd_optional_params>(arg.get_program());
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
 
-        gather_nd_params.indices_rank = arg.get_primitive()->indices_rank;
-        gather_nd_params.batch_dims = arg.get_primitive()->batch_dims;
-        gather_nd_params.batch_merged_output = arg.get_primitive()->batch_merged_output;
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<gather_nd>();
+        auto params = get_default_params<kernel_selector::gather_nd_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_nd_optional_params>(impl_param.get_program());
 
-        gather_nd_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        params.indices_rank = primitive->indices_rank;
+        params.batch_dims = primitive->batch_dims;
+        params.batch_merged_output = primitive->batch_merged_output;
 
-        auto& kernel_selector = kernel_selector::gather_nd_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gather_nd_params, gather_nd_optional_params);
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, optional_params};
+    }
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto gather_nd = new gather_nd_impl(arg, best_kernels[0]);
-
-        return gather_nd;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_gather_nd_impl::attach_gather_nd_impl() {
-    implementation_map<gather_nd>::add(impl_types::ocl, gather_nd_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-    });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32
+    };
+
+    auto static_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_nd>::add(impl_types::ocl,
+                                       shape_types::static_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       static_formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_nd>::add(impl_types::ocl,
+                                       shape_types::dynamic_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_nd)

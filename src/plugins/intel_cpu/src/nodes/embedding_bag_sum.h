@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,21 +17,21 @@ namespace node {
 class EmbeddingBagSum {
 public:
     EmbeddingBagSum(
-            const std::shared_ptr<ngraph::Node>&,
+            const std::shared_ptr<ov::Node>&,
             size_t requiredInputsNum,
             size_t indicesIdx,
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
-    void execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
-                 const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims);
+    void execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
+                 const VectorDims& inDims, const MemoryPtr& outMemory);
 
     ~EmbeddingBagSum() = default;
 
 protected:
     virtual void initFromInputs() = 0;
     virtual void getIndices(
-            int embIndex,
+            size_t embIndex,
             const int*& indicesRef,
             size_t& size,
             int& weightsIdx,
@@ -40,8 +40,8 @@ protected:
     void prepareParams(const VectorDims& indexStaticShape);
 
     template<typename T>
-    void processData(const T* srcData, const T* weightsData, T* dstData,
-                     const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims);
+    void processData(const T* srcData, const T* weightsData,
+                     const VectorDims& inDataDims, const MemoryPtr& outMemory);
 
     const size_t EMB_TABLE_IDX = 0lu;
     const size_t INDICES_IDX;

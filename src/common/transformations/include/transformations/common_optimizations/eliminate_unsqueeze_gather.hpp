@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "transformations_visibility.hpp"
 
-#include "ngraph/pattern/matcher.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateUnsqueezeGather;
 class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,7 +23,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
  * that was previously added by Unsqueeze
  */
 
-class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateUnsqueezeGather : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
     EliminateUnsqueezeGather();
@@ -33,11 +31,13 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Remove Gather -> Unsqueeze pair, if Gather takes a scalar and
- * Unsqueeze makes it a 1D tensor
+ * @brief Matches Gather ->[Binary Operation]-> Unsqueeze
+ * If axis for Gather and Unsqueeze is the same and Gather indices are scalar Unsqueeze is being removed and indices
+ * become 1D. Must be executed after SharedOpOptimization -- It is possible to have multiple similar Unsqueeze
+ * operations after Gather, so they must be optimized beforehand
  */
 
-class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateGatherUnsqueeze : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();

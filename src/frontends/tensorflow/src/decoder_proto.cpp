@@ -1,47 +1,87 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "decoder_proto.hpp"
 
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/special_types.hpp"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
+#include "tf_utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
 namespace {
-const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-    return type_map;
+
+template <typename T>
+void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
+    const auto tensor_content_size = tensor_content.size();
+    FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
+                            "Size of tensor_content (",
+                            tensor_content_size,
+                            ") is not a multiple of ",
+                            sizeof(T));
+
+    const T* tensor_values = reinterpret_cast<const T*>(tensor_content.data());
+    FRONT_END_GENERAL_CHECK(values->get_size() == tensor_content_size / sizeof(T),
+                            "Size of tensor is not equal to tensor_content size.");
+    std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
 }
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)  // possible loss of data
+#    pragma warning(disable : 4267)  // possible loss of data
+#endif
+template <typename T>
+void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
+                                       int64_t val_size,
+                                       ov::Tensor* values) {
+    auto val_lastsaved = static_cast<T>(0);
+    auto values_data = values->data<T>();
+    for (size_t i = 0; i < values->get_size(); i++) {
+        if (val_size == 0) {
+            values_data[i] = static_cast<T>(0);
+        } else if (static_cast<int64_t>(i) < val_size) {
+            auto val_i = static_cast<T>(0);
+            switch (values->get_element_type()) {
+            // TODO: there are more element types to support here
+            case ov::element::boolean:
+                val_i = tensor_proto.bool_val()[i];
+                break;
+            case ov::element::i32:
+                val_i = tensor_proto.int_val()[i];
+                break;
+            case ov::element::i64:
+                val_i = tensor_proto.int64_val()[i];
+                break;
+            case ov::element::f16:
+                val_i = float16::from_bits(tensor_proto.half_val()[i]);
+                break;
+            case ov::element::f32:
+                val_i = tensor_proto.float_val()[i];
+                break;
+            case ov::element::f64:
+                val_i = tensor_proto.double_val()[i];
+                break;
+            default:
+                FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
+            }
+            values_data[i] = val_i;
+            val_lastsaved = val_i;
+        } else {
+            values_data[i] = val_lastsaved;
+        }
+    }
+}
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 }  // namespace
-
-ov::Any DecoderProto::get_native_attribute(const std::string& name) const {
-    auto attrs = decode_attribute_helper(name);
-    if (attrs.empty()) {
-        return {};
-    }
-
-    switch (attrs[0].value_case()) {
-    case ::tensorflow::AttrValue::ValueCase::kTensor:
-        return attrs[0].tensor();
-    case ::tensorflow::AttrValue::ValueCase::kType:
-        return attrs[0].type();
-    default:
-        FRONT_END_GENERAL_CHECK(false, "DataType is not covered.");
-    }
-}
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
@@ -59,16 +99,30 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case ::tensorflow::AttrValue::ValueCase::kI:
         return attrs[0].i();
     case ::tensorflow::AttrValue::ValueCase::kShape: {
-        std::vector<ov::Dimension> dims;
         const auto& tf_shape = attrs[0].shape();
-        for (int i = 0; i < tf_shape.dim_size(); i++) {
-            dims.emplace_back(tf_shape.dim(i).size());
+        if (tf_shape.unknown_rank()) {
+            return ov::PartialShape::dynamic();
+        }
+        auto shape_rank = tf_shape.dim_size();
+        std::vector<ov::Dimension> dims(shape_rank);
+        for (int i = 0; i < shape_rank; ++i) {
+            dims[i] = static_cast<ov::Dimension::value_type>(tf_shape.dim(i).size());
         }
         return ov::PartialShape(dims);
     }
 
-    case ::tensorflow::AttrValue::ValueCase::kType:
-        return TYPE_MAP().at(attrs[0].type());
+    case ::tensorflow::AttrValue::ValueCase::kType: {
+        auto atype = attrs[0].type();
+        if (atype == ::tensorflow::DT_STRING) {
+            return ov::Any("DT_STRING");
+        } else if (atype == ::tensorflow::DT_COMPLEX64) {
+            return ov::Any("DT_COMPLEX64");
+        } else if (atype == ::tensorflow::DT_COMPLEX128) {
+            return ov::Any("DT_COMPLEX128");
+        } else {
+            return get_ov_type(atype);
+        }
+    }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
         const auto& list = attrs[0].list();
@@ -85,20 +139,32 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return std::vector<bool>(list.b().begin(), list.b().end());
 
         if (list.shape_size()) {
-            std::vector<ov::PartialShape> res;
-            for (const auto& it : list.shape()) {
-                std::vector<ov::Dimension> dims;
-                for (int i = 0; i < it.dim_size(); i++) {
-                    dims.emplace_back(it.dim(i).size());
+            auto shapes_size = list.shape_size();
+            std::vector<ov::PartialShape> res(shapes_size);
+            for (int shape_ind = 0; shape_ind < shapes_size; ++shape_ind) {
+                auto shape = list.shape(shape_ind);
+                if (shape.unknown_rank()) {
+                    res[shape_ind] = ov::PartialShape::dynamic();
+                } else {
+                    auto shape_rank = shape.dim_size();
+                    std::vector<ov::Dimension> dims(shape_rank);
+                    for (int dim_ind = 0; dim_ind < shape_rank; ++dim_ind) {
+                        dims[dim_ind] = static_cast<ov::Dimension::value_type>(shape.dim(dim_ind).size());
+                    }
+                    res[shape_ind] = dims;
                 }
-                res.emplace_back(dims);
             }
+            return res;
         }
 
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(TYPE_MAP().at(list.type(idx)));
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
+                    res.emplace_back(get_ov_type(list.type(idx)));
+                } else {
+                    res.emplace_back(ov::element::dynamic);
+                }
             }
             return res;
         }
@@ -110,27 +176,24 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 name,
                 "' attribute is not supported.");
 
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: List type for '",
-                                name,
-                                "' attribute is not supported.");
+        // If we got to this point it must mean we have empty list attribute
+        return EmptyList();
     }
 
-    case ::tensorflow::AttrValue::ValueCase::kTensor:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Tensor type for '",
-                                name,
-                                "' attribute is not supported.");
+    case ::tensorflow::AttrValue::ValueCase::kTensor: {
+        return unpack_tensor_proto(attrs[0].tensor());
+    }
     case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
         FRONT_END_GENERAL_CHECK(false,
                                 "Conversion from Tensorflow to OpenVINO data type failed: Placeholder type for '",
                                 name,
                                 "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
-                                name,
-                                "' attribute is not supported.");
+        // attrs[0].func() returns NameAttrList object from which
+        // we retrieve the function name
+        // Further, InputModel object is created for FunctionDef with this name
+        // and is converted to ov::Model object.
+        return attrs[0].func().name();
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }
@@ -140,15 +203,32 @@ size_t DecoderProto::get_input_size() const {
     return m_node_def->input_size();
 }
 
-void DecoderProto::get_input_node(size_t input_port_idx,
-                                  std::string& producer_name,
-                                  size_t& producer_output_port_index) const {
-    // TODO: handle body graph nodes with a couple of columns
-    std::string producer_port_name = m_node_def->input(input_port_idx);
-    auto delim_pos = producer_port_name.find(':');
-    if (delim_pos != std::string::npos) {
-        producer_name = producer_port_name.substr(0, delim_pos);
-        auto port_id = producer_port_name.substr(delim_pos + 1);
+void parse_producer_name(const std::string& producer_port_name,
+                         std::string& producer_name,
+                         std::string& producer_output_port_name,
+                         size_t& producer_output_port_index) {
+    // Body graph nodes may have two colons `:` input names, for example,
+    // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
+    // the middle name is output port name of the producer `indices` that means
+    // the second output port of TopKV2 is used.
+    // The first output port of TopKV2 is described as `TopKV2Name:values:0`
+    auto first_colon = producer_port_name.find_first_of(":");
+    auto last_colon = producer_port_name.find_last_of(":");
+    if (first_colon != std::string::npos && first_colon < last_colon) {
+        // we have at least two colons producer_name:output_port_name:port_idx
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
+        auto port_name = producer_port_name.substr(first_colon + 1, last_colon - first_colon - 1);
+        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
+                                "Port id is not specified or not a number. Value: ",
+                                port_id);
+        producer_output_port_index = std::stoi(port_id);
+        producer_output_port_name = port_name;
+        return;
+    } else if (first_colon != std::string::npos) {
+        // just one colon case
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
         FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);
@@ -157,6 +237,14 @@ void DecoderProto::get_input_node(size_t input_port_idx,
     }
     producer_name = producer_port_name;
     producer_output_port_index = 0;
+}
+
+void DecoderProto::get_input_node(size_t input_port_idx,
+                                  std::string& producer_name,
+                                  std::string& producer_output_port_name,
+                                  size_t& producer_output_port_index) const {
+    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index);
 }
 
 const std::string& DecoderProto::get_op_type() const {

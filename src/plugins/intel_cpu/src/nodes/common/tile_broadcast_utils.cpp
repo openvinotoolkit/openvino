@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "tile_broadcast_utils.h"
 
+#include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
@@ -30,14 +31,14 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBl
     optimizedSrcStrides.clear();
     VectorDims srcBlockedStrides = calculateDenseStrides(srcBlockedDims);
 
-    for (int i = 0; i < srcBlockedDims.size(); i++) {
+    for (size_t i = 0; i < srcBlockedDims.size(); i++) {
         optimizedDims.push_back(blockedRepeats[i]);
         optimizedDims.push_back(srcBlockedDims[i]);
         optimizedSrcStrides.push_back(0);
         optimizedSrcStrides.push_back(srcBlockedStrides[i]);
     }
 
-    int i = 1;
+    size_t i = 1;
     while (i < optimizedDims.size() - 1) {
         if (optimizedDims[i] == 1) {
             optimizedDims[i + 1] *= optimizedDims[i - 1];
@@ -92,7 +93,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
 std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
-    auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
@@ -100,27 +101,32 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
 
     NodeConfig config;
     if (repeats.size() != outDataShapeRank && !repeats.empty())
-        IE_THROW() << node->getTypeStr() << " node with name " << node->getName() << " has incorrect Repeats vector."
-                "Repeats rank must be equal to output shape rank. Repeats rank: " << repeats.size() << ", output shape rank: " << outDataShapeRank;
+        OPENVINO_THROW(node->getTypeStr(),
+                       " node with name ",
+                       node->getName(),
+                       " has incorrect Repeats vector."
+                       "Repeats rank must be equal to output shape rank. Repeats rank: ",
+                       repeats.size(),
+                       ", output shape rank: ",
+                       outDataShapeRank);
 
-    config.dynBatchSupport = false;
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
     config.inConfs[0].constant(constMap[0]);
     config.inConfs[1].inPlace(-1);
     config.inConfs[1].constant(constMap[1]);
-    config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(1)));
+    config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(1)));
     if (config.inConfs.size() == 3) {
         config.inConfs[2].inPlace(-1);
         config.inConfs[2].constant(constMap[2]);
-        config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::I32, node->getInputShapeAtPort(2)));
+        config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(2)));
     }
 
     config.outConfs.resize(node->getChildEdges().size());
 
-    auto pushDesc = [&](mkldnn::memory::format_tag inFormat, mkldnn::memory::format_tag outFormat) {
+    auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
             config.outConfs[i].constant(false);
             config.outConfs[i].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
@@ -131,32 +137,32 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
     if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank && (outDataShapeRank == 4 || outDataShapeRank == 5)) {
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 16)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nChw16c, mkldnn::memory::format_tag::nChw16c);
+                pushDesc(dnnl::memory::format_tag::nChw16c, dnnl::memory::format_tag::nChw16c);
             } else {
-                pushDesc(mkldnn::memory::format_tag::nCdhw16c, mkldnn::memory::format_tag::nCdhw16c);
+                pushDesc(dnnl::memory::format_tag::nCdhw16c, dnnl::memory::format_tag::nCdhw16c);
             }
         }
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 8)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nChw8c, mkldnn::memory::format_tag::nChw8c);
+                pushDesc(dnnl::memory::format_tag::nChw8c, dnnl::memory::format_tag::nChw8c);
             } else {
-                pushDesc(mkldnn::memory::format_tag::nCdhw8c, mkldnn::memory::format_tag::nCdhw8c);
+                pushDesc(dnnl::memory::format_tag::nCdhw8c, dnnl::memory::format_tag::nCdhw8c);
             }
         }
         if (canBeExecutedInNSPCLayout(srcDims, repeats)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nhwc, mkldnn::memory::format_tag::nhwc);
+                pushDesc(dnnl::memory::format_tag::nhwc, dnnl::memory::format_tag::nhwc);
             } else {
-                pushDesc(mkldnn::memory::format_tag::ndhwc, mkldnn::memory::format_tag::ndhwc);
+                pushDesc(dnnl::memory::format_tag::ndhwc, dnnl::memory::format_tag::ndhwc);
             }
         }
     }
 
     auto inFmt = DnnlExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
     auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
-    if (inFmt == mkldnn::memory::format_tag::undef || outFmt == mkldnn::memory::format_tag::undef) {
+    if (inFmt == dnnl::memory::format_tag::undef || outFmt == dnnl::memory::format_tag::undef) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
             config.outConfs[i].constant(false);
             config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
@@ -180,7 +186,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node *node, VectorDims& s
         blockedRepeats.push_back(1);
     }
     // for NSPC layouts
-    if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) && one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4, 5)) {
+    if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) && one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4u, 5u)) {
         blockedRepeats.push_back(blockedRepeats[1]);
         blockedRepeats.erase(blockedRepeats.begin() + 1);
     }
@@ -200,7 +206,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node *node, VectorDims& s
     VectorDims optimizedDstStrides = calculateDenseStrides(optimizedDims);
 
     size_t dataSize = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
-    for (int i = 0; i < optimizedDims.size(); i++) {
+    for (size_t i = 0; i < optimizedDims.size(); i++) {
         optimizedSrcStrides[i] *= dataSize;
         optimizedDstStrides[i] *= dataSize;
     }
@@ -247,14 +253,20 @@ void TileBroadcastCommon::broadcastScalar(const char *srcData, char *dstData, si
 }
 
 void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
-    auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
-    auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
+    auto srcData = reinterpret_cast<const char *>(srcMemory->getData());
+    auto dstData = reinterpret_cast<char *>(dstMemory->getData());
 
-    if (optimizedParams.srcStrides[5] == 0) {
+    if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
+        const auto prc = dstMemory->getDesc().getPrecision();
+        // TODO: 109204
+        // cpu_convert have to be used here because its implementation faster than cpu_memcpy
+        // in the case when copySize exceeds L2 cache size
+        cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
+    } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];
-            auto srcData_i32 = reinterpret_cast<const int *>(srcMemory->GetPtr());
+            auto srcData_i32 = reinterpret_cast<const int *>(srcMemory->getData());
             if (data_size == 1) {
                 memset(dstData, srcData[0], elt_cnt);
             } else if (data_size == 4 && srcData_i32[0] == 0) {
@@ -271,7 +283,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
                 auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
                         i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
                         i4 * optimizedParams.dstStrides[4]);
-                for (int i = 0; i < optimizedParams.dims[5]; i++) {
+                for (size_t i = 0; i < optimizedParams.dims[5]; i++) {
                     cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5], srcData2, optimizedParams.dstStrides[5]);
                 }
             });

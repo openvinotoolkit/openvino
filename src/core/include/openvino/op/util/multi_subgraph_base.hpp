@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace util {
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
     OPENVINO_OP("MultiSubGraphOp", "util");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class InputDescription {
@@ -74,7 +73,6 @@ public:
     class OPENVINO_API SliceInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("SliceInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -109,7 +107,6 @@ public:
     class OPENVINO_API MergedInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("MergedInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -131,7 +128,6 @@ public:
     class OPENVINO_API ConcatOutputDescription : public OutputDescription {
     public:
         OPENVINO_RTTI("ConcatOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -164,7 +160,6 @@ public:
     class OPENVINO_API InvariantInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("InvariantInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -180,7 +175,6 @@ public:
     class OPENVINO_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription {
     public:
         OPENVINO_RTTI("BodyOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -201,9 +195,16 @@ public:
     ///
     /// \param     index sub-graph's index in op
     /// \return pointer to Model with sub-graph
-    virtual const std::shared_ptr<Model>& get_function(int index) const {
+    virtual const std::shared_ptr<Model>& get_function(size_t index) const {
         return m_bodies[index];
     };
+
+    /// \brief  Gets internal sub-graphs
+    /// \return a vector of pointers to sub-graph Models
+    virtual const std::vector<std::shared_ptr<Model>>& get_functions() const {
+        return m_bodies;
+    };
+
     /// \brief     Adds sub-graph to MultiSubGraphOp
     ///
     /// \param index   index of new sub-graph
@@ -211,7 +212,7 @@ public:
     virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -219,7 +220,7 @@ public:
     const MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) const {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -227,7 +228,7 @@ public:
     MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -235,7 +236,7 @@ public:
     const MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) const {
         return m_output_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -243,7 +244,7 @@ public:
     MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) {
         return m_output_descriptions[index];
     }
-    /// \brief     Sets vector with connections beewtwen operation inputs
+    /// \brief     Sets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -252,7 +253,7 @@ public:
         m_input_descriptions[index] = inputs;
     }
 
-    /// \brief     Sets vector with connections beewtwen operation outputs
+    /// \brief     Sets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -295,6 +296,10 @@ public:
         return m_output_descriptions.size();
     }
 
+    bool get_transformations_allowed() const {
+        return m_transformations_allowed;
+    }
+
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
 
@@ -310,9 +315,15 @@ protected:
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
     explicit MultiSubGraphOp(const OutputVector& args);
 
+    using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
+    void validate_and_infer_type_body(const std::shared_ptr<ov::Model>& body,
+                                      const MultiSubgraphInputDescriptionVector& input_descriptors);
+    OutputMap get_mapping_outputs_on_body_description(const MultiSubgraphOutputDescriptionVector& output_descriptors);
+
     std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
+    bool m_transformations_allowed = true;
 };
 }  // namespace util
 }  // namespace op
@@ -325,7 +336,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>")
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -336,7 +346,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

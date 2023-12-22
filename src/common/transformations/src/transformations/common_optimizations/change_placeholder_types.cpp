@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,19 +8,21 @@
 #include <memory>
 #include <numeric>
 
-#include "ngraph/node.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "itt.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
-    if (dynamic_cast<const opset8::ShapeOf*>(node)) {
+    if (dynamic_cast<const ov::op::v3::ShapeOf*>(node)) {
         return true;
     }
-    auto convert = dynamic_cast<const opset8::Convert*>(node);
+    auto convert = dynamic_cast<const ov::op::v0::Convert*>(node);
     if (convert && convert->get_destination_type() == element::f32) {
         return true;
     }
@@ -30,6 +32,7 @@ bool is_node_casts_to_float_or_shapeof(const Node* node) {
 }  // namespace
 
 bool ov::pass::ChangePlaceholderTypes::run_on_model(const shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(ChangePlaceholderTypes);
     for (auto& param : f->get_parameters()) {
         // do not set legacy type if an user defines own type
         auto& param_name = param->get_friendly_name();

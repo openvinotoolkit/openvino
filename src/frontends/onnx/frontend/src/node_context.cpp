@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <openvino/frontend/onnx/node_context.hpp>
 #include <utils/common.hpp>
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 ov::frontend::onnx::NodeContext::NodeContext(const ngraph::onnx_import::Node& context)
     : ov::frontend::NodeContext(context.op_type()),
       m_context(context),
@@ -18,7 +19,7 @@ ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) co
 ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string& name) const {
     try {
         return m_context.get_attribute_value<ov::Any>(name);
-    } catch (ngraph::onnx_import::error::node::UnknownAttribute& e) {
+    } catch (ngraph::onnx_import::error::node::UnknownAttribute&) {
         return ov::Any();
     }
 }
@@ -42,3 +43,4 @@ ov::Any ov::frontend::onnx::NodeContext::apply_additional_conversion_rules(const
     // no conversion rules found
     return data;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

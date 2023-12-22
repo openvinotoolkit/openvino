@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLaye
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "Repeats=" << CommonTestUtils::vec2str(tileParams) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "Repeats=" << ov::test::utils::vec2str(tileParams) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -33,11 +33,12 @@ void TileLayerTest::SetUp() {
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto tile = ngraph::builder::makeTile(paramOuts[0], tileParams);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(tile)};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+
+    auto repeatsNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tileParams.size()}, tileParams);
+    auto tile = std::make_shared<ov::op::v0::Tile>(params[0], repeatsNode);
+
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(tile)};
     function = std::make_shared<ngraph::Function>(results, params, "tile");
 }
 

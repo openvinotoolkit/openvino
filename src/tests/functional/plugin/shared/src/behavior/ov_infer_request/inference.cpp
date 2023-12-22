@@ -17,12 +17,10 @@ std::string OVInferRequestInferenceTests::getTestCaseName(
 }
 
 void OVInferRequestInferenceTests::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     m_param = std::get<0>(GetParam());
-    m_device_name = std::get<1>(GetParam());
-}
-
-void OVInferRequestInferenceTests::TearDown() {
+    target_device = std::get<1>(GetParam());
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
 }
 
 std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
@@ -32,13 +30,13 @@ std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
     ParameterVector params;
     for (size_t i = 0; i < n; i++) {
         auto index_str = std::to_string(i);
-        auto data1 = std::make_shared<opset8::Parameter>(type, shape);
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
         data1->set_friendly_name("input" + index_str);
         data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
         auto constant = opset8::Constant::create(type, {1}, {1});
-        auto op1 = std::make_shared<opset8::Add>(data1, constant);
+        auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
         op1->set_friendly_name("Add" + index_str);
-        auto res1 = std::make_shared<opset8::Result>(op1);
+        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
         res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
@@ -50,7 +48,7 @@ std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
 TEST_P(OVInferRequestInferenceTests, Inference_ROI_Tensor) {
     auto shape_size = ov::shape_size(m_param.m_shape);
     auto model = OVInferRequestInferenceTests::create_n_inputs(1, element::f32, m_param.m_shape);
-    auto execNet = ie->compile_model(model, m_device_name);
+    auto execNet = ie->compile_model(model, target_device);
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();

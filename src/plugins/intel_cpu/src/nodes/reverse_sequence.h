@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,27 +13,46 @@ namespace node {
 
 class ReverseSequence : public Node {
 public:
-    ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void prepareParams() override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const size_t REVERSESEQUENCE_DATA = 0;
-    const size_t REVERSESEQUENCE_LENGTHS = 1;
+    struct ReverseSequenceExecutor {
+        ReverseSequenceExecutor(const VectorDims& dataDims,
+                                const VectorDims& seqLengthsDims,
+                                const VectorDims& dstDims,
+                                int batchAxis, int seqAxis);
+        ~ReverseSequenceExecutor() = default;
+
+        template<typename T>
+        void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr);
+
+    private:
+        const int batchAxis;
+        const int seqAxis;
+        VectorDims srcStrides;
+        size_t workAmountDst;
+    };
+
+    using ExecutorPtr = std::shared_ptr<ReverseSequenceExecutor>;
+    ExecutorPtr execPtr = nullptr;
+
+    static constexpr size_t REVERSESEQUENCE_DATA = 0;
+    static constexpr size_t REVERSESEQUENCE_LENGTHS = 1;
 
     int seq_axis;
     int batch_axis;
-    InferenceEngine::SizeVector src_dims;
-    InferenceEngine::SizeVector srcStrides;
-    size_t work_amount_dst;
 
-    InferenceEngine::Precision lengthsPrecision;
+    ov::element::Type lengthsPrecision;
     std::string errorPrefix;
 };
 

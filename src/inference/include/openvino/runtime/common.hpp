@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,16 +33,13 @@
  * @brief Defines the OpenVINO Runtime Plugin API method.
  */
 
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#if defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #else
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C
 #endif
 
-namespace InferenceEngine {}
-
 namespace ov {
-namespace ie = InferenceEngine;
 
 /**
  * @brief This type of map is used for result of Core::query_model

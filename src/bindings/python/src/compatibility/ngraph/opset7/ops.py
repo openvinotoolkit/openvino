@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -46,28 +46,23 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 
 
 @nameable_op
-def einsum(
-        inputs: List[Node],
-        equation: str
-) -> Node:
+def einsum(inputs: List[Node], equation: str) -> Node:
     """Return a node which performs Einsum operation.
 
     :param inputs: The list of input nodes
     :param equation: Einsum equation
     :return: The new node performing Einsum operation on the inputs
     """
-    attributes = {
-        "equation": equation
-    }
+    attributes = {"equation": equation}
 
     return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
 
 
 @nameable_op
 def gelu(
-        data: Node,
-        approximation_mode: str,
-        name: Optional[str] = None,
+    data: Node,
+    approximation_mode: str,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Gelu activation function.
 
@@ -78,18 +73,16 @@ def gelu(
     """
     inputs = as_nodes(data)
 
-    attributes = {
-        "approximation_mode": approximation_mode
-    }
+    attributes = {"approximation_mode": approximation_mode}
 
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
 
 
 @nameable_op
 def roll(
-        data: NodeInput,
-        shift: NodeInput,
-        axes: NodeInput,
+    data: NodeInput,
+    shift: NodeInput,
+    axes: NodeInput,
 ) -> Node:
     """Return a node which performs Roll operation.
 
@@ -105,10 +98,10 @@ def roll(
 
 @nameable_op
 def gather(
-        data: NodeInput,
-        indices: NodeInput,
-        axis: NodeInput,
-        batch_dims: Optional[int] = 0,
+    data: NodeInput,
+    indices: NodeInput,
+    axis: NodeInput,
+    batch_dims: Optional[int] = 0,
 ) -> Node:
     """Return a node which performs Gather.
 
@@ -119,16 +112,14 @@ def gather(
     :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
-    attributes = {
-        "batch_dims": batch_dims
-    }
+    attributes = {"batch_dims": batch_dims}
     return _get_node_factory_opset7().create("Gather", inputs, attributes)
 
 
 def dft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs DFT operation.
 
@@ -147,9 +138,9 @@ def dft(
 
 @nameable_op
 def idft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs IDFT operation.
 

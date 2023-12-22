@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/activation.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,9 +19,9 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     std::ostringstream result;
     const char separator = '_';
     result << activationNames[activationDecl.first] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;
-    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationDecl.second) << separator;
+    result << "IS=" << ov::test::utils::vec2str(shapes.first) << separator;
+    result << "AS=" << ov::test::utils::vec2str(shapes.second) << separator;
+    result << "ConstantsValue=" << ov::test::utils::vec2str(activationDecl.second) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -39,7 +40,7 @@ void ActivationLayerTest::SetUp() {
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     params[0]->set_friendly_name("Input");
 
     if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
@@ -48,7 +49,7 @@ void ActivationLayerTest::SetUp() {
         std::iota(constantsValue.begin(), constantsValue.end(), -10);
     }
 
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+    auto activation = ov::test::utils::make_activation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
@@ -126,6 +127,12 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 32768;
             break;
         }
+        case ngraph::helpers::ActivationTypes::SoftSign: {
+            data_start_from = -100;
+            data_range = 200;
+            resolution = 32768;
+            break;
+        }
         default: {
             data_start_from = -10;
             data_range = 20;
@@ -146,23 +153,25 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
 ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
-            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            ov::ParameterVector negativeSlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             negativeSlopeParam[0]->set_friendly_name("negativeSlope");
             return negativeSlopeParam;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
-            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            ov::ParameterVector leakySlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             leakySlopeParam[0]->set_friendly_name("leakySlope");
             return leakySlopeParam;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
-            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            ov::ParameterVector hardSigmoidParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
+                                                  std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             hardSigmoidParam[0]->set_friendly_name("alpha");
             hardSigmoidParam[1]->set_friendly_name("beta");
             return hardSigmoidParam;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
-            auto seluParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            ov::ParameterVector seluParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape)),
+                                           std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
             seluParam[0]->set_friendly_name("alpha");
             seluParam[1]->set_friendly_name("lambda");
             return seluParam;
@@ -203,14 +212,14 @@ void ActivationParamLayerTest::SetUp() {
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     auto activationParams = createActivationParams(ngPrc, shapes.second);
 
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
-    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
+    auto activation = ov::test::utils::make_activation(params, ngPrc, activationType);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
 }
 

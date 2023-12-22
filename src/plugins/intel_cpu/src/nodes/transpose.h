@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "common/permute_kernel.h"
+#include "executors/transpose_list.hpp"
 
 #include <memory>
 #include <string>
@@ -17,19 +18,19 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
-    const InferenceEngine::SizeVector& getOrder() const {
+    const VectorDims& getOrder() const {
         return order;
     }
 
@@ -37,57 +38,21 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
+    }
+
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+    std::shared_ptr<ExecutorContext> transpose_context;
 
 private:
-    struct TransposeExecutor {
-        TransposeExecutor() = default;
-        virtual void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) = 0;
-        virtual ~TransposeExecutor() = default;
-    };
-    using executorPtr = std::shared_ptr<TransposeExecutor>;
-    executorPtr execPtr = nullptr;
+    TransposeExecutorPtr execPtr = nullptr;
+    dnnl::primitive prim;
+    VectorDims order;
+    ov::element::Type prec;
 
-    struct TransposeJitExecutor : public TransposeExecutor {
-        TransposeJitExecutor(const PermuteParams& params);
-        void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) override;
-
-        std::shared_ptr<PermuteKernel> pKernel;
-    };
-
-    struct TransposeRefExecutor : public TransposeExecutor {
-        TransposeRefExecutor() = default;
-        void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) override;
-    };
-
-    template<typename T> void optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-
-    InferenceEngine::SizeVector order;
-    InferenceEngine::Precision prec;
-    bool isOptimized = false;
-
-    const std::vector<std::vector<size_t>> optimizedOrders = {
-            std::vector<size_t>{0, 3, 1, 2},
-            std::vector<size_t>{0, 4, 1, 2, 3},
-            std::vector<size_t>{0, 5, 1, 2, 3, 4},
-    };
-
-    PermuteParams params;
-
-    struct TransposeContext {
-        Transpose* nodePtr;
-        MemoryPtr srcMemPtr;
-        MemoryPtr dstMemPtr;
-        int MB;
-    };
-
-    template<typename T>
-    struct TransposeOptimizedEmitter {
-        void operator()(TransposeContext& ctx) {
-            ctx.nodePtr->optimizedExecute<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
-        }
-    };
+    TransposeParams transposeParams;
 
     bool isInputOrderConst = false;
 
@@ -95,6 +60,7 @@ private:
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
 
     bool performAsReorder = false;
+    bool isOptimized = false;
 };
 
 }   // namespace node

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -15,11 +15,10 @@ namespace v5 {
 ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
 /// zero.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Round : public Op {
+class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_OP("Round", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs a round operation.
     Round() = default;
@@ -35,13 +34,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     RoundMode get_mode() const {
         return m_mode;
+    }
+    void set_mode(const RoundMode& mode) {
+        m_mode = mode;
     }
 
 private:
@@ -59,7 +59,6 @@ public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

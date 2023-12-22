@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,14 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
-#include "fully_connected_inst.h"
 #include "detection_output_inst.h"
-#include "binary_convolution_inst.h"
-#include "lstm_gemm_inst.h"
-#include "generic_layer.hpp"
-#include "non_max_suppression_inst.h"
-#include "region_yolo_inst.h"
-
-#include "kernel_selector_common.h"
-#include "kernel_selector_helper.h"
+#include "quantize_inst.h"
 
 #include <vector>
 #include <memory>
@@ -50,13 +43,10 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout,
-                                                          bool needs_split_reorder = false);
+                                                          const layout& out_layout);
 
-    std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
-        primitive_id input_id,
-        const layout& old_layout,
-        const kernel_selector::weights_reorder_params& reorder_params);
+    std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
+                                                                    std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
     struct cache_key {
@@ -81,13 +71,11 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
 };
 
 class layout_optimizer {
 public:
     enum class optimization_attributes_type {
-        splitted_convolution,
         group_convolution,
         deformable_convolution,
         bfyx_only_layer,
@@ -100,7 +88,6 @@ public:
     };
 
     struct optimization_attributes {
-        int32_t splitted_convolution = 0;
         int32_t group_convolution = 0;
         int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
@@ -122,21 +109,18 @@ private:
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
 
-    layout get_expected_layout(layout const& current_layout,
-                               convolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               deconvolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               detection_output_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               binary_convolution_node const& node,
-                               layout const& output_or_weights_layout);
+    format get_expected_format(convolution_node const& node);
+    format get_expected_format(deconvolution_node const& node);
+    format get_expected_format(quantize_node const& node);
 
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
+
+    // custom_list
+    // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
+    // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
+    bool is_mixed_layout(program_node& prev, program_node& next,
+                         bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
 
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
@@ -183,19 +167,28 @@ public:
     bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
-    bool are_data_types_suitable_for_onednn(program_node& node);
+    impl_types get_forced_impl_type_by_config(program_node& node);
+    static bool is_node_suitable_for_onednn(program_node& node);
+    static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
+    static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_preferred_impl_type_of_users(program_node& node);
+    bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
-    bool can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, reorder_node& target_node, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
-    void set_implementation_forcing(const implementation_forcing_map& map);
+    void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
+    const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
@@ -205,14 +198,8 @@ public:
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 
-    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16 or fsv32.
-    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
-    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
-    /// have different result from this function.
-    bool needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node);
-
-    /// @brief Validates all user node of the target 'node'.
-    /// All user nodes are convolutions which satisfy options for onednn first conv using 'needs_onednn_small_ic_to_blocked'.
-    bool needs_all_usr_onednn_small_ic_to_blocked(const program_node& node);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
+#endif
 };
 }  // namespace cldnn

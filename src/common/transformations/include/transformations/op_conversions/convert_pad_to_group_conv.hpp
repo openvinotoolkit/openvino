@@ -1,21 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,9 +25,10 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
  * 1. PadMode must be Constant and value is equal to 0
  * 2. Padding must be applied only for spatial dimensions
  * 3. Input shape rank must be static and greater than 3
+ * 4. Padding values must be non-negative
  */
 
-class ngraph::pass::ConvertPadToGroupConvolution : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertPadToGroupConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPadToGroupConvolution", "0");
     ConvertPadToGroupConvolution();

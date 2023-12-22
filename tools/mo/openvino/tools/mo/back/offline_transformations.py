@@ -1,19 +1,73 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 from typing import List
 
-from openvino.tools.mo.front.extractor import create_params_with_custom_types
 from openvino.tools.mo.utils.cli_parser import parse_transform
 from openvino.tools.mo.utils.error import Error
+from openvino.runtime import Model
 
+
+def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int = 0):
+    """
+    Forms a name of new placeholder created by cutting a graph
+    :param node_id: a node name that is cut
+    :param is_out_port: it is True iff output port is cut
+    :param port: a port number
+    :return: a name of new placeholder created by cutting a graph
+    """
+    port_type = '_out' if is_out_port else ''
+    return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
+
+
+def create_params_with_custom_types(packed_user_shapes: [None, dict]):
+    """
+    Compute a list of placeholder names for which an user specifies custom type
+    :param packed_user_shapes: packed data that contains input node names,
+    their port numbers, shapes and data types
+    :return: a list of placeholder names for which an user specifies custom type
+    Example of packed_user_shapes dictionary:
+    packed_user_shapes =
+    {
+        'node_ID':
+            [
+                {'shape': None, 'in': 0},
+                {'shape': None, 'in': 1},
+            ],
+        'node_1_ID':
+            [
+                {'shape': [1, 227, 227, 3], 'port': None, 'data_type': np.int32}
+            ],
+        'node_2_ID':
+            [
+                {'shape': None, 'out': 3}
+            ]
+    }
+    For which the function returns a list ['node_1_ID'] because this node only has custom data type
+    """
+    if packed_user_shapes is None:
+        return []
+
+    params_with_custom_types = []
+    for input_name in packed_user_shapes:
+        for desc in packed_user_shapes[input_name]:
+            p_name = input_name
+            if 'port' in desc and desc['port'] is None:  # neither input nor output port specified
+                user_defined_type = desc.get('data_type', None)
+            else:  # need to check the particular port the Parameter was created for
+                p_name = get_new_placeholder_name(input_name, 'out' in desc,
+                                                  desc['out'] if 'out' in desc else desc['in'])
+                user_defined_type = desc.get('data_type', None)
+            if user_defined_type is not None:
+                params_with_custom_types.append(p_name)
+    return params_with_custom_types
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': apply_make_stateful_transformation,
             'LowLatency2': apply_low_latency_transformation,
@@ -35,75 +89,41 @@ def apply_user_transformations(func: object, transforms: list):
 
 
 def apply_moc_transformations(func: object):
-    from openvino.offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
-    apply_moc_transformations(func, False)
+    from openvino._offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_transformations(func, cf=False, smart_reshape=True)
 
 
 def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
-    from openvino.offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_legacy_transformations(func, params_with_custom_types)
 
 
 def compress_model(func: object):
-    from openvino.offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
     compress_model_transformation(func)
 
+def apply_fused_names_cleanup(func: object):
+    from openvino._offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
+    apply_fused_names_cleanup(func)
 
-def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
-    # This variable is only needed by GenerateMappingFile transformation
-    # to produce correct mapping
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
-    from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
+def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
-    fem = FrontEndManager()
-
-    # We have to separate fe object lifetime from fem to
-    # avoid segfault during object destruction. So fe must
-    # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
-
-    func = read_model(input_model + "_tmp.xml")
-
-    # TODO: use ngraph preprocessing (Mean/Scale/ReverseInputChannels) for legacy frontends
-    reverse_input_channels = False
-    if 'reverse_input_channels' in argv:
-        reverse_input_channels = argv.reverse_input_channels
-        argv.reverse_input_channels = False
-    mean_scale_values = {}
-    if 'mean_scale_values' in argv:
-        mean_scale_values = argv.mean_scale_values
-        argv.mean_scale_values = {}
-    scale = None
-    if 'scale' in argv:
-        scale = argv.scale
-        argv.scale = None
-
-    # Apply preprocessing for layouts only
+    # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
 
-    if 'reverse_input_channels' in argv:
-        argv.reverse_input_channels = reverse_input_channels
-    if 'mean_scale_values' in argv:
-        argv.mean_scale_values = mean_scale_values
-    if 'scale' in argv:
-        argv.scale = scale
-
-    apply_moc_transformations(func)
+    from openvino._offline_transformations import apply_moc_transformations as moc_transformations  # pylint: disable=import-error,no-name-in-module
+    moc_transformations(func, cf=argv.static_shape, smart_reshape=True)
 
     params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)
     apply_user_transformations(func, parse_transform(argv.transform))
 
-    if "compress_fp16" in argv and argv.compress_fp16:
+    if "compress_to_fp16" in argv and argv.compress_to_fp16:
         compress_model(func)
 
-    serialize(func, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
-    path_to_mapping = input_model + ".mapping"
-    generate_mapping_file(func, path_to_mapping.encode('utf-8'), extract_names)
+    apply_fused_names_cleanup(func)
+
+    return func
+

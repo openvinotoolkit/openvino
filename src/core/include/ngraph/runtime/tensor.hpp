@@ -1,8 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <memory>
 #include <vector>
@@ -14,7 +24,8 @@
 
 namespace ngraph {
 namespace runtime {
-class NGRAPH_API Tensor {
+NGRAPH_SUPPRESS_DEPRECATED_START
+class NGRAPH_API NGRAPH_API_DEPRECATED Tensor {
 protected:
     Tensor(const std::shared_ptr<ngraph::descriptor::Tensor>& descriptor) : m_descriptor(descriptor), m_stale(true) {}
 
@@ -42,11 +53,6 @@ public:
     /// \return number of bytes in tensor's allocation
     virtual size_t get_size_in_bytes() const;
 
-    /// \brief Get tensor's unique name
-    /// \return tensor's name
-    NGRAPH_DEPRECATED("Only output ports have names")
-    const std::string& get_name() const;
-
     /// \brief Write bytes directly into the tensor
     /// \param p Pointer to source of data
     /// \param n Number of bytes to write, must be integral number of elements.
@@ -61,5 +67,6 @@ protected:
     std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
     bool m_stale;
 };
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace runtime
 }  // namespace ngraph

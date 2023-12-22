@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,20 +17,18 @@ namespace node {
 
 class If : public Node {
 public:
-    If(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
 
-    void inline setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
-
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override { return false; };
     bool needShapeInfer() const override { return false; }
 
@@ -47,15 +45,16 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const mkldnn::engine& eng);
+        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
         ~PortMapHelper() = default;
-        void execute(mkldnn::stream& strm);
+        void execute(dnnl::stream& strm);
 
     private:
         void redefineTo();
 
         MemoryPtr srcMemPtr;
         std::deque<MemoryPtr> dstMemPtrs;
+        std::deque<MemoryDescPtr> originalDstMemDescs;
 
         ptrdiff_t size;
     };

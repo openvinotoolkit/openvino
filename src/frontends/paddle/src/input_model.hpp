@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,13 +32,14 @@ public:
     ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
     void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
     void set_tensor_value(const Place::Ptr& place, const void* value) override;
+    int64_t get_version() const;
 
 private:
     friend class ov::frontend::paddle::FrontEnd;
     class InputModelImpl;
     std::shared_ptr<InputModelImpl> _impl;
 
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t block_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 };

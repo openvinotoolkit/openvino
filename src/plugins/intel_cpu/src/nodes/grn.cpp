@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "grn.h"
 
 using namespace InferenceEngine;
@@ -14,13 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+        const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
@@ -31,21 +27,25 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
-    const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+    const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
     if (grn == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of GRN from opset1.";
+        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of GRN from opset1.");
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+    if (inputShapes.size() != 1 || outputShapes.size() != 1)
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+
+    const auto dataRank = getInputShapeAtPort(0).getRank();
+
+    if (dataRank != getOutputShapeAtPort(0).getRank())
+        OPENVINO_THROW(errorPrefix, " has input/output rank mismatch");
 
     bias = grn->get_bias();
 }
@@ -54,21 +54,47 @@ void GRN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32, false, 0}},
-                         {{LayoutType::ncsp, Precision::FP32, false, 0}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32, false, 0}},
+                         {{LayoutType::ncsp, ov::element::f32, false, 0}},
                          impl_desc_type::ref_any);
 }
 
-void GRN::execute(mkldnn::stream strm) {
-    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+void GRN::prepareParams() {
+    const auto& dataMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    const auto &dims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    if (!dataMemPtr || !dataMemPtr->isAllocated())
+        OPENVINO_THROW(errorPrefix, " has not allocated input memory");
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        OPENVINO_THROW(errorPrefix, " has not allocated output memory");
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
 
-    int N = static_cast<int>((dims.size() > 0) ? dims[0] : 1);
-    int C = static_cast<int>((dims.size() > 1) ? dims[1] : 1);
-    int H = static_cast<int>((dims.size() > 2) ? dims[2] : 1);
-    int W = static_cast<int>((dims.size() > 3) ? dims[3] : 1);
+    const VectorDims& dataDims = dataMemPtr->getStaticDims();
+    const VectorDims& dstDims = dstMemPtr->getStaticDims();
+
+    for (size_t i = 0; i < dataDims.size(); ++i) {
+        if (dataDims[i] != dstDims[i])
+            OPENVINO_THROW(errorPrefix, " hsd input/output tensors dimensions mismatch");
+    }
+
+    if (dataDims.size() > 0)
+        N = static_cast<int>(dataDims[0]);
+    if (dataDims.size() > 1)
+        C = static_cast<int>(dataDims[1]);
+    if (dataDims.size() > 2)
+        H = static_cast<int>(dataDims[2]);
+    if (dataDims.size() > 3)
+        W = static_cast<int>(dataDims[3]);
+}
+
+void GRN::executeDynamicImpl(dnnl::stream strm) {
+    execute(std::move(strm));
+}
+
+void GRN::execute(dnnl::stream strm) {
+    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

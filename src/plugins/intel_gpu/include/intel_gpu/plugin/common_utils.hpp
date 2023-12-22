@@ -1,22 +1,35 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_layouts.h>
+#include <ostream>
+#include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
-
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
+
+enum class TensorType {
+    BT_EMPTY,
+    BT_BUF_INTERNAL,
+    BT_BUF_SHARED,
+    BT_USM_SHARED,
+    BT_USM_HOST_INTERNAL,
+    BT_USM_DEVICE_INTERNAL,
+    BT_IMG_SHARED,
+    BT_SURF_SHARED,
+    BT_DX_BUF_SHARED,
+};
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
-inline cldnn::tensor tensor_from_dims(const InferenceEngine::SizeVector& dims, int def = 1) {
+inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
     switch (dims.size()) {
     case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
     case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
@@ -25,190 +38,80 @@ inline cldnn::tensor tensor_from_dims(const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for gpu tensor";
+    default: OPENVINO_THROW("Invalid dimensions size(", dims.size(), ") for gpu tensor");
     }
 }
 
-inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
-    switch (p) {
-    case InferenceEngine::Precision::I16:
-    case InferenceEngine::Precision::U16:
-    case InferenceEngine::Precision::FP32:
-    case InferenceEngine::Precision::FP64:
-        return cldnn::data_types::f32;
-    case InferenceEngine::Precision::FP16:
-        return cldnn::data_types::f16;
-    case InferenceEngine::Precision::U8:
-        return cldnn::data_types::u8;
-    case InferenceEngine::Precision::I8:
-        return cldnn::data_types::i8;
-    case InferenceEngine::Precision::I32:
-    case InferenceEngine::Precision::U32:
-    case InferenceEngine::Precision::U64:
-        return cldnn::data_types::i32;
-    case InferenceEngine::Precision::I64:
-        return cldnn::data_types::i64;
-    case InferenceEngine::Precision::BIN:
-        return cldnn::data_types::bin;
-    case InferenceEngine::Precision::BOOL:
-        return cldnn::data_types::i8;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << p.name() << " precision";
+template<typename T, typename V>
+std::tuple<V, V, V> get_xyz(const T data, V def) {
+    switch (data.size()) {
+        case 1:  return std::make_tuple(def,                     static_cast<V>(data[0]), def);
+        case 2:  return std::make_tuple(static_cast<V>(data[1]), static_cast<V>(data[0]), def);
+        case 3:  return std::make_tuple(static_cast<V>(data[2]), static_cast<V>(data[1]), static_cast<V>(data[0]));
+        default: return std::make_tuple(def,                     def,                     def);
     }
 }
 
-inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
-    switch (t) {
-    case ngraph::element::Type_t::i16:
-    case ngraph::element::Type_t::u16:
-    case ngraph::element::Type_t::f32:
-    case ngraph::element::Type_t::f64:
-        return cldnn::data_types::f32;
-    case ngraph::element::Type_t::f16:
-        return cldnn::data_types::f16;
-    case ngraph::element::Type_t::u8:
-        return cldnn::data_types::u8;
-    case ngraph::element::Type_t::i8:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::i32:
-    case ngraph::element::Type_t::u32:
-    case ngraph::element::Type_t::u64:
-        return cldnn::data_types::i32;
-    case ngraph::element::Type_t::i64:
-        return cldnn::data_types::i64;
-    case ngraph::element::Type_t::boolean:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::u1:
-        return cldnn::data_types::bin;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << t.get_type_name()<< " precision";
+inline cldnn::layout make_layout(const ov::element::Type type, const ov::Shape& shape) {
+    return cldnn::layout{ov::PartialShape{shape},
+                         cldnn::element_type_to_data_type(type),
+                         cldnn::format::get_default_format(shape.size())};
+}
+
+inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) {
+    switch (et) {
+        case ov::element::f64:
+        case ov::element::i16:
+        case ov::element::u16:
+            return ov::element::f32;
+        case ov::element::u64:
+        case ov::element::u32:
+            return ov::element::i32;
+        default: return et;
     }
 }
 
-inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
-    switch (l) {
-        // TODO: change 6d case once new layout added in IE
-    case InferenceEngine::Layout::BLOCKED:
-        return cldnn::format::bfwzyx;
-    case InferenceEngine::Layout::NCDHW:
-        return cldnn::format::bfzyx;
-    case InferenceEngine::Layout::NCHW:
-    case InferenceEngine::Layout::NC:
-    case InferenceEngine::Layout::CHW:
-    case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
-    case InferenceEngine::Layout::SCALAR:
-    case InferenceEngine::Layout::NHWC:
-        return cldnn::format::byxf;
-    default:
-        IE_THROW(ParameterMismatch) << "The plugin does not support " << l << " layout";
+inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
+    ov::Shape res(pshape.size());
+    for (size_t i = 0; i < pshape.size(); i++) {
+        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
     }
+
+    return res;
 }
 
-inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
-    switch (desc.getLayout()) {
-    case InferenceEngine::Layout::BLOCKED: {
-        if (desc.getDims().size() == 6)
-            return cldnn::format::bfwzyx;
-        else if (desc.getDims().size() == 5)
-            return cldnn::format::bfzyx;
-        else if (desc.getDims().size() <= 4)
-            return cldnn::format::bfyx;
+inline ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
+    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
+    const auto& preallocation_shape = prealloc_info.second;
+    auto can_preallocate_buffer = prealloc_info.first &&
+                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
+    if (can_preallocate_buffer) {
+        return preallocation_shape;
     }
-    case InferenceEngine::Layout::NCDHW:
-        return cldnn::format::bfzyx;
-    case InferenceEngine::Layout::NCHW:
-    case InferenceEngine::Layout::NC:
-    case InferenceEngine::Layout::CHW:
-    case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
-    case InferenceEngine::Layout::SCALAR:
-    case InferenceEngine::Layout::NHWC:
-        return cldnn::format::byxf;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << desc.getLayout() << " layout";
-    }
+
+    return current_shape;
 }
 
-inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
-    switch (l) {
-    // currently, nv12 is the only supported image layout
-    case InferenceEngine::Layout::BLOCKED:
-    case InferenceEngine::Layout::NCDHW:
-    case InferenceEngine::Layout::NCHW:
-    case InferenceEngine::Layout::NC:
-    case InferenceEngine::Layout::CHW:
-    case InferenceEngine::Layout::C:
-    case InferenceEngine::Layout::NHWC:
-        return cldnn::format::nv12;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << l << " image layout";
-    }
+/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+inline void ForceExit() {
+    std::cerr << "[GPU] force exit.\n"
+              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
+              << "so GPU plugin can't finish correctly.\n"
+              << "\tPlease try to update the driver or reduce memory consumption "
+              << "(use smaller batch size, less streams, lower precision, etc)"
+              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
+    std::_Exit(-1);
 }
 
-inline cldnn::format DefaultFormatForDims(size_t dimensions) {
-    switch (dimensions) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-        return cldnn::format::bfyx;
-    case 5:
-        return cldnn::format::bfzyx;
-    case 6:
-        return cldnn::format::bfwzyx;
-    default:
-        IE_THROW() << "Unsupported number of dimensions: " << dimensions;
-    }
-
-    return cldnn::format::bfyx;  // Should not get here
-}
-
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
-inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
-    std::vector<uint16_t> ie_order_aligned = ie_order;
-    // if order size is less than 4 - fill the rest with just copy
-    rank = std::max(rank, (size_t)4);
-    for (auto o = ie_order_aligned.size(); o < rank; o++)
-        ie_order_aligned.push_back((uint16_t)o);
-
-    std::vector<uint16_t> cldnn_order;
-    // 1. Switch permute order values for spatial dims
-    for (auto const& o : ie_order_aligned) {
-        if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
-        else
-            cldnn_order.push_back(o);
-    }
-
-    // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
-        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
-    }
-
-    return cldnn_order;
-}
-
-inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
-    if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
-    if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;
-    if (l == ov::Layout("HW")) return InferenceEngine::Layout::HW;
-    if (l == ov::Layout("NC")) return InferenceEngine::Layout::NC;
-    if (l == ov::Layout("CHW")) return InferenceEngine::Layout::CHW;
-    if (l == ov::Layout("HWC")) return InferenceEngine::Layout::HWC;
-    if (l == ov::Layout("NCHW")) return InferenceEngine::Layout::NCHW;
-    if (l == ov::Layout("NC??")) return InferenceEngine::Layout::NCHW;
-    if (l == ov::Layout("NHWC")) return InferenceEngine::Layout::NHWC;
-    if (l == ov::Layout("NCDHW")) return InferenceEngine::Layout::NCDHW;
-    if (l == ov::Layout("NDHWC")) return InferenceEngine::Layout::NDHWC;
-    IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
-}
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
 
 }  // namespace intel_gpu
-}  // namespace runtime
+
+inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& params) {
+    for (const auto& p : params) {
+        os << p.first << " : " << p.second.as<std::string>() << std::endl;
+    }
+    return os;
+}
 }  // namespace ov

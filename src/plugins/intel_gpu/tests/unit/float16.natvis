@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+	<Type Name="ov::float16">
+		<DisplayString Condition = "format.exponent == 0 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 0">+0</DisplayString>
+		<DisplayString Condition = "format.exponent == 0 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 1">-0</DisplayString>
+		<DisplayString Condition = "format.exponent == 31 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 0">+infinity</DisplayString>
+		<DisplayString Condition = "format.exponent == 31 &amp;&amp; format.significand == 0 &amp;&amp; format.sign == 1">-infinity</DisplayString>
+		<DisplayString Condition = "format.exponent == 31">NaN</DisplayString>
+		<DisplayString Condition = "format.exponent == 0">{ (1.0f / (1 &lt;&lt; 14)) * (-2*format.sign+1.0f) * (format.significand/1024.0f) }</DisplayString>
+		<DisplayString Condition = "format.exponent &lt; 15">{ (1.0f / (1 &lt;&lt; (15-format.exponent))) * (-2*format.sign+1.0f) * (1.0f + format.significand/1024.0f) }</DisplayString>
+		<DisplayString Condition = "format.exponent &gt;= 15">{ (1 &lt;&lt; (format.exponent-15)) * (-2*format.sign+1.0f) * (1.0f + format.significand/1024.0f) }</DisplayString>
+	</Type>
+
+</AutoVisualizer>

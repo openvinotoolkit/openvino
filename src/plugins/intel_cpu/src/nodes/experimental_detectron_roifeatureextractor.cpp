@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset6.hpp>
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_roifeatureextractor.h"
 
@@ -279,41 +279,12 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
     rois_per_level.insert(rois_per_level.begin(), 0);
 }
 
-
-void reorder_rois(const float *rois, const int* ids, int* mapping, const int rois_num,
-                  float * reordered_rois, std::vector<int>& rois_per_level, const int levels_num) {
-    rois_per_level.clear();
-    rois_per_level.resize(levels_num, 0);
-    for (int i = 0; i < rois_num; ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
-        rois_per_level[ids[i]]++;
-    }
-    for (int i = 1; i < levels_num; ++i) {
-        rois_per_level[i] += rois_per_level[i - 1];
-    }
-    rois_per_level.insert(rois_per_level.begin(), 0);
-
-    std::vector<int> level_counter = rois_per_level;
-
-    for (int i = 0; i < rois_num; ++i) {
-        const int level = ids[i];
-        assert(level < levels_num);
-        const int j = level_counter[level];
-        assert(0 <= j && j < rois_num);
-        reordered_rois[j * 4 + 0] = rois[i * 4 + 0];
-        reordered_rois[j * 4 + 1] = rois[i * 4 + 1];
-        reordered_rois[j * 4 + 2] = rois[i * 4 + 2];
-        reordered_rois[j * 4 + 3] = rois[i * 4 + 3];
-        level_counter[level]++;
-    }
-}
-
 } // namespace
 
-bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
-        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -324,15 +295,16 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
     return true;
 }
 
-ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(
+    const std::shared_ptr<ov::Node>& op,
+    const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto &attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;
@@ -348,26 +320,26 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (size_t i = 0; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(mkldnn::stream strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
-    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
+    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
+    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->getData());
     float *output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
-        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
     }
 
     std::vector<int> level_ids(num_rois, 0);
@@ -385,7 +357,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute(mkldnn::stream strm) {
         const int level_rois_offset = rois_per_level[i];
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
-            auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
+            auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->getData());
             const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
             const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,

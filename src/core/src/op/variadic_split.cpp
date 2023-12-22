@@ -1,44 +1,77 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/variadic_split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/reference/slice.hpp"
+#include "validation_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace variadic_split {
+namespace {
 
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
+bool has_axis_and_splits_bound_set(const Node* const node) {
+    return have_node_inputs_bounds_set(node, 1, 2);
+}
 
-op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& split_lengths)
+bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
+    const auto& data_tensor = inputs[0];
+    const auto& axis_tensor = inputs[1];
+    const auto axis =
+        ov::util::normalize(get_tensor_data_as<int64_t>(axis_tensor).front(), data_tensor.get_shape().size());
+
+    ov::Coordinate upper_bounds(data_tensor.get_shape());
+    ov::Coordinate lower_bounds(upper_bounds.size());
+    upper_bounds[axis] = 0;
+
+    const Strides default_strides(upper_bounds.size(), 1);
+    constexpr auto is_zero_dim = ov::cmp::Equal<size_t>(0);
+
+    for (auto& output : outputs) {
+        const auto& out_shape = output.get_shape();
+        upper_bounds[axis] += out_shape[axis];
+
+        if (std::none_of(out_shape.cbegin(), out_shape.cend(), is_zero_dim)) {
+            reference::slice(static_cast<const char*>(data_tensor.data()),
+                             static_cast<char*>(output.data()),
+                             data_tensor.get_shape(),
+                             lower_bounds,
+                             upper_bounds,
+                             default_strides,
+                             out_shape,
+                             data_tensor.get_element_type().size());
+        }
+
+        lower_bounds[axis] = upper_bounds[axis];
+    }
+
+    return true;
+}
+}  // namespace
+}  // namespace variadic_split
+
+namespace v1 {
+VariadicSplit::VariadicSplit(const Output<Node>& data, const Output<Node>& axis, const Output<Node>& split_lengths)
     : Op({data, axis, split_lengths}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes);
-    return true;
-}
+void VariadicSplit::validate_and_infer_types() {
+    OV_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        set_input_is_relevant_to_value(i);
+    }
 
-void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
-    set_input_is_relevant_to_value(0);
-    set_input_is_relevant_to_value(1);
-    set_input_is_relevant_to_value(2);
-
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2)};
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& data_type = get_input_element_type(0);
     for (size_t i = 0; i < output_shapes.size(); ++i) {
@@ -46,72 +79,51 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
+std::shared_ptr<Node> VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
+    return std::make_shared<VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
-namespace variadic_split {
-namespace {
-inline bool evaluate(const HostTensorPtr& in,
-                     const HostTensorPtr& out,
-                     const Coordinate& lower_bounds,
-                     const Coordinate& upper_bounds) {
-    runtime::reference::slice(in->get_data_ptr<const char>(),
-                              out->get_data_ptr<char>(),
-                              in->get_shape(),
-                              lower_bounds,
-                              upper_bounds,
-                              Strides(lower_bounds.size(), 1),
-                              out->get_shape(),
-                              in->get_element_type().size());
+bool VariadicSplit::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_VariadicSplit_evaluate);
 
-    return true;
-}
-}  // namespace
-}  // namespace variadic_split
+    if (inputs[1].get_element_type().is_integral_number() && inputs[2].get_element_type().is_integral_number()) {
+        const auto output_shapes =
+            shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
+        OPENVINO_ASSERT(outputs.size() == output_shapes.size());
 
-bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inputs,
-                                                    const HostTensorVector& outputs) const {
-    const auto& data_tensor = inputs[0];
-    const auto& axis_tensor = inputs[1];
-    const auto& split_lengths_tensor = inputs[2];
-    NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(), "axis element type is not integral data type");
-    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                 "split_lengths element type is not integral data type");
+        auto out_partial_shape = output_shapes.cbegin();
+        for (auto& output : outputs) {
+            output.set_shape(out_partial_shape->to_shape());
+            ++out_partial_shape;
+        }
 
-    int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
-    axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
-
-    std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
-                                                  axis_tensor->get_partial_shape(),
-                                                  split_lengths_tensor->get_partial_shape()};
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes, {{1, axis_tensor}, {2, split_lengths_tensor}});
-
-    const auto data_shape = data_tensor->get_shape();
-    std::vector<size_t> lower_bounds(data_shape.size(), 0);
-    std::vector<size_t> upper_bounds = data_shape;
-    upper_bounds[axis] = 0;
-
-    size_t split_pos = 0;
-    for (const auto& output : outputs) {
-        ov::Shape output_shape = output_shapes[split_pos++].get_shape();
-        upper_bounds[axis] += output_shape[axis];
-        output->set_shape(output_shape);
-        variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
-        lower_bounds.at(axis) = upper_bounds.at(axis);
+        return variadic_split::evaluate(outputs, inputs);
+    } else {
+        return false;
     }
-
-    return true;
-}
-bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate);
-    return evaluate_variadic_split(inputs, outputs);
 }
 
-bool op::v1::VariadicSplit::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_has_evaluate);
+bool VariadicSplit::has_evaluate() const {
+    OV_OP_SCOPE(v1_VariadicSplit_has_evaluate);
     return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
 }
+
+bool VariadicSplit::evaluate_lower(TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_lower);
+    return variadic_split::has_axis_and_splits_bound_set(this) && default_lower_bound_evaluator(this, output_values);
+}
+
+bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_upper);
+    return variadic_split::has_axis_and_splits_bound_set(this) && default_upper_bound_evaluator(this, output_values);
+}
+
+bool VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    return variadic_split::has_axis_and_splits_bound_set(this) &&
+           ov::util::default_label_evaluator(this, output_labels);
+}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

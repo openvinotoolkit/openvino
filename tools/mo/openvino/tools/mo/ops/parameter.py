@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -7,6 +7,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.runtime import PartialShape
 
 
 class Parameter(Op):
@@ -38,21 +39,14 @@ class Parameter(Op):
 
     @staticmethod
     def shape_serialize(node):
-        def serialize_dimension(dim: [tuple, np.int64]):
-            if type(dim) == tuple:
-                assert len(dim) == 2, "Unable to serialize shape {} in node {}".format(node.soft_get('user_shape'),
-                                                                                       node.soft_get('name', node.id))
-                min_str = str(dim[0]) if dim[0] > 0 else ""
-                max_str = str(dim[1]) if dim[1] < np.iinfo(np.int64).max else ""
-                return min_str + ".." + max_str
-            return str(dim)
-
         if not node.has_valid('user_shape'):
             return ','.join([str(i) for i in unmask_shape(node.shape)])
         shape = node.soft_get('user_shape')
         if isinstance(shape, np.ma.masked_array):
             shape = unmask_shape(shape)
-        return ','.join(map(serialize_dimension, shape))
+        if isinstance(shape, PartialShape):
+            return shape.to_string()
+        raise Exception("Unknown shape type in user_shape attribute {}".format(type(shape)))
 
     def supported_attrs(self):
         return [

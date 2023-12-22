@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API IDFT : public util::FFTBase {
 public:
-    OPENVINO_OP("IDFT", "opset7", util::FFTBase, 7);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("IDFT", "opset7", util::FFTBase);
     IDFT() = default;
 
     /// \brief Constructs a IDFT operation. IDFT is performed for full size axes.
@@ -33,8 +32,6 @@ public:
     /// \param axes Axes to perform IDFT
     /// \param signal_size Signal sizes for 'axes'
     IDFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

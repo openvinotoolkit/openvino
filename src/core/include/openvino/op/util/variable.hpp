@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,14 @@ public:
         m_info = variable_info;
     }
 
+    void update_data_shape(const PartialShape& new_pshape) {
+        m_info.data_shape = new_pshape;
+    }
+
+    void update_data_type(const element::Type& new_type) {
+        m_info.data_type = new_type;
+    }
+
 private:
     VariableInfo m_info;
 };
@@ -53,6 +61,5 @@ public:
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

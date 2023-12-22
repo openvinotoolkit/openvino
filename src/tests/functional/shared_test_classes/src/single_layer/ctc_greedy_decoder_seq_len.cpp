@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder_seq_len.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
@@ -28,7 +28,7 @@ std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
 
     std::ostringstream result;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << '_';
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << '_';
     result << "seqLen=" << sequenceLengths << '_';
     result << "dataPRC=" << dataPrecision.name() << '_';
     result << "idxPRC=" << indicesPrecision.name() << '_';
@@ -55,9 +55,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
 
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngDataPrc, { inputShape });
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngDataPrc, ov::Shape(inputShape))};
 
     const auto sequenceLenNode = [&] {
         const size_t B = inputShape[0];
@@ -82,13 +80,15 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     int C = inputShape.at(2);
     blankIndex = std::min(blankIndex, C - 1);
 
-    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ngraph::op::v6::CTCGreedyDecoderSeqLen>(
-            ngraph::builder::makeCTCGreedyDecoderSeqLen(paramOuts[0], sequenceLenNode,
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(
+            ngraph::builder::makeCTCGreedyDecoderSeqLen(paramsIn[0], sequenceLenNode,
                                                         blankIndex, mergeRepeated, ngIdxPrc));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }

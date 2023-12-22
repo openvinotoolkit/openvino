@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<Gath
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "BD=" << batchDims << "_";
     result << "DP=" << dPrecision.name() << "_";
     result << "IP=" << iPrecision.name() << "_";
@@ -44,13 +44,11 @@ void GatherNDLayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto dataNode = paramOuts[0];
-    auto gather = std::dynamic_pointer_cast<ngraph::opset5::GatherND>(
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
+    auto dataNode = params[0];
+    auto gather = std::dynamic_pointer_cast<ov::op::v5::GatherND>(
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
 
@@ -70,13 +68,11 @@ void GatherND8LayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, { dataShape });
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto dataNode = paramOuts[0];
-    auto gather = std::dynamic_pointer_cast<ngraph::opset8::GatherND>(
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
+    auto dataNode = params[0];
+    auto gather = std::dynamic_pointer_cast<ov::op::v8::GatherND>(
         ngraph::builder::makeGatherND8(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
 

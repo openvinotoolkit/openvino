@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,9 @@ std::string FakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamIn
     std::tie(levels, constShape, fqDirectArgs, inputArg) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-    result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+    result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -64,8 +64,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
         inputDataResolution = inputArg[2];
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const int seed = 0;
     std::mt19937 gen(seed);
@@ -114,28 +113,28 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
     auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
+    auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
-    auto weightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(const_param,
+    auto weightsFQNode = std::make_shared<ov::op::v0::FakeQuantize>(const_param,
         lowNode, highNode, lowNode, highNode, levels[1]);
 
-    auto inputFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(inputFQNode);
-    auto weightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(weightsFQNode);
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(inputFQ, weightsFQ, false, true);
+    auto inputFQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(inputFQNode);
+    auto weightsFQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(weightsFQNode);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inputFQ, weightsFQ, false, true);
     std::shared_ptr<ngraph::Node> biases_node;
     if (biases) {
         auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
-        biases_node = std::make_shared<ngraph::opset1::Add>(matmul, const_bias);
+        biases_node = std::make_shared<ov::op::v1::Add>(matmul, const_bias);
     } else {
         biases_node = matmul;
     }
 
-    auto sigmoid = std::make_shared<ngraph::opset1::Sigmoid>(biases_node);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
+    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(biases_node);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(sigmoid)};
     if (biases) {
-        auto sigmoid_2 = std::make_shared<ngraph::opset1::Sigmoid>(inputFQ);
-        results.push_back(std::make_shared<ngraph::opset1::Result>(sigmoid_2));
+        auto sigmoid_2 = std::make_shared<ov::op::v0::Sigmoid>(inputFQ);
+        results.push_back(std::make_shared<ov::op::v0::Result>(sigmoid_2));
     }
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
     configuration = config.second;

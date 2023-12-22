@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Selu : public Op {
 public:
     OPENVINO_OP("Selu", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Selu() = default;
     /// \brief Constructs a Selu node.
@@ -25,8 +24,6 @@ public:
     Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda);
 
     void validate_and_infer_types() override;
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

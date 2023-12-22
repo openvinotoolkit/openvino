@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "intel_gpu/graph/topology.hpp"
 #include <vector>
@@ -14,8 +12,7 @@ void topology::add_primitive(std::shared_ptr<primitive> desc) {
     auto id = desc->id;
     auto itr = _primitives.find(id);
     if (itr != _primitives.end()) {
-        if (itr->second != desc)
-            throw std::runtime_error("different primitive with id '" + id + "' exists already");
+        OPENVINO_ASSERT(itr->second == desc, "[GPU] Different primitive with id '" + id + "' exists already");
 
         // adding the same primitive more than once is not an error
         return;
@@ -37,7 +34,7 @@ void topology::change_input_layout(const primitive_id& id, const layout& new_lay
         throw std::invalid_argument("Unknown format of layout.");
 
     if (new_layout.data_type != data_types::f16 && new_layout.data_type != data_types::f32 &&
-        new_layout.data_type != data_types::i8 && new_layout.data_type != data_types::bin &&
+        new_layout.data_type != data_types::i8 && new_layout.data_type != data_types::u1 &&
         new_layout.data_type != data_types::u8 && new_layout.data_type != data_types::i32 &&
         new_layout.data_type != data_types::i64)
         throw std::invalid_argument("Unknown data_type of layout.");

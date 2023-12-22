@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -24,16 +24,13 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_unsupported_by_legacy_api = xfail_test(reason="RuntimeError: This feature is not supported via legacy API.")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
-xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
-                                      "IsNaN and isInf")
 xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Unique")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations: "
@@ -47,8 +44,6 @@ xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "GatherElements")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
-                                      "to HardSigmoid_IE")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
                                       "is_static() nGraph <value> operation with name: <value> cannot be "
                                       "converted to <value> layer with name: <value> because output "
@@ -87,10 +82,32 @@ xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsquee
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
-xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")
+skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
+xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
+xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
+xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
+xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
+xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
+xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
+xfail_issue_99959 = xfail_test(reason="Mish function is not supported")
+xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
+xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
+xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
+xfail_issue_99968 = xfail_test(reason="ReduceL1/L2 - Results mismatch or unsupported ReduceSum with "
+                                      "dynamic rank by CPU plugin")
+xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
+                                      "RuntimeError: While validating ONNX node '<Node(Resize): Y>' / "
+                                      "RuntimeError: Check '(false)' failed at onnx/frontend/src/op/resize.cpp")
+xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
+                                      "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
+                                      "src/frontends/onnx/frontend/src/op/scatter_nd")
+xfail_issue_99972 = xfail_test(reason="Softmax - Results mismatch")
+xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
+                                      "'<Node(Split): output_1, output_2, output_3, output_4>'")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -104,14 +121,11 @@ xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadc
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
 xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
                                       " z should be converted to TileIE operation.")
-xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
-                                      "indices value that points to non-existing output tensor element")
 
 
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
-xfail_issue_49207 = xfail_test(reason="Model references undeclared parameters")
 xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
                                       "DESIRED: 3")
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
@@ -122,29 +136,57 @@ xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
 xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
-xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
-xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
-xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
-xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
-xfail_issue_78741 = xfail_test(reason="Cannot get dims for non static shape")
-
-xfail_issue_81974 = xfail_test(reason="RuntimeError: OpenVINO does not support the following ONNX "
-                                      "operations: GridSample, Optional, SequenceConstruct, "
-                                      "OptionalHasElement, SequenceInsert")
+xfail_issue_78741 = xfail_test(reason="Cannot get dims for non-static shapes. "
+                                      "Requires dynamism support enabled.")
 
 xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
-xfail_issue_82040 = xfail_test(reason="RoiAlign, AssertionError: result mismatch")
+xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
+                                      "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
+                                      "MelWeightMatrix, SequenceMap, STFT")
+skip_issue_91151 = pytest.mark.skip(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible") # Need to enable after bumping to 1.15
+xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
+xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
+
+skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
+
+# ONNX 1.14
+xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
+xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
+                                       "half_pixel_symmetric - this type of coordinate transformation mode "
+                                       "is not supported. Choose one of the following modes: "
+                                       "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
+                                       "half_pixel")
+xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
+xfail_issue_119906 = xfail_test(reason="LpPool operation is not supported")
+xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
+xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
+xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+
+# ONNX 1.15
+xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
+xfail_issue_125486 = xfail_test(reason="Gelu operation is not supported")
+xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
+xfail_issue_125487 = xfail_test(reason="GridSample doesn't support cubic and linear modes, and 4D tensor")
+skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
+xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
+xfail_issue_125492 = xfail_test(reason="DFT mismatch")
+xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
+xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
+xfail_issue_127812 = xfail_test(reason="Reduce* doesn't support zero dimensions")
+skip_misalignment = pytest.mark.skip(reason="Misalignment between onnx versions") # Need to enable after bumping to 1.15

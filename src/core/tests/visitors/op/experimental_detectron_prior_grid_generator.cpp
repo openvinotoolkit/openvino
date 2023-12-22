@@ -1,22 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+
+#include <gtest/gtest.h>
+
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset6.hpp"
-#include "util/visitor.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
-using ExperimentalGenerator = opset6::ExperimentalDetectronPriorGridGenerator;
-using Attrs = opset6::ExperimentalDetectronPriorGridGenerator::Attributes;
+using ExperimentalGenerator = ov::op::v6::ExperimentalDetectronPriorGridGenerator;
+using Attrs = ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 TEST(attributes, detectron_prior_grid_generator) {
     NodeBuilder::get_ops().register_factory<ExperimentalGenerator>();
@@ -28,13 +27,13 @@ TEST(attributes, detectron_prior_grid_generator) {
     attrs.stride_x = 64;
     attrs.stride_y = 64;
 
-    auto priors = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 16, 100, 100});
-    auto im_data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 100, 200});
+    auto priors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
+    auto feature_map = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 100, 100});
+    auto im_data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 100, 200});
 
     auto proposals = std::make_shared<ExperimentalGenerator>(priors, feature_map, im_data, attrs);
 
-    NodeBuilder builder(proposals);
+    NodeBuilder builder(proposals, {priors, feature_map, im_data});
 
     auto g_proposals = ov::as_type_ptr<ExperimentalGenerator>(builder.create());
 

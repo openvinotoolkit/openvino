@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,17 +6,13 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
 struct gather_nd : public primitive_base<gather_nd> {
     CLDNN_DECLARE_PRIMITIVE(gather_nd)
+
+    gather_nd() : primitive_base("", {}) {}
 
     /// @brief Constructs gather_nd primitive.
     ///
@@ -31,15 +27,14 @@ struct gather_nd : public primitive_base<gather_nd> {
     ///                             This should be false for v8.
     ///                             For batch_dims < 2, This doesn't have any meaning.
     gather_nd(const primitive_id& id,
-              const primitive_id& data,
-              const primitive_id& indices,
+              const input_info& data,
+              const input_info& indices,
               const uint8_t input_rank,
               const uint8_t indices_rank,
               const uint8_t batch_dims = 0,
               const bool batch_merged_output = true,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, ext_prim_id, output_padding),
+        : primitive_base(id, {data, indices}, {output_padding}),
                          input_rank(input_rank),
                          indices_rank(indices_rank),
                          batch_dims(batch_dims),
@@ -55,9 +50,42 @@ struct gather_nd : public primitive_base<gather_nd> {
     uint8_t batch_dims;
 
     /// @brief GatherND batch_merged_output
-    bool batch_merged_output;
+    bool batch_merged_output = true;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, indices_rank);
+        seed = hash_combine(seed, batch_dims);
+        seed = hash_combine(seed, batch_merged_output);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather_nd>(rhs);
+
+        return input_rank == rhs_casted.input_rank &&
+               indices_rank == rhs_casted.indices_rank &&
+               batch_dims == rhs_casted.batch_dims &&
+               batch_merged_output == rhs_casted.batch_merged_output;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<gather_nd>::save(ob);
+        ob << input_rank;
+        ob << indices_rank;
+        ob << batch_dims;
+        ob << batch_merged_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<gather_nd>::load(ib);
+        ib >> input_rank;
+        ib >> indices_rank;
+        ib >> batch_dims;
+        ib >> batch_merged_output;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

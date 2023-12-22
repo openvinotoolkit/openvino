@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,11 +32,11 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "Tile node with name '" + getName() + "'";
@@ -51,26 +51,53 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, Weigh
 }
 
 void Tile::getSupportedDescriptors() {
+    const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
+        std::string result = "[";
+        for (size_t i = 0; i < vec.size(); i++) {
+            if (i)
+                result += ", ";
+            result += std::to_string(vec[i]);
+        }
+        return result;
+    };
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges. "
-                "Expected: 2, Actual: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix,
+                       " has incorrect number of input edges. "
+                       "Expected: 2, Actual: ",
+                       getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has no output edges.";
+        OPENVINO_THROW(errorPrefix, " has no output edges.");
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
     for (size_t i = 1lu; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size())
-            IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
+            OPENVINO_THROW(errorPrefix,
+                           " has output edges 0 and ",
+                           i,
+                           " with different ranks: ",
+                           dstDims0.size(),
+                           " and ",
+                           dstDims.size());
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: "
-                        << std::string(dstDims0.begin(), dstDims0.end()) << " and " << std::string(dstDims.begin(), dstDims.end());
+                OPENVINO_THROW(errorPrefix,
+                               " has output edges 0 and ",
+                               i,
+                               " with different dims: ",
+                               vec_to_string(dstDims0),
+                               " and ",
+                               vec_to_string(dstDims));
             }
         }
     }
     if (constMap[TILE_REPEATS] && getInputShapeAtPort(TILE_INPUT).getRank() > getOutputShapeAtPort(0).getRank())
-        IE_THROW() << errorPrefix << " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
-                "Actual input shape size: " << getInputShapeAtPort(TILE_INPUT).getRank() << ", output shape size: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(
+            errorPrefix,
+            " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
+            "Actual input shape size: ",
+            getInputShapeAtPort(TILE_INPUT).getRank(),
+            ", output shape size: ",
+            getOutputShapeAtPort(0).getRank());
 
     if (!isDynamicNode())
         needPrepareParamsVar = true;
@@ -91,7 +118,7 @@ void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -101,8 +128,8 @@ void Tile::prepareParams() {
         }
     }
 
-    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
 }
@@ -115,9 +142,9 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().getData());
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
-            if (originRepeats[i] != repeatsData[i])
+            if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
         }
     }
@@ -125,15 +152,11 @@ bool Tile::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> Tile::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(TILE_REPEATS));
-}
-
-void Tile::executeDynamicImpl(mkldnn::stream strm) {
+void Tile::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Tile::execute(mkldnn::stream strm) {
+void Tile::execute(dnnl::stream strm) {
     if (optimizedCase) {
         optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
@@ -141,30 +164,25 @@ void Tile::execute(mkldnn::stream strm) {
     }
 }
 
-void Tile::plainExecute(mkldnn::stream strm) {
+void Tile::plainExecute(dnnl::stream strm) {
     if (noTiling) {
         return;
     }
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
+    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.getData());
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().getData());
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
     for (int i = 0; i < axis; i++ )
         m_outer_dim *= inDims[i];
-    for (int i = axis; i < inDims.size(); i++ )
+    for (size_t i = axis; i < inDims.size(); i++ )
         m_inner_dim *= inDims[i];
 
-    int MB = 0;
-    if (isDynamicNode()) {
-        MB = srcMemory.getStaticDims()[0];
-    } else {
-        MB = batchToProcess();
-    }
+    int MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;

@@ -1,46 +1,53 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/split.hpp>
-
+#include "openvino/op/split.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
-template <typename T>
-void shape_infer(const Split* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+/**
+ * \brief Shape inference for Split V1 operator.
+ *
+ * \note The split operation cause label lost on splitted dimension even if number of splits is one,
+ * because in this case split will be removed by transformation (as NOP) and in fact label will be propagated.
+ *
+ * \tparam T             Type of shape.
+ *
+ * \param op             Split operator pointer.
+ * \param input_shapes   Split input shapes.
+ * \param ta             Tensor accessor to constant data.
+ */
+template <typename T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Split* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
-
-    output_shapes.clear();
 
     const auto& data_ps = input_shapes[0];
     const auto& axis_ps = input_shapes[1];
 
     NODE_VALIDATION_CHECK(op, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
-    auto each_output_shape = data_ps;
+    TRShape each_output_shape = data_ps;
     const auto data_rank = data_ps.rank();
 
-    std::vector<int64_t> axes_values;
-    const auto & num_splits = op->get_num_splits();
-    if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
+    auto axes_values = get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
+    const auto& num_splits = op->get_num_splits();
+    if (axes_values && data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              axes_values.size() == 1,
+                              axes_values->size() == 1,
                               "a scalar axis value is expected. Got: ",
-                              axes_values.size(),
+                              axes_values->size(),
                               " axes");
 
-        auto axis = ov::normalize_axis(op, axes_values[0], data_rank);
+        auto axis = ov::util::normalize_axis(op, (*axes_values)[0], data_rank);
 
         if (data_ps[axis].is_static()) {
             const auto dimension_at_axis = data_ps[axis].get_length();
@@ -76,8 +83,7 @@ void shape_infer(const Split* op,
         each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
-    for (size_t i = 0; i < num_splits; ++i)
-        output_shapes.push_back(each_output_shape);
+    return {num_splits, each_output_shape};
 }
 
 }  // namespace v1

@@ -1,11 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "ngraph/variant.hpp"  // ngraph::Variant
-
-#include <pybind11/pybind11.h>
-
 #include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
@@ -39,6 +34,3 @@ void regclass_pyngraph_Variant(py::module m) {
         return ret.str();
     });
 }
-
-template void regclass_pyngraph_VariantWrapper<std::string>(py::module m, std::string typestring);
-template void regclass_pyngraph_VariantWrapper<int64_t>(py::module m, std::string typestring);

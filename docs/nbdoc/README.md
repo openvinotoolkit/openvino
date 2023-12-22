@@ -1,7 +1,7 @@
 # Jupyter notebooks autodoc
 
 Auto fetching documentations designed for openvino notebooks tutorials.
-This module is responsible for fetching artifats, in this particular example jupyter tutorial notebooks and converting them to notebook documentation.
+This module is responsible for fetching artifacts, in this particular example jupyter tutorial notebooks and converting them to notebook documentation.
 
 ## Step 0. Prepare venv
 

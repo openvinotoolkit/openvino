@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -19,7 +19,7 @@ def tf_fused_bn_extractor(pb):
         log.warning('FusedBatchNorm doesn\'t support is_training=True')
 
     return {
-        'data_format': pb.attr["data_format"].s,
+        'data_format': pb.attr["data_format"].s.decode(),
         'data_type': tf_dtype_extractor(pb.attr["T"].type),
         'eps': pb.attr['epsilon'].f,
         'infer': tf_fused_bn_infer,

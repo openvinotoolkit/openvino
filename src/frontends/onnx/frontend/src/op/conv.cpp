@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -67,10 +68,13 @@ OutputVector conv(const Node& node,
         NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
                      "The bias input needs to be 1D vector");
 
+        const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
+        conv_node->set_friendly_name(onnx_name + "/WithoutBiases");
         return {add_bias(conv_node, bias)};
     }
 }
 }  // namespace detail
+
 OutputVector conv(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
@@ -82,3 +86,4 @@ OutputVector conv(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

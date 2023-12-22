@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -28,12 +29,10 @@ OutputVector reshape(const Node& node) {
     if (ng_inputs.size() == 2) {
         pattern = ng_inputs.at(1);
     } else {
-        const auto output_shape = node.get_attribute_value<std::vector<int64_t>>("shape", {});
-
         // Added in onnx reshape version 14
         special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
 
-        pattern = default_opset::Constant::create(element::i64, Shape{output_shape.size()}, output_shape);
+        pattern = node.get_attribute_as_constant<std::vector<int64_t>>("shape", {});
     }
 
     return {std::make_shared<default_opset::Reshape>(data, pattern, special_zero)};
@@ -46,3 +45,4 @@ OutputVector reshape(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

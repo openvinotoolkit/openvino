@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,9 @@ void ExtensionManager::AddExtension(const IExtensionPtr& extension) {
     _extensions.push_back(extension);
 }
 
-InferenceEngine::ILayerImpl::Ptr ExtensionManager::CreateImplementation(const std::shared_ptr<ngraph::Node>& op) {
+InferenceEngine::ILayerImpl::Ptr ExtensionManager::CreateImplementation(const std::shared_ptr<ov::Node>& op) {
     if (!op)
-        IE_THROW() << "Cannot get nGraph operation!";
+        OPENVINO_THROW("Cannot get nGraph operation!");
     for (const auto& ext : _extensions) {
         auto implTypes = ext->getImplTypes(op);
         for (const auto& type : implTypes) {

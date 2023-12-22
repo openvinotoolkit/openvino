@@ -1,23 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "mutable_data_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include <random>
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data::type_id() {
-    static primitive_type_base<mutable_data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
@@ -44,6 +37,11 @@ mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim,
 }
 
 void mutable_data_node::attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
+    mem = std::move(new_mem);
+    recalc_output_layout(invalidate_users_if_changed);
+}
+
+void mutable_data_node::replace_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
     mem = new_mem;
     recalc_output_layout(invalidate_users_if_changed);
 }
@@ -57,26 +55,37 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     return primitive_description.str();
 }
 
-void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
-    auto& eng = _network.get_engine();
-    auto& mem_node = const_cast<program_node&>(_node).as<mutable_data>();
-    auto& mem_attached = mem_node.get_attached_memory();
-    const auto& mem_orig = *_output;
+event::ptr mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
+    event::ptr input_ev = nullptr;
+    if (_node != nullptr) {
+        auto& eng = _network.get_engine();
+        auto& mem_node = const_cast<program_node*>(_node)->as<mutable_data>();
+        auto& mem_attached = mem_node.get_attached_memory();
+        const auto& mem_orig = *_outputs[idx];
+        if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
+            if (_node->is_input()) {
+                input_ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
+            }
 
-    if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
-        if (_node.is_input()) {
-            mem_new->copy_from(_network.get_stream(), *_output);
-        }
-
-        // re-attach mutable_data internal memory if necessary
-        if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
-            mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+            // re-attach mutable_data internal memory if necessary
+            if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
+                mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+            }
         }
     }
-    primitive_inst::set_output_memory(mem_new, check);
+    auto ev = primitive_inst::set_output_memory(mem_new, check);
+    if (input_ev == nullptr)
+        return ev;
+    else
+        return _network.get_stream().group_events({ev, input_ev});
 }
 
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
-    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {
+    const auto& users = get_users();
+    for (const auto& usr : users) {
+        _user_ids.emplace_back(usr->id());
+    }
+}
 
 }  // namespace cldnn

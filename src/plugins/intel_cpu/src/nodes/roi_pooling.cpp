@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "roi_pooling.h"
 
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
 
-#include <ngraph/opsets/opset2.hpp>
+#include <openvino/opsets/opset2.hpp>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
 #include <common/primitive_hashing_utils.hpp>
@@ -24,10 +24,10 @@
 #include <cmath>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
@@ -36,11 +36,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_pooling_kernel_f32);
 
-    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -48,8 +49,9 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
+        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, ov::element::f32, step));
+        store_emitter.reset(new jit_store_emitter(this, isa, ov::element::f32, jpp_.dst_prc, step));
+        store_empty_roi_emitter.reset(new jit_store_emitter(this, isa, jpp_.src_prc, jpp_.dst_prc, step));
 
         this->preamble();
 
@@ -93,6 +95,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
 
         load_emitter->emit_data();
         store_emitter->emit_data();
+        store_empty_roi_emitter->emit_data();
     }
 
 private:
@@ -114,6 +117,7 @@ private:
     std::vector<size_t> load_pool_gpr_idxs;
 
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_empty_roi_emitter = nullptr;
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
 
@@ -147,6 +151,12 @@ private:
     Xbyak::Reg64 reg_load_table = r15;
     Xbyak::Reg64 reg_load_store_mask = abi_param1;
 
+    std::vector<size_t> get_local_store_pool_vec_idxs(Vmm vmm) const {
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+        return local_store_pool_vec_idxs;
+    }
+
     void roi_pool_max(int c_blocks) {
         Label h_loop_label;
         Label w_loop_label;
@@ -157,8 +167,7 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx())}, {static_cast<size_t>(vmm_max.getIdx())},
-                                    std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
+            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i * src_c_off)}, {static_cast<size_t>(vmm_max.getIdx())},
                                     {}, load_pool_gpr_idxs);
         }
 
@@ -171,9 +180,8 @@ private:
                     Vmm vmm_max = get_acc_reg(i);
                     Vmm vmm_src = get_src_reg(i);
 
-                    load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                                            std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
-                                            {}, load_pool_gpr_idxs);
+                    load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i * src_c_off)},
+                                            {static_cast<size_t>(vmm_src.getIdx())}, {}, load_pool_gpr_idxs);
 
                     if (isa == cpu::x64::sse41) {
                         movups(vmm_mask, vmm_max);
@@ -182,7 +190,7 @@ private:
                     } else if (isa == cpu::x64::avx2) {
                         vcmpps(vmm_mask, vmm_max, vmm_src, _cmp_lt_os);
                         vblendvps(vmm_max, vmm_max, vmm_src, vmm_mask);
-                    } else if (isa == cpu::x64::avx512_common) {
+                    } else if (isa == cpu::x64::avx512_core) {
                         vcmpps(k_store_mask,  vmm_max,  vmm_src, _cmp_lt_os);
                         vblendmps(vmm_max| k_store_mask, vmm_max, vmm_src);
                     }
@@ -206,9 +214,8 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_dst = get_acc_reg(i);
 
-            store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
-                                     std::make_shared<store_emitter_context>(Precision::FP32, jpp_.dst_prc, step, i * dst_c_off),
-                                     store_pool_vec_idxs, store_pool_gpr_idxs);
+            store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(i * dst_c_off)}, {static_cast<size_t>(reg_output.getIdx())},
+                                     get_local_store_pool_vec_idxs(vmm_dst), store_pool_gpr_idxs);
         }
     }
 
@@ -225,27 +232,22 @@ private:
 
         for (int i = 0; i < c_blocks; i++) {
             const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size();
-            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, src_c_off);
 
             mov(aux_reg_input, reg_input);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src00.getIdx())},
-                                    load_context,
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src00.getIdx())},
                                     {}, load_pool_gpr_idxs);
             add(aux_reg_input, reg_xoff);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src01.getIdx())},
-                                    load_context,
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src01.getIdx())},
                                     {}, load_pool_gpr_idxs);
 
             add(aux_reg_input, reg_yoff);
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src11.getIdx())},
-                                    load_context,
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src11.getIdx())},
                                     {}, load_pool_gpr_idxs);
             sub(aux_reg_input, reg_xoff);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src10.getIdx())},
-                                    load_context,
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src10.getIdx())},
                                     {}, load_pool_gpr_idxs);
 
             uni_vsubps(vmm_src01, vmm_src01, vmm_src00);
@@ -259,9 +261,8 @@ private:
 
             const int dst_c_off = i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
 
-            store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
-                                     std::make_shared<store_emitter_context>(Precision::FP32, jpp_.dst_prc, step, dst_c_off),
-                                     store_pool_vec_idxs, store_pool_gpr_idxs);
+            store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx()), static_cast<size_t>(dst_c_off)}, {static_cast<size_t>(reg_output.getIdx())},
+                                     get_local_store_pool_vec_idxs(vmm_src11), store_pool_gpr_idxs);
         }
     }
 
@@ -270,9 +271,8 @@ private:
 
         const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
         for (int i = 0; i < c_blocks; i++) {
-            store_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
-                                     std::make_shared<store_emitter_context>(jpp_.src_prc, jpp_.dst_prc, step, i * dst_c_off),
-                                     store_pool_vec_idxs, store_pool_gpr_idxs);
+            store_empty_roi_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                                               {static_cast<size_t>(reg_output.getIdx())}, store_pool_vec_idxs, store_pool_gpr_idxs);
         }
     }
 
@@ -309,6 +309,7 @@ private:
         L(exit_label);
     }
 };
+#endif
 
 namespace {
 struct RoiPoolingKey {
@@ -334,8 +335,8 @@ size_t RoiPoolingKey::hash() const {
     seed = hash_combine(seed, refParams.oh);
     seed = hash_combine(seed, refParams.ow);
     seed = hash_combine(seed, refParams.alg);
-    seed = hash_combine(seed, refParams.src_prc.getPrecVal());
-    seed = hash_combine(seed, refParams.dst_prc.getPrecVal());
+    seed = hash_combine(seed, refParams.src_prc.hash());
+    seed = hash_combine(seed, refParams.dst_prc.hash());
     seed = hash_combine(seed, refParams.spatial_scale);
     seed = hash_combine(seed, refParams.pooled_h);
     seed = hash_combine(seed, refParams.pooled_w);
@@ -366,9 +367,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const
            alg == rhs.alg;
 }
 
-bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
             return false;
@@ -384,20 +385,20 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-    auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
-    refParams.pooled_h = roiPooling->get_output_size()[0];
-    refParams.pooled_w = roiPooling->get_output_size()[1];
+    auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
+    refParams.pooled_h = roiPooling->get_output_roi()[0];
+    refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
-    std::string m = roiPooling->get_method();
+    const auto& m = roiPooling->get_method();
     if (m == "max") {
         algorithm = Algorithm::ROIPoolingMax;
     } else if (m == "bilinear") {
@@ -406,29 +407,26 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 }
 
 void ROIPooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& dims = getInputShapeAtPort(1).getDims();
     if (dims[1] != 5) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << dims[0] << "," << dims[1] << "]";
+        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
     }
 }
 
@@ -436,16 +434,9 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
-
-    if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
-    }
-
-    auto format = mayiuse(avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+    auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -453,6 +444,17 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
+    }
+
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
+
+    if (!mayiuse(avx512_core)) {
+        if (refParams.src_prc == ov::element::bf16)
+            refParams.src_prc = ov::element::f32;
+    }
+
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == ov::element::f16) {
+        refParams.src_prc = ov::element::f32;
     }
 
     addSupportedPrimDesc({{format, refParams.src_prc},
@@ -464,10 +466,10 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
 
-    refParams.c_block = mayiuse(cpu::x64::avx512_common) ? 16 : 8;;
-    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
+    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;;
+    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
     refParams.alg = getAlgorithm();
 
     const auto& config = selectedPD->getConfig();
@@ -481,18 +483,18 @@ void ROIPooling::createPrimitive() {
     }
 }
 
-void ROIPooling::execute(mkldnn::stream strm) {
+void ROIPooling::execute(dnnl::stream strm) {
     if (execPtr) {
         const auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
         const auto &dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
-        IE_THROW() << "Can't execute ROI Pooling node. Primitive wasn't created";
+        OPENVINO_THROW("Can't execute ROI Pooling node. Primitive wasn't created");
     }
 }
 
-void ROIPooling::executeDynamicImpl(mkldnn::stream strm) {
+void ROIPooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -501,13 +503,13 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr1 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!srcMemPtr1 || !srcMemPtr1->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination has not been allocated.";
+        OPENVINO_THROW("Destination has not been allocated.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -524,7 +526,7 @@ void ROIPooling::prepareParams() {
     auto builder = [](const RoiPoolingKey& key) {
         return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams);
     };
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
 }
@@ -533,33 +535,35 @@ template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
-        if (mayiuse(cpu::x64::avx512_common)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
+#if defined(OPENVINO_ARCH_X86_64)
+        if (mayiuse(cpu::x64::avx512_core)) {
+            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
         } else if (mayiuse(cpu::x64::avx2)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
         } else if (mayiuse(cpu::x64::sse41)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
         } else {
-            IE_THROW() << "Can't create jit RoiPooling kernel";
+            OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
 
         if (roi_pooling_kernel)
             roi_pooling_kernel->create_ker();
+#endif
     }
 
     void exec(
-        const Memory& srcData,
-        const Memory& srcRoi,
-        const Memory& dst) override {
+        const IMemory& srcData,
+        const IMemory& srcRoi,
+        const IMemory& dst) override {
         if (!roi_pooling_kernel)
-            IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
+            OPENVINO_THROW("Could not execute. Kernel for RoiPooling node was not compiled.");
 
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -671,15 +675,15 @@ class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor 
 public:
     ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
     void exec(
-        const Memory& srcData,
-        const Memory& srcRoi,
-        const Memory& dst) override {
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
+        const IMemory& srcData,
+        const IMemory& srcRoi,
+        const IMemory& dst) override {
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -825,8 +829,9 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     ROIPoolingContext ctx = { nullptr, jpp };
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, float16_t))
 
     return ctx.executor;
 }
@@ -892,10 +897,12 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(
 template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::sse41))
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
-    else
-        return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
+#endif
+
+    return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
 }
 
 bool ROIPooling::created() const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,16 @@
     * SELECTIVE_BUILD_ANALYZER  This macro enables analysis mode for annotated code regions.
     *                           When the process completes, a new C++ header file is created
     *                           that contains macros for enabling active regions. This file
-    *                           should be included in all analysed C++ files.
+    *                           should be included in all analyzed C++ files.
     *
     * SELECTIVE_BUILD           This mode disables inactive areas of the code using the result
     *                           of the analysis step.
     *
-    * No definitions            The default behavior is keept if no SELECTIVE_BUILD* macros are defined,
+    * No definitions            The default behavior is kept if no SELECTIVE_BUILD* macros are defined,
     *                           i.e all features of the OpenVINO are enabled.
     *
     * Prerequisites:
-    *   Before using macros for code annotation,domains for conditional
+    *   Before using macros for code annotation, domains for conditional
     * compilation should be defined in module namespace.
     *
     *   OV_CC_DOMAINS(MyModule);

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "pyopenvino/frontend/frontend.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -11,28 +13,73 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "pyopenvino/graph/model.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
 using namespace ov::frontend;
 
+class MemoryBuffer : public std::streambuf {
+public:
+    MemoryBuffer(char* data, std::size_t size) {
+        setg(data, data, data + size);
+    }
+};
+
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
+    fem.def(py::init([](const std::shared_ptr<FrontEnd>& other) {
+                return other;
+            }),
+            py::arg("other"));
+
     fem.def(
         "load",
-        [](FrontEnd& self, const std::string& s) {
-            return self.load(s);
+        [](FrontEnd& self, const py::object& py_obj, const bool enable_mmap = true) {
+            if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
+                py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
+                // check if model path is either a string/pathlib.Path/bytes
+                std::string model_path = Common::utils::convert_path_to_string(py_obj);
+                return self.load(model_path, enable_mmap);
+            } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
+                // support of BytesIO
+                py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
+                MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+                std::istream _istream(&mb);
+                return self.load(&_istream, enable_mmap);
+            } else {
+                // Extended for one argument only for this time
+                return self.load({Common::utils::py_object_to_any(py_obj), enable_mmap});
+            }
         },
         py::arg("path"),
+        py::arg("enable_mmap") = true,
         R"(
-                Loads an input model by specified model file path.
+                Loads an input model.
 
-                :param path: Main model file path.
-                :type path: str
+                :param path: Object describing the model. It can be path to model file.
+                :type path: Any
+                :param enable_mmap: Use mmap feature to map memory of a model's weights instead of reading directly. Optional. The default value is true.
+                :type enable_mmap: boolean
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
+             )");
+
+    fem.def(
+        "supported",
+        [](FrontEnd& self, const py::object& model) {
+            return self.supported({Common::utils::py_object_to_any(model)});
+        },
+        py::arg("model"),
+        R"(
+                Checks if model type is supported.
+
+                :param model: Object describing the model. It can be path to model file.
+                :type model: Any
+                :return: True if model type is supported, otherwise False.
+                :rtype: bool
              )");
 
     fem.def("convert",

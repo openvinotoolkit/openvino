@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/graph_rewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "itt.hpp"
-#include "ngraph/env_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/util/sub_graph_base.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
 /* GraphRewrite algorithm:
@@ -50,6 +50,8 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -61,7 +63,10 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
+#endif  // ENABLE_PROFILING_ITT
+
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -71,6 +76,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Mode
 }
 
 bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(GraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -81,7 +87,7 @@ bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
 bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                   std::deque<std::weak_ptr<Node>> nodes_to_run) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::GraphRewrite::apply_matcher_passes");
 
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
@@ -112,7 +118,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
         if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = std::dynamic_pointer_cast<pattern::op::WrapType>(p)) {
+            if (auto any_type = std::dynamic_pointer_cast<ov::pass::pattern::op::WrapType>(p)) {
                 for (const auto& root_type_info : any_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
@@ -135,10 +141,10 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
-            NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                            "model is dynamic, skipping this "
-                            "optimization till the shapes are fully "
-                            "materialized";
+            OPENVINO_DEBUG << "matcher callback requires static shape but the "
+                              "model is dynamic, skipping this "
+                              "optimization till the shapes are fully "
+                              "materialized";
             return false;
         }
 
@@ -172,11 +178,13 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
-            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
-                run_on_model(sub_graph);
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+            if (sub_graph_node->get_transformations_allowed()) {
+                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                    auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
+                    run_on_model(sub_graph);
+                }
             }
         }
         // Temporary keep this GraphRewrite property for backward compatibility
@@ -230,37 +238,6 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     return rewritten;
 }
 
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback,
-                                         const PassPropertyMask& property) {
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        m->get_name(),
-        m,
-        [m, callback](const std::shared_ptr<Node>& node) -> bool {
-            NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-            if (m->match(node->output(0))) {
-                NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                NGRAPH_PASS_CALLBACK(m);
-                bool status = callback(*m.get());
-                // explicitly clear Matcher state because it holds pointers to matched nodes
-                m->clear_state();
-                return status;
-            }
-            m->clear_state();
-            return false;
-        },
-        property));
-}
-
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    // TODO: before deprecate this function, by default expect the
-    // callback require static shape.
-    add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs) {
     auto pass_config = get_pass_config();
     // We have to preserve disabled passes because in case when we register matchers inside
@@ -296,9 +273,10 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
-            NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-            NGRAPH_PASS_CALLBACK(m);
-            bool status = callback(*m.get());
+            OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            OV_PASS_CALLBACK(m);
+            const bool status = callback(*m.get());
+            OPENVINO_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;
@@ -308,9 +286,14 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     };
 }
 
+void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
+                                             const ov::graph_rewrite_callback& callback) {
+    register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+}
+
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
-    m_new_nodes.clear();
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, pass::perf_counters_graph_rewrite()[get_type_info()]);
+    clear_new_nodes();
     if (m_handler)
         return m_handler(node);
     return false;

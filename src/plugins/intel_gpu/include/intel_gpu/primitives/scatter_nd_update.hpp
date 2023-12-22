@@ -1,23 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
 struct scatter_nd_update : public primitive_base<scatter_nd_update> {
     CLDNN_DECLARE_PRIMITIVE(scatter_nd_update)
+
+    scatter_nd_update() : primitive_base("", {}) {}
 
     /// @brief Constructs scatter_nd_update primitive.
     /// @param id This primitive id.
@@ -26,18 +21,39 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
     /// @param idupd Input updates primitive id.
     /// @param indices_rank Rank of indices.
     scatter_nd_update(const primitive_id& id,
-                      const primitive_id& data,
-                      const primitive_id& idx,
-                      const primitive_id& idupd,
+                      const input_info& data,
+                      const input_info& idx,
+                      const input_info& idupd,
                       const size_t indices_rank,
-                      const primitive_id& ext_prim_id = "",
                       const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, ext_prim_id, output_padding), indices_rank(indices_rank) {}
+        : primitive_base(id, {data, idx, idupd}, {output_padding}), indices_rank(indices_rank) {}
 
     /// @brief ScatterNDUpdate indices_rank
-    size_t indices_rank;
+    size_t indices_rank = 0;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, indices_rank);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const scatter_nd_update>(rhs);
+
+        return indices_rank == rhs_casted.indices_rank;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<scatter_nd_update>::save(ob);
+        ob << indices_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<scatter_nd_update>::load(ib);
+        ib >> indices_rank;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

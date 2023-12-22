@@ -1,3 +1,0 @@
-# FuseMultiplyToFakeQuantizeTransformation transformation {#openvino_docs_IE_DG_lpt_FuseMultiplyToFakeQuantizeTransformation}
-
-ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation class represents the `FuseMultiplyToFakeQuantizeTransformation` transformation.

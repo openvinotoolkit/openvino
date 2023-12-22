@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,30 +14,28 @@ namespace node {
 
 class Split : public Node {
 public:
-    Split(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
-    void setDynamicBatchLim(int lim) override;
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;
+    bool needShapeInfer() const override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
-                          const Dim origBatch, const Dim perInferBatch) = 0;
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) = 0;
         virtual ~SplitExecutor() = default;
     };
     std::shared_ptr<SplitExecutor> execPtr = nullptr;
@@ -45,8 +43,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
-                      const Dim origBatch, const Dim perInferBatch) override;
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
         private:
             std::vector<size_t> dataSize;
@@ -56,13 +53,16 @@ private:
     };
 
     void optimizedNspc2Ncsp(size_t MB);
+    std::vector<uint8_t*> getRawDstMemPtrs() const;
 
     bool canUseOptimizedNspc2Ncsp = false;
 
     size_t axis = 1;
-    std::vector<std::pair<size_t, uint8_t*>> dstMemPtrs;
+    std::vector<std::pair<size_t, MemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
+    bool constSplitLengths = true;
+    std::vector<int> splitLengths;
 };
 
 }   // namespace node

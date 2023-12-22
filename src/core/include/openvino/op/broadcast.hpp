@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase);
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -66,13 +65,11 @@ public:
 
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     std::pair<bool, AxisSet> get_broadcast_axes() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:
-    bool broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    bool broadcast_evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
 };
 }  // namespace v3
 
@@ -82,8 +79,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase);
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -128,9 +124,7 @@ public:
     }
 
     void validate_and_infer_types() override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:

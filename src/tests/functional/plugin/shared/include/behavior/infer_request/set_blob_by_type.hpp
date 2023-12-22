@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 
 using InferRequestSetBlobByTypeParams = std::tuple<
         FuncTestUtils::BlobType,           // Blob type
@@ -19,13 +19,16 @@ using InferRequestSetBlobByTypeParams = std::tuple<
 >;
 
 class InferRequestSetBlobByType : public testing::WithParamInterface<InferRequestSetBlobByTypeParams>,
-                                  public CommonTestUtils::TestsCommon {
+                                  public BehaviorTestsUtils::IEInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestSetBlobByTypeParams> obj) {
+        using namespace ov::test::utils;
+
         FuncTestUtils::BlobType BlobType;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::tie(BlobType, targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
         result << "BlobType=" << BlobType << "_";
@@ -35,14 +38,14 @@ public:
     }
 
     void SetUp() override {
+        std::map<std::string, std::string> config;
+        std::tie(blobType, target_device, config) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::map<std::string, std::string> config;
-        std::tie(blobType, targetDevice, config) = this->GetParam();
-        std::shared_ptr<ngraph::Function> function = ngraph::builder::subgraph::makeConvPoolRelu(
-                {4, 3, 6, 8}, ngraph::element::Type_t::u8);
+        APIBaseTest::SetUp();
+        std::shared_ptr<ngraph::Function> function = ov::test::utils::make_conv_pool_relu({4, 3, 6, 8}, ov::element::u8);
         InferenceEngine::CNNNetwork cnnNetwork(function);
-        executableNetwork = ie->LoadNetwork(cnnNetwork, targetDevice, config);
+        executableNetwork = ie->LoadNetwork(cnnNetwork, target_device, config);
     }
 
 protected:
@@ -51,19 +54,17 @@ protected:
             case FuncTestUtils::BlobType::Memory:
                 return true;
             case FuncTestUtils::BlobType::Compound:
-            case FuncTestUtils::BlobType::I420:
-//            case FuncTestUtils::BlobType::Remote:
-            case FuncTestUtils::BlobType::NV12:
+            case FuncTestUtils::BlobType::Remote:
                 return false;
             case FuncTestUtils::BlobType::Batched: {
-                std::vector<std::string> supported_metrics = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
+                auto supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supported_metrics.begin(), supported_metrics.end(),
                               METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
                     return false;
                 }
 
-                std::vector<std::string> optimization_caps =
-                        ie->GetMetric(targetDevice, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+               auto optimization_caps =
+                        ie->GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
                 return std::find(optimization_caps.begin(), optimization_caps.end(),
                                  METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
             }
@@ -72,7 +73,6 @@ protected:
         }
     }
 
-    std::string targetDevice;
     FuncTestUtils::BlobType blobType;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

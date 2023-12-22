@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,11 @@ namespace ov {
 namespace intel_cpu {
 
 struct PermuteParams {
-    InferenceEngine::SizeVector src_block_dims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_block_order;
-    InferenceEngine::SizeVector dst_block_order;
-    InferenceEngine::SizeVector order;
+    VectorDims src_block_dims;
+    VectorDims dst_block_dims;
+    VectorDims src_block_order;
+    VectorDims dst_block_order;
+    VectorDims order;
     size_t data_size;
 
     size_t hash() const;
@@ -25,9 +25,9 @@ struct PermuteParams {
 
 struct jit_permute_config_params {
     uint32_t ndims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_strides;
-    InferenceEngine::SizeVector dst_strides;
+    VectorDims dst_block_dims;
+    VectorDims src_strides;
+    VectorDims dst_strides;
     int n;
     int data_size;
 
@@ -66,10 +66,7 @@ public:
     }
 
 private:
-    void prepareParams();
-
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
-    void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;

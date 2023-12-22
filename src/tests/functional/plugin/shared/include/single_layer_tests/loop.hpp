@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,19 +47,19 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 
-    auto start = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
 
     // Loop body
-    auto b_data = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::boolean, scalarShape);
+    auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ngraph::element::boolean, scalarShape);
 
     auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
             ngraph::ParameterVector {b_cond, b_data});  // | input -> output
 
-    auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+    auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
     loop->set_special_body_ports({-1, 0});
     loop->set_invariant_input(b_cond, icond);
@@ -73,7 +73,7 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, {10});
+    ov::test::utils::fill_data_with_broadcast(blob, 0, {10});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
@@ -91,20 +91,20 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 
-    auto start = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
 
     // Loop body
-    auto b_data = std::make_shared<ngraph::opset5::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, scalarShape, true);
-    auto b_iter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, scalarShape);
+    auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
+    auto b_cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, scalarShape);
 
     auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {b_cond, b_data},
             ngraph::ParameterVector {b_data, b_iter});
 
-    auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+    auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
     loop->set_special_body_ports({1, 0});
     loop->set_invariant_input(b_data, start);
@@ -117,7 +117,7 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, {10});
+    ov::test::utils::fill_data_with_broadcast(blob, 0, {10});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
@@ -144,11 +144,11 @@ TEST_P(TrivialLoopTest, AutoSlicingInput_CheckPredefinedValues) {
     blob->allocate();
     std::vector<float> seq_raw_data(batch_size);
     std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+    ov::test::utils::fill_data_with_broadcast(blob, 0, seq_raw_data);
 
     auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob_ref->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
+    ov::test::utils::fill_data_with_broadcast(blob_ref, 0, { num_iteration * (num_iteration + 1) / 2});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };
@@ -179,12 +179,12 @@ TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition_CheckPredefinedValues) 
     blob->allocate();
     std::vector<float> seq_raw_data(batch_size);
     std::iota(seq_raw_data.begin(), seq_raw_data.end(), 1);
-    CommonTestUtils::fill_data_with_broadcast(blob, 0, seq_raw_data);
+    ov::test::utils::fill_data_with_broadcast(blob, 0, seq_raw_data);
 
     auto blob_ref = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
     blob_ref->allocate();
     const size_t real_iter = num_iteration + 1;
-    CommonTestUtils::fill_data_with_broadcast(blob_ref, 0, { real_iter * (real_iter + 1) / 2});
+    ov::test::utils::fill_data_with_broadcast(blob_ref, 0, { real_iter * (real_iter + 1) / 2});
 
     inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
     outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob_ref; };

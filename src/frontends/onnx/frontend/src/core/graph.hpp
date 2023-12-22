@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,13 +15,18 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "ops_bridge.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+    Graph(const std::string& model_dir,
+          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
@@ -32,16 +37,24 @@ public:
     Graph& operator=(Graph&&) = default;
     std::shared_ptr<Function> decode();
     virtual std::shared_ptr<Function> convert();
-    OutputVector get_ng_outputs() const;
+    OutputVector get_ng_outputs();
     const std::string& get_name() const {
         return m_model->get_graph().name();
+    }
+    const std::string& model_dir() const {
+        return m_model_dir;
+    }
+    detail::MappedMemoryHandles get_mmap_cache() const {
+        return m_mmap_cache;
     }
     const ParameterVector& get_ng_parameters() const {
         return m_parameters;
     }
     virtual bool is_ng_node_in_cache(const std::string& name) const;
-    virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
-    virtual OutputVector make_ng_nodes(const Node& onnx_node);
+    virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OutputVector make_ng_nodes(const Node& onnx_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
@@ -50,17 +63,24 @@ public:
     }
 
 protected:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
+    Graph(const std::string& model_dir,
+          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
+          detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    virtual OutputVector make_framework_nodes(const Node& onnx_node);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OutputVector make_framework_nodes(const Node& onnx_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
+    void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<Function> create_function();
 
     ParameterVector m_parameters;
@@ -69,7 +89,12 @@ protected:
     ov::frontend::ExtensionHolder m_extensions = {};
 
 private:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<Node> m_nodes;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::string m_model_dir;
+    detail::MappedMemoryHandles m_mmap_cache;
+    OperatorsBridge m_ops_bridge;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
@@ -81,7 +106,7 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph* parent_graph);
+    Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model, Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
@@ -98,16 +123,11 @@ public:
     Subgraph& operator=(Subgraph&&) = default;
 
     bool is_ng_node_in_cache(const std::string& name) const override;
-    Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
-    OutputVector make_ng_nodes(const Node& onnx_node) override;
+    Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) override;
     void infer_inputs_from_parent();
 
 private:
-    OutputVector make_framework_nodes(const Node& onnx_node) override;
-    /// \brief      Checks if onnx_node has inputs from parent graph and replaces those inputs with Parameters
-    void replace_input_from_parent_scope_with_parameter(const Node& onnx_node);
-
-    const Graph* m_parent_graph;
+    Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
     std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
 };

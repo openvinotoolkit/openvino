@@ -1,14 +1,26 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <cstddef>
 #include <string>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/constant.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE {
@@ -21,8 +33,10 @@ namespace onnx_import {
 namespace error {
 namespace node {
 struct UnknownAttribute : ngraph_error {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit UnknownAttribute(const std::string& node, const std::string& name)
         : ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace node
@@ -36,11 +50,11 @@ class Tensor;
 class SparseTensor;
 class Attribute;
 
-class ONNX_IMPORTER_API Node {
+class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
-    Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
+    Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -77,6 +91,20 @@ public:
 
     template <typename T>
     T get_attribute_value(const std::string& name) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, element::Type type) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, T default_value) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
+                                                                    T default_value,
+                                                                    element::Type type) const;
 
 private:
     class Impl;
@@ -188,9 +216,88 @@ ONNX_IMPORTER_API std::vector<SparseTensor> Node::get_attribute_value(const std:
 template <>
 ONNX_IMPORTER_API std::vector<Graph> Node::get_attribute_value(const std::string& name) const;
 
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
+    const std::string& name,
+    std::vector<int64_t> default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
+Node::get_attribute_as_constant(const std::string& name, std::vector<int64_t> default_value, element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
+    const std::string& name) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        float default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        float default_value,
+                                                                                        element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
+    const std::string& name) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        double default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        double default_value,
+                                                                                        element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
+    const std::string& name) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        int64_t default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        int64_t default_value,
+                                                                                        element::Type type) const;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
     return (outs << "<Node(" << node.op_type() << "): " << node.get_description() << ">");
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace onnx_import
 

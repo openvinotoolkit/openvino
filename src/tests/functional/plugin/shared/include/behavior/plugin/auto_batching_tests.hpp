@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,12 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -25,26 +29,25 @@ using AutoBatchTwoNetsParams = std::tuple<
         size_t,  // number of requests
         size_t>; // batch size>
 
-class AutoBatching_Test : public CommonTestUtils::TestsCommon,
+class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
     void SetUp() override {
-        std::tie(device_name, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+        std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
+        fn_ptrs = {ov::test::utils::make_single_conv(),
+                   ov::test::utils::make_multi_single_conv()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
         size_t streams, requests, batch;
         bool use_get_blob;
-        std::string device_name;
-        std::tie(device_name, use_get_blob, streams, requests, batch) = obj.param;
-        return device_name + std::string(use_get_blob ? "_get_blob" : "_set_blob") + "_batch_size_" +
+        std::string target_device;
+        std::tie(target_device, use_get_blob, streams, requests, batch) = obj.param;
+        return target_device + std::string(use_get_blob ? "_get_blob" : "_set_blob") + "_batch_size_" +
                std::to_string(batch) +
                "_num_streams_" + std::to_string(streams) + "_num_req_" + std::to_string(requests);
     }
 
 protected:
-    std::string device_name;
     bool use_get_blob;
     size_t num_streams;
     size_t num_requests;
@@ -70,14 +73,19 @@ protected:
                 n.second->setPrecision(Precision::FP32);
             }
             std::map<std::string, std::string> config;
-            if (device_name.find("GPU") != std::string::npos)
+            if (target_device.find("GPU") != std::string::npos) {
                 config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-            if (device_name.find("CPU") != std::string::npos)
+                config["INFERENCE_PRECISION_HINT"] = "f32";
+            }
+
+            if (target_device.find("CPU") != std::string::npos) {
                 config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+                config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);
+            }
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
-            auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
-                                                    device_name + "(" + std::to_string(num_batch) + ")",
+            auto exec_net_ref = ie.LoadNetwork(net, std::string(ov::test::utils::DEVICE_BATCH) + ":" +
+                                                    target_device + "(" + std::to_string(num_batch) + ")",
                                                config);
 
             auto network_outputs = net.getOutputsInfo();
@@ -142,27 +150,29 @@ protected:
 class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
-        std::tie(device_name, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
-                   ngraph::builder::subgraph::makeDetectionOutput()};
+        std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
+        fn_ptrs = {ov::test::utils::make_detection_output(),
+                   ov::test::utils::make_detection_output()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
         size_t streams, requests, batch;
         bool use_get_blob;
-        std::string device_name;
-        std::tie(device_name, use_get_blob, streams, requests, batch) = obj.param;
-        return "DetectionOutput_HETERO_" + device_name + std::string(use_get_blob ? "_get_blob" : "_set_blob") +
+        std::string target_device;
+        std::tie(target_device, use_get_blob, streams, requests, batch) = obj.param;
+        return "DetectionOutput_HETERO_" + target_device + std::string(use_get_blob ? "_get_blob" : "_set_blob") +
                "_batch_size_" + std::to_string(batch) +
                "_num_streams_" + std::to_string(streams) + "_num_req_" + std::to_string(requests);
     }
 };
 
 TEST_P(AutoBatching_Test, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 
 TEST_P(AutoBatching_Test_DetectionOutput, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 

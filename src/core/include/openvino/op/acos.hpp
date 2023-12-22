@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v0 {
 class OPENVINO_API Acos : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Acos", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arccos operation.
     Acos() = default;
     /// \brief Constructs an arccos operation.
@@ -28,13 +27,8 @@ public:
     /// Output `[d1, ...]`
     ///
     Acos(const Output<Node>& arg);
-    bool visit_attributes(AttributeVisitor&) override {
-        return true;
-    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v0

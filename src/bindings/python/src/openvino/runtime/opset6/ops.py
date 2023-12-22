@@ -1,14 +1,15 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Callable, Iterable, List, Optional, Set, Union, Dict, Any
 
 import numpy as np
-from functools import partial
+from functools import partial, singledispatch
 
-from openvino.runtime import Node, Shape
-from openvino.runtime.op import Constant, Parameter
+from openvino.runtime import Node, Shape, Type, PartialShape
+from openvino.runtime.op import assign, Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.input_validation import (
@@ -39,13 +40,13 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 
 @nameable_op
 def ctc_greedy_decoder_seq_len(
-        data: NodeInput,
-        sequence_length: NodeInput,
-        blank_index: Optional[NodeInput] = None,
-        merge_repeated: bool = True,
-        classes_index_type: str = "i32",
-        sequence_length_type: str = "i32",
-        name: Optional[str] = None,
+    data: NodeInput,
+    sequence_length: NodeInput,
+    blank_index: Optional[NodeInput] = None,
+    merge_repeated: bool = True,
+    classes_index_type: str = "i32",
+    sequence_length_type: str = "i32",
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs CTCGreedyDecoderSeqLen.
 
@@ -63,7 +64,7 @@ def ctc_greedy_decoder_seq_len(
     attributes = {
         "merge_repeated": merge_repeated,
         "classes_index_type": classes_index_type,
-        "sequence_length_type": sequence_length_type
+        "sequence_length_type": sequence_length_type,
     }
 
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
@@ -86,7 +87,7 @@ def gather_elements(
     inputs = as_nodes(data, indices)
 
     attributes = {
-        "axis": axis
+        "axis": axis,
     }
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
@@ -117,39 +118,72 @@ def mvn(
     attributes = {
         "normalize_variance": normalize_variance,
         "eps": eps,
-        "eps_mode": eps_mode
+        "eps_mode": eps_mode,
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
+@singledispatch
 @nameable_op
-def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
-    """Return a node which produces the Assign operation.
-
-    :param new_value:    Node producing a value to be assigned to a variable.
-    :param variable_id:  Id of a variable to be updated.
-    :param name:         Optional name for output node.
-    :return: Assign node
-    """
-    return _get_node_factory_opset6().create(
-        "Assign",
-        [as_node(new_value)],
-        {"variable_id": variable_id}
-    )
-
-
-@nameable_op
-def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+def read_value(init_value: NodeInput,
+               variable_id: str,
+               variable_type: Optional[Union[NumericType, Type, str]] = None,
+               variable_shape: Optional[TensorShape] = None,
+               name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
     :param variable_id:  Id of a variable to be read.
+    :param variable_type:   Optional type to be set into Variable.
+    :param variable_shape:  Optional shape to be set into Variable.
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
+    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+
+    if variable_type is not None:
+        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+            attr_map["variable_type"] = get_element_type_str(variable_type)
+        else:
+            attr_map["variable_type"] = variable_type
+
+    if variable_shape is not None:
+        attr_map["variable_shape"] = PartialShape(variable_shape)
+
     return _get_node_factory_opset6().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        attr_map,
+    )
+
+
+@read_value.register
+def _(variable_id: str,
+      variable_type: Optional[Union[NumericType, Type, str]] = None,
+      variable_shape: Optional[TensorShape] = None,
+      name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param variable_id:  Id of a variable to be read.
+    :param variable_type:   Optional type to be set into Variable.
+    :param variable_shape:  Optional shape to be set into Variable.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+
+    if variable_type is not None:
+        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+            attr_map["variable_type"] = get_element_type_str(variable_type)
+        else:
+            attr_map["variable_type"] = variable_type
+
+    if variable_shape is not None:
+        attr_map["variable_shape"] = PartialShape(variable_shape)
+
+    return _get_node_factory_opset6().create(
+        "ReadValue",
+        [],
+        attr_map,
     )

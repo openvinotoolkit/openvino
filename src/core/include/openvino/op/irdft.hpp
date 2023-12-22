@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v9 {
 class OPENVINO_API IRDFT : public util::FFTBase {
 public:
     OPENVINO_OP("IRDFT", "opset9", util::FFTBase);
-    BWDCMP_RTTI_DECLARATION;
     IRDFT() = default;
 
     /// \brief Constructs a IRDFT operation. IRDFT is performed for full size axes.
@@ -31,7 +30,6 @@ public:
     IRDFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

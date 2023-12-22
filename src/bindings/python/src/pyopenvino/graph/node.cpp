@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
+
+#include <regex>
+#include <string>
 
 #include "dict_attribute_visitor.hpp"
 #include "openvino/core/runtime_attribute.hpp"
@@ -80,6 +83,53 @@ void regclass_graph_Node(py::module m) {
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
+
+    // This function replaces NodeFactory's mechanism previously getting attributes of Nodes.
+    // Python will call this method whenever requested attribute hasn't already been defined,
+    // so all other properties like shape or name are prioritized from bindings itself.
+    // TODO: is it possible to append these attributes to the instance of Node itself
+    //       directly from pybind without returning class itself everytime?
+    node.def("__getattr__", [](const std::shared_ptr<ov::Node>& self, const std::string& name) {
+        // TODO: is it possible to cache serializer and regex?
+        util::DictAttributeSerializer dict_serializer(self);
+
+        // Look if there is a "get/set_*" pattern at the start of a string.
+        // It means attribute was called as a function.
+        std::smatch regex_match;
+        std::regex look_for("get_|set_");
+
+        if (std::regex_search(name, regex_match, look_for, std::regex_constants::match_continuous)) {
+            // Strip prefix from the name and perform operation.
+            auto stripped_name = regex_match.suffix().str();
+            if (regex_match.str() == "get_") {
+                if (dict_serializer.contains_attribute(stripped_name)) {
+                    return py::cpp_function([self, stripped_name]() {
+                        util::DictAttributeSerializer dict_serializer(self);
+                        return dict_serializer.get_attribute<py::object>(stripped_name);
+                    });
+                }
+                // Throw error with original name if stripped set_attribute was not found:
+                throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+            } else {  // regex_match is equal to "set_"
+                if (dict_serializer.contains_attribute(stripped_name)) {
+                    return py::cpp_function([self, stripped_name](py::object& value) {
+                        py::dict attr_dict;
+                        attr_dict[stripped_name.c_str()] = value;
+                        std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+                        util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
+                        self->visit_attributes(dict_deserializer);
+                        return;
+                    });
+                }
+                // Throw error with original name if stripped set_attribute was not found:
+                throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+            }
+        }
+
+        // If nothing was found raise AttributeError:
+        throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+    });
+
     node.def(
         "evaluate",
         [](const ov::Node& self,
@@ -95,12 +145,12 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[op.Tensor]
+                :type output_tensors: List[openvino.runtime.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[op.Tensor]
+                :type input_tensors: List[openvino.runtime.Tensor]
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
-                :type evaluation_context: PyRTMap
+                :type evaluation_context: openvino.runtime.RTMap
                 :rtype: bool
             )");
     node.def(
@@ -114,9 +164,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the function on inputs, putting results in outputs
 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[op.Tensor]
+                :type output_tensors: List[openvino.runtime.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[op.Tensor]
+                :type input_tensors: List[openvino.runtime.Tensor]
                 :rtype: bool
              )");
     node.def("get_input_tensor",
@@ -129,7 +179,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Tensor of the input i
-                :rtype: descriptor.Tensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
@@ -137,7 +187,7 @@ void regclass_graph_Node(py::module m) {
                 Checks that there is exactly one output and returns it's element type.
 
                 :return: Type of the output.
-                :rtype: Type
+                :rtype: openvino.runtime.Type
              )");
     node.def("input_values",
              &ov::Node::input_values,
@@ -145,7 +195,7 @@ void regclass_graph_Node(py::module m) {
                  Returns list of node's inputs, in order.
 
                  :return: List of node's inputs
-                 :rtype: List[Input]
+                 :rtype: List[openvino.runtime.Input]
              )");
     node.def("input_value",
              &ov::Node::input_value,
@@ -156,7 +206,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Input of this node.
-                :rtype: Input
+                :rtype: openvino.runtime.Input
              )");
     node.def("get_input_size",
              &ov::Node::get_input_size,
@@ -183,7 +233,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Type of the output i
-                :rtype: Type
+                :rtype: openvino.runtime.Type
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
@@ -194,7 +244,7 @@ void regclass_graph_Node(py::module m) {
 
                 :param index: Index of the output.
                 :return: Shape of the output i
-                :rtype: Shape
+                :rtype: openvino.runtime.Shape
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
@@ -205,7 +255,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: PartialShape of the output i
-                :rtype: PartialShape
+                :rtype: openvino.runtime.PartialShape
              )");
     node.def("get_output_tensor",
              &ov::Node::get_output_tensor,
@@ -217,14 +267,14 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Tensor of the output i
-                :rtype: descriptor.Tensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_type_name",
              &ov::Node::get_type_name,
              R"(
                 Returns Type's name from the node.
 
-                :return: String repesenting Type's name.
+                :return: String representing Type's name.
                 :rtype: str
              )");
     node.def("get_name",
@@ -266,7 +316,7 @@ void regclass_graph_Node(py::module m) {
                 :param input_index: Index of Input.
                 :type input_index: int
                 :return: Input of this node.
-                :rtype: Input
+                :rtype: openvino.runtime.Input
              )");
     node.def("inputs",
              (std::vector<ov::Input<ov::Node>>(ov::Node::*)()) & ov::Node::inputs,
@@ -274,7 +324,7 @@ void regclass_graph_Node(py::module m) {
                 A list containing a handle for each of this node's inputs, in order.
 
                 :return: List of node's inputs.
-                :rtype: List[Input]
+                :rtype: List[openvino.runtime.Input]
              )");
     node.def("output",
              (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
@@ -285,7 +335,7 @@ void regclass_graph_Node(py::module m) {
                 :param output_index: Index of Output.
                 :type output_index: int
                 :return: Output of this node.
-                :rtype: Output
+                :rtype: openvino.runtime.Output
              )");
     node.def("outputs",
              (std::vector<ov::Output<ov::Node>>(ov::Node::*)()) & ov::Node::outputs,
@@ -293,7 +343,7 @@ void regclass_graph_Node(py::module m) {
                 A list containing a handle for each of this node's outputs, in order.
 
                 :return: List of node's outputs.
-                :rtype: List[Output]
+                :rtype: List[openvino.runtime.Output]
              )");
     node.def("get_rt_info",
              (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
@@ -302,15 +352,7 @@ void regclass_graph_Node(py::module m) {
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
-                :rtype: PyRTMap
-             )");
-    node.def("get_version",
-             &ov::Node::get_version,
-             R"(
-                Returns operation's version of the node.
-
-                :return: Operation version.
-                :rtype: int
+                :rtype: openvino.runtime.RTMap
              )");
 
     node.def("set_argument", &ov::Node::set_argument);
@@ -326,7 +368,6 @@ void regclass_graph_Node(py::module m) {
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
-    node.def_property_readonly("version", &ov::Node::get_version);
     node.def_property_readonly("type_info", &ov::Node::get_type_info);
     node.def_property("friendly_name", &ov::Node::get_friendly_name, &ov::Node::set_friendly_name);
 

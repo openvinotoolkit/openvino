@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,11 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
 
 #include "openvino/pass/constant_folding.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 

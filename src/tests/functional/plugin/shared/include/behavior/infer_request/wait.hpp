@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ TEST_P(InferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
@@ -29,7 +29,7 @@ TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) 
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
@@ -44,7 +44,7 @@ TEST_P(InferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
@@ -76,13 +76,14 @@ TEST_P(InferRequestWaitTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
     auto outputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
-    ASSERT_EQ(InferenceEngine::StatusCode::INFER_NOT_STARTED, sts);
+    ASSERT_TRUE(InferenceEngine::StatusCode::INFER_NOT_STARTED == sts ||
+                sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
     req.StartAsync();
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     try {
         req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cout << "Exception: " << e.what() << std::endl;
     }
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
@@ -100,4 +101,4 @@ TEST_P(InferRequestWaitTests, returnDeviceBusyOnGetBlobAfterAsyncInfer) {
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob));
 }
 
-} // namespace BehaviorTestsDefinitions
+}  // namespace BehaviorTestsDefinitions

@@ -1,69 +1,35 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import os
 import pytest
-import warnings
 import time
 
 from openvino.inference_engine import ie_api as ie
-from tests_compatibility.conftest import model_path, image_path
+from tests_compatibility.conftest import model_path
+from tests_compatibility.test_utils.test_utils import generate_image, generate_relu_model
 
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-path_to_image = image_path()
-test_net_xml, test_net_bin = model_path(is_myriad)
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_image)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1))
-    image = image.reshape((n, c, h, w))
-    return image
+test_net_xml, test_net_bin = model_path(False)
 
 
 def test_infer(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
-    res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 2
+    img = generate_image()
+    res = exec_net.infer({'parameter': img})
+    assert np.argmax(res['relu'][0]) == 531
     del exec_net
     del ie_core
-
-
-def test_infer_net_from_buffer(device):
-    ie_core = ie.IECore()
-    with open(test_net_bin, 'rb') as f:
-        bin = f.read()
-    with open(test_net_xml, 'rb') as f:
-        xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin, init_from_buffer=True)
-    net2 = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, device)
-    exec_net2 = ie_core.load_network(net2, device)
-    img = read_image()
-    res = exec_net.infer({'data': img})
-    res2 = exec_net2.infer({'data': img})
-    del ie_core
-    del exec_net
-    del exec_net2
-    assert np.allclose(res['fc_out'], res2['fc_out'], atol=1E-4, rtol=1E-4)
 
 
 def test_infer_wrong_input_name(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     with pytest.raises(AssertionError) as e:
         exec_net.infer({'_data_': img})
     assert "No input with name _data_ found in network" in str(e.value)
@@ -106,37 +72,37 @@ def test_access_requests(device):
 
 def test_async_infer_one_req(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
-    request_handler = exec_net.start_async(request_id=0, inputs={'data': img})
+    img = generate_image()
+    request_handler = exec_net.start_async(request_id=0, inputs={'parameter': img})
     request_handler.wait()
-    res = request_handler.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    res = request_handler.output_blobs['relu'].buffer
+    assert np.argmax(res) == 531
     del exec_net
     del ie_core
 
 
 def test_async_infer_many_req(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     exec_net = ie_core.load_network(net, device, num_requests=5)
-    img = read_image()
+    img = generate_image()
     for id in range(5):
-        request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
+        request_handler = exec_net.start_async(request_id=id, inputs={'parameter': img})
         request_handler.wait()
-        res = request_handler.output_blobs['fc_out'].buffer
-        assert np.argmax(res) == 2
+        res = request_handler.output_blobs['relu'].buffer
+        assert np.argmax(res) == 531
     del exec_net
     del ie_core
 
 
 def test_async_infer_many_req_get_idle(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     num_requests = 5
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)
-    img = read_image()
+    img = generate_image()
     check_id = set()
     for id in range(2*num_requests):
         request_id = exec_net.get_idle_request_id()
@@ -145,31 +111,32 @@ def test_async_infer_many_req_get_idle(device):
             assert(status == ie.StatusCode.OK)
         request_id = exec_net.get_idle_request_id()
         assert(request_id >= 0)
-        request_handler = exec_net.start_async(request_id=request_id, inputs={'data': img})
+        request_handler = exec_net.start_async(request_id=request_id, inputs={'parameter': img})
         check_id.add(request_id)
     status = exec_net.wait(timeout=ie.WaitMode.RESULT_READY)
     assert status == ie.StatusCode.OK
     for id in range(num_requests):
         if id in check_id:
-            assert np.argmax(exec_net.requests[id].output_blobs['fc_out'].buffer) == 2
+            assert np.argmax(exec_net.requests[id].output_blobs['relu'].buffer) == 531
     del exec_net
     del ie_core
 
 
 def test_wait_before_start(device):
   ie_core = ie.IECore()
-  net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+  net = generate_relu_model([1, 3, 32, 32])
   num_requests = 5
   exec_net = ie_core.load_network(net, device, num_requests=num_requests)
-  img = read_image()
+  img = generate_image()
   requests = exec_net.requests
   for id in range(num_requests):
       status = requests[id].wait()
-      assert status == ie.StatusCode.INFER_NOT_STARTED
-      request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
+      # Plugin API 2.0 has the different behavior will not return this status
+      # assert status == ie.StatusCode.INFER_NOT_STARTED
+      request_handler = exec_net.start_async(request_id=id, inputs={'parameter': img})
       status = requests[id].wait()
       assert status == ie.StatusCode.OK
-      assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
+      assert np.argmax(request_handler.output_blobs['relu'].buffer) == 531
   del exec_net
   del ie_core
 
@@ -185,7 +152,7 @@ def test_wait_for_callback(device):
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)
     callbacks_info = {}
     callbacks_info['finished'] = 0
-    img = read_image()
+    img = generate_image()
     for request in exec_net.requests:
         request.set_completion_callback(callback, callbacks_info)
         request.async_infer({'data': img})
@@ -198,7 +165,7 @@ def test_wrong_request_id(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     with pytest.raises(ValueError) as e:
         exec_net.start_async(request_id=20, inputs={'data': img})
     assert "Incorrect request_id specified!" in str(e.value)
@@ -228,23 +195,20 @@ def test_wrong_num_requests_core(device):
 
 def test_plugin_accessible_after_deletion(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
-    res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 2
+    img = generate_image()
+    res = exec_net.infer({'parameter': img})
+    assert np.argmax(res['relu'][0]) == 531
     del exec_net
     del ie_core
 
 
 def test_exec_graph(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
     exec_graph = exec_net.get_exec_graph_info()
     exec_graph_file = 'exec_graph.xml'
@@ -256,20 +220,21 @@ def test_exec_graph(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD",
-                    reason="Device specific test. Only MYRIAD plugin implements network export")
-def test_export_import():
+def test_export_import(device):
     ie_core = ie.IECore()
+    if "EXPORT_IMPORT" not in ie_core.get_metric(device, "OPTIMIZATION_CAPABILITIES"):
+        pytest.skip(f"{ie_core.get_metric(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, "MYRIAD")
+    exec_net = ie_core.load_network(net, "CPU")
     exported_net_file = 'exported_model.bin'
     exec_net.export(exported_net_file)
     assert os.path.exists(exported_net_file)
-    exec_net = ie_core.import_network(exported_net_file, "MYRIAD")
+    exec_net = ie_core.import_network(exported_net_file, "CPU")
     os.remove(exported_net_file)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 3
+    assert np.argmax(res['fc_out'][0]) == 9
     del exec_net
     del ie_core
 
@@ -346,9 +311,6 @@ def test_outputs_deallocation(device):
 
 def test_exec_graph_info_deallocation(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     exec_graph_info = exec_net.get_exec_graph_info()

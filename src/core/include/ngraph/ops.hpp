@@ -1,10 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // All op headers
 
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
@@ -57,6 +67,7 @@
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/op/experimental_detectron_topkrois.hpp"
 #include "ngraph/op/extractimagepatches.hpp"
+#include "ngraph/op/eye.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/floor_mod.hpp"
@@ -65,8 +76,10 @@
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/op/gelu.hpp"
+#include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/greater_eq.hpp"
+#include "ngraph/op/grid_sample.hpp"
 #include "ngraph/op/grn.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/gru_cell.hpp"
@@ -80,6 +93,9 @@
 #include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/irdft.hpp"
+#include "ngraph/op/is_finite.hpp"
+#include "ngraph/op/is_inf.hpp"
+#include "ngraph/op/is_nan.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/log.hpp"
@@ -156,6 +172,7 @@
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/softplus.hpp"
+#include "ngraph/op/softsign.hpp"
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/space_to_depth.hpp"
 #include "ngraph/op/split.hpp"
@@ -171,6 +188,7 @@
 #include "ngraph/op/tile.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/transpose.hpp"
+#include "ngraph/op/unique.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_types.hpp"

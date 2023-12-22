@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,8 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     Algorithm alg;
 
@@ -68,19 +68,19 @@ struct jit_uni_roi_pooling_kernel {
 
 class ROIPooling : public Node {
 public:
-    ROIPooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;
 
 private:
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;
@@ -93,9 +93,9 @@ private:
     public:
         ROIPoolingExecutor() = default;
         virtual void exec(
-            const ov::intel_cpu::Memory& srcData,
-            const ov::intel_cpu::Memory& srcRoi,
-            const ov::intel_cpu::Memory& dst) = 0;
+            const ov::intel_cpu::IMemory& srcData,
+            const ov::intel_cpu::IMemory& srcRoi,
+            const ov::intel_cpu::IMemory& dst) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
@@ -125,8 +125,8 @@ private:
         };
     };
 
-    template <typename T> struct ROIPoolingJitExecutor;
-    template <typename T> struct ROIPoolingRefExecutor;
+    template <typename T> class ROIPoolingJitExecutor;
+    template <typename T> class ROIPoolingRefExecutor;
 
     using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
     executorPtr execPtr = nullptr;

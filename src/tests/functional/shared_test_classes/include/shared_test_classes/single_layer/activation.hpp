@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,12 @@
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
-
 #include "functional_test_utils/blob_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -75,6 +73,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
         {ngraph::helpers::ActivationTypes::GeluErf,               "GeluErf"},
         {ngraph::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
+        {ngraph::helpers::ActivationTypes::SoftSign,              "SoftSign"},
 };
 
 typedef std::tuple<

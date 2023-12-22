@@ -1,19 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/common/tensor_type.h"
 
 #include <string>
 #include <memory>
 
 namespace cldnn {
+
+class ReorderFuseParams : public NodeFuseParams {
+public:
+    ReorderFuseParams(const layout& in, const layout& out) : NodeFuseParams(reorder::type_id()), _in(in), _out(out) {}
+
+    layout _in;
+    layout _out;
+};
 
 template <>
 struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
@@ -24,7 +29,6 @@ public:
         support_padding_all(true);
     }
 
-    size_t inputs_count() const { return get_primitive()->input.size(); }
     program_node& mean_nv12() const { return get_dependency(2); }
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     program_node& mean() const { return get_dependency(1); }
@@ -36,11 +40,32 @@ public:
 
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
-        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
-        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    bool is_type_conversion_only() const {
+        auto in_layout = get_input_layout();
+        auto out_layout = get_output_layout();
+        bool only_precision_changed = in_layout.data_type != out_layout.data_type &&
+                                      in_layout.format == out_layout.format &&
+                                      in_layout.data_padding == out_layout.data_padding;
+        if (is_dynamic()) {
+            only_precision_changed &= in_layout.get_partial_shape().rank() == out_layout.get_partial_shape().rank();
+        } else {
+            only_precision_changed &= in_layout.get_partial_shape() == out_layout.get_partial_shape();
+        }
+
+        return only_precision_changed && is_simple_reorder() && typed_desc()->truncate;
     }
+
+    bool is_simple_reorder() const {
+        return !has_fused_primitives() &&
+               !has_mean() &&
+               get_primitive()->subtract_per_feature.empty() &&
+               !get_primitive()->weights_reorder_params;
+    }
+
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<ReorderFuseParams>(input_layout, get_output_layout());
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
     bool req_reinterpr = false;
@@ -52,21 +77,36 @@ using reorder_node = typed_program_node<reorder>;
 template <>
 class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> {
     using parent = typed_primitive_inst_base<reorder>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(reorder_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reorder_node const& node);
 
 public:
+    typed_primitive_inst(network& network);
     typed_primitive_inst(network& network, reorder_node const& node);
+
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument.mean.empty(); }
+    bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
+
+    void update_output_memory() override;
+    bool requires_reinterpret() const {
+        auto req_reinterpr = _req_reinterpr;
+        if (input_memory().get_layout() != _impl_params->get_output_layout()) {
+            req_reinterpr = true;
+        }
+        return req_reinterpr;
+    }
 
 private:
     void on_execute() override;
-    void reuse_input();
+
+    bool _req_reinterpr = false;
 };
 
 using reorder_inst = typed_primitive_inst<reorder>;

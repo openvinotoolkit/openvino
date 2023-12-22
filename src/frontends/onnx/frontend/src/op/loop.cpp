@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -42,11 +43,6 @@ OutputVector loop(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
 
     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
-
-    std::map<std::size_t, std::string> loop_carried_dependencies_map;
-    for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++) {
-        loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_tensor().get_any_name();
-    }
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
@@ -182,3 +178,4 @@ OutputVector loop(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

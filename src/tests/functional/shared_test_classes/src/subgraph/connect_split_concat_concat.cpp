@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,17 +25,19 @@ void SplitConcatConcatTest::SetUp() {
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {{1, 256}});
-    auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 2, 1);
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 256})};
+    auto relu_start = std::make_shared<ov::op::v0::Relu>(params[0]);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(relu_start, split_axis_op, 2);
+
     auto const_concat = ngraph::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
     auto const_concat_2 = ngraph::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), const_concat}, 1);
-    auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{concat, const_concat_2},
+    auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{split->output(0), const_concat}, 1);
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{concat, const_concat_2},
                                                              1);
-    auto relu = std::make_shared<ngraph::opset1::Relu>(concat_2);
+    auto relu = std::make_shared<ov::op::v0::Relu>(concat_2);
     ngraph::ResultVector resultVector{
-            std::make_shared<ngraph::opset1::Result>(relu)
+            std::make_shared<ov::op::v0::Result>(relu)
     };
     function = std::make_shared<ngraph::Function>(resultVector, params, "Multiple_connection_split_concat");
 }

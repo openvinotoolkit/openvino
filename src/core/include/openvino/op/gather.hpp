@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OP("Gather", "opset1", op::util::GatherBase, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Gather", "opset1", op::util::GatherBase);
     static constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
     Gather() = default;
     /// \param data The tensor from which slices are gathered
@@ -22,7 +21,6 @@ public:
     /// \param axis The tensor is a dimension index to gather data from
     Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axis);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     int64_t get_axis() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -34,8 +32,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OP("Gather", "opset7", op::util::GatherBase, 7);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Gather", "opset7", op::util::GatherBase);
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered
@@ -63,7 +60,6 @@ namespace v8 {
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset8", op::util::GatherBase);
-    BWDCMP_RTTI_DECLARATION;
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered

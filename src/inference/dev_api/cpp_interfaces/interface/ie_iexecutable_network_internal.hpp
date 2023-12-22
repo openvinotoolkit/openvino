@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,16 +27,18 @@ class Result;
 namespace InferenceEngine {
 
 class IInferencePlugin;
+class IPluginWrapper;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
+class ICompiledModelWrapper;
 
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
  * @ingroup ie_dev_api_exec_network_api
  */
-class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
     : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
@@ -123,6 +125,13 @@ public:
     virtual void SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin);
 
     /**
+     * @brief      Gets the pointer to plugin so.
+     * @note Needed to correctly handle ownership between objects.
+     * @return A shared pointer to the plugin so
+     */
+    virtual std::shared_ptr<void> GetPointerToSo();
+
+    /**
      * @brief Sets configuration for current executable network
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
@@ -147,6 +156,18 @@ public:
      * @return A reference to a context
      */
     virtual std::shared_ptr<RemoteContext> GetContext() const;
+
+    /**
+     * @brief Raises the flag that model was loaded from cache
+     */
+    void loadedFromCache();
+
+    /**
+     * @brief Provides an information how model was loaded
+     *
+     * @return true if model was loaded from cache
+     */
+    bool isLoadedFromCache() const;
 
 protected:
     virtual ~IExecutableNetworkInternal() = default;
@@ -183,6 +204,20 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IInferencePlugin> _plugin;
+
+    /**
+     * @brief A pointer to a plugin library.
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<void> _so;
+
+    /**
+     * @brief If true, it means that model was loaded from cache
+     */
+    bool _loadedFromCache = false;
+
+    friend InferenceEngine::ICompiledModelWrapper;
+    friend InferenceEngine::IPluginWrapper;
 };
 
 /**

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,6 @@ class OPENVINO_API AttributeAdapter<AxisVector> : public IndirectVectorValueAcce
 public:
     AttributeAdapter(AxisVector& value) : IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>>(value) {}
     OPENVINO_RTTI("AttributeAdapter<AxisVector>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

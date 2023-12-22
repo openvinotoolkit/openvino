@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,18 +8,17 @@
 namespace ov {
 namespace test {
 namespace behavior {
-
-std::string OVInferRequestWaitTests::getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
-    return OVInferRequestTests::getTestCaseName(obj);
-}
-
 void OVInferRequestWaitTests::SetUp() {
+    OVInferRequestTests::SetUp();
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    OVInferRequestTests::SetUp();
     req = execNet.create_infer_request();
     input = execNet.input();
     output = execNet.output();
+}
+
+std::string OVInferRequestWaitTests::getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+    return OVInferRequestTests::getTestCaseName(obj);
 }
 
 void OVInferRequestWaitTests::TearDown() {
@@ -79,6 +78,12 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnGetTensorAfterAsyncInfer) {
         req.get_tensor(input);
     } catch (const ov::Busy&) {});
     OV_ASSERT_NO_THROW(req.wait());
+}
+
+TEST_P(OVInferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    ASSERT_THROW(req.wait_for(std::chrono::milliseconds{-1}), ov::Exception);
 }
 
 }  // namespace behavior

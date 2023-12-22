@@ -1,47 +1,46 @@
 # build/artifact dirs
 _*
+[Bb]uild*/
+cmake-build*
+
 # but ensure we don't skip __init__.py and __main__.py
 !__init__.py
 !__main__.py
 # and sphinx documentation folders
-!docs/_*
+!docs/sphinx_setup/_*
 
 # developer tools
 *.idea
 .vscode
-cmake-build-*
+.vs/
+.vsconan/
 .DS_Store
 **/tags
 compile_commands.json
 bin/
-build/
 .local_vimrc
 .gdb_history
 .vimspector.json
 doc/
-!ngraph/doc
 docs/build_documentation/work_dir/
-inference-engine/plugins/
-inference-engine/report
 temp/
 .repo/
-docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
+CMakeUserPresets.json
 
 *.project
 *.cproject
 *.pydevproject
 *.settings
 */gen/
-__pycache__
 *.swp
 /config.xml
 
 # Python-specific
-*.env3
+*.?env*
 *.pyc
-
+__pycache__
 # Tests-specific
 *.coverage
 *htmlcov
@@ -60,3 +59,6 @@ __pycache__
 /tools/mo/*.mapping
 /tools/mo/*.dat
 /tools/mo/*.svg
+/src/plugins/intel_cpu/tools/commit_slider/*.json
+/src/plugins/intel_cpu/tools/commit_slider/slider_cache/*
+.github/GITHUB_OUTPUT

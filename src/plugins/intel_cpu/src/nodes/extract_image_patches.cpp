@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #include <string>
 #include <cmath>
 
-#include <ngraph/opsets/opset3.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset3.hpp>
+#include "openvino/core/parallel.hpp"
 #include "extract_image_patches.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "caseless.hpp"
@@ -25,14 +25,14 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
 struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
-    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator() {}
+    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -79,7 +79,7 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
-    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
+    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
@@ -110,7 +110,8 @@ private:
             case 4: uni_vmovss(vmm_arg, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
@@ -119,7 +120,8 @@ private:
             case 4: uni_vmovss(op, vmm_arg); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
 
@@ -152,14 +154,15 @@ private:
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
                 break;
-            case x64::avx512_common:
+            case x64::avx512_core:
                 kxnord(k_mask, k_mask, k_mask);
                 vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
                 break;
             case x64::sse41:
                 emulate_gather(vmm_arg, mem_base);
                 break;
-            default: IE_THROW() << "Got unsupported instruction set.";
+            default:
+                OPENVINO_THROW("Got unsupported instruction set.");
         }
     }
 
@@ -168,7 +171,8 @@ private:
             case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
             case 2:
             case 1: emulate_gather(vmm_arg, mem_base); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
 
@@ -182,7 +186,8 @@ private:
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
                 case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
                 case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
-                default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+                default:
+                    OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
             }
         }
     }
@@ -266,24 +271,25 @@ private:
     void prepare_table() {
         align(64);
         L(gather_index_table);
-        for (int32_t i = 0; i < vlen / sizeof(int32_t); i++)
+        for (size_t i = 0; i < vlen / sizeof(int32_t); i++)
             dd(i * jpp.SW * jpp.dtype_size);
     }
 };
+#endif // OPENVINO_ARCH_X86_64
 
-bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+        auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
             errorMessage = "Only opset3 ExtractImagePatches operation is supported";
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
-            errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
+        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
+            errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+        if (!everyone_is(2u, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
@@ -327,52 +333,56 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
-    auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+    auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                   << " Input: " << inputShapes.size() << "; Output: " << outputShapes.size();
+        OPENVINO_THROW(errorPrefix,
+                       "has incorrect number of input or output edges!",
+                       " Input: ",
+                       inputShapes.size(),
+                       "); Output: ",
+                       outputShapes.size());
 
     if (getInputShapeAtPort(0).getRank() != 4)
-        IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
 
     if (getOutputShapeAtPort(0).getRank() != 4)
-        IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
 
-    if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
+    if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
         _auto_pad = ExtImgPatcherPadType::VALID;
-    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
+    } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_LOWER) {
         _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
-    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
+    } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
-        IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
+        OPENVINO_THROW(errorPrefix, "has unsupported pad type: ", extImgPatcher->get_auto_pad());
     }
 
     _ksizes = extImgPatcher->get_sizes();;
     _strides = extImgPatcher->get_strides();
     _rates = extImgPatcher->get_rates();
     if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2)
-        IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
+        OPENVINO_THROW(errorPrefix, "must have the following attributes with shape {2}: sizes, strides, rates.");
 }
 
 void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory has not been allocated.";
+        OPENVINO_THROW("Destination memory has not been allocated.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& out_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -398,7 +408,7 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.prcSize);
         }
     };
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }
@@ -409,26 +419,26 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-        IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
+        OPENVINO_THROW(errorPrefix, "has unsupported precision: ", precision.get_type_name());
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(mkldnn::stream strm) {
+void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
-        auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
-        const auto inStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src = getParentEdgeAt(0)->getMemoryPtr()->getData();
+        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData();
+        const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        IE_THROW() << "Can't execute extract image patches node. Primitive wasn't created";
+        OPENVINO_THROW("Can't execute extract image patches node. Primitive wasn't created");
     }
 }
 
-void ExtractImagePatches::executeDynamicImpl(mkldnn::stream strm) {
+void ExtractImagePatches::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -440,8 +450,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
     const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_start = kh * RH - PT;
+        const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
+        const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
 
@@ -481,6 +491,7 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
+#if defined(OPENVINO_ARCH_X86_64)
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
     const auto& jpp = pKernel->jpp;
@@ -507,6 +518,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
         args.w_hi_pad = iw_hpad;
         (*pKernel)(&args);
     });
+#endif // OPENVINO_ARCH_X86_64
 }
 
 jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecutor::fillJpp(
@@ -564,8 +576,8 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     }
 
     jpp.dtype_size = prcSize;
-    if (mayiuse(x64::avx512_common)) {
-        jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / prcSize;
+    if (mayiuse(x64::avx512_core)) {
+        jpp.block_size = cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
         jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
@@ -585,25 +597,27 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     const VectorDims& rates,
     const ExtImgPatcherPadType& padType,
     const size_t prcSize) {
+#if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
-    if (mayiuse(x64::avx512_common)) {
-        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_common>(jpp));
+    if (mayiuse(x64::avx512_core)) {
+        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_core>(jpp));
     } else if (mayiuse(x64::avx2)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
     } else if (mayiuse(x64::sse41)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
     } else {
-        IE_THROW() << "Can't create jit extract image patches kernel";
+        OPENVINO_THROW("Can't create jit extract image patches kernel");
     }
 
     if (pKernel)
         pKernel->create_ker();
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) {
     if (!pKernel)
-        IE_THROW() << "Can't execute, kernel for extract image patches node is not compiled";
+        OPENVINO_THROW("Can't execute, kernel for extract image patches node is not compiled");
     executeOptimizedGeneric(src, dst, istrides, ostrides);
 }
 

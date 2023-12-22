@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include "cpu_blocked_memory_desc.h"
 #include <dnnl_extension_utils.h>
+#include <common/memory_desc.hpp>
+#include <oneapi/dnnl/dnnl.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -17,50 +19,48 @@ using DnnlMemoryDescCPtr = std::shared_ptr<const DnnlMemoryDesc>;
 
 class DnnlMemoryDesc : public virtual MemoryDesc {
 public:
-    mkldnn::memory::data_type getDataType() const {
-        return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
-    }
+    ov::element::Type getPrecision() const override;
 
-    dnnl_format_kind_t getFormatKind() const {
-        return desc.data.format_kind;
-    }
+    MemoryDescPtr clone() const override;
 
-    MemoryDescPtr clone() const override {
-        return std::make_shared<DnnlMemoryDesc>(*this);
-    }
-
-    std::string serializeFormat() const override;
-
-    InferenceEngine::Precision getPrecision() const override;
+    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
-
-    size_t getMaxMemSize() const override;
-
-    const mkldnn::memory::desc& getDnnlDesc() const {
-        return desc;
-    }
+    bool isCompatible(const DnnlMemoryDesc& rhs) const;
 
     bool hasLayoutType(LayoutType layoutType) const override { return false; }
 
-    virtual bool isSame(mkldnn::memory::format_tag fmt) const { return false; }
+    std::string serializeFormat() const override;
 
-    bool hasEmptyExtraData() const { return desc.data.extra.flags == dnnl_memory_extra_flag_none; }
+    size_t getMaxMemSize() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+    virtual bool isSame(dnnl::memory::format_tag fmt) const { return false; }
+
+    const dnnl::memory::desc& getDnnlDesc() const {
+        return desc;
+    }
+
+    dnnl::memory::data_type getDataType() const;
+
+    dnnl::memory::format_kind getFormatKind() const;
+
+    bool hasEmptyExtraData() const;
+
+    size_t getOffsetPadding() const override;
 
 protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
 
-    mkldnn::memory::desc desc;
+    dnnl::memory::desc desc;
 
-    void setPrecision(InferenceEngine::Precision prc) override {
-        desc.data.data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(prc));
+    void setPrecision(ov::element::Type prc) override {
+        desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(prc));
     }
 
 private:
-    explicit DnnlMemoryDesc(const mkldnn::memory::desc& desc);
+    explicit DnnlMemoryDesc(const dnnl::memory::desc& desc);
+    explicit DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc);
 
     size_t getElementOffset(size_t elemNumber) const override;
 
@@ -69,7 +69,8 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
-    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc);
 };
 
 }   // namespace intel_cpu

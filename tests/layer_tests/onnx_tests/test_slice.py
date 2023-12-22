@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestSlice(OnnxRuntimeLayerTest):
@@ -125,7 +125,7 @@ class TestSlice(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net
@@ -152,7 +152,7 @@ class TestSlice(OnnxRuntimeLayerTest):
         from onnx import TensorProto
 
         # calculate output shape
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         slice_idx = [None] * len(shape)
         for i, axis in enumerate(axes):
@@ -274,7 +274,7 @@ class TestSlice(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net
@@ -371,42 +371,48 @@ class TestSlice(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_no_steps)
     @pytest.mark.nightly
-    def test_slice_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps)
     @pytest.mark.nightly
-    def test_slice_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, opset=6, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    def test_slice_opset10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_opset10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(
             *self.create_net(**params, opset=10, ir_version=ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    def test_slice_const_opset10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_const_opset10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_net_const(**params, opset=10, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    def test_slice_opset11(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_opset11(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(
             *self.create_net(**params, opset=11, ir_version=ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    def test_slice_const_opset11(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_slice_const_opset11(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, opset=11, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

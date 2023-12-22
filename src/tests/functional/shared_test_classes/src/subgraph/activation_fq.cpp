@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/activation_fq.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -23,9 +24,9 @@ namespace SubgraphTestsDefinitions {
         std::tie(levels, constShape, inputParams) = fqParams;
 
         std::ostringstream result;
-        result << "InputShape=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-        result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+        result << "InputShape=" << ov::test::utils::vec2str(inputShapes) << "_";
+        result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+        result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "inPRC=" << inPrc.name() << "_";
         result << "outPRC=" << outPrc.name() << "_";
@@ -62,16 +63,16 @@ namespace SubgraphTestsDefinitions {
         }
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-        auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
+        auto act = ov::test::utils::make_activation(params[0], ngPrc, activationType);
 
         auto FQNode = ngraph::builder::makeFakeQuantize(act, ngraph::element::f32, levels[0], constShape[0],
                                                         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
-        auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);
+        auto FQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(FQNode);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FQ)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(FQ)};
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
     }
 

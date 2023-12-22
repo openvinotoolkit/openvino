@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -296,7 +296,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
-        elif type(s) in [int, np.int, np.int32, np.int64]:  # shrink_axis
+        elif type(s) in [int, np.int32, np.int64]:  # shrink_axis
             in_idx += 1
         elif s is Ellipsis:
             for idx in range(num_ellipsis_inserts):
@@ -329,7 +329,11 @@ def reverse_bypass_infer(node, in_ports: List[int]):
     :param in_ports: input ports for which shape will be updated
     :return:
     """
-    assert node.is_out_port_connected(0)
+    # WA: for cases when terminal Identity node has only output control dependency edges
+    # For this case the graph is not correctly build because the Identity node goes
+    # without Result node
+    if node.out_port(0).disconnected():
+        return
 
     output_shape = node.out_port(0).data.get_shape()
     if output_shape is not None:

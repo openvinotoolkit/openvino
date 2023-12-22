@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ NGRAPH_API EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type
                                                                      {"MAX", ngraph::reduction::Type::MAX}});
     return enum_names;
 }
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ngraph::reduction::Type>);
 }  // namespace ov
 
 std::ostream& ngraph::reduction::operator<<(std::ostream& out, const ngraph::reduction::Type& obj) {

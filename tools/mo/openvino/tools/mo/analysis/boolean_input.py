@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -10,7 +10,7 @@ from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 class TrainingPhaseAnalysis(AnalyzeAction):
 
     def analyze(self, graph: Graph):
-        nodes = graph.get_op_nodes(op='Parameter', data_type=np.bool)
+        nodes = graph.get_op_nodes(op='Parameter', data_type=bool)
         names = ""
         params = ""
         if not nodes:

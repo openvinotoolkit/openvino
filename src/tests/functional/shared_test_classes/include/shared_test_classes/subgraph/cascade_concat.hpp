@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -30,4 +30,21 @@ public:
 protected:
     void SetUp() override;
 };
+
+typedef std::tuple<
+        std::vector<size_t>,               //input shapes
+        InferenceEngine::Precision,        //Network precision
+        std::string,                       //Device name
+        std::map<std::string, std::string> //config
+        > CascadeConcatWithMultiConnReshapeTuple;
+
+class CascadeConcatWithMultiConnReshape
+        : public testing::WithParamInterface<CascadeConcatWithMultiConnReshapeTuple>,
+          virtual public LayerTestsUtils::LayerTestsCommon {
+              public:
+static std::string getTestCaseName(const testing::TestParamInfo<CascadeConcatWithMultiConnReshapeTuple> &obj);
+protected:
+    void SetUp() override;
+};
+
 } // namespace SubgraphTestsDefinitions

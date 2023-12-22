@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "nodes/common/cpu_convert.h"
 
 #include <string>
 #include <vector>
@@ -17,37 +19,47 @@ namespace intel_cpu {
 namespace node {
 
 If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
-                                           const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
+                                           const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
-        size = srcMemPtr->GetSize();
+        size = srcMemPtr->getShape().getElementsCount();
+
+    // Backup dstMemPtrs
+    for (auto& ptr : dstMemPtrs) {
+        originalDstMemDescs.push_back(ptr->getDescPtr()->clone());
+    }
 }
 
-void If::PortMapHelper::execute(mkldnn::stream& strm) {
+void If::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_memcpy(dstMemPtrs.front()->GetPtr(), srcMemPtr->GetPtr(), size);
+    cpu_convert(srcMemPtr->getData(),
+                dstMemPtrs.front()->getData(),
+                srcMemPtr->getDesc().getPrecision(),
+                dstMemPtrs.front()->getDesc().getPrecision(),
+                size);
 }
 
 void If::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-        auto memDesc = srcMemPtr->getDescPtr();
+        auto newShape = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
-            dstMemPtrs[j]->redefineDesc(memDesc);
+            // Only the shape is updated, the memory type remains unchanged
+            dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
 
-        size = srcMemPtr->GetSize();
+        size = srcMemPtr->getShape().getElementsCount();
     }
 }
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
-            errorMessage = "Not supported If operation version " + std::to_string(op->get_type_info().version) +
+            errorMessage = "Not supported If operation version " + std::string(op->get_type_info().version_id) +
                     " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
         }
@@ -57,11 +69,11 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -70,8 +82,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
-    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache);
-    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache);
+    subGraphThen.CreateGraph(thenBody, context);
+    subGraphElse.CreateGraph(elseBody, context);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {
@@ -79,8 +91,10 @@ void If::getSupportedDescriptors() {
         if (inNode != inMapThen.end()) {
             inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
-            IE_THROW() << "Then body of node If with name " << getName() << " does not have input with name: "
-                    << param->get_friendly_name();
+            OPENVINO_THROW("Then body of node If with name ",
+                           getName(),
+                           " does not have input with name: ",
+                           param->get_friendly_name());
         }
     }
 
@@ -90,36 +104,36 @@ void If::getSupportedDescriptors() {
         if (inNode != inMapElse.end()) {
             inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
-            IE_THROW() << "Else body of node If with name " << getName() << " does not have input with name: "
-                    << param->get_friendly_name();
+            OPENVINO_THROW("Else body of node If with name ",
+                           getName(),
+                           " does not have input with name: ",
+                           param->get_friendly_name());
         }
     }
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+        const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemThen.push_back(outMem);
         } else {
-            IE_THROW() << "Then body of node If with name " << getName() << " does not have output with name: "
-                    << inputID;
+            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
         }
     }
 
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+        const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemElse.push_back(outMem);
         } else {
-            IE_THROW() << "Else body of node If with name " << getName() << " does not have output with name: "
-                    << inputID;
+            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
         }
     }
 
@@ -169,8 +183,6 @@ void If::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(dataConf);
     }
 
-    config.dynBatchSupport = true;
-
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
@@ -191,8 +203,17 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMems = inputMems[map_rule.to];
+        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto& toMems = inputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
+            }
+        }
 
         beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
@@ -205,6 +226,15 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     for (auto& map_rule : outputPortMap) {
         auto toMems = getToMemories(this, map_rule.from);
         auto &fromMem = outputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
+            }
+        }
 
         afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
@@ -217,8 +247,8 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
     return memories;
 }
 
-void If::execute(mkldnn::stream strm) {
-    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
+void If::execute(dnnl::stream strm) {
+    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
@@ -232,7 +262,7 @@ void If::execute(mkldnn::stream strm) {
         mapper->execute(strm);
 }
 
-void If::executeDynamicImpl(mkldnn::stream strm) {
+void If::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

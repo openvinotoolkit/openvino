@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,12 +23,11 @@ protected:
 
 public:
     OPENVINO_OP("LogicalReductionKeepDims", "util");
-    BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
 
     /// \return If set to 1 it holds axes that are used for reduction.
     /// For each such axis, output dimension is equal to 1.
-    bool get_keep_dims() const {
+    bool get_keep_dims() const override {
         return m_keep_dims;
     }
     void set_keep_dims(bool keep_dims) {

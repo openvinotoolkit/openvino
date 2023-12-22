@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,15 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain);
 
+class OperatorsBridge;
+
 class Model {
 public:
-    Model() = delete;
-    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+    // a container with OperatorSets covering all domains used in a given model
+    // built based on the opset imports in the ModelProto object
+    using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
+
+    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset);
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -41,9 +46,22 @@ public:
     std::int64_t get_model_version() const {
         return m_model_proto->model_version();
     }
-    const OpsetImports& get_opset_imports() const;
+    const OpsetImports& get_opset_imports() const {
+        return m_model_proto->opset_import();
+    }
+
     const std::string& get_producer_version() const {
         return m_model_proto->producer_version();
+    }
+
+    std::map<std::string, std::string> get_metadata() const {
+        std::map<std::string, std::string> metadata;
+
+        const auto& model_metadata = m_model_proto->metadata_props();
+        for (const auto& prop : model_metadata) {
+            metadata.emplace(prop.key(), prop.value());
+        }
+        return metadata;
     }
 
     /// \brief Access an operator object by its type name and domain name
@@ -59,8 +77,10 @@ public:
     const Operator& get_operator(const std::string& name, const std::string& domain) const;
 
     /// \brief Check availability of operator base on NodeProto.
+    /// \param name       Type name of the operator.
+    /// \param domain     Domain name of the operator.
     /// \return `true` if the operator is available, otherwise it returns `false`.
-    bool is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const;
+    bool is_operator_available(const std::string& name, const std::string& domain) const;
 
     /// \brief      Enable operators from provided domain to use by this model.
     ///
@@ -69,11 +89,11 @@ public:
     ///
     /// \param[in]  domain  The domain name.
     ///
-    void enable_opset_domain(const std::string& domain);
+    void enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge);
 
 private:
     const std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
-    std::unordered_map<std::string, OperatorSet> m_opset;
+    ModelOpSet m_opset;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Model& model) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,16 +8,23 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "ov_lpt_models/reduce.hpp"
 
 namespace LayerTestsDefinitions {
+
+ReduceMeanOperation::ReduceMeanOperation() : constantValues(), keepDims() { }
+
+ReduceMeanOperation::ReduceMeanOperation(const std::vector<int64_t>& constantValues, const bool keepDims) {
+    this->constantValues = constantValues;
+    this->keepDims = keepDims;
+}
 
 std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
@@ -38,11 +45,11 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 void ReduceMeanTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
@@ -62,6 +69,7 @@ void ReduceMeanTransformation::Run() {
 }
 
 TEST_P(ReduceMeanTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

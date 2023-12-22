@@ -1,0 +1,172 @@
+'category: AUTO BATCH':
+- 'src/plugins/auto_batch/**/*'
+
+'category: AUTO':
+- 'src/plugins/auto/**/*'
+
+'category: build':
+- 'cmake/**/*'
+- '**/CMakeLists.txt'
+- '**/*.cmake'
+
+'category: C API':
+- 'src/bindings/c/**/*'
+
+'category: CI':
+- '.github/**/*'
+- '.ci/**/*'
+- 'Jenkinsfile'
+
+'github_actions':
+- '.github/workflows/*'
+
+'category: Core':
+- 'src/core/**/*'
+- 'src/common/itt/**/*'
+- 'src/common/util/**/*'
+- 'src/frontends/common/**/*'
+- 'src/common/conditional_compilation/**/*'
+
+'category: CPP API':
+- 'src/inference/include/**/*'
+- 'src/core/include/**/*'
+- 'src/frontends/common/include/**/*'
+- 'src/frontends/onnx/frontend/include/**/*'
+- 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/tensorflow_lite/include/**/*'
+- 'src/frontends/pytorch/include/**/*'
+- 'src/frontends/paddle/include/**/*'
+
+'category: CPU':
+- 'src/plugins/intel_cpu/**/*'
+- 'src/common/snippets/**/*'
+- 'thirdparty/xbyak/**/*'
+
+'category: dependency_changes':
+- '**/requirement*.txt'
+- '**/constraints*.txt'
+- 'scripts/**/*'
+- '.gitmodules'
+- '**/setup.py'
+- 'conan.lock'
+- 'conanfile.txt'
+- 'vcpkg.json'
+- any: ['thirdparty/**/*',
+        '!thirdparty/**/CMakeLists.txt']
+
+'category: docs':
+- '**/*.md'
+- any: ['docs/**/*',
+        '!docs/snippets/**/*']
+
+'category: docs_snippets':
+- 'docs/snippets/**/*'
+
+'category: extensions':
+- 'src/core/include/openvino/core/extension.hpp'
+- 'src/frontends/common/include/openvino/frontend/extension.hpp'
+- 'src/frontends/common/include/openvino/frontend/extension/**/*'
+
+'category: GPU':
+- 'src/plugins/intel_gpu/**/*'
+- 'thirdparty/ocl/**/*'
+
+'category: HETERO':
+- 'src/plugins/hetero/**/*'
+
+'category: PROXY':
+- 'src/plugins/proxy/**/*'
+
+'category: IE Tests':
+- 'thirdparty/gtest/**/*'
+- 'src/frontends/tests/frontend/shared/**/*'
+- 'src/tests/**/*'
+
+'category: inference':
+- 'src/inference/**/*'
+- 'src/cmake/**/*'
+
+'category: IR FE':
+- 'src/frontends/ir/**/*'
+
+'category: LP transformations':
+- 'src/common/low_precision_transformations/**/*'
+
+'category: MO':
+- 'tools/mo/**/*'
+- 'tools/ovc/**/*'
+- 'tests/layer_tests/mo_python_api_tests/**/*'
+- 'tests/layer_tests/ovc_python_api_tests/**/*'
+
+'category: ONNX FE':
+- 'src/frontends/onnx/**/*'
+- 'thirdparty/onnx/**/*'
+- 'tests/layer_tests/onnx_tests/**/*'
+
+'category: packaging':
+- 'cmake/**/packaging/**/*'
+- 'src/bindings/python/wheel/**/*'
+- any: ['src/bindings/js/node/CMakeLists.txt',
+        'src/bindings/js/node/package.json',
+        'src/bindings/js/node/package-lock.json']
+- 'tools/openvino_dev/**/*'
+
+'category: PDPD FE':
+- 'src/frontends/paddle/**/*'
+- 'tests/layer_tests/py_frontend_tests/test_paddle_frontend.py'
+
+'category: preprocessing':
+- 'src/common/preprocessing/**/*'
+
+'category: Python API':
+- 'src/bindings/python/**/*'
+
+'category: JS API':
+- 'src/bindings/js/**/*'
+
+'category: samples':
+- 'samples/**/*'
+- 'thirdparty/zlib/**/*'
+- 'thirdparty/gflags/**/*'
+- 'thirdparty/json/**/*'
+- 'thirdparty/cnpy/**/*'
+- 'tests/samples_tests/smoke_tests/**/*'
+
+'category: TEMPLATE':
+- 'src/plugins/template/**/*'
+
+'category: TF FE':
+- 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
+- 'tests/layer_tests/tensorflow_tests/**/*'
+- 'tests/layer_tests/tensorflow2_keras_tests/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/torch_tests/**/*']
+
+'category: TFL FE':
+- 'src/frontends/tensorflow_lite/**/*'
+- 'src/frontends/tensorflow_common/**/*'
+- 'tests/layer_tests/tensorflow_lite_tests/**/*'
+
+'category: PyTorch FE':
+- 'src/frontends/pytorch/**/*'
+- 'tests/layer_tests/pytorch_tests/**/*'
+- 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
+- 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
+- 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/tf_hub_tests/**/*']
+
+'category: tools':
+- any: ['tools/**',
+        '!tools/mo/**/*',
+        '!tools/ovc/**/*']
+
+'category: transformations':
+- 'src/common/transformations/**/*'
+- 'src/common/offline_transformations/**/*'
+
+'category: licensing':
+- 'licensing/**/*'
+- 'LICENSE'

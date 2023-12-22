@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/concat_multi_input.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -14,9 +15,12 @@ std::string ConcatMultiInput::getTestCaseName(const testing::TestParamInfo<conca
     std::tie(inputShapes, netPrecision, targetDevice, additional_config) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : additional_config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
 
     return result.str();
 }
@@ -35,34 +39,34 @@ void ConcatMultiInput::SetUp() {
 }
 
 void ConcatMultiInput::GenerateStridedSliceModel() {
-    auto params = ngraph::builder::makeParams(ngPrc, { paramSize });
-    auto stride = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(paramSize))};
+    auto stride = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
 
     std::vector<int64_t> newAxis = { 0, 0 };
     std::vector<int64_t> begin_mask = { 0, 0 };
     std::vector<int64_t> end_mask = { 0, 0 };
-    std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>> ssArray;
+    std::vector<std::shared_ptr<ov::op::v1::StridedSlice>> ssArray;
     ngraph::OutputVector concatInput;
 
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ov::op::v0::Relu>(params[0]);
     std::vector<int64_t> startOffset = { 0, 0 };
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         std::vector<int64_t> shape = { static_cast<int64_t>(inputShapes[i][0]),
                                        static_cast<int64_t>(inputShapes[i][1]) };
         std::vector<int64_t> endoffset = { static_cast<int64_t>(inputShapes[i][0]) + startOffset[0],
                                            static_cast<int64_t>(inputShapes[i][1]) + startOffset[1]};
-        auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, startOffset);
-        auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, endoffset);
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
+        auto begin = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, startOffset);
+        auto end = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, endoffset);
+        auto ss = std::make_shared<ov::op::v1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
         ssArray.push_back(ss);
         concatInput.push_back(ssArray[i]);
 
         startOffset[1] += shape[1];
     }
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(concatInput, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInput, 1);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
 }
 
@@ -81,15 +85,15 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
         return res;
     };
-    ngraph::ParameterVector input_vector;
+    ov::ParameterVector input_vector;
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         size_t total_size = 1;
         for (auto dim : inputShapes[i]) {
             total_size *= dim;
         }
         if (i == 0) {
-            input_vector = ngraph::builder::makeParams(ngPrc, {{1, total_size}});
-            auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+            input_vector = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, total_size})};
+            auto relu = ov::test::utils::make_activation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
             concatInputs.push_back(relu);
         } else {
             auto min_max = (i % 2 == 0) ? 2 : 30;
@@ -99,28 +103,29 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(concatInputs, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInputs, 1);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
 }
 
 void ConcatMultiInput::GenerateMemoryModel() {
     int axis = 1;
-    auto input = ngraph::builder::makeParams(ngPrc, { inputShapes[0] });
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
 
-    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, "concat_input_memory"});
-    auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);
-    auto mem_r = std::make_shared<ngraph::opset8::ReadValue>(mem_i, variable);
+    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::Shape(inputShapes[0]),
+                                                                            ngraph::element::dynamic, "concat_input_memory"});
+    auto mem_i = std::make_shared<ov::op::v0::Constant>(ngPrc, inputShapes[0]);
+    auto mem_r = std::make_shared<ov::op::v6::ReadValue>(mem_i, variable);
 
     ngraph::OutputVector concat_input;
     concat_input.push_back(mem_r);
     concat_input.push_back(input.at(0));
-    auto concat = std::make_shared<ngraph::opset8::Concat>(concat_input, axis);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concat_input, axis);
 
-    auto mem_w = std::make_shared<ngraph::opset8::Assign>(input.at(0), variable);
+    auto mem_w = std::make_shared<ov::op::v6::Assign>(input.at(0), variable);
 
-    auto res = std::make_shared<ngraph::opset8::Result>(concat);
+    auto res = std::make_shared<ov::op::v0::Result>(concat);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::SinkVector{mem_w}, input, "ConcatMemory");
 }
 

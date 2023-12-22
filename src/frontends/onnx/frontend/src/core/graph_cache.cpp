@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ Output<ngraph::Node> GraphCache::get_node(const std::string& name) const {
     try {
         return m_graph_cache_map.at(name);
     } catch (const std::out_of_range&) {
-        throw ngraph_error(name + " node not found in graph cache");
+        OPENVINO_THROW(name + " node not found in graph cache");
     }
 }
 

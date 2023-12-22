@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -21,7 +22,7 @@ OutputVector compress(const Node& node) {
     if (node.has_attribute("axis")) {
         axis = node.get_attribute_value<int64_t>("axis");
     } else {
-        data = std::make_shared<default_opset::Squeeze>(ngraph::builder::opset1::flatten(data, axis));
+        data = std::make_shared<default_opset::Squeeze>(ngraph::builder::opset1::flatten(data, static_cast<int>(axis)));
     }
     auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
     auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
@@ -39,3 +40,4 @@ OutputVector compress(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

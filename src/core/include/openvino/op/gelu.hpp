@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,15 @@ namespace v0 {
 /// \brief Gaussian Error Linear Unit
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Gelu : public Op {
+class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Gelu", "opset2", op::Op, 0);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Gelu", "opset2", util::UnaryElementwiseArithmetic);
 
     Gelu();
     /// \brief Constructs a Gelu operation.
     ///
     /// \param data Input tensor
     Gelu(const Output<Node>& data);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
@@ -44,8 +41,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Gelu", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Gelu", "opset7", util::UnaryElementwiseArithmetic);
 
     Gelu() = default;
     /// \brief Constructs a Gelu operation.
@@ -58,14 +54,15 @@ public:
 
     void validate_and_infer_types() override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     GeluApproximationMode get_approximation_mode() const;
+    void set_approximation_mode(const GeluApproximationMode& approximation_mode) {
+        m_approximation_mode = approximation_mode;
+    }
 
 private:
     GeluApproximationMode m_approximation_mode = GeluApproximationMode::ERF;
@@ -80,6 +77,5 @@ public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2022 Intel Corporation
+ Copyright (C) 2018-2023 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -40,15 +40,6 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
         stdout = "<br>\n".join(stdout.split('\n'))
         stderr = "<br>\n".join(stderr.split('\n'))
     return p.returncode, stdout, stderr
-
-
-def parse_avg_err(speech_sample_out):
-    errors = []
-    for line in speech_sample_out:
-        if "avg error" in line:
-            errors.append(float(line.split(': ')[1]))
-    avg_error = round(np.mean(errors), 2)
-    return avg_error
 
 
 def fix_path(path, env_name, root_path=None):

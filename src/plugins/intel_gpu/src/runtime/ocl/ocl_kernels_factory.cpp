@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ocl_kernel.hpp"
 #include "ocl_engine.hpp"
-#include "kernels_factory.hpp"
+#include "ocl_kernels_factory.hpp"
 
 #include <memory>
 #include <vector>

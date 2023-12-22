@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -35,19 +35,19 @@ _get_node_factory_opset8 = partial(_get_node_factory, "opset8")
 
 @nameable_op
 def deformable_convolution(
-        data: NodeInput,
-        offsets: NodeInput,
-        filters: NodeInput,
-        strides: List[int],
-        pads_begin: List[int],
-        pads_end: List[int],
-        dilations: List[int],
-        mask: Optional[NodeInput] = None,
-        auto_pad: str = "EXPLICIT",
-        group: int = 1,
-        deformable_group: int = 1,
-        bilinear_interpolation_pad: bool = False,
-        name: Optional[str] = None,
+    data: NodeInput,
+    offsets: NodeInput,
+    filters: NodeInput,
+    strides: List[int],
+    pads_begin: List[int],
+    pads_end: List[int],
+    dilations: List[int],
+    mask: Optional[NodeInput] = None,
+    auto_pad: str = "EXPLICIT",
+    group: int = 1,
+    deformable_group: int = 1,
+    bilinear_interpolation_pad: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs deformable convolution operation.
 
@@ -84,16 +84,13 @@ def deformable_convolution(
             "auto_pad": auto_pad,
             "group": group,
             "deformable_group": deformable_group,
-            "bilinear_interpolation_pad": bilinear_interpolation_pad
+            "bilinear_interpolation_pad": bilinear_interpolation_pad,
         },
     )
 
 
 @nameable_op
-def adaptive_avg_pool(
-        data: NodeInput,
-        output_shape: NodeInput
-) -> Node:
+def adaptive_avg_pool(data: NodeInput, output_shape: NodeInput) -> Node:
     """Return a node which performs AdaptiveAvgPool operation.
 
     :param data: The list of input nodes
@@ -105,11 +102,7 @@ def adaptive_avg_pool(
 
 
 @nameable_op
-def adaptive_max_pool(
-        data: NodeInput,
-        output_shape: NodeInput,
-        index_element_type: str = "i64"
-) -> Node:
+def adaptive_max_pool(data: NodeInput, output_shape: NodeInput, index_element_type: str = "i64") -> Node:
     """Return a node which performs AdaptiveMaxPool operation.
 
     :param data: The list of input nodes
@@ -128,18 +121,18 @@ def adaptive_max_pool(
 
 @nameable_op
 def multiclass_nms(
-        boxes: NodeInput,
-        scores: NodeInput,
-        sort_result_type: str = "none",
-        sort_result_across_batch: bool = False,
-        output_type: str = "i64",
-        iou_threshold: float = 0.0,
-        score_threshold: float = 0.0,
-        nms_top_k: int = -1,
-        keep_top_k: int = -1,
-        background_class: int = -1,
-        nms_eta: float = 1.0,
-        normalized: bool = True
+    boxes: NodeInput,
+    scores: NodeInput,
+    sort_result_type: str = "none",
+    sort_result_across_batch: bool = False,
+    output_type: str = "i64",
+    iou_threshold: float = 0.0,
+    score_threshold: float = 0.0,
+    nms_top_k: int = -1,
+    keep_top_k: int = -1,
+    background_class: int = -1,
+    nms_eta: float = 1.0,
+    normalized: bool = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -176,7 +169,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset8().create("MulticlassNms", inputs, attributes)
@@ -184,19 +177,19 @@ def multiclass_nms(
 
 @nameable_op
 def matrix_nms(
-        boxes: NodeInput,
-        scores: NodeInput,
-        sort_result_type: str = "none",
-        sort_result_across_batch: bool = False,
-        output_type: str = "i64",
-        score_threshold: float = 0.0,
-        nms_top_k: int = -1,
-        keep_top_k: int = -1,
-        background_class: int = -1,
-        decay_function: str = "linear",
-        gaussian_sigma: float = 2.0,
-        post_threshold: float = 0.0,
-        normalized: bool = True
+    boxes: NodeInput,
+    scores: NodeInput,
+    sort_result_type: str = "none",
+    sort_result_across_batch: bool = False,
+    output_type: str = "i64",
+    score_threshold: float = 0.0,
+    nms_top_k: int = -1,
+    keep_top_k: int = -1,
+    background_class: int = -1,
+    decay_function: str = "linear",
+    gaussian_sigma: float = 2.0,
+    post_threshold: float = 0.0,
+    normalized: bool = True,
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -237,7 +230,7 @@ def matrix_nms(
         "decay_function": decay_function,
         "gaussian_sigma": gaussian_sigma,
         "post_threshold": post_threshold,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset8().create("MatrixNms", inputs, attributes)
@@ -245,10 +238,10 @@ def matrix_nms(
 
 @nameable_op
 def gather(
-        data: NodeInput,
-        indices: NodeInput,
-        axis: NodeInput,
-        batch_dims: Optional[int] = 0,
+    data: NodeInput,
+    indices: NodeInput,
+    axis: NodeInput,
+    batch_dims: Optional[int] = 0,
 ) -> Node:
     """Return a node which performs Gather with support of negative indices.
 
@@ -260,25 +253,23 @@ def gather(
     :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
-    attributes = {
-        "batch_dims": batch_dims
-    }
+    attributes = {"batch_dims": batch_dims}
     return _get_node_factory_opset8().create("Gather", inputs, attributes)
 
 
 @nameable_op
 def max_pool(
-        data: NodeInput,
-        strides: List[int],
-        dilations: List[int],
-        pads_begin: List[int],
-        pads_end: List[int],
-        kernel_shape: TensorShape,
-        rounding_type: str = "floor",
-        auto_pad: Optional[str] = None,
-        index_element_type: Optional[str] = "i64",
-        axis: Optional[int] = 0,
-        name: Optional[str] = None,
+    data: NodeInput,
+    strides: List[int],
+    dilations: List[int],
+    pads_begin: List[int],
+    pads_end: List[int],
+    kernel_shape: TensorShape,
+    rounding_type: str = "floor",
+    auto_pad: Optional[str] = None,
+    index_element_type: Optional[str] = "i64",
+    axis: Optional[int] = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Perform max pooling operation and return both values and indices of the selected elements.
 
@@ -322,14 +313,7 @@ def max_pool(
 
 
 @nameable_op
-def random_uniform(
-        output_shape: NodeInput,
-        min_val: NodeInput,
-        max_val: NodeInput,
-        output_type: str,
-        global_seed: int = 0,
-        op_seed: int = 0
-) -> Node:
+def random_uniform(output_shape: NodeInput, min_val: NodeInput, max_val: NodeInput, output_type: str, global_seed: int = 0, op_seed: int = 0) -> Node:
     """Return a node which generates sequence of random values from uniform distribution.
 
     :param output_shape: Tensor with shape of the output tensor.
@@ -359,12 +343,12 @@ def random_uniform(
 
 @nameable_op
 def if_op(
-        condition: NodeInput,
-        inputs: List[Node],
-        bodies: Tuple[GraphBody, GraphBody],
-        input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
-        output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
-        name: Optional[str] = None,
+    condition: NodeInput,
+    inputs: List[Node],
+    bodies: Tuple[GraphBody, GraphBody],
+    input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
+    output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
+    name: Optional[str] = None,
 ) -> Node:
     """Execute one of the bodies depending on condtion value.
 
@@ -387,20 +371,19 @@ def if_op(
         "then_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[0]]},
         "else_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[1]]},
         "then_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[0]]},
-        "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]]}
+        "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]]},
     }
-    return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
-                                             attributes)
+    return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs), attributes)
 
 
 @nameable_op
 def slice(
-        data: NodeInput,
-        start: NodeInput,
-        stop: NodeInput,
-        step: NodeInput,
-        axes: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    data: NodeInput,
+    start: NodeInput,
+    stop: NodeInput,
+    step: NodeInput,
+    axes: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates Slice operation.
 
@@ -422,10 +405,10 @@ def slice(
 
 @nameable_op
 def gather_nd(
-        data: NodeInput,
-        indices: NodeInput,
-        batch_dims: Optional[int] = 0,
-        name: Optional[str] = None,
+    data: NodeInput,
+    indices: NodeInput,
+    batch_dims: Optional[int] = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs GatherND.
 
@@ -436,16 +419,12 @@ def gather_nd(
     """
     inputs = as_nodes(data, indices)
 
-    attributes = {
-        "batch_dims": batch_dims
-    }
+    attributes = {"batch_dims": batch_dims}
 
     return _get_node_factory_opset8().create("GatherND", inputs, attributes)
 
 
-def prior_box(
-        layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
-) -> Node:
+def prior_box(layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None) -> Node:
     """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
 
      Available attributes are:
@@ -553,10 +532,10 @@ def prior_box(
 
 @nameable_op
 def i420_to_bgr(
-        arg: NodeInput,
-        arg_u: Optional[NodeInput] = None,
-        arg_v: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    arg: NodeInput,
+    arg_u: Optional[NodeInput] = None,
+    arg_v: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs I420toBGR operation.
 
@@ -571,19 +550,17 @@ def i420_to_bgr(
     elif arg_u is not None and arg_v is not None:
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
-        raise UserInputError(
-            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided."
-        )
+        raise UserInputError("Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided.")
 
     return _get_node_factory_opset8().create("I420toBGR", inputs)
 
 
 @nameable_op
 def i420_to_rgb(
-        arg: NodeInput,
-        arg_u: Optional[NodeInput] = None,
-        arg_v: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    arg: NodeInput,
+    arg_u: Optional[NodeInput] = None,
+    arg_v: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs I420toRGB operation.
 
@@ -598,18 +575,16 @@ def i420_to_rgb(
     elif arg_u is not None and arg_v is not None:
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
-        raise UserInputError(
-            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided."
-        )
+        raise UserInputError("Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided.")
 
     return _get_node_factory_opset8().create("I420toRGB", inputs)
 
 
 @nameable_op
 def nv12_to_bgr(
-        arg: NodeInput,
-        arg_uv: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    arg: NodeInput,
+    arg_uv: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs NV12toBGR operation.
 
@@ -628,9 +603,9 @@ def nv12_to_bgr(
 
 @nameable_op
 def nv12_to_rgb(
-        arg: NodeInput,
-        arg_uv: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    arg: NodeInput,
+    arg_uv: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs NV12toRGB operation.
 
@@ -649,13 +624,13 @@ def nv12_to_rgb(
 
 @nameable_op
 def detection_output(
-        box_logits: NodeInput,
-        class_preds: NodeInput,
-        proposals: NodeInput,
-        attrs: dict,
-        aux_class_preds: Optional[NodeInput] = None,
-        aux_box_preds: Optional[NodeInput] = None,
-        name: Optional[str] = None,
+    box_logits: NodeInput,
+    class_preds: NodeInput,
+    proposals: NodeInput,
+    attrs: dict,
+    aux_class_preds: Optional[NodeInput] = None,
+    aux_box_preds: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Generate the detection output using information on location and confidence predictions.
 

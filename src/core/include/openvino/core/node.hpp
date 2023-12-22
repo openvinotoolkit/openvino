@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -39,14 +38,6 @@
 #include "openvino/op/util/variable_value.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-
-namespace runtime {
-class HostTensor;
-}  // namespace runtime
-
-}  // namespace ngraph
-
 namespace ov {
 namespace op {
 namespace v0 {
@@ -62,10 +53,9 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
-using HostTensor = ngraph::runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabelVector = std::vector<TensorLabel>;
+OPENVINO_SUPPRESS_DEPRECATED_START
+using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;
@@ -137,7 +127,7 @@ protected:
     descriptor::Output& get_output_descriptor(size_t position);
 
     /// \brief Construct an uninitialized Node
-    Node() = default;
+    Node();
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
@@ -194,9 +184,7 @@ public:
 
     virtual ~Node();
 
-    virtual bool visit_attributes(AttributeVisitor&) {
-        return false;
-    }
+    virtual bool visit_attributes(AttributeVisitor&);
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
@@ -224,12 +212,6 @@ public:
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
-                        "ov::Tensor instead.")
-    virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
@@ -329,10 +311,10 @@ public:
     void clear_control_dependents();
 
     /// This node absorbs the control dependencies of source_node
-    void add_node_control_dependencies(std::shared_ptr<Node> source_node);
+    void add_node_control_dependencies(const std::shared_ptr<const Node>& source_node);
 
     /// This node becomes a dependent of every node dependent on source_node
-    void add_node_control_dependents(std::shared_ptr<Node> source_node);
+    void add_node_control_dependents(const std::shared_ptr<const Node>& source_node);
 
     /// This node's control dependencies are replaced by replacement
     void transfer_control_dependents(std::shared_ptr<Node> replacement);
@@ -375,10 +357,6 @@ public:
     descriptor::Tensor& get_output_tensor(size_t i) const;
     descriptor::Tensor& get_input_tensor(size_t i) const;
 
-    /// Returns the tensor name for output i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-    const std::string& get_output_tensor_name(size_t i) const;
-
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
     /// Returns the number of inputs for the op
@@ -395,10 +373,6 @@ public:
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
     const PartialShape& get_input_partial_shape(size_t i) const;
-
-    /// Returns the tensor name for input i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-    const std::string& get_input_tensor_name(size_t i) const;
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -426,18 +400,6 @@ public:
     /// Get all the nodes that uses the current node
     NodeVector get_users(bool check_is_used = false) const;
 
-    /// \return Version of this node
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    virtual size_t get_version() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return get_type_info().version;
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    virtual std::shared_ptr<Node> get_default_value() const {
-        return nullptr;
-    }
     /// Use instance ids for comparison instead of memory addresses to improve determinism
     bool operator<(const Node& other) const {
         return m_instance_id < other.m_instance_id;
@@ -477,22 +439,17 @@ public:
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
     Output<const Node> output(size_t output_index) const;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    void set_op_annotations(std::shared_ptr<ngraph::op::util::OpAnnotations> op_annotations) {
-        m_op_annotations = op_annotations;
-    }
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    std::shared_ptr<ngraph::op::util::OpAnnotations> get_op_annotations() const {
-        return m_op_annotations;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
                              const Output<Node>& graph_value);
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
+
+protected:
+    /// \brief Check constant folding disabled attribute.
+    ///
+    /// \return true if constant folding disabled otherwise false.
+    bool is_const_fold_disabled() const;
 
 private:
     friend class ov::NodeAccessor;
@@ -505,9 +462,6 @@ private:
     static std::atomic<size_t> m_next_instance_id;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     RTMap m_rt_info;
 
     // The vector of SharedRTInfo attributes associated to Functions
@@ -567,28 +521,56 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
+                                    const Node* node,
+                                    const std::string& explanation);
+
+    template <class TShape>
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
+                                    std::pair<const Node*, const std::vector<TShape>*>&& ctx,
+                                    const std::string& explanation);
+
+protected:
+    explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
+
+/**
+ * @brief Specialization to throw the `NodeValidationFailure` for shape inference using `PartialShape`
+ *
+ * @param check_loc_info Exception location details to print.
+ * @param ctx            NodeValidationFailure context which got pointer to node and input shapes used for shape
+ * inference.
+ * @param explanation    Exception explanation string.
+ */
+template <>
+OPENVINO_API void NodeValidationFailure::create(const char* file,
+                                                int line,
+                                                const char* check_string,
+                                                std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                                const std::string& explanation);
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
-namespace ov {
-template <typename T>
-void check_new_args_count(const Node* node, T new_args) {
-    NODE_VALIDATION_CHECK(node,
-                          new_args.size() == node->input_values().size(),
-                          "clone_with_new_inputs() expected ",
-                          node->input_values().size(),
-                          " argument",
-                          (node->input_values().size() == 1 ? "" : "s"),
-                          " but got ",
-                          new_args.size());
-}
-
-}  // namespace ov
+/** \brief Throw NodeValidationFailure with additional information about input shapes used during shape inference. */
+#define NODE_SHAPE_INFER_CHECK(node, input_shapes, ...) \
+    NODE_VALIDATION_CHECK(std::make_pair(static_cast<const ::ov::Node*>((node)), &(input_shapes)), __VA_ARGS__)
 
 namespace ov {
+
+/**
+ * @brief Check new arguments size if match node inputs count.
+ *
+ * This check is required in cloning ov::Node.
+ *
+ * @param node      Pointer to node.
+ * @param new_args  Vector with new outputs to check.
+ */
+void OPENVINO_API check_new_args_count(const Node* const node, const OutputVector& new_args);
+
 /// \brief Visits a reference to a node that has been registered with the visitor.
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {
@@ -597,7 +579,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -611,7 +592,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<NodeVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

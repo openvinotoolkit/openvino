@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <fstream>
 
-#include <ngraph_functions/subgraph_builders.hpp>
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
 
@@ -12,13 +12,14 @@
 
 namespace BehaviorTestsDefinitions {
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
-        std::string targetDevice;
+        std::string target_device;
         std::vector<int> order;
-        std::tie(targetDevice, order) = obj.param;
+        std::tie(target_device, order) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "target_device=" << target_device << "_";
         if (!order.empty()) {
-            std::string objects[] = { "core", "exec-net", "request", "state" };
+            std::string objects[] = { "core", "exec.net", "request", "state" };
             for (auto &Item : order) {
                 result << objects[Item] << "_";
             }
@@ -27,16 +28,17 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTest::SetUp() {
+        std::tie(target_device, order) = this->GetParam();
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(targetDevice, order) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
     }
 
-    void release_order_test(std::vector<int> order, const std::string &deviceName,
+    void release_order_test(std::vector<int> order, const std::string &target_device,
                             std::shared_ptr<ngraph::Function> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
-        auto exe_net = core.LoadNetwork(cnnNet, deviceName);
+        auto exe_net = core.LoadNetwork(cnnNet, target_device);
         auto request = exe_net.CreateInferRequest();
         std::vector<InferenceEngine::VariableState> states;
         try {
@@ -70,15 +72,15 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTest, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+        if (setjmp(ov::test::utils::env) == ov::test::utils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+        if (sigsetjmp(ov::test::utils::env, 1) == ov::test::utils::JMP_STATUS::ok) {
 #endif
-            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+            EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {
             IE_THROW() << "Crash happens";
         }
@@ -86,28 +88,29 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTestImportNetwork, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+        if (setjmp(ov::test::utils::env) == ov::test::utils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+        if (sigsetjmp(ov::test::utils::env, 1) == ov::test::utils::JMP_STATUS::ok) {
 #endif
-            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+            EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {
             IE_THROW() << "Crash happens";
         }
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-        return "targetDevice=" + obj.param;
+        return "target_device=" + obj.param;
     }
 
     void HoldersTestOnImportedNetwork::SetUp() {
+        target_device = this->GetParam();
+        APIBaseTest::SetUp();
+        function = ov::test::utils::make_conv_pool_relu();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        targetDevice = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
@@ -115,10 +118,10 @@ namespace BehaviorTestsDefinitions {
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         std::stringstream stream;
         {
-            auto exe_net = core.LoadNetwork(cnnNet, targetDevice);
+            auto exe_net = core.LoadNetwork(cnnNet, target_device);
             exe_net.Export(stream);
         }
-        auto exe_net = core.ImportNetwork(stream, targetDevice);
+        auto exe_net = core.ImportNetwork(stream, target_device);
         core = InferenceEngine::Core();
         auto request = exe_net.CreateInferRequest();
     }

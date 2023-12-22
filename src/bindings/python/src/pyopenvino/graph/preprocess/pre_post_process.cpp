@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -250,7 +250,12 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 
     info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& self) {
         return &self.set_spatial_dynamic_shape();
@@ -301,15 +306,35 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Tensor& tensor) {
             return &self.set_from(tensor);
         },
-        py::arg("runtime_tensor"));
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created tensor
+            :type type: openvino.runtime.Tensor
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
 
     info.def(
         "set_from",
         [](ov::preprocess::InputTensorInfo& self, py::array& numpy_array) {
             // Convert to contiguous array if not already C-style.
-            return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
+            return &self.set_from(Common::object_from_data<ov::Tensor>(numpy_array, false));
         },
-        py::arg("runtime_tensor"));
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created numpy array
+            :type type: numpy.ndarray
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
@@ -339,7 +364,12 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         [](ov::preprocess::OutputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputInfo(py::module m) {
@@ -387,7 +417,12 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         [](ov::preprocess::OutputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output model info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -401,7 +436,12 @@ static void regclass_graph_InputModelInfo(py::module m) {
         [](ov::preprocess::InputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input model
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regenum_graph_ColorFormat(py::module m) {
@@ -413,6 +453,7 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
+        .value("GRAY", ov::preprocess::ColorFormat::GRAY)
         .value("RGBX", ov::preprocess::ColorFormat::RGBX)
         .value("BGRX", ov::preprocess::ColorFormat::BGRX)
         .export_values();
@@ -423,6 +464,8 @@ static void regenum_graph_ResizeAlgorithm(py::module m) {
         .value("RESIZE_LINEAR", ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR)
         .value("RESIZE_CUBIC", ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC)
         .value("RESIZE_NEAREST", ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST)
+        .value("RESIZE_BILINEAR_PILLOW", ov::preprocess::ResizeAlgorithm::RESIZE_BILINEAR_PILLOW)
+        .value("RESIZE_BICUBIC_PILLOW", ov::preprocess::ResizeAlgorithm::RESIZE_BICUBIC_PILLOW)
         .export_values();
 }
 
@@ -480,7 +523,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build);
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;
@@ -489,6 +532,6 @@ void regclass_graph_PrePostProcessor(py::module m) {
     });
 
     proc.def("__repr__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
-        return "<PrePostProcessor: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+        return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 }

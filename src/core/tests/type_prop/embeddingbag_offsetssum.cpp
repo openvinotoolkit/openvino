@@ -1,20 +1,57 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace testing;
+
+TEST(type_prop, ebos_default_ctor) {
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2, 6});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+
+    auto op = make_shared<op::v3::EmbeddingBagOffsetsSum>();
+    op->set_arguments(OutputVector{emb_table, indices, offsets, default_index, per_sample_weights});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 2, 6}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop, ebos_labeled_interval_dims) {
+    auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
+    set_shape_labels(emb_shape, 10);
+    auto off_shape = PartialShape{{6, 8}};
+    set_shape_labels(off_shape, 20);
+
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{{3, 4}});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, off_shape);
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{{3, 4}});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+
+    auto op =
+        make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+}
 
 TEST(type_prop, ebos) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
@@ -26,11 +63,11 @@ TEST(type_prop, ebos) {
 }
 
 TEST(type_prop, ebos_dynamic_emb_table) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
@@ -39,11 +76,11 @@ TEST(type_prop, ebos_dynamic_emb_table) {
 }
 
 TEST(type_prop, ebos_dynamic_offsets) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
@@ -52,11 +89,11 @@ TEST(type_prop, ebos_dynamic_offsets) {
 }
 
 TEST(type_prop, ebos_dynamic_emb_table_offsets) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, Dimension::dynamic()});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
@@ -66,11 +103,11 @@ TEST(type_prop, ebos_dynamic_emb_table_offsets) {
 }
 
 TEST(type_prop, ebos_fail_indices_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -84,11 +121,11 @@ TEST(type_prop, ebos_fail_indices_element_type) {
 }
 
 TEST(type_prop, ebos_fail_offsets_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -102,11 +139,11 @@ TEST(type_prop, ebos_fail_offsets_element_type) {
 }
 
 TEST(type_prop, ebos_fail_default_index_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::f32, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
 
     try {
         auto ebos =
@@ -120,11 +157,11 @@ TEST(type_prop, ebos_fail_default_index_element_type) {
 }
 
 TEST(type_prop, ebos_fail_mismatch_element_type) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i32, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -139,11 +176,11 @@ TEST(type_prop, ebos_fail_mismatch_element_type) {
 }
 
 TEST(type_prop, ebos_fail_mismatch_element_type_1) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
 
     try {
         auto ebos =
@@ -158,11 +195,11 @@ TEST(type_prop, ebos_fail_mismatch_element_type_1) {
 }
 
 TEST(type_prop, ebos_fail_mismatch_element_type_2) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -178,11 +215,11 @@ TEST(type_prop, ebos_fail_mismatch_element_type_2) {
 }
 
 TEST(type_prop, ebos_fail_mismatch_shape) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -196,11 +233,11 @@ TEST(type_prop, ebos_fail_mismatch_shape) {
 }
 
 TEST(type_prop, ebos_fail_default_index_scalar) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
     try {
         auto ebos =
@@ -214,11 +251,11 @@ TEST(type_prop, ebos_fail_default_index_scalar) {
 }
 
 TEST(type_prop, ebos_fail_indices_1d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4, 2});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4, 2});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -231,12 +268,26 @@ TEST(type_prop, ebos_fail_indices_1d) {
     }
 }
 
+TEST(type_prop, ebos_fail_emb_table_0d) {
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+
+    OV_EXPECT_THROW(
+        auto op =
+            make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights),
+        NodeValidationFailure,
+        HasSubstr("EMB_TABLE can't be a scalar"));
+}
+
 TEST(type_prop, ebos_fail_offsets_1d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3, 2});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3, 2});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -250,11 +301,11 @@ TEST(type_prop, ebos_fail_offsets_1d) {
 }
 
 TEST(type_prop, ebos_fail_per_sample_weights_1d) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
-    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4, 2});
-    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 2});
+    auto default_index = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
 
     try {
         auto ebos =
@@ -268,9 +319,9 @@ TEST(type_prop, ebos_fail_per_sample_weights_1d) {
 }
 
 TEST(type_prop, ebos_3_args_api) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
 
     auto ebos = make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets);
     EXPECT_TRUE(ebos->get_output_partial_shape(0).same_scheme(PartialShape{3, 2}));
@@ -280,9 +331,9 @@ TEST(type_prop, ebos_3_args_api) {
 }
 
 TEST(type_prop, ebos_fail_indices_element_type_3_args_api) {
-    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
+    auto offsets = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
 
     try {
         auto ebos = make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets);

@@ -1,10 +1,9 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/layer_transformation.hpp>
-#include <low_precision/network_helper.hpp>
-
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -16,18 +15,36 @@
 #include <unordered_set>
 #include <vector>
 #include <queue>
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
+
+const std::vector<element::Type>& precision_set::get_int8_support() {
+    static const std::vector<element::Type> int8_support = {
+        ov::element::u8,  ov::element::i8
+    };
+    return int8_support;
+}
+
+const std::vector<element::Type>& precision_set::get_int8_int16_int32_support() {
+    static const std::vector<element::Type> int8_int16_int32_support = {
+        ov::element::u8,  ov::element::i8,
+        ov::element::u16, ov::element::i16,
+        ov::element::u32, ov::element::i32
+    };
+    return int8_int16_int32_support;
+}
 
 constexpr char LayerTransformation::originalLayerPostfix[];
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
-    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     defaultPrecisions(params.defaultPrecisions),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -38,7 +55,7 @@ void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
 }
 
-void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+void LayerTransformation::setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions) {
     this->defaultPrecisions = defaultPrecisions;
 }
 
@@ -51,18 +68,17 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 }
 
 bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) {
-    for (const auto& output : layer->outputs()) {
-        const auto rank = output.get_partial_shape().rank();
-        if (rank.is_dynamic() || rank.get_length() < 2) {
-            return false;
-        }
+    const std::vector<ov::element::Type>& defaultPrecisions) {
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
-            if (ngraph::shape_size(constShape) == 1ul) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape, size_t idxChannelDim) {
+            if (ov::shape_size(constShape) == 1ul) {
                 return true;
             }
 
@@ -71,17 +87,20 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 return false;
             }
 
-            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
-            if ((dataShapeSize - constShape.size()) == 1ul) {
+            if ((dataPShape.size() - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
+
+            // special case: 1D const is assumed to imply per-channel
+            if (constShape.size() == 1)
+                return true;
 
             if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
                 return false;
             }
 
-            for (size_t i = 2; i < constShape.size(); ++i) {
-                if (constShape[i] != 1ul) {
+            for (size_t i = 0; i < constShape.size(); ++i) {
+                if ((constShape[i] != 1ul) && (i != idxChannelDim)) {
                     return false;
                 }
             }
@@ -90,13 +109,15 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape()))) {
+            dequantization.subtractConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape()))) {
+            dequantization.multiplyConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
     }
@@ -108,18 +129,10 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
     if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
-
-    for (const auto& output : layer->outputs()) {
-        const auto outPShape = output.get_partial_shape();
-        const auto rank = outPShape.rank();
-        if (rank.is_dynamic()) {
-            return false;
-        }
-
-        const auto size = rank.get_length();
-        if ((size < 2) || (size > 5)) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
     return true;
 }
@@ -143,9 +156,9 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
 
-    if (ov::is_type<opset1::Constant>(parent)) {
+    if (ov::is_type<ov::opset1::Constant>(parent)) {
         return true;
-    } else if (ov::is_type<opset1::Convert>(parent) && ov::is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
         const auto constant = parent->get_input_node_shared_ptr(0);
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
@@ -311,8 +324,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 }
 
 bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) {
-    const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+    const std::vector<ov::element::Type>& defaultPrecisions) {
+    const auto nonConstNode = const_cast<ov::Node*>(layer.get())->shared_from_this();
     const auto dequantization = NetworkHelper::getDequantization(nonConstNode, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
@@ -320,7 +333,7 @@ bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const N
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer, const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer, const std::vector<ov::element::Type>& defaultPrecisions) const {
     return true;
 }
 
@@ -341,6 +354,10 @@ DataPrecision LayerTransformation::getDataPrecision(
                 precisionDetailsAtOutputIntervals.precision :
                 *requiredPrecisions.begin();
 
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
@@ -351,6 +368,11 @@ DataPrecision LayerTransformation::getDataPrecision(
         // FakeQuantize optimal precision is not deined
         if (!requiredPrecisions.empty()) {
             const element::Type resultPrecision = *requiredPrecisions.begin();
+
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
@@ -371,13 +393,13 @@ DataPrecision LayerTransformation::getDataPrecision(
         precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
-std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
+std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
     TransformationContext &context,
-    const std::shared_ptr<ngraph::Node>& operation,
+    const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
+    const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
         dequantization,
         updatePrecision,
         moveSubtract,
@@ -386,13 +408,13 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     return result.newOperation;
 }
 
-std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
+std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationBefore(
     TransformationContext& context,
-    const std::shared_ptr<ngraph::Node>& operation,
+    const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
+    const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
         dequantization,
         updatePrecision,
         moveSubtract);
@@ -400,31 +422,33 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
     return result.newOperation;
 }
 
-void LayerTransformation::updateOutput(
+bool LayerTransformation::updateOutput(
     TransformationContext &context,
-    std::shared_ptr<ngraph::Node> lastNode,
-    std::shared_ptr<ngraph::Node> originalNode) const {
-    // TODO: not tested!!!
+    std::shared_ptr<ov::Node> lastNode,
+    std::shared_ptr<ov::Node> originalNode) const {
+    bool was_updated = false;
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
-            if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
+            if (ov::is_type<ov::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);
+                was_updated = true;
                 break;
             }
         }
     }
+    return was_updated;
 }
 
 void LayerTransformation::updateOutput(
     TransformationContext& context,
-    std::shared_ptr<ngraph::Node> lastNode,
+    std::shared_ptr<ov::Node> lastNode,
     std::string originalName) const {
-    const size_t outputSize = context.function->get_output_size();
+    const size_t outputSize = context.model->get_output_size();
     for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+        std::shared_ptr<ov::Node> result = context.model->get_output_op(i);
+        std::shared_ptr<ov::Node> outputNode = result->get_input_node_shared_ptr(0);
         if (outputNode.get() == lastNode.get()) {
             lastNode->set_friendly_name(originalName);
             break;
@@ -432,8 +456,9 @@ void LayerTransformation::updateOutput(
     }
 }
 
-void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
-    ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
+void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
+    MATCHER_SCOPE(SingleNodeMatcher);
+    ov::graph_rewrite_callback internal_callback = [this, &context](ov::pass::pattern::Matcher &m) {
         const bool result = transform(context, m);
         (void)result;
 #ifdef LPT_DISPLAY_PRECISION
@@ -442,19 +467,34 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
             std::cout << "Operation was transformed: " <<
                 operationNode->get_type_name() << ", " <<
                 operationNode->get_friendly_name() << ", output operation precision: " <<
-                ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ngraph::element::Type()) <<
+                ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ov::element::Type()) <<
                 std::endl;
         }
 #endif
         return false;
     };
     // TODO: better name for matcher? required?
-    auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(patternRoot, matcher_name);
+    auto match_pass = std::make_shared<ov::pass::MatcherPass>(
+            m->get_name(),
+            m,
+            [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
+                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OV_PASS_CALLBACK(m);
+                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    bool status = internal_callback(*m.get());
+                    // explicitly clear Matcher state because it holds pointers to matched nodes
+                    m->clear_state();
+                    return status;
+                }
+            m->clear_state();
+            return false;
+            },
+            ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    pass.add_matcher(match_pass);
 }
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

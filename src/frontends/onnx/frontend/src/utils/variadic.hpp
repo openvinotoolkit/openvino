@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -23,6 +25,7 @@ namespace variadic {
 /// \tparam T   Class of an nGraph binary operation (e.g. Add, Minimum, Maximum)
 ///
 /// \return nGraph node equivalent of the ONNX operation
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
 inline OutputVector make_ng_variadic_op(
     const Node& node,
@@ -36,13 +39,18 @@ inline OutputVector make_ng_variadic_op(
     };
 
     // Create a result node as a series of binary operations
-    const auto result = std::accumulate(std::next(std::begin(ng_inputs)),  // First operand value - the second input
-                                        std::end(ng_inputs),               // Last value - final input
-                                        ng_inputs.front(),                 // Initial value - first input
-                                        binary_operation);
+    auto result = std::accumulate(std::next(std::begin(ng_inputs)),  // First operand value - the second input
+                                  std::end(ng_inputs),               // Last value - final input
+                                  ng_inputs.front(),                 // Initial value - first input
+                                  binary_operation);
+
+    if (ng_inputs.size() == 1) {
+        common::mark_as_optimized_out(result);
+    }
 
     return {result};
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
 

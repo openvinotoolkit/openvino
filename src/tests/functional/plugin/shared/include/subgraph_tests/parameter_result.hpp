@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,18 @@
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
+TEST_P(ParameterResultSubgraphTestLegacyApi, CompareWithRefs) {
     Run();
 }
 
 }  // namespace SubgraphTestsDefinitions
+
+namespace ov {
+namespace test {
+
+TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
+    run();
+}
+
+}  // namespace test
+}  // namespace ov

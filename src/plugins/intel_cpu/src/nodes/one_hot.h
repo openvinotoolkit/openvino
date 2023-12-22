@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,23 +17,22 @@ namespace node {
 
 class OneHot : public Node {
 public:
-    OneHot(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {};
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;
+    typedef element_type_traits<ov::element::i32>::value_type in_type;
 
     struct OneHotContext {
         OneHot* nodePtr;
@@ -51,7 +50,7 @@ private:
     mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
 
-    InferenceEngine::Precision output_precision;
+    ov::element::Type output_precision;
 
     std::string errorPrefix;
 

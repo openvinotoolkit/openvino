@@ -1,171 +1,135 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/concat.hpp"
+#include "openvino/op/concat.hpp"
 
-#include <memory>
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
+#include "concat_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/concat.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/concat.hpp"
+#include "validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace v0 {
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Concat);
-
-op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
+Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
-op::Concat::Concat(const NodeVector& args, int64_t axis) : Concat(as_output_vector(args), axis) {}
+Concat::Concat(const NodeVector& args, int64_t axis) : Concat(as_output_vector(args), axis) {}
 
-bool op::Concat::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Concat_visit_attributes);
+bool Concat::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v0_Concat_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
-void op::Concat::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
-
-    ov::PartialShape inputs_shape_scheme{ov::PartialShape::dynamic()};
+void Concat::validate_and_infer_types() {
+    OV_OP_SCOPE(v0_Concat_validate_and_infer_types);
     element::Type inputs_et{element::dynamic};
-    Dimension concatenation_axis_output_dim{0};
+    auto input_shapes = std::vector<PartialShape>();
 
-    for (uint64_t i = 0; i < get_input_size(); i++) {
+    for (size_t i = 0; i < get_input_size(); ++i) {
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
                               "Argument element types are inconsistent.");
-        ov::PartialShape this_input_shape = get_input_partial_shape(i);
-        Dimension this_input_rank = this_input_shape.rank();
-        if (this_input_rank.is_static()) {
-            if (get_concatenation_axis() < 0) {
-                set_concatenation_axis(get_axis() < 0 ? get_axis() + this_input_rank.get_length() : get_axis());
-            }
-            auto concat_axis = get_concatenation_axis();
-            NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
-                                  "Concatenation axis (",
-                                  concat_axis,
-                                  ") is out of bounds [",
-                                  -this_input_rank.get_length(),
-                                  ", ",
-                                  this_input_rank.get_length() - 1,
-                                  "] for ",
-                                  "argument ",
-                                  i,
-                                  ", which has shape ",
-                                  this_input_shape,
-                                  ".");
-
-            concatenation_axis_output_dim += this_input_shape[concat_axis];
-            this_input_shape[concat_axis] = Dimension::dynamic();
-
-            NODE_VALIDATION_CHECK(this,
-                                  ov::PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
-                                  "Argument shapes are inconsistent; they must have the same rank, and must "
-                                  "have ",
-                                  "equal dimension everywhere except on the concatenation axis (axis ",
-                                  concat_axis,
-                                  ").");
-        } else {
-            concatenation_axis_output_dim += Dimension::dynamic();
-        }
+        input_shapes.push_back(get_input_partial_shape(i));
     }
-    ov::PartialShape concatenated_shape = inputs_shape_scheme;
 
-    if (concatenated_shape.rank().is_static()) {
-        concatenated_shape[get_concatenation_axis()] = concatenation_axis_output_dim;
-        set_output_type(0, inputs_et, concatenated_shape);
-    } else {
-        set_output_type(0, inputs_et, ov::PartialShape::dynamic(concatenation_axis_output_dim));
+    const auto output_shape = shape_infer(this, input_shapes).front();
+    if (output_shape.rank().is_static() && (get_concatenation_axis() < 0)) {
+        set_concatenation_axis(ov::util::normalize(get_axis(), output_shape.size()));
     }
+
+    set_output_type(0, inputs_et, output_shape);
 }
 
-shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Concat_clone_with_new_inputs);
-    // TODO(amprocte): Should we check the new_args count here?
-    return make_shared<Concat>(new_args, m_axis);
+std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v0_Concat_clone_with_new_inputs);
+    return std::make_shared<Concat>(new_args, m_axis);
 }
 
-namespace {
-bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis) {
-    std::vector<const char*> arg_bufs;
-    std::vector<ov::Shape> arg_shapes;
-    ov::Shape out_shape(args[0]->get_shape());
-    out_shape[concatenation_axis] = 0;
-    for (auto& input : args) {
-        arg_bufs.push_back(input->get_data_ptr<char>());
-        arg_shapes.push_back(input->get_shape());
-        out_shape[concatenation_axis] += arg_shapes.back()[concatenation_axis];
+bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v0_Concat_evaluate);
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    const auto inputs_count = inputs.size();
+    std::vector<const char*> arg_bufs(inputs_count);
+    std::vector<Shape> arg_shapes;
+    std::vector<PartialShape> input_shapes;
+    arg_shapes.reserve(inputs_count);
+    input_shapes.reserve(inputs_count);
+
+    auto arg_buf = arg_bufs.begin();
+    for (auto& input : inputs) {
+        *arg_buf = static_cast<const char*>(input.data());
+        ++arg_buf;
+        const auto& input_shape = input.get_shape();
+        arg_shapes.emplace_back(input_shape);
+        input_shapes.emplace_back(input_shape);
     }
-    out->set_shape(out_shape);
-    runtime::reference::concat(arg_bufs,
-                               out->get_data_ptr<char>(),
-                               arg_shapes,
-                               out_shape,
-                               concatenation_axis,
-                               out->get_element_type().size());
+
+    const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
+    outputs.front().set_shape(out_shape);
+    reference::concat(arg_bufs,
+                      static_cast<char*>(outputs.front().data()),
+                      arg_shapes,
+                      out_shape,
+                      ov::util::normalize(get_axis(), out_shape.size()),
+                      outputs.front().get_element_type().size());
 
     return true;
 }
-}  // namespace
 
-bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Concat_evaluate);
-    NGRAPH_CHECK(!inputs.empty());
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
-    return evaluate_concat(inputs, outputs[0], concat_axis);
-}
-
-bool op::Concat::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Concat_has_evaluate);
+bool Concat::has_evaluate() const {
+    OV_OP_SCOPE(v0_Concat_has_evaluate);
     return true;
 }
 
-bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const {
+bool Concat::evaluate_lower(TensorVector& output_values) const {
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const {
+bool Concat::evaluate_upper(TensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
+bool Concat::evaluate_label(TensorLabelVector& output_labels) const {
     const auto& inputs = input_values();
-    bool has_labeled_input = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& out) {
-        const auto& labels = out.get_tensor().get_value_label();
-        return !labels.empty() && std::any_of(labels.begin(), labels.end(), [](const size_t& l) {
-            return l > 0;
-        });
-    });
-    if (!has_labeled_input)
+    if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
+            const auto& labels = out.get_tensor().get_value_label();
+            return ov::util::has_no_labels(labels);
+        })) {
         return false;
+    }
 
-    HostTensorVector idx_inputs;
+    TensorVector idx_inputs;
     idx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         auto input_label = input.get_tensor().get_value_label();
         if (input_label.empty()) {
             const auto& shape = input.get_partial_shape();
             // sanity check. at this point value propagation was successful
-            NGRAPH_CHECK(shape.is_static());
+            OPENVINO_ASSERT(shape.is_static());
             const auto& num_elements = shape_size(shape.to_shape());
-            input_label = TensorLabel(num_elements, 0);
+            input_label.resize(num_elements, no_label);
         }
-        const auto& constant = Constant::create(element::u64, input.get_shape(), input_label);
-        idx_inputs.push_back(std::make_shared<HostTensor>(constant));
+        idx_inputs.emplace_back(element::from<label_t>(), input.get_shape());
+        std::copy_n(input_label.begin(), idx_inputs.back().get_size(), idx_inputs.back().data<ov::label_t>());
     }
 
-    const auto& output_tensor = std::make_shared<HostTensor>(element::u64, get_output_shape(0));
-    evaluate({output_tensor}, idx_inputs);
-    const auto& output_idxs = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
-    output_labels[0] = output_idxs;
-    return true;
+    auto outputs = TensorVector{{element::from<label_t>(), get_output_shape(0)}};
+    if (evaluate(outputs, idx_inputs)) {
+        output_labels.front() =
+            TensorLabel(outputs.front().data<label_t>(), outputs.front().data<label_t>() + outputs.front().get_size());
+        return true;
+    } else {
+        return false;
+    }
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

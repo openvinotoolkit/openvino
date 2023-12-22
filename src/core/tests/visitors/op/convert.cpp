@@ -1,24 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/convert.hpp"
 
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
+
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, convert_op_v0) {
     using Convert = op::v0::Convert;
 
     NodeBuilder::get_ops().register_factory<Convert>();
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
     const element::Type destination_type = element::Type_t::i32;
 
     const auto convert = std::make_shared<Convert>(data, destination_type);
-    NodeBuilder builder(convert);
+    NodeBuilder builder(convert, {data});
 
     // attribute count
     const auto expected_attr_count = 1;

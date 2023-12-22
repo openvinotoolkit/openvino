@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,14 +13,13 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
-#include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <utility>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -40,9 +40,9 @@ edges2 = [('input_data', 'sparse_segment_mean_node', {'in': 0}),
           ('input_segment_ids', 'sparse_segment_mean_node', {'in': 2}),
           ('sparse_segment_mean_node', 'output_segments', {'out': 0})]
 
-inputs2 = {'input_data': {'shape': int64_array([3, 4]), 'value': np.array([[1, 2, 3, 4], [-1, -2, -3, -4], [5, 6, 7, 8]], dtype=np.float)},
-           'input_indices': {'shape': int64_array([3]), 'value': np.array([0, 2, 1, 1, 2], dtype=np.float)},
-           'input_segment_ids': {'shape': int64_array([3]), 'value': np.array([0, 0, 1, 2, 2], dtype=np.float)}}
+inputs2 = {'input_data': {'shape': int64_array([3, 4]), 'value': np.array([[1, 2, 3, 4], [-1, -2, -3, -4], [5, 6, 7, 8]], dtype=float)},
+           'input_indices': {'shape': int64_array([3]), 'value': np.array([0, 2, 1, 1, 2], dtype=float)},
+           'input_segment_ids': {'shape': int64_array([3]), 'value': np.array([0, 0, 1, 2, 2], dtype=float)}}
 
 class TestSparseSegmentMean(unittest.TestCase):
     def test_partial_infer(self):
@@ -76,7 +76,7 @@ class TestSparseSegmentMean(unittest.TestCase):
 
         # prepare reference results
         ref_output_segments_shape = int64_array([3, 4])
-        ref_output_segments_value = np.array([[3, 4, 5, 6], [-1, -2, -3, -4], [2, 2, 2, 2]], dtype=np.float)
+        ref_output_segments_value = np.array([[3, 4, 5, 6], [-1, -2, -3, -4], [2, 2, 2, 2]], dtype=float)
 
         # get resulted shapes
         res_output_segments_shape = graph.node['output_segments']['shape']

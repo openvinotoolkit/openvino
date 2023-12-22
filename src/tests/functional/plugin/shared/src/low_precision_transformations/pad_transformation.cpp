@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,32 +8,32 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/pad_function.hpp"
+#include "ov_lpt_models/pad.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::op::PadMode padMode;
+    ov::op::PadMode padMode;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
            << "_" << param.fakeQuantize << "_"
-           << CommonTestUtils::vec2str(param.padsBegin) << CommonTestUtils::vec2str(param.padsEnd) << "_"
-           << padMode << "_" << (padMode == ngraph::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
+           << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
+           << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
     return result.str();
 }
 
 void PadTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::op::PadMode mode;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::op::PadMode mode;
+    ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = this->GetParam();
 
@@ -58,6 +58,7 @@ void PadTransformation::Run() {
 }
 
 TEST_P(PadTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

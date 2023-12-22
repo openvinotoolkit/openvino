@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,9 @@ std::string ConstantLayerTest::getTestCaseName(
     std::tie(data_shape, data_precision, data_elements, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "S=" << CommonTestUtils::vec2str(data_shape) << "_";
+    result << "S=" << ov::test::utils::vec2str(data_shape) << "_";
     result << "dataPRC=" << data_precision.name() << "_";
-    result << "dataValue=" << CommonTestUtils::vec2str(getElements<5>(data_elements)) << "_";
+    result << "dataValue=" << ov::test::utils::vec2str(getElements<5>(data_elements)) << "_";
     return result.str();
 }
 
@@ -37,8 +37,8 @@ void ConstantLayerTest::SetUp() {
     std::tie(data_shape, data_precision, data_elements, targetDevice) = this->GetParam();
 
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_precision);
-    auto constant = ngraph::op::Constant::create(precision, data_shape, data_elements);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(constant)};
+    auto constant = ov::op::v0::Constant::create(precision, data_shape, data_elements);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(constant)};
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "constant");
 }

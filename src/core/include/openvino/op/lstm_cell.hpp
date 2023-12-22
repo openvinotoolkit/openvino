@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@ enum class LSTMWeightsFormat {
     IFOC,  // Caffe
     IOFC,  // ONNX
 };
+
+ov::op::util::LSTMWeightsFormat convert_lstm_weights_enums(LSTMWeightsFormat format);
 
 namespace v0 {
 ///
@@ -54,7 +56,6 @@ namespace v0 {
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset1", op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -239,11 +240,6 @@ private:
     /// \brief The order of gates in weights tensors.
     ///
     LSTMWeightsFormat m_weights_format;
-
-    static constexpr std::size_t s_gates_count{4};
-    static constexpr std::size_t s_peepholes_count{3};
-    template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v0
 
@@ -277,8 +273,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase, 4);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase);
 
     LSTMCell();
     ///
@@ -380,10 +375,6 @@ private:
     /// \brief The Activation function h.
     ///
     util::ActivationFunction m_activation_h;
-
-    static constexpr std::size_t s_gates_count{4};
-    template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v4
 }  // namespace op
@@ -397,7 +388,6 @@ public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

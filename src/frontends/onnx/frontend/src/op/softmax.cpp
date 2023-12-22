@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,12 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data, const int64_t axis) {
-    const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
+    const auto coerced_data = ngraph::builder::opset1::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
     const bool special_zero = false;
@@ -81,3 +82,4 @@ OutputVector softmax(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

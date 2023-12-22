@@ -1,62 +1,42 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <memory>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
-AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
-                                     const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                                     const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
-                                     const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
-    : AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _inferRequest(inferRequest), _waitExecutor(waitExecutor) {
-    _pipeline = {};
-
-    if (!_inferRequest->use_external_queue()) {
-        _pipeline.push_back({taskExecutor,
-                    [this] {
-                        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::PreprocessingAndStartPipeline");
-                        _inferRequest->setup_stream_graph();
-                        _inferRequest->preprocess();
-                        _inferRequest->enqueue();
-                        _inferRequest->wait();
-        } });
-    } else {
-        _pipeline.push_back({ _waitExecutor,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& infer_request,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
+    : ov::IAsyncInferRequest(infer_request, task_executor, callback_executor)
+    , m_infer_request(infer_request)
+    , m_wait_executor(wait_executor) {
+    m_infer_request->set_task_executor(task_executor);
+    if (infer_request->use_external_queue()) {
+        m_pipeline.clear();
+        m_pipeline.emplace_back(wait_executor,
                         [this] {
                             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::WaitPipeline");
-                            _inferRequest->wait_notify();
-                        } });
+                            m_infer_request->wait_notify();
+                        });
     }
 }
-
-void AsyncInferRequest::Infer_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
-        _inferRequest->enqueue_notify();
+void AsyncInferRequest::start_async() {
+    if (m_infer_request->use_external_queue()) {
+        m_infer_request->setup_stream_graph();
+        m_infer_request->enqueue_notify();
     }
-    Parent::Infer_ThreadUnsafe();
-}
-
-void AsyncInferRequest::StartAsync_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
-        _inferRequest->enqueue_notify();
-    }
-    Parent::StartAsync_ThreadUnsafe();
+    Parent::start_async();
 }
 
 AsyncInferRequest::~AsyncInferRequest() {
-    StopAndWait();
+    stop_and_wait();
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

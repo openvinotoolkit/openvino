@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -19,6 +19,8 @@ namespace op {
 class Scalar  : public ov::op::v0::Constant {
 public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ov::op::v0::Constant);
+
+    Scalar() = default;
 
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
     Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {
@@ -34,8 +36,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

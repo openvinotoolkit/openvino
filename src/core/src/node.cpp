@@ -1,29 +1,58 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
 #include <memory>
-#include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
 
 #include "atomic_guard.hpp"
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/result.hpp"
-#include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
 using namespace std;
 
+namespace {
+static const char node_idx_out_of_range_txt[] = "node index is out of range";
+static const char idx_txt[] = "index '";
+static const char out_of_range_txt[] = "' out of range";
+}  // namespace
+
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
+                                       const Node* node,
+                                       const std::string& explanation) {
+    throw ov::NodeValidationFailure(
+        make_what(file, line, check_string, node_validation_failure_loc_string(node), explanation));
+}
+
+template <>
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
+                                       std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                       const std::string& explanation) {
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
+                                              node_validation_failure_loc_string(ctx.first),
+                                              op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
+}
+
 atomic<size_t> ov::Node::m_next_instance_id(0);
+
+ov::Node::Node() = default;
 
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
@@ -35,7 +64,6 @@ ov::Node::Node(const Node& node)
       m_inputs(node.m_inputs)  // will be modified in the body
       // skip m_outputs -- should be initialized outside
       ,
-      m_op_annotations(node.m_op_annotations),
       m_rt_info(node.m_rt_info) {
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
@@ -50,7 +78,6 @@ ov::Node& ov::Node::operator=(const Node& node) {
     this->m_instance_id = m_next_instance_id.fetch_add(1);
     this->m_friendly_name = node.m_friendly_name;
     this->m_inputs = node.m_inputs;
-    this->m_op_annotations = node.m_op_annotations;
     this->m_rt_info = node.m_rt_info;
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
@@ -128,9 +155,10 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
+                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }
@@ -219,7 +247,7 @@ void ov::Node::constructor_validate_and_infer_types() {
 }
 
 void ov::Node::set_output_size(size_t n) {
-    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
+    OPENVINO_ASSERT(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
     for (size_t i = m_outputs.size(); i < n; ++i) {
         // create the descriptors
         get_output_descriptor(i);
@@ -234,18 +262,12 @@ void ov::Node::invalidate_values() {
 void ov::Node::validate_and_infer_types() {}
 
 void ov::Node::set_input_is_relevant_to_shape(size_t i, bool relevant) {
-    NGRAPH_CHECK(i < m_inputs.size(),
-                 "index '",
-                 i,
-                 "' out of range in set_input_is_relevant_to_shape(size_t index, bool relevant)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     m_inputs[i].m_is_relevant_to_shape = relevant;
 }
 
 void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
-    NGRAPH_CHECK(i < m_inputs.size(),
-                 "index '",
-                 i,
-                 "' out of range in set_input_is_relevant_to_value(size_t index, bool relevant)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     m_inputs[i].m_is_relevant_to_value = relevant;
 }
 
@@ -278,12 +300,12 @@ void ov::Node::set_friendly_name(const string& name) {
 }
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
-    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
     return m_inputs[index].get_output().get_node().get();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
-    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
     return m_inputs[index].get_output().get_node();
 }
 
@@ -315,13 +337,13 @@ void ov::Node::add_control_dependency(std::shared_ptr<Node> node) {
     });
 }
 
-void ov::Node::add_node_control_dependencies(std::shared_ptr<Node> source_node) {
+void ov::Node::add_node_control_dependencies(const std::shared_ptr<const Node>& source_node) {
     for (auto& node : source_node->get_control_dependencies()) {
         add_control_dependency(node);
     }
 }
 
-void ov::Node::add_node_control_dependents(std::shared_ptr<Node> source_node) {
+void ov::Node::add_node_control_dependents(const std::shared_ptr<const Node>& source_node) {
     for (Node* node : source_node->get_control_dependents()) {
         node->add_control_dependency(shared_from_this());
     }
@@ -363,8 +385,8 @@ void ov::Node::clear_control_dependents() {
     }
 }
 
-const ngraph::op::AutoBroadcastSpec& ov::Node::get_autob() const {
-    static ngraph::op::AutoBroadcastSpec s_spec;
+const ov::op::AutoBroadcastSpec& ov::Node::get_autob() const {
+    static ov::op::AutoBroadcastSpec s_spec;
     return s_spec;
 }
 
@@ -381,9 +403,11 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     if (depth == 0) {
         out << get_friendly_name();
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto version = get_type_info().version_id;
+        if (version)
+            out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+        else
+            out << get_type_info().name << " " << get_friendly_name() << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
@@ -405,24 +429,24 @@ size_t ov::Node::get_output_size() const {
 }
 
 const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_element_type(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_element_type();
 }
 
 const ov::element::Type& ov::Node::get_element_type() const {
     if (get_output_size() != 1) {
-        throw ngraph::ngraph_error("get_element_type() must be called on a node with exactly one output.");
+        OPENVINO_THROW("get_element_type() must be called on a node with exactly one output.");
     }
     return get_output_element_type(0);
 }
 
 const ov::Shape& ov::Node::get_output_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_shape();
 }
 
 const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_partial_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_partial_shape();
 }
 
@@ -442,12 +466,12 @@ std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const
 }
 
 ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_tensor();
 }
 
 ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     descriptor::Input input = m_inputs[i];
     return input.get_tensor();
 }
@@ -457,31 +481,19 @@ size_t ov::Node::get_input_size() const {
 }
 
 const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_element_type(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_element_type();
 }
 
 const ov::Shape& ov::Node::get_input_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_shape();
 }
 
 const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_partial_shape();
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-const string& ov::Node::get_input_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
-    return m_inputs[i].get_tensor().get_name();
-}
-
-const string& ov::Node::get_output_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     if (get_output_size() != node->get_output_size()) {
@@ -501,9 +513,11 @@ ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!check_is_used || ngraph::is_used(input_node)) {
                 result.push_back(input_node->shared_from_this());
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -515,8 +529,9 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     return ss.str();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
-    NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
+    OPENVINO_ASSERT(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
@@ -526,8 +541,9 @@ const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
     }
     return args;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
-bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
+bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,
                            const Output<Node>& graph_value) {
     if (pattern_value.get_index() != graph_value.get_index() ||
@@ -539,7 +555,7 @@ bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
     return match_node(matcher, graph_value);
 }
 
-bool ov::Node::match_node(ngraph::pattern::Matcher* matcher, const Output<Node>& graph_value) {
+bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value) {
     matcher->add_node(graph_value);
     // Check if a type of a given node, which produces graph_value, matches the type of `this` node
     // or `this` node type is an ancestor of that node type. It is not the exact matching, types of
@@ -571,7 +587,7 @@ bool ov::Node::is_dynamic() const {
 
 ov::Input<ov::Node> ov::Node::input(size_t input_index) {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return {this, input_index};
@@ -583,7 +599,7 @@ ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
 
 ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return {this, input_index};
@@ -592,7 +608,7 @@ ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
 ov::Output<ov::Node> ov::Node::output(size_t output_index) {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
-        throw out_of_range("node output index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return Output<Node>(this, output_index);
@@ -601,7 +617,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
-        throw out_of_range("node output index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return Output<const Node>(this, output_index);
@@ -671,7 +687,6 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
                         const EvaluationContext& evaluationContext) const {
     return evaluate(output_values, input_values);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -701,142 +716,162 @@ protected:
     }
 };
 
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
+inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
+    if (!t) {
+        return std::make_shared<DynamicTensor>(ov::element::dynamic);
+    } else {
+        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
+    }
+}
+
+inline ngraph::HostTensorPtr make_tmp_out_host_tensor(const ov::Tensor& t) {
+    if (!t) {
+        return std::make_shared<DynamicTensor>(ov::element::dynamic);
+    } else if (t.get_shape() == ov::Shape{0}) {
+        return std::make_shared<DynamicTensor>(t.get_element_type());
+    } else {
+        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
+    }
+}
+
+inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors, const bool is_output) {
+    const auto make_tmp_ht = is_output ? make_tmp_out_host_tensor : make_tmp_host_tensor;
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
-            auto el_type = ov::element::dynamic;
-            if (tensor)
-                el_type = tensor.get_element_type();
-            // Create dynamic tensor
-            result.emplace_back(std::make_shared<DynamicTensor>(el_type));
-        } else {
-            result.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(tensor.get_element_type(),
-                                                                              tensor.get_shape(),
-                                                                              tensor.data()));
-        }
+        result.push_back(make_tmp_ht(tensor));
     }
-    return std::move(result);
+    return result;
 }
 
 inline void update_output_tensors(ov::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
     OPENVINO_ASSERT(output_values.size() == outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
-            output_values[i] = dyn_output->get_tensor();
+            auto tensor = dyn_output->get_tensor();
+            // In some cases (e.g. output with zero dims) we get empty tensor after casting to DynamicTensor.
+            // However we still can try to extract precision and shape from the corresponding HostTensor
+            if (!tensor && outputs[i]->get_partial_shape().is_static()) {
+                tensor = ov::Tensor(outputs[i]->get_element_type(), outputs[i]->get_shape());
+            }
+            if (output_values[i]) {
+                // Copy value to the original tensor
+                tensor.copy_to(output_values[i]);
+            } else {
+                // Tensor is not initialized, so create the new tensor
+                output_values[i] = tensor;
+            }
         }
     }
 }
 }  // namespace
 
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
+    if (sts)
+        update_output_tensors(output_values, output);
     return sts;
 }
 
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    // Call evaluate for old implementation with EvaluationContext
+    HostTensorVector output = create_tmp_tensors(output_values, true);
+    HostTensorVector input = create_tmp_tensors(input_values, false);
     bool sts = evaluate(output, input, evaluationContext);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
-    return sts;
+    if (sts)
+        update_output_tensors(output_values, output);
+    // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
+    return sts ? sts : evaluate(output_values, input_values);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool sts = evaluate_lower(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
-    return sts;
+    const auto& inputs = input_values();
+    const auto all_have_bounds = std::all_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return output.get_tensor().has_and_set_bound();
+    });
+    return all_have_bounds && ov::default_lower_bound_evaluator(this, output_values);
 }
 
 bool ov::Node::evaluate_upper(ov::TensorVector& output_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool sts = evaluate_upper(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
-    return sts;
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
-    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
-        return !output.get_tensor().has_and_set_bound();
+    const auto all_have_bounds = std::all_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return output.get_tensor().has_and_set_bound();
     });
-    if (dyn_inputs)
-        return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return all_have_bounds && ov::default_upper_bound_evaluator(this, output_values);
 }
-
-bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
-    const auto& inputs = input_values();
-    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
-        return !output.get_tensor().has_and_set_bound();
-    });
-    if (dyn_inputs)
-        return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
     return false;
 }
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
 
-    if (m_rt_info.count(ov::pass::DisableConstantFolding::get_type_info_static())) {
+    if (is_const_fold_disabled()) {
         return false;
     }
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
     if (!all_constants)
         return false;
 
-    HostTensorVector input_tensors;
+    NodeVector nodes;
+    TensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
-        input_tensors.push_back(host_tensor);
+        nodes.push_back(input.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
+        void* data = (void*)constant->get_data_ptr();
+        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
+        input_tensors.push_back(tensor);
     }
-    HostTensorVector output_tensors;
-    OutputVector output_constants;
+
+    TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
+        const auto& et = output.get_element_type();
+        if (et != element::undefined && et.is_static()) {
+            output_tensors.emplace_back(output);
+        } else {
+            output_tensors.emplace_back();
+        }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
+
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
+            output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
+            ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 
+bool ov::Node::is_const_fold_disabled() const {
+    return ov::pass::constant_folding_is_disabled(this);
+}
+
+bool ov::Node::visit_attributes(AttributeVisitor&) {
+    return true;
+}
+
 namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
+void check_new_args_count(const Node* const node, const OutputVector& new_args) {
+    NODE_VALIDATION_CHECK(node,
+                          new_args.size() == node->input_values().size(),
+                          "clone_with_new_inputs() expected ",
+                          node->input_values().size(),
+                          " argument",
+                          (node->input_values().size() == 1 ? "" : "s"),
+                          " but got ",
+                          new_args.size());
+}
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
@@ -849,8 +884,6 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     }
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

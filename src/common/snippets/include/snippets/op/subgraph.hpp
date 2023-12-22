@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,16 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <ngraph/op/op.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/op/util/sub_graph_base.hpp>
+#include "openvino/op/op.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "snippets/pass/manager.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 
 #include "snippets/generator.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -22,10 +25,9 @@ namespace op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ngraph::op::Op {
+class Subgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("Subgraph", "SnippetsOpset");
-
+    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
     // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -67,12 +69,15 @@ public:
     //
     // D = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
     // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
-    using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
+    using Layout = std::vector<size_t>;
+    using BlockedShape = std::pair<VectorDims, Layout>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
-    Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
+    Subgraph() = default;
 
-    Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
+    Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
+
+    Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -80,65 +85,148 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<ov::Model> get_body() const {
-        return m_body;
-    }
+    // we introduce this method instead of using SubGraphOp::get_function()
+    // to align naming with other methods
+    const std::shared_ptr<ov::Model>& body_ptr() const { return m_bodies[0]; }
+    std::shared_ptr<ov::Model>& body_ptr() { return m_bodies[0]; }
 
-    std::shared_ptr<ngraph::snippets::Generator> get_generator() const {
-        return m_generator;
-    }
+    const ov::Model& body() const { return *m_bodies[0]; }
+    ov::Model& body() { return *m_bodies[0]; }
 
+    const std::shared_ptr<ov::snippets::Generator>& get_generator() const { return m_generator; }
+    std::shared_ptr<ov::snippets::Generator>& get_generator() { return m_generator; }
 
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                ngraph::pass::Manager& opt, const void* compile_params = nullptr);
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
+    size_t get_virtual_port_count() const { return m_virtual_port_count; }
+    bool is_quantized() const { return config.m_is_quantized; }
+    bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
+
+    snippets::Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
+                                const std::vector<ov::element::Type>& input_precisions = {},
+                                const std::vector<ov::element::Type>& output_precisions = {},
+                                const std::vector<pass::Manager::PositionedPass>& data_flow_passes = {},
+                                const lowered::pass::PassPipeline& control_flow_passes_pre_common = {},
+                                const lowered::pass::PassPipeline& control_flow_passes_post_common = {},
+                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
                                 const void* compile_params = nullptr);
-    snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
-    snippets::Schedule generate(const void* compile_params = nullptr);
-    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+
+    snippets::Schedule generate_from_linear_ir(const lowered::pass::PassPipeline& backend_passes_pre_common = {},
+                                               const lowered::pass::PassPipeline& backend_passes_post_common = {},
+                                               const void* compile_params = nullptr) const;
+    IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
-    void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
+    void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
+    void set_tile_rank(size_t newRank) {tileRank = newRank;}
+    void set_virtual_port_count(size_t count);
+    void set_min_jit_work_amount(size_t jit_work_amount);
+    void set_min_parallel_work_amount(size_t parallel_work_amount);
 
     void print() const;
-    void print_statistics(bool verbose);
 
-    void serialize() const;
+    VectorDims infer_master_shape();
 
-    static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
+    static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
+    static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
+
+    // Non-scalar Constants are tokenized as Parameters inside Subgraph body but some operations with constant inputs
+    // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
+    // This check returns True if Constant op which is input of this op should be inside Subgraph body
+    static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
+    static bool check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept;
+    // Return estimated unique buffer count (upper bound). It's needed for tokenization
+    static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
+    static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
+
+    void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
+                                   const std::vector<ov::element::Type>& input_precisions = {},
+                                   const std::vector<ov::element::Type>& output_precisions = {},
+                                   const std::vector<snippets::pass::Manager::PositionedPass>& = {});
+    std::shared_ptr<lowered::LinearIR>
+    convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+    std::shared_ptr<Subgraph> clone() const;
 
 private:
-    void convert_to_snippet_dialect();
-    Shape exec_domain;
-    std::shared_ptr<ov::Model> m_body;
-    std::shared_ptr<ngraph::snippets::Generator> m_generator;
+    void control_flow_transformations(lowered::LinearIR& linear_ir,
+                                      LoweringResult& lowering_result,
+                                      const lowered::pass::PassPipeline& backend_passes_pre_common,
+                                      const lowered::pass::PassPipeline& backend_passes_post_common) const;
+    void init_config();
+    // Count of Subgraph virtual ports:
+    //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
+    // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
+    //       we should MANUALLY calculate it where it needed.
+    size_t m_virtual_port_count = 0;
+    Shape exec_domain = {};
+    std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
+
+    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+    std::vector<size_t> appendOnesForCanonical;
+    std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
+
+    /**
+    * @interface SubgraphConfig
+    * @brief Config to optimize IR transformation pipeline. It indicates which transformations are necessary
+    *       so the irrelevant ones could be skipped.
+    */
+    class SubgraphConfig {
+    public:
+        // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
+        bool m_is_quantized = false;
+        // True if body has operations that don't support plugin-side domain optimizations
+        // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
+        bool m_has_domain_sensitive_ops = false;
+        // Minimal advised work amount for parallel execution.
+        // Set by a backend, typically equals to the number of threads available on the machine.
+        size_t m_min_parallel_work_amount = 8;
+        // Minimal advised work amount every JIT kernel should process during one execution call
+        // Set by a backend, should be large enough to compensate for the kernel call overheads
+        size_t m_min_jit_work_amount = 256;
+    } config;
+
+    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
+
+    class OVShapeInfer : public ShapeInferSnippetsNode {
+        std::shared_ptr<ov::Model> m_ov_body;
+    public:
+        explicit OVShapeInfer(const std::shared_ptr<ov::Model>& body);
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+    };
 };
 
-static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {
-    os << std::get<0>(blocked_shape) << " " << std::get<1>(blocked_shape) << " " << std::get<2>(blocked_shape);
-    return os;
-}
-
-static inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
-    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
-};
-
-static inline auto create_body(std::string name, const ngraph::ResultVector& results, const ngraph::ParameterVector& parameters) ->
+static inline auto create_body(const std::string& name, const ov::ResultVector& results, const ov::ParameterVector& parameters) ->
     std::shared_ptr<ov::Model> {
     auto body = std::make_shared<ov::Model>(results, parameters, name);
     return body;
-};
+}
 
-static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, const ngraph::OutputVector& inputs,
-                                  const std::shared_ptr<ov::Model>& body, const std::string name = "")
+static inline auto build_subgraph(const std::shared_ptr<ov::Node>& node, const ov::OutputVector& inputs,
+                                  const std::shared_ptr<ov::Model>& body, const std::string& name = "")
     -> std::shared_ptr<Subgraph>{
     auto subgraph = std::make_shared<Subgraph>(inputs, body);
     copy_runtime_info(node, subgraph);
     subgraph->set_friendly_name(name.empty() ? node->get_friendly_name() : name);
     return subgraph;
-};
+}
+
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_shape().get_name();
+// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
+auto inline update_out_tensor_name(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) -> void {
+    bool not_set = true;
+    for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
+        for (const auto& in : subgraph->get_output_target_inputs(i)) {
+            if (ov::is_type<ov::op::v0::Result>(in.get_node())) {
+                const auto& body_result = subgraph->body_ptr()->get_output_op(i);
+                const auto& body_result_input = body_result->get_input_source_output(0);
+                ov::snippets::op::Subgraph::fill_empty_output_names(
+                        subgraph->output(i), body_result_input);
+                not_set = false;
+                break;
+            }
+        }
+    }
+}
 
 }  // namespace op
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

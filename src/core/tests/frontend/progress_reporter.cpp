@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/extension/progress_reporter.hpp"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "openvino/frontend/exception.hpp"
 
 using namespace ov::frontend;
@@ -42,7 +43,7 @@ TEST(ProgressReporter_Callables, StructReporter) {
     ProgressConsumer consumer;
 
     ProgressReporterExtension ext{consumer};
-    ext.report_progress(0.5675, 37, 21);
+    ext.report_progress(0.5675f, 37, 21);
 }
 
 namespace {
@@ -57,7 +58,7 @@ void reporter_stub(float, unsigned int, unsigned int) {}
 
 TEST(ProgressReporter_Callables, FunctionReporter) {
     ProgressReporterExtension ext{function_reporter};
-    ext.report_progress(0.2574, 101, 26);
+    ext.report_progress(0.2574f, 101, 26);
 }
 
 TEST(ProgressReporter, ReportMoreStepsThanTotal) {
@@ -67,7 +68,7 @@ TEST(ProgressReporter, ReportMoreStepsThanTotal) {
 
 TEST(ProgressReporter, ReportMoreThan100Percent) {
     ProgressReporterExtension ext{reporter_stub};
-    EXPECT_THROW(ext.report_progress(1.00001, 100, 50), ov::frontend::GeneralFailure);
+    EXPECT_THROW(ext.report_progress(1.00001f, 100, 50), ov::frontend::GeneralFailure);
 }
 
 TEST(ProgressReporter, ReportLessThanZeroPercent) {

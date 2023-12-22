@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Softmax : public Op {
 public:
-    OPENVINO_OP("Softmax", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Softmax", "opset1", op::Op);
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
@@ -39,9 +38,7 @@ public:
     void set_axis(const size_t axis) {
         m_axis = axis;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:
@@ -55,7 +52,6 @@ namespace v8 {
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
@@ -79,9 +75,7 @@ public:
     void set_axis(const int64_t& axis) {
         m_axis = axis;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:

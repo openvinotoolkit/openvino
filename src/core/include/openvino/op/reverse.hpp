@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Reverse : public Op {
 public:
-    OPENVINO_OP("Reverse", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Reverse", "opset1", op::Op);
 
     enum class Mode { INDEX, MASK };
 
@@ -42,9 +41,7 @@ public:
     void set_mode(const Mode mode) {
         m_mode = mode;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:
@@ -57,9 +54,6 @@ protected:
     /// Alternatively it can contain a boolean mask that indicates which axes should be
     /// reversed.
     Mode m_mode;
-
-private:
-    bool evaluate_reverse(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v1
 }  // namespace op
@@ -73,7 +67,6 @@ public:
     AttributeAdapter(op::v1::Reverse::Mode& value) : EnumAttributeAdapterBase<op::v1::Reverse::Mode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::Reverse::Mode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,5 +13,5 @@
 #include <inference_engine.hpp>
 
 // tests_pipelines/tests_pipelines.cpp
-TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n);
+TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n, const float& threshold_val = -1);
 // tests_pipelines/tests_pipelines.cpp

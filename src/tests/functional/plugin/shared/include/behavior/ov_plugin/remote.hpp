@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -20,7 +21,7 @@ using RemoteTensorParams = std::tuple<element::Type,        // element type
                                       std::pair<ov::AnyMap, ov::AnyMap>>; // remote context and tensor parameters
 
 class OVRemoteTest : public testing::WithParamInterface<RemoteTensorParams>,
-                     public CommonTestUtils::TestsCommon {
+                     public ov::test::behavior::OVPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RemoteTensorParams> obj);
 protected:
@@ -28,7 +29,6 @@ protected:
     void TearDown() override;
 
     element::Type element_type;
-    std::string target_device;
     ov::AnyMap config;
     ov::AnyMap context_parameters;
     ov::AnyMap tensor_parameters;

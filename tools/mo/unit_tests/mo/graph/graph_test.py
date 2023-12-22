@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, \
     set_edge_attribute_between_nodes
@@ -364,8 +364,7 @@ class TestGraphShapeChecker(unittest.TestCase):
             graph.check_shapes_consistency()
 
 
-@generator
-class TestGraphPortsChecker(unittest.TestCase):
+class TestGraphPortsChecker():
     nodes = {
         '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '0_data': {'value': None, 'shape': None, 'kind': 'data'},
@@ -380,7 +379,7 @@ class TestGraphPortsChecker(unittest.TestCase):
         '3_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
-    @generate(*[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)])
+    @pytest.mark.parametrize("node_id, port_type, port_idx",[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)])
     def test_check_shape_consistency_1(self, node_id: str, port_type: str, port_idx: int):
         #
         #               ,->2-->2_data---,->3-->3_data
@@ -404,7 +403,7 @@ class TestGraphPortsChecker(unittest.TestCase):
         else:
             node.add_output_port(idx=port_idx)
 
-        with self.assertRaisesRegex(Error, "Node {} has not consecutive {} ports indexes:.*".format(node_id,
+        with pytest.raises (Error, match= "Node {} has not consecutive {} ports indexes:.*".format(node_id,
                                                                                                     port_type)):
             graph.check_nodes_ports_are_consecutive()
 
@@ -1793,3 +1792,76 @@ class TestGetSetAttributeBetweenNodes(unittest.TestCase):
         self.assertTrue(get_edge_attribute_between_nodes(a_node, f_node, 'Attr') == "new_value_3")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, d_node, 'Attr') == "new_value_4")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, f_node, 'Attr') == "new_value_5")
+
+
+class TestTopologicalSort(unittest.TestCase):
+    nodes = {
+        'A': {'id': 0, 'kind': 'op'},
+        'B': {'id': 1, 'kind': 'op'},
+        'C': {'id': 2, 'kind': 'op'},
+        'D': {'id': 3, 'kind': 'op'},
+        'E': {'id': 4, 'kind': 'op'},
+    }
+
+    def build_test_graph(self):
+        graph = build_graph(self.nodes, [
+            ('A', 'B', {'in': 0, 'out': 0}),
+            ('A', 'C', {'in': 0, 'out': 1}),
+            ('A', 'D', {'in': 0, 'out': 2}),
+            ('A', 'E', {'in': 0, 'out': 3}),
+            ('B', 'D', {'in': 1, 'out': 0}),
+            ('C', 'D', {'in': 2, 'out': 0}),
+            ('C', 'E', {'in': 1, 'out': 1}),
+            ('D', 'E', {'in': 2, 'out': 0}),
+        ])
+        return graph
+
+    def test_sort_with_start_node(self):
+        graph = self.build_test_graph()
+
+        stat_node = Node(graph, "A")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node)]
+        assert nodes_names == ['A', 'C', 'B', 'D', 'E']
+
+        stat_node = Node(graph, "B")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node)]
+        assert nodes_names == ['B', 'D', 'E']
+
+        stat_node = Node(graph, "C")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node)]
+        assert nodes_names == ['C', 'D', 'E']
+
+        stat_node = Node(graph, "D")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node)]
+        assert nodes_names == ['D', 'E']
+
+        stat_node = Node(graph, "E")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node)]
+        assert nodes_names == ['E']
+
+        # reverse order
+        stat_node = Node(graph, "A")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
+                                                                                           reverse=True)]
+        assert nodes_names == ['E', 'D', 'B', 'C', 'A']
+
+        stat_node = Node(graph, "B")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
+                                                                                           reverse=True)]
+        assert nodes_names == ['E', 'D', 'B']
+
+        stat_node = Node(graph, "C")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
+                                                                                           reverse=True)]
+        assert nodes_names == ['E', 'D', 'C']
+
+        stat_node = Node(graph, "D")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
+                                                                                           reverse=True)]
+        assert nodes_names == ['E', 'D']
+
+        stat_node = Node(graph, "E")
+        nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
+                                                                                           reverse=True)]
+        assert nodes_names == ['E']
+        

@@ -1,4 +1,5 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and openvino types."""
@@ -21,7 +22,8 @@ ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
 openvino_to_numpy_types_map = [
-    (Type.boolean, np.bool),
+    (Type.boolean, bool),
+    (Type.boolean, np.bool_),
     (Type.f16, np.float16),
     (Type.f32, np.float32),
     (Type.f64, np.float64),
@@ -34,10 +36,15 @@ openvino_to_numpy_types_map = [
     (Type.u32, np.uint32),
     (Type.u64, np.uint64),
     (Type.bf16, np.uint16),
+    (Type.string, str),
+    (Type.string, np.str_),
+    (Type.string, bytes),
+    (Type.string, np.bytes_),
 ]
 
 openvino_to_numpy_types_str_map = [
-    ("boolean", np.bool),
+    ("boolean", bool),
+    ("boolean", np.bool_),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),
@@ -49,6 +56,10 @@ openvino_to_numpy_types_str_map = [
     ("u16", np.uint16),
     ("u32", np.uint32),
     ("u64", np.uint64),
+    ("string", str),
+    ("string", np.str_),
+    ("string", bytes),
+    ("string", np.bytes_),
 ]
 
 
@@ -63,7 +74,8 @@ def get_element_type(data_type: NumericType) -> Type:
         return Type.f32
 
     ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
+        None,
     )
     if ov_type:
         return ov_type
@@ -104,18 +116,31 @@ def get_dtype(openvino_type: Type) -> np.dtype:
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
+def get_numpy_ctype(openvino_type: Type) -> type:
+    """Return numpy ctype for an openvino element type."""
+    np_type = next(
+        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
+        None,
+    )
+
+    if np_type:
+        return np_type
+
+    raise OVTypeError("Unidentified data type %s", openvino_type)
+
+
 def get_ndarray(data: NumericData) -> np.ndarray:
     """Wrap data into a numpy ndarray."""
-    if type(data) == np.ndarray:
-        return data
+    if isinstance(data, np.ndarray):
+        return data  # type: ignore
     return np.array(data)
 
 
 def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         return data.shape  # type: ignore
-    elif type(data) == list:
+    if isinstance(data, list):
         return [len(data)]  # type: ignore
     return []
 

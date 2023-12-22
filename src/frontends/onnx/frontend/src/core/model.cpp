@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph {
@@ -17,38 +18,27 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
 }
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
-    for (const auto& opset_import : model_proto.opset_import()) {
+    // copy the opsets and sort them (descending order)
+    // then return the version from the first occurrence of a given domain
+    auto opset_imports = model_proto.opset_import();
+    std::sort(std::begin(opset_imports),
+              std::end(opset_imports),
+              [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs, const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+                  return lhs.version() > rhs.version();
+              });
+
+    for (const auto& opset_import : opset_imports) {
         if (domain == opset_import.domain()) {
             return opset_import.version();
         }
     }
 
-    throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
+    OPENVINO_THROW("Couldn't find operator set's version for domain: ", domain, ".");
 }
 
-Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {
-    // copy the opset imports from the ONNX model and sort them by their version in ascending order
-    // this will make sure that multiple opset imports for the same domain will cause the largest
-    // version to be used for this model, for example:
-    // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
-    auto opset_imports = m_model_proto->opset_import();
-    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
-                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
-        return lhs.version() < rhs.version();
-    };
-    std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
-
-    for (const auto& id : opset_imports) {
-        const auto domain = id.has_domain() ? id.domain() == "ai.onnx" ? "" : id.domain() : "";
-        m_opset[domain] = OperatorsBridge::get_operator_set(domain, id.version());
-    }
-    // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
-    // implies the operator set that is defined as part of the ONNX specification.
-    const auto dm = m_opset.find("");
-    if (dm == std::end(m_opset)) {
-        m_opset[""] = OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION);
-    }
-}
+Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset)
+    : m_model_proto{std::move(model_proto)},
+      m_opset{std::move(model_opset)} {}
 
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {
     const auto dm = m_opset.find(domain);
@@ -62,33 +52,29 @@ const Operator& Model::get_operator(const std::string& name, const std::string& 
     return op->second;
 }
 
-bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const {
-    const auto dm = m_opset.find(get_node_domain(node_proto));
+bool Model::is_operator_available(const std::string& name, const std::string& domain) const {
+    const auto dm = m_opset.find(domain);
     if (dm == std::end(m_opset)) {
         return false;
     }
-    const auto op = dm->second.find(node_proto.op_type());
+    const auto op = dm->second.find(name);
     return (op != std::end(dm->second));
 }
 
-void Model::enable_opset_domain(const std::string& domain) {
+void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge) {
     // There is no need to 'update' already enabled domain.
     // Since this function may be called only during model import,
     // (maybe multiple times) the registered domain opset won't differ
     // between subsequent calls.
     if (m_opset.find(domain) == std::end(m_opset)) {
-        OperatorSet opset{OperatorsBridge::get_operator_set(domain)};
+        const auto opset = ops_bridge.get_operator_set(domain);
         if (opset.empty()) {
-            NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
-
+            OPENVINO_WARN << "Couldn't enable domain: " << domain
+                          << " since it does not have any registered operators.";
             return;
         }
         m_opset.emplace(domain, opset);
     }
-}
-
-const OpsetImports& Model::get_opset_imports() const {
-    return m_model_proto->opset_import();
 }
 
 }  // namespace onnx_import

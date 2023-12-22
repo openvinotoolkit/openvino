@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
         std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetName) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         results << "OpType=" << opType << "_";
         results << "SecondaryInputType=" << inputType << "_";
         results << "netPRC=" << netPrecision.name() << "_";
@@ -38,13 +38,17 @@ namespace LayerTestsDefinitions {
             IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+            input.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         function = std::make_shared<ngraph::Function>(op, input, "MinMax");
     }
 } // namespace LayerTestsDefinitions

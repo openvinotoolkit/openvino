@@ -1,17 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
-#include <ctc_greedy_decoder_seq_len_shape_inference.hpp>
-
+#include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen);
+namespace ov {
 
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                                        const Output<Node>& seq_len,
@@ -39,7 +35,7 @@ op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input
 }
 
 void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
+    OV_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
     std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape};
@@ -53,39 +49,40 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
         input_shapes.push_back(get_input_partial_shape(2));
     }
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
+
     set_output_type(0, m_classes_index_type, output_shapes[0]);
     set_output_type(1, m_sequence_length_type, output_shapes[1]);
 }
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_visit_attributes);
+    OV_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_visit_attributes);
     visitor.on_attribute("merge_repeated", m_merge_repeated);
     visitor.on_attribute("classes_index_type", m_classes_index_type);
     visitor.on_attribute("sequence_length_type", m_sequence_length_type);
     return true;
 }
 
-shared_ptr<Node> op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_clone_with_new_inputs);
+std::shared_ptr<Node> op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     size_t args_size = new_args.size();
     if (args_size == 2) {
-        return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
-                                                   new_args.at(1),
-                                                   m_merge_repeated,
-                                                   m_classes_index_type,
-                                                   m_sequence_length_type);
+        return std::make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
+                                                        new_args.at(1),
+                                                        m_merge_repeated,
+                                                        m_classes_index_type,
+                                                        m_sequence_length_type);
     } else if (args_size == 3) {
-        return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
-                                                   new_args.at(1),
-                                                   new_args.at(2),
-                                                   m_merge_repeated,
-                                                   m_classes_index_type,
-                                                   m_sequence_length_type);
+        return std::make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
+                                                        new_args.at(1),
+                                                        new_args.at(2),
+                                                        m_merge_repeated,
+                                                        m_classes_index_type,
+                                                        m_sequence_length_type);
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }
+}  // namespace ov

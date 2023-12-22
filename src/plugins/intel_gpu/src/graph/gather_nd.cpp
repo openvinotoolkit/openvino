@@ -1,28 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_nd_inst.h"
+#include "gather_nd_shape_inference.hpp"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
-layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
-    auto op = node.get_primitive();
+layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
+    auto op = impl_param.typed_desc<gather_nd>();
 
-    auto input_layout_origin = node.input(0).get_output_layout();
-    auto indices_layout_origin = node.input(1).get_output_layout();
+    auto input_layout_origin = impl_param.get_input_layout(0);
+    auto indices_layout_origin = impl_param.get_input_layout(1);
 
-    auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
-    auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
+    auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
+    auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);
 
     const auto input_rank = static_cast<size_t>(op->input_rank);
     const auto indices_rank = op->indices_rank;
@@ -63,24 +60,54 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
         }
     }
 
-    auto output_format = cldnn::format::any;
-    if (final_output_sizes.size() <= 4) {
-        output_format = cldnn::format::bfyx;
-    } else if (final_output_sizes.size() == 5) {
-        output_format = cldnn::format::bfzyx;
-    } else {
-        output_format = cldnn::format::bfwzyx;
-    }
-
+    auto output_format = format::get_default_format(final_output_sizes.size());
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
-    if (node.has_fused_primitives()) {
-        input_layout_origin.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);
 }
+
+
+template<typename ShapeType>
+std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather_nd>();
+
+    auto input_layout = impl_param.get_input_layout(0);
+    auto indices_layout = impl_param.get_input_layout(1);
+
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    std::vector<ShapeType> output_shapes;
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>(),
+        indices_layout.get<ShapeType>()
+    };
+
+    if (desc->batch_merged_output) {
+        ov::op::v5::GatherND op;
+        op.set_batch_dims(desc->batch_dims);
+        output_shapes = ov::op::v5::shape_infer(&op, input_shapes);
+    } else {
+        ov::op::v8::GatherND op;
+        op.set_batch_dims(desc->batch_dims);
+        output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
+    }
+
+    OPENVINO_ASSERT(!output_shapes[0].rank().is_dynamic(),
+                    "[GPU] Doesn't support output dynamic rank in gather_nd");
+    format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> gather_nd_inst::calc_output_layouts<ov::PartialShape>(gather_nd_node const& node, const kernel_impl_params& impl_param);
 
 std::string gather_nd_inst::to_string(gather_nd_node const& node) {
     auto desc = node.get_primitive();
@@ -91,11 +118,8 @@ std::string gather_nd_inst::to_string(gather_nd_node const& node) {
 
     json_composite gather_nd_info;
     gather_nd_info.add("input id", input.id());
-    gather_nd_info.add("input shape", node.input(0).get_output_layout().size.to_string());
-    gather_nd_info.add("indices shape", node.input(1).get_output_layout().size.to_string());
     gather_nd_info.add("indices rank", desc->indices_rank);
     gather_nd_info.add("batch dims", desc->batch_dims);
-    gather_nd_info.add("output shape", calc_output_layout(node).size.to_string());
 
     node_info->add("gather_nd info", gather_nd_info);
     node_info->dump(primitive_description);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -21,7 +21,6 @@ class ReluFakeQuantizeMark(MiddleReplacementPattern):
 
     """
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [BinarizeWeightsM1P1]

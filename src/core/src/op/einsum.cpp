@@ -1,30 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/einsum.hpp"
+#include "openvino/op/einsum.hpp"
 
 #include <algorithm>
 #include <cctype>
-#include <ngraph/validation_util.hpp>
 #include <string>
 #include <unordered_map>
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
-
-op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
-    // normalize input equation by removing extra white-spaces from the equation
-    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace), m_equation.end());
-
-    constructor_validate_and_infer_types();
-}
-
+namespace ov {
 namespace {
 
 /// \brief      Check that a subscript contains only alphabetic letters or
@@ -79,12 +68,30 @@ bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
     return false;
 }
 
+/// \brief Remove all whitespaces from given string
+///
+/// \param[in,out] s  String to process.
+///
+void remove_whitespaces(std::string& s) {
+    s.erase(std::remove_if(s.begin(),
+                           s.end(),
+                           [](unsigned char c) {
+                               return std::isspace(c);
+                           }),
+            s.end());
+}
+
 }  // namespace
+
+op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
+    remove_whitespaces(m_equation);
+    constructor_validate_and_infer_types();
+}
 
 void op::v7::Einsum::parse_equation(const std::string& equation,
                                     std::vector<std::string>& input_subscripts,
                                     std::string& output_subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
+    OV_OP_SCOPE(v7_Einsum_parse_equation);
     constexpr char ellipsis[] = "...";
 
     // split equation to input subscripts and an output subscript
@@ -99,9 +106,9 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     for (std::string input_subscript; std::getline(input, input_subscript, ',');) {
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
-        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met),
-                     "Input subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
+        OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
+                        "Input subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // mark that ellipsis is met at least in one input subscript
         if (local_is_ellipsis_met) {
@@ -130,19 +137,19 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         bool output_is_ellipsis_met = false;
 
         // check that the output subscript has the correct format
-        NGRAPH_CHECK(is_subscript_correct(output_subscript, output_is_ellipsis_met),
-                     "Output subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
+        OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
+                        "Output subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        NGRAPH_CHECK(is_ellipsis_met == output_is_ellipsis_met,
-                     "Output subscript of Einsum equation must contain one ellipsis if "
-                     "ellipsis is met in any input subscript.");
+        OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
+                        "Output subscript of Einsum equation must contain one ellipsis if "
+                        "ellipsis is met in any input subscript.");
     }
 }
 
 std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
+    OV_OP_SCOPE(v7_Einsum_extract_labels);
 
     std::vector<std::string> labels;
     labels.clear();
@@ -155,7 +162,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
             // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         } else {
-            NGRAPH_CHECK(false, "Einsum equation has invalid label.");
+            OPENVINO_ASSERT(false, "Einsum equation has invalid label.");
         }
     }
 
@@ -163,10 +170,10 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
 }
 
 void op::v7::Einsum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v7_Einsum_validate_and_infer_types);
+    OV_OP_SCOPE(v7_Einsum_validate_and_infer_types);
 
     // check that Einsum operation has at least one input
-    auto num_inputs = get_input_size();
+    const auto num_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_inputs > 0, "Einsum must have at least one input.");
 
     // check that all inputs have the same type and the type is numeric
@@ -177,29 +184,31 @@ void op::v7::Einsum::validate_and_infer_types() {
     for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx) {
         const auto& input_type_i = get_input_element_type(input_idx);
         NODE_VALIDATION_CHECK(this,
-                              input_type_0 == input_type_i,
+                              input_type_0.compatible(input_type_i),
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, input_type_0, output_shapes[0]);
 }
 
 bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v7_Einsum_visit_attributes);
+    OV_OP_SCOPE(v7_Einsum_visit_attributes);
     visitor.on_attribute("equation", m_equation);
     return true;
 }
 
-shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
+std::shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v7::Einsum>(new_args, m_equation);
+    return std::make_shared<v7::Einsum>(new_args, m_equation);
 }
+
+void op::v7::Einsum::set_equation(std::string equation) {
+    remove_whitespaces(equation);
+    m_equation = std::move(equation);
+}
+}  // namespace ov

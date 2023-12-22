@@ -1,8 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <tuple>
 
@@ -16,19 +26,23 @@
 namespace ngraph {
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
+using ov::has_no_labels;
 using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
 using ov::normalize_axes;
 using ov::normalize_axis;
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 CoordinateDiff conv_default_padding(const Node* node,
                                     const PartialShape& data_batch_shape,
                                     const PartialShape& filters_shape);
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                    const PartialShape& data_shape,
@@ -41,6 +55,7 @@ PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                    bool is_window_all_in_padding_allowed,
                                                    bool ceil_mode = false);
 
+NGRAPH_API_DEPRECATED
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
                                              const op::PadType auto_pad,
@@ -61,6 +76,7 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 /// \param     pads_end          Pads end.
 ///
 /// \return Partial shape of the output.
+NGRAPH_API_DEPRECATED
 PartialShape validate_and_infer_convolution_forward_output_shape(const Node* node,
                                                                  const Rank& result_ps_rank,
                                                                  const PartialShape& data_batch_pshape,
@@ -71,6 +87,7 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
                                                                  CoordinateDiff& pads_begin,
                                                                  CoordinateDiff& pads_end);
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_batched_pooling_forward(const Node* node,
                                            const PartialShape& data_batch_shape,
@@ -82,6 +99,7 @@ PartialShape infer_batched_pooling_forward(const Node* node,
                                            bool ceil_mode = false,
                                            const Strides& window_dilation = Strides{});
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
                                                                                element::Type input_element_type,
@@ -95,6 +113,7 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
                                                                                const PartialShape& mean_shape,
                                                                                const PartialShape& variance_shape);
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
                                                                                element::Type input_element_type,
@@ -118,6 +137,7 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
 ///
 /// \return true if auto padding was applied successfully (all needed informations such as
 ///         spatial dims are known), false otherwise.
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 bool try_apply_auto_padding(const PartialShape& image_shape,
                             const Shape& filter_shape,
@@ -127,6 +147,7 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below);
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 PartialShape infer_slice_shape(const Node* node,
                                const PartialShape& input_shape,
@@ -143,7 +164,7 @@ PartialShape infer_slice_shape(const Node* node,
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
-NGRAPH_DEPRECATED("Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
 /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
@@ -154,76 +175,28 @@ NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 /// \param outputs Root set of values to try to compute
 /// \param evaluation_context Storage of additional settings and attributes that can be used
 /// when evaluating the function. This additional information can be shared across nodes.
+NGRAPH_API_DEPRECATED
 NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                                std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                                const OutputVector& outputs,
                                const EvaluationContext& evaluation_context = EvaluationContext());
 
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param Node output pointing to the tensor for estimation.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param output Tensor to be estimated.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower and upper value estimations of the output tensor. Traverses graph up
-/// to deduce estimation through it.
-/// \param output Node output pointing to the tensor for estimation.
-/// \return pair with HostTensorPtrs for lower and upper value estimation. Each object in pair
-/// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
-NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<Node>& output);
-
-/// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting upper value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_upper_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates lower bound for node output tensors using only lower bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_lower_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
-/// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
-/// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
-/// in_2_lower}, {in_1_upper, in_2_upper}. Lower and upper values are selected from all the
-/// outputs calculated using input pairs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool interval_bound_evaluator(const Node* node,
-                                         const HostTensorVector& lower_output_values,
-                                         const HostTensorVector& upper_output_values);
-
-/// \brief Checks if all the elements of the bound HostTensor are positive
-NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
-
-/// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
-/// and pointers are the same. It doesn't check if lower and upper values are the same relying
-/// only on pointers comparison.
-NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
-
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
+NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Type_t t);
 
 /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
 /// that all the HostTensorPtrs are not equal to nullptr
+NGRAPH_API_DEPRECATED
 NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
-
-NGRAPH_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 
 namespace opset1 {
 ///
@@ -239,6 +212,7 @@ namespace opset1 {
 /// \param      pads_begin        The placeholder for paddings at the beginning of axis.
 /// \param      pads_end          The placeholder for paddings at the end of axis.
 ///
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       const Shape& filters_shape,

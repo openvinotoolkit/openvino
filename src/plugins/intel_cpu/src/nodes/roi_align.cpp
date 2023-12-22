@@ -1,44 +1,44 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "roi_align.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include <mkldnn_types.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
-
+using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
 struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
-    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -46,9 +46,6 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         this->preamble();
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -65,8 +62,7 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        emit_emitters_data();
     }
 
 private:
@@ -107,10 +103,9 @@ private:
     // [1] for reg_dst
     Xmm xmm_args_pool = Xmm(15);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::vector<size_t> load_pool_gpr_idxs;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::vector<size_t> load_pool_gpr_idxs;
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
 
@@ -157,6 +152,57 @@ private:
 
     reg64_t reg_params = abi_param1;
 
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            emitter.second->emit_data();
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.data_prc, ov::element::f32, elt_num, offset);
+    }
+
+    inline void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, ov::element::f32, ov::element::f32, elt_num, offset);
+    }
+
+    inline void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, ov::element::i32, ov::element::i32, elt_num, offset);
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, ov::element::f32, jcp_.data_prc, elt_num, offset);
+    }
+
+    inline void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, ov::element::f32, ov::element::f32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
+
     void roi_align_cgather() {
         mov(reg_src_address, ptr[reg_params + GET_OFF(src)]);
         mov(reg_weights, ptr[reg_params + GET_OFF(weights)]);
@@ -179,23 +225,6 @@ private:
             mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
             imul(reg_src_stride, reg_src_stride, jcp_.data_size);
         }
-
-        auto store = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, jcp_.data_prc, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
-
-        auto load_buf = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-        auto store_buf = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
 
         // out loop for samples in bin
         Xbyak::Label out_loop_label;
@@ -228,13 +257,13 @@ private:
                 generate_samples(v_step);
                 // now this sample value across channel reside in vmm_sample
                 // compute with other samples in vmm_buf
-                load_buf(reg_buf, vmm_buf, v_step);
+                load_buffer(reg_buf, vmm_buf, v_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, v_step);
+                store_buffer(vmm_buf, reg_buf, v_step);
 
                 if ((isa == cpu::x64::sse41) && (jcp_.layout == ROIAlignLayoutType::blk)) {
                     add(reg_src0, x_step * jcp_.data_size);
@@ -244,13 +273,13 @@ private:
                     add(reg_buf, x_step * sizeof(float));
 
                     generate_samples(x_step);
-                    load_buf(reg_buf, vmm_buf, x_step);
+                    load_buffer(reg_buf, vmm_buf, x_step);
                     if (jcp_.alg == Algorithm::ROIAlignAvg) {
                         uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                     } else {
                         uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                     }
-                    store_buf(vmm_buf, reg_buf, x_step);
+                    store_buffer(vmm_buf, reg_buf, x_step);
 
                     sub(reg_src0, x_step * jcp_.data_size);
                     sub(reg_src1, x_step * jcp_.data_size);
@@ -280,13 +309,13 @@ private:
                 jl(in_loop_tail_end_label, T_NEAR);
 
                 generate_samples(tail_step);
-                load_buf(reg_buf, vmm_buf, tail_step);
+                load_buffer(reg_buf, vmm_buf, tail_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, tail_step);
+                store_buffer(vmm_buf, reg_buf, tail_step);
 
                 int tail_src_stride = tail_step * jcp_.data_size;
                 add(reg_src0, tail_src_stride);
@@ -333,7 +362,7 @@ private:
             cmp(reg_work_amount, v_step);
             jl(store_loop_main_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, v_step);
+            load_buffer(reg_buf, vmm_buf, v_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -343,7 +372,7 @@ private:
                 add(reg_buf, x_step * sizeof(float));
                 add(reg_dst, x_step * jcp_.data_size);
 
-                load_buf(reg_buf, vmm_buf, x_step);
+                load_buffer(reg_buf, vmm_buf, x_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
                 }
@@ -369,7 +398,7 @@ private:
             cmp(reg_work_amount, tail_step);
             jl(store_loop_tail_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, tail_step);
+            load_buffer(reg_buf, vmm_buf, tail_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -402,12 +431,6 @@ private:
     }
 
     void generate_samples(int num) {
-        auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(jcp_.data_prc, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-
         uni_vpxor(vmm_sample, vmm_sample, vmm_sample);
         load(reg_src0, vmm_src0, num);
         uni_vfmadd231ps(vmm_sample, vmm_src0, vmm_weights0);
@@ -432,12 +455,6 @@ private:
             uni_vbroadcastss(vmm_scale, ptr[reg_tmp_64]);
         }
 
-        auto load_idx = [&](Xbyak::Reg64 reg_idx, Vmm vmm_idx, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_idx.getIdx())}, {static_cast<size_t>(vmm_idx.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
         Xbyak::Label tail_loop_label;
@@ -452,9 +469,9 @@ private:
 
             load_idx(reg_buf, vmm_buf, v_step);
 
-            if (jcp_.data_prc == Precision::FP32)
+            if (jcp_.data_prc == ov::element::f32)
                 gather_f32(vmm_src, reg_src, vmm_buf);
-            else if (jcp_.data_prc == Precision::BF16)
+            else if (jcp_.data_prc == ov::element::bf16)
                 gather_bf16_to_f32_zmm(vmm_src, reg_src, vmm_buf);
 
             uni_vmovups(vmm_weights, ptr[reg_weights]);
@@ -465,7 +482,7 @@ private:
                 uni_vmulps(vmm_src, vmm_src, vmm_weights);
                 // horizontal add for each lane
                 // xmm_dst[0] hold the max
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     for (int i = 0; i < lane; i++) {
                         vextractf32x4(xmm_temp1, Xbyak::Zmm(vmm_src.getIdx()), i);
                         horizontal_add_xmm(xmm_temp1, xmm_temp2);
@@ -502,14 +519,14 @@ private:
 
             load_idx(reg_buf, vmm_buf, x_step);
 
-            if (jcp_.data_prc == Precision::FP32)
+            if (jcp_.data_prc == ov::element::f32)
                 gather_f32_xmm(xmm_src, reg_src, xmm_buf);
-            else if (jcp_.data_prc == Precision::BF16)
+            else if (jcp_.data_prc == ov::element::bf16)
                 gather_bf16_to_f32_xmm(xmm_src, reg_src, xmm_buf);
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                // as vex instruction will zero upper bit for xmm version, store result in seperate xmm_dst_tail
+                // as vex instruction will zero upper bit for xmm version, store result in separate xmm_dst_tail
                 uni_vfmadd231ps(xmm_dst_tail, xmm_src, xmm_weights);
             } else {
                 uni_vmulps(xmm_src, xmm_src, xmm_weights);
@@ -532,9 +549,9 @@ private:
         }
 
         // xmm_dst[0] of f32 is the dst value
-        if (jcp_.data_prc == Precision::FP32)
+        if (jcp_.data_prc == ov::element::f32)
             uni_vpextrd(ptr[reg_dst], xmm_dst, 0);
-        else if (jcp_.data_prc == Precision::BF16)
+        else if (jcp_.data_prc == ov::element::bf16)
             uni_vpextrw(ptr[reg_dst], xmm_dst, 1);
     }
 
@@ -570,7 +587,7 @@ private:
     // bf16 is needed from avx512_core
     inline void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
         if (!std::is_same<Vmm, Xbyak::Zmm>::value)
-            IE_THROW() << "bf16 is only supported from avx512_core platform for ROIAlign node.";
+            OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -631,18 +648,24 @@ private:
         }
     }
 };
-
-bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+#endif
+bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         if (!roiAlign) {
-            errorMessage = "Only opset3 ROIAlign operation is supported";
+            errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
         }
 
         const ngPoolingMode mode = roiAlign->get_mode();
         if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            errorMessage = "Doesn't support mode: " + ov::as_string(mode);
+            return false;
+        }
+
+        const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
+        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
+            errorMessage = "Doesn't support mode: " + ov::as_string(alignedMode);
             return false;
         }
     } catch (...) {
@@ -651,13 +674,13 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -668,49 +691,58 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine
         } else if (m == ngPoolingMode::AVG) {
             algorithm = Algorithm::ROIAlignAvg;
         }
+        const ngAlignedMode mAligned = roiAlign->get_aligned_mode();
+        if (mAligned == ngAlignedMode::ASYMMETRIC) {
+            alignedMode = ROIAlignedMode::ra_asymmetric;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL_FOR_NN) {
+            alignedMode = ROIAlignedMode::ra_half_pixel_for_nn;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL) {
+            alignedMode = ROIAlignedMode::ra_half_pixel;
+        }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 3)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getInputShapeAtPort(2).getRank() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
     if (proposalsDims[1] != 4) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << proposalsDims[0] << "," << proposalsDims[1] << "]";
+        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
     }
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
     if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                   << proposalsDims[0] << ") and indexes (" << indexesDims[0] << ")";
+        OPENVINO_THROW(errorPrefix,
+                       "has different sizes of inputs for proposals (",
+                       proposalsDims[0],
+                       ") and indexes (",
+                       indexesDims[0],
+                       ")");
     }
 }
 
-void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout) {
+void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout) {
     auto jcp = jit_roi_align_params();
     jcp.alg = algorithm;
     jcp.data_prc = dataPrec;
@@ -718,41 +750,40 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     jcp.layout = selectLayout;
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
-
-    if (mayiuse(cpu::x64::avx512_common)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_common>(jcp));
+#if defined(OPENVINO_ARCH_X86_64)
+    if (mayiuse(cpu::x64::avx512_core)) {
+        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::sse41>(jcp));
     }
-
     if (roi_align_kernel)
         roi_align_kernel->create_ker();
+#endif
 }
 
 void ROIAlign::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrec0 = getOriginalInputPrecisionAtPort(0);
-    Precision outputPrec = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (inputPrec0 != Precision::FP32 || outputPrec != Precision::FP32) {
-        if ((outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16) && mayiuse(avx512_core)) {
-            outputPrec = inputPrec0 = Precision::BF16;
+    if (inputPrec0 != ov::element::f32 || outputPrec != ov::element::f32) {
+        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && mayiuse(avx512_core)) {
+            outputPrec = inputPrec0 = ov::element::bf16;
         } else {
-            outputPrec = inputPrec0 = Precision::FP32;
+            outputPrec = inputPrec0 = ov::element::f32;
         }
     }
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -761,7 +792,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     } else {
         impl_type = impl_desc_type::ref;
     }
-
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
             {LayoutType::ncsp, LayoutType::ncsp}
     };
@@ -777,20 +807,20 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 
     for (auto fmts : supportedFormats) {
         addSupportedPrimDesc({{fmts.first, inputPrec0},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::I32}},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              {{fmts.second, outputPrec}},
                               impl_type);
     }
 }
 
 void ROIAlign::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -820,20 +850,20 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
-        IE_THROW() <<"ROIAlign doesn't support demanded precisions";
+void ROIAlign::execute(dnnl::stream strm) {
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
+          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
+        OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
 
     ROIAlignContext ctx = {
             *this
     };
 
     OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
-              OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(dnnl_f32, dnnl_f32, float, float),
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
@@ -842,15 +872,15 @@ void ROIAlign::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
-    auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
+    auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
@@ -886,23 +916,49 @@ void ROIAlign::executeSpecified() {
     else
         srcIndexTbl.resize(realRois);
 
+    bool aligned = false;
+    float offset_src = 0;
+    float offset_dst = 0;
+
+    switch (alignedMode) {
+    case ROIAlignedMode::ra_half_pixel_for_nn: {
+        aligned = true;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_half_pixel: {
+        aligned = true;
+        offset_src = 0.5;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_asymmetric:
+    default: {
+        break;
+    }
+    }
+
     parallel_for(realRois, [&](size_t n) {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            IE_THROW() << "Batch index cannot be less, than -1";
-        } else if (roiBatchInd >= inputDimVector[0]) {
-            IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
+            OPENVINO_THROW("Batch index cannot be less, than -1");
+        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
+            OPENVINO_THROW("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
-        float x1 = srcRoiPtr[0] * spatialScale;
-        float y1 = srcRoiPtr[1] * spatialScale;
-        float x2 = srcRoiPtr[2] * spatialScale;
-        float y2 = srcRoiPtr[3] * spatialScale;
+        float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
+        float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
+        float x2 = (srcRoiPtr[2] + offset_src) * spatialScale + offset_dst;
+        float y2 = (srcRoiPtr[3] + offset_src) * spatialScale + offset_dst;
 
-        float roiHeight = std::max(y2 - y1, 1.0f);
-        float roiWidth = std::max(x2 - x1, 1.0f);
+        float roiHeight = y2 - y1;
+        float roiWidth = x2 - x1;
+        if (!aligned) {
+            roiHeight = std::max(roiHeight, 1.0f);
+            roiWidth = std::max(roiWidth, 1.0f);
+        }
         float binHeight = roiHeight / pooledH;
         float binWidth = roiWidth / pooledW;
 
@@ -961,13 +1017,13 @@ void ROIAlign::executeSpecified() {
                         auto sampleXLow = static_cast<unsigned int>(sampleX);
                         unsigned int sampleYHigh;
                         unsigned int sampleXHigh;
-                        if (sampleYLow >= H - 1) {
+                        if (static_cast<int>(sampleYLow) >= H - 1) {
                             sampleYHigh = sampleYLow = H - 1;
                             sampleY = static_cast<float>(sampleYLow);
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= W - 1) {
+                        if (static_cast<int>(sampleXLow) >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {
@@ -1012,7 +1068,7 @@ void ROIAlign::executeSpecified() {
     });
 
     if (realRois == 0) {
-        IE_THROW() << "realRois must be greater than 0";
+        OPENVINO_THROW("realRois must be greater than 0");
     }
 
     if (roi_align_kernel) {
@@ -1075,7 +1131,7 @@ void ROIAlign::executeSpecified() {
             float numSamplesInBinInvert = 1.f / numSamplesROI;
 
             float pooledValue = 0;
-            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
+            for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
                 float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
                 float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];
@@ -1114,7 +1170,7 @@ bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void ROIAlign::executeDynamicImpl(mkldnn::stream strm) {
+void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

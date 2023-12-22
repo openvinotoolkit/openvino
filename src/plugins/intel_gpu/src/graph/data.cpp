@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "data_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
@@ -13,10 +11,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id data::type_id() {
-    static primitive_type_base<data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,20 +34,20 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     std::ostringstream result;
     const char separator = '_';
 
-    result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
-    result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
+    result << "IS="      << ov::test::utils::vec2str(inputShapes) << separator;
+    result << "imageS="  << ov::test::utils::vec2str(imageShapes) << separator;
     result << "netPRC="  << netPrecision.name()   << separator;
     result << "inPRC="   << inPrc.name() << separator;
     result << "outPRC="  << outPrc.name() << separator;
     result << "inL="     << inLayout << separator;
     result << "outL="    << outLayout << separator;
-    result << "widths="  << CommonTestUtils::vec2str(widths)  << separator;
-    result << "heights=" << CommonTestUtils::vec2str(heights) << separator;
+    result << "widths="  << ov::test::utils::vec2str(widths)  << separator;
+    result << "heights=" << ov::test::utils::vec2str(heights) << separator;
     result << "variances=";
     if (variances.empty())
         result << "()" << separator;
     else
-        result << CommonTestUtils::vec2str(variances) << separator;
+        result << ov::test::utils::vec2str(variances) << separator;
     result << "stepWidth="  << step_width  << separator;
     result << "stepHeight=" << step_height << separator;
     result << "step="       << step << separator;
@@ -73,9 +73,10 @@ void PriorBoxClusteredLayerTest::SetUp() {
         variances) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
-    ngraph::op::PriorBoxClusteredAttrs attributes;
+    ov::op::v0::PriorBoxClustered::Attributes attributes;
     attributes.widths = widths;
     attributes.heights = heights;
     attributes.clip = clip;
@@ -85,14 +86,14 @@ void PriorBoxClusteredLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.variances = variances;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-    auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClustered>(
+    auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
+    auto priorBoxClustered = std::make_shared<ov::op::v0::PriorBoxClustered>(
         shape_of_1,
         shape_of_2,
         attributes);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(priorBoxClustered) };
     function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
 }
 }  // namespace LayerTestsDefinitions

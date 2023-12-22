@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -12,7 +12,7 @@ from unit_tests.utils.graph import build_graph
 class TestAnd(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(np.bool)
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
         return inputs_dict
 
     def create_net(self, shape1, shape2, ir_version):
@@ -48,7 +48,7 @@ class TestAnd(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #   Create reference IR net
 
@@ -90,7 +90,7 @@ class TestAnd(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, shape1)
 
-        const = np.random.randint(0, 2, shape2).astype(np.bool)
+        const = np.random.randint(0, 2, shape2).astype(bool)
 
         node_const_def = helper.make_node(
             'Constant',
@@ -119,7 +119,7 @@ class TestAnd(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #   Create reference IR net
 
@@ -167,8 +167,8 @@ class TestAnd(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, output_shape)
 
-        const1 = np.random.randint(0, 2, shape1).astype(np.bool)
-        const2 = np.random.randint(0, 2, shape2).astype(np.bool)
+        const1 = np.random.randint(0, 2, shape1).astype(bool)
+        const2 = np.random.randint(0, 2, shape2).astype(bool)
 
         node_const1_def = helper.make_node(
             'Constant',
@@ -216,7 +216,7 @@ class TestAnd(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #   Create reference IR net
         constant_calculated = np.logical_and(const1, const2)
@@ -251,21 +251,21 @@ class TestAnd(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_and(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and_one_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_and_one_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_one_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_and_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

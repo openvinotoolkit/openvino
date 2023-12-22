@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchToSpace : public Op {
 public:
-    OPENVINO_OP("BatchToSpace", "opset2", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("BatchToSpace", "opset2", op::Op);
     BatchToSpace() = default;
     /// \brief Constructs a BatchToSpace operation.
     ///
@@ -38,9 +37,7 @@ public:
                  const Output<Node>& block_shape,
                  const Output<Node>& crops_begin,
                  const Output<Node>& crops_end);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     void validate_and_infer_types() override;

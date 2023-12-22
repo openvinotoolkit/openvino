@@ -1,106 +1,118 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/generator.hpp"
-#include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/vector_to_scalar.hpp"
-#include "snippets/pass/insert_load_store.hpp"
-#include "snippets/op/tile.hpp"
+
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/assign_registers.hpp"
+#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
+#include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
+
 #include "snippets/op/kernel.hpp"
-#include <snippets/itt.hpp>
 
-#include <ngraph/pass/manager.hpp>
+#include "snippets/itt.hpp"
 
-auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
-    auto rt = n->get_rt_info();
+namespace ov {
+namespace snippets {
 
-    // ToDo: change to reg_t
-    std::vector<size_t> rout;
-    auto it_rt = rt.find("reginfo");
-    if (it_rt != rt.end()) {
-        for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
-            rout.push_back(reg);
-        }
-    }
-
-    std::vector<size_t> rin;
-    for (auto input : n->inputs()) {
-        auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
-        auto it_rt = rt.find("reginfo");
-        if (it_rt != rt.end()) {
-            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
-                rin.push_back(reg);
-            }
-        }
-    }
-    return std::make_pair(rin, rout);
-}
-
-ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
-                                                             const void* compile_params) const {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
+void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params) const {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
+    OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
     if (!target->is_supported())
-        throw ngraph_error("unsupported architecture for code genration");
+        OPENVINO_THROW("unsupported architecture for code generation");
 
-    auto params = m->get_parameters();
-    auto results = m->get_results();
-    auto in = params.size();
-    auto out = results.size();
-    auto nptrs = in + out;
-
-    OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
-    // vector tile
-    std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> lowered;
-    for (auto n : m->get_ordered_ops()) {
-        lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
-    }
-    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
-
-    // scalar tile
-    auto m_scalar = ov::clone_model(*m.get());
-    ngraph::pass::Manager mng;
-    mng.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
-    mng.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
-    mng.run_passes(m_scalar);
-    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> scalar_lowered;
-    for (auto n : m_scalar->get_ordered_ops()) {
-        scalar_lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
-    }
-    OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D")
-
-    // wrapping into tiles1D
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles1D;
-    auto tile = std::make_shared<ngraph::snippets::op::Tile>(lowered);
-    tile->compile_params = compile_params;
-    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                                   std::make_pair(std::vector<size_t>({target->get_lanes(), 0, nptrs, 1}), std::vector<size_t>{})));
-    tile = std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered);
-    tile->compile_params = compile_params;
-    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                    std::make_pair(std::vector<size_t>{{1, target->get_lanes(), nptrs, 1}}, std::vector<size_t>{})));
-
-    OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
-    // wrapping into tiles2D
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles2D;
-    tile = std::make_shared<ngraph::snippets::op::Tile>(tiles1D);
-    tile->compile_params = compile_params;
-    tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                                     std::make_pair(std::vector<size_t>({1, 0, nptrs, 0}), std::vector<size_t>{})));
+    std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
+        return get_op_reg_type(op);
+    };
+    lowered::pass::PassPipeline lowered_pipeline;
+    // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
+    //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
+    //       assigned registers as the corresponding ops in the main body.
+    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
+    //       (this might happen if tail loop and main loop have different increments)
+    //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
+    //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
+    lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
+    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+    lowered_pipeline.run(linear_ir);
+    linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
-    // emission
-    auto tiles2DKernel = std::make_shared<ngraph::snippets::op::Kernel>(tiles2D);
-    tiles2DKernel->compile_params = compile_params;
-    std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(tiles2DKernel);
-    kernel->emit_code({in, out}, {});
+    auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
+    loops2DKernel->compile_params = compile_params;
+    auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
+    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
+
+    kernel->emit_code({}, {});
+
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
-    lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
-    for (auto& op : lowered) {
-        op.first->emit_data();
+    for (auto& l : linear_ir.get_ops()) {
+        l->get_emitter()->emit_data();
     }
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
-    return target->get_snippet();
+
+    // 1. some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
+    // 2. perf count node as field of emitter should be alive at runtime.
+    if (linear_ir.get_config().m_save_expressions) {
+        for (const auto& expr : linear_ir) {
+            const auto& emitter = expr->get_emitter();
+            if (uses_precompiled_kernel(emitter))
+                result.m_saved_emitters.emplace_back(emitter);
+        }
+    }
+    result.compiled_snippet = target->get_snippet();
 }
+
+std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
+    return target;
+}
+
+Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op) const {
+    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+        std::dynamic_pointer_cast<op::LoopBegin>(op) ||
+        std::dynamic_pointer_cast<op::LoopEnd>(op) ||
+        std::dynamic_pointer_cast<op::Brgemm>(op) ||
+        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::RankNormalization>(op)
+#ifdef SNIPPETS_DEBUG_CAPS
+        || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
+        || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
+#endif
+        )
+        return gpr2gpr;
+    else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
+             std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
+        return gpr2vec;
+    else if (std::dynamic_pointer_cast<snippets::op::Store>(op))
+        return vec2gpr;
+    else if (ov::op::util::is_unary_elementwise_arithmetic(op) ||
+             ov::op::util::is_binary_elementwise_arithmetic(op) ||
+             ov::op::util::is_binary_elementwise_comparison(op) ||
+             ov::op::util::is_binary_elementwise_logical(op) ||
+             std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
+             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
+             std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
+             std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
+             std::dynamic_pointer_cast<op::Scalar>(op) ||
+             std::dynamic_pointer_cast<op::HorizonMax>(op) ||
+             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
+             std::dynamic_pointer_cast<op::Fill>(op))
+        return vec2vec;
+    else
+        return get_specific_op_reg_type(op);
+}
+
+Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
+    OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+}
+
+}// namespace snippets
+}// namespace ov

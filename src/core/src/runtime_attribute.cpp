@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/runtime_attribute.hpp"
 
-#include "ngraph/node.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 
@@ -16,20 +16,24 @@ bool RuntimeAttribute::visit_attributes(AttributeVisitor&) {
     return false;
 }
 
-Any RuntimeAttribute::init(const std::shared_ptr<ngraph::Node>& node) const {
+ov::Any RuntimeAttribute::init(const std::shared_ptr<ov::Node>& node) const {
     return {};
 }
 
-Any RuntimeAttribute::merge(const ngraph::NodeVector& nodes) const {
+ov::Any RuntimeAttribute::merge(const ov::NodeVector& nodes) const {
     return {};
 }
 
-Any RuntimeAttribute::merge(const ngraph::OutputVector& outputs) const {
+ov::Any RuntimeAttribute::merge(const ov::OutputVector& outputs) const {
     return {};
 }
 
 bool RuntimeAttribute::is_copyable() const {
     return true;
+}
+
+bool RuntimeAttribute::is_copyable(const std::shared_ptr<Node>& to) const {
+    return is_copyable();
 }
 
 std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {

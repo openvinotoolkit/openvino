@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "softmax.h"
 
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -24,6 +25,7 @@ struct SoftmaxKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
     size_t axis;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const SoftmaxKey& rhs) const;
@@ -35,7 +37,7 @@ size_t SoftmaxKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
+    seed = hash_combine(seed, get_md_hash(*inp0->getDnnlDesc().get()));
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, axis);
     return seed;
@@ -53,9 +55,9 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
 
 }  // namespace
 
-bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op)) {
+        if (!std::dynamic_pointer_cast<const ov::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
             return false;
         }
@@ -65,28 +67,31 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    axis = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op)->get_axis();
+    axis = ov::as_type_ptr<ov::op::v1::Softmax>(op)->get_axis();
 }
 
 void SoftMax::getSupportedDescriptors() {
     if (descs.size())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(precision,
+                ov::element::f32,
+                ov::element::bf16,
+                ov::element::f16))
+        precision = ov::element::f32;
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
     if (!getChildEdges().size())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 
     const auto &inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
@@ -108,19 +113,26 @@ bool SoftMax::created() const {
     return getType() == Type::Softmax;
 }
 
+Node::AttrPtr SoftMax::initPrimitiveAttr() {
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    return attr;
+}
+
 void SoftMax::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
-        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
     } else {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() &&
              config.outConfs[0].getMemDesc()->isDefined() && !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc())))
-            IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
+            OPENVINO_THROW("Layer ", getName(), " has incorrect selected config!");
 
         config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0)->getMemDesc());
         config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
@@ -129,31 +141,53 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
 }
 
 void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+                               const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
-    descs.push_back(desc);
+    auto attr = initPrimitiveAttr();
+
+    auto desc = softmax_forward::primitive_desc(
+        getEngine(),
+        prop_kind::forward_inference,
+        algorithm::softmax_accurate,
+        in_candidate,
+        in_candidate,
+        axis,
+        *attr,
+        true);
+
+    if (desc)
+        descs.emplace_back(desc);
 }
 
 void SoftMax::prepareParams() {
-    auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
+    auto attr = initPrimitiveAttr();
+
+    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
     auto engine = getEngine();
-    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        softmax_forward::primitive_desc prim_desc;
-        DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
 
+    auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
+        auto prim_desc = softmax_forward::primitive_desc(
+            engine,
+            prop_kind::forward_inference,
+            algorithm::softmax_accurate,
+            key.inp0->getDnnlDesc(),
+            key.inp0->getDnnlDesc(),
+            key.axis,
+            key.attr,
+            true);
+
+        primitive_desc_iterator itpd = prim_desc;
+
+        auto itpd_first = itpd;
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
@@ -165,32 +199,45 @@ void SoftMax::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return nullptr;
+            if (!itpd.next_impl()) {
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
-        return std::make_shared<softmax_forward>(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    execPtr = result.first;
+    if (!execPtr) {
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
-    prim = result.first;
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
-void SoftMax::executeDynamicImpl(mkldnn::stream strm) {
+void SoftMax::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        OPENVINO_THROW("Softmax node with name '", getName(), "' doesn't have an initialized executor");
+    }
+}
+
+void SoftMax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-std::vector<VectorDims> SoftMax::shapeInfer() const {
-    return {getParentEdgesAtPort(0).front()->getMemory().getStaticDims()};
 }
 
 }   // namespace node

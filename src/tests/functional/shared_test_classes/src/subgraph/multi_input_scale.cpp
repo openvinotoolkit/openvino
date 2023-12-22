@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multi_input_scale.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -35,17 +36,18 @@ void MultipleInputScaleTest::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     std::vector<size_t> inputShape = {1, inputSize};
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
+    ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto fc1_weights = CommonTestUtils::generate_float_numbers(inputSize * inputSize, -0.5f, 0.5f);
-    auto fc2_weights = CommonTestUtils::generate_float_numbers(inputSize * inputSize, -0.2f, 0.2f);
+    auto fc1_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.5f, 0.5f);
+    auto fc2_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.2f, 0.2f);
 
     auto fc1 = ngraph::builder::makeFullyConnected(input[0], ngPrc, inputSize, false, {inputSize, inputSize}, fc1_weights);
     auto fc2 = ngraph::builder::makeFullyConnected(input[1], ngPrc, inputSize, false, {inputSize, inputSize}, fc2_weights);
 
-    auto add = ngraph::builder::makeEltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
 
-    auto result = std::make_shared<ngraph::opset7::Result>(add);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
     function = std::make_shared<ngraph::Function>(result, input, "multiple_input_scale");
     functionRefs = ngraph::clone_function(*function);
 }

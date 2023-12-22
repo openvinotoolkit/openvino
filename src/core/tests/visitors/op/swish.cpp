@@ -1,9 +1,38 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unary_ops.hpp"
+#include "openvino/op/swish.hpp"
 
-using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v4::Swish, ngraph::element::f32>>;
+#include <gtest/gtest.h>
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute, UnaryOperatorVisitor, Type, UnaryOperatorTypeName);
+#include "visitors/visitors.hpp"
+
+using namespace std;
+using namespace ov;
+using ov::test::NodeBuilder;
+
+TEST(attributes, swish_op) {
+    NodeBuilder::get_ops().register_factory<ov::op::v4::Swish>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+
+    const auto op = make_shared<ov::op::v4::Swish>(data);
+    NodeBuilder builder(op, {data});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<ov::op::v4::Swish>(builder.create()));
+
+    const auto expected_attr_count = 0;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+}
+
+TEST(attributes, swish_op2) {
+    NodeBuilder::get_ops().register_factory<ov::op::v4::Swish>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    const auto beta = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+
+    const auto op = make_shared<ov::op::v4::Swish>(data, beta);
+    NodeBuilder builder(op, {data, beta});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<ov::op::v4::Swish>(builder.create()));
+
+    const auto expected_attr_count = 0;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,4 +48,5 @@ void regclass_pyngraph_Type(py::module m) {
     type.def_property_readonly("bitwidth", &ngraph::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ngraph::element::Type::is_real);
     type.def("get_type_name", &ngraph::element::Type::get_type_name);
+    type.def("to_string", &ngraph::element::Type::to_string);
 }

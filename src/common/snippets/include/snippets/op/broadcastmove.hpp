@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/shape_inference/shape_infer_instances.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -15,11 +16,11 @@ namespace op {
  * @brief Added to a subgraph if explicit broadcast instruction should be generated
  * @ingroup snippets
  */
-class BroadcastMove : public ngraph::op::Op {
+class BroadcastMove : public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, Shape output_shape);
+    BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -27,15 +28,20 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void validate_and_infer_types() override;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const ov::Dimension& get_bcast_dimension() {return bcast_dimension;}
+    void set_bcast_dimension(ov::Dimension new_dim) {bcast_dimension = std::move(new_dim);}
+    // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
+    // but have identical shapeInfer semantics. In order to avoid code duplication,
+    // we created dummy ShapeInfer classes that are essentially instantiations
+    // of a common ShapeInfer class template;
+    struct ShapeInfer : public BroadcastShapeInfer<BroadcastMove> {
+        explicit ShapeInfer(const std::shared_ptr<Node>& n) : BroadcastShapeInfer<BroadcastMove>(n) {}
+    };
 
 protected:
-    Shape output_shape;
+    ov::Dimension bcast_dimension;
 };
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

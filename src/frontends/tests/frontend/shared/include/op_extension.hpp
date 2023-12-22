@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/extension/op.hpp>
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/extension/op.hpp"
+#include "openvino/frontend/manager.hpp"
 
 struct OpExtensionFEParam {
     std::string m_frontEndName;

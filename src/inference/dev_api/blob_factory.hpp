@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "ie_memcpy.h"
 #include "ie_preprocess.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
@@ -126,6 +127,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
         USE_FACTORY(BIN);
         USE_FACTORY(BF16);
         USE_FACTORY(BOOL);
+        USE_FACTORY(STRING);
     default:
         IE_THROW() << "cannot locate blob for precision: " << precision;
     }
@@ -147,3 +149,4 @@ void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::ve
         IE_THROW() << "Element size mismatch between blob and vector";
     ie_memcpy(outputBlob->buffer().as<T*>(), outputBlob->byteSize(), &inputVector[0], inputVector.size() * sizeof(T));
 }
+IE_SUPPRESS_DEPRECATED_END

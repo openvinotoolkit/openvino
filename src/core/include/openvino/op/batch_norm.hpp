@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v0 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -60,8 +59,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
-    OPENVINO_OP("BatchNormInference", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("BatchNormInference", "opset5", op::Op);
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]

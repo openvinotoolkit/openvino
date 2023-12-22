@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,22 +16,19 @@ namespace node {
 
 class ColorConvert : public Node {
 public:
-    ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                 const mkldnn::engine& eng,
-                 WeightsSharing::Ptr &cache);
+    ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     class Converter;
 
 public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void initSupportedNV12Impls();
@@ -41,7 +38,7 @@ private:
     using ConverterBuilder = std::function<Converter*(Node *)>;
     using SupportedImpls = multidim_map<impl_desc_type,                             // Implementation type
                                         Algorithm,                                  // Algorithm: ColorConvertXXX
-                                        InferenceEngine::Precision::ePrecision,     // Precision: FP32/U8
+                                        ov::element::Type_t,                        // element type: f32/u8
                                         bool,                                       // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
                                         ConverterBuilder>;
 
@@ -66,13 +63,12 @@ public:
 
     Converter(Node *node, const ColorFormat & colorFormat);
     virtual ~Converter() = default;
-    InferenceEngine::Precision inputPrecision(size_t idx) const;
-    InferenceEngine::Precision outputPrecision(size_t idx) const;
+    ov::element::Type inputPrecision(size_t idx) const;
+    ov::element::Type outputPrecision(size_t idx) const;
     const void * input(size_t idx) const;
     void * output(size_t idx) const;
     const VectorDims & inputDims(size_t idx) const;
-    virtual Shapes shapeInfer() const = 0;
-    virtual void execute(mkldnn::stream strm) = 0;
+    virtual void execute(dnnl::stream strm) = 0;
 
 protected:
     Node *_node;

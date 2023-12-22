@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 #include "ngraph/distributed.hpp"
 #include "ngraph/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -53,8 +54,16 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, function<void(co
 }
 
 LogHelper::~LogHelper() {
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_handler_func) {
         m_handler_func(m_stream.str());
     }
     // Logger::log_item(m_stream.str());
+#endif
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_START
+const char* ngraph::trim_file_name(const char* const fname) {
+    return ov::util::trim_file_name(fname);
+}
+NGRAPH_SUPPRESS_DEPRECATED_END

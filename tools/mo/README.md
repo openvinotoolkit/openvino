@@ -7,7 +7,7 @@ virtualenv -p /usr/bin/python3.7 .env3
 source .env3/bin/activate
 ```
 
-2. Install openvino-dev package, it contains Model Optimizer:   
+2. Install openvino-dev package, it contains model conversion API:   
 ```
 pip install openvino-dev
 ```
@@ -35,7 +35,7 @@ By default, if no frameworks are specified, dependencies to support ONNX\* and T
 * [Converting Model](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md)
 
 ## Setup development environment
-If you want to contribute to Model Optimizer you will need to deploy developer environment. 
+If you want to contribute to model conversion API you will need to deploy developer environment. 
 You can do that by following the steps below:
 
 1. Create virtual environment and activate it, e.g.:
@@ -59,7 +59,7 @@ or run `setup.py develop`, result will be the same:
 python setup.py develop
 ```
 
-This will download all requirements and deploy Model Optimizer for development in your virtual environment: 
+This will download all requirements and deploy model conversion API for development in your virtual environment: 
 specifically will create *.egg-link into the current directory in your site-packages.
 As previously noted, you can also manually specify to support only selected frameworks :
 ```

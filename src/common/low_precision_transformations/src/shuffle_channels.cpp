@@ -1,25 +1,26 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/shuffle_channels.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-
+#include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(ShuffleChannelsTransformation);
     auto matcher = pattern::wrap_type<opset1::ShuffleChannels>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -27,11 +28,11 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ShuffleChannelsTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ShuffleChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -40,22 +41,21 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
+        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise, true);
         const auto constShape = normalizedConst->get_shape();
 
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
         } else {
-            const size_t normalizedAxis = ngraph::normalize_axis(
-                shuffleChannels->get_friendly_name(),
-                shuffleChannels->get_axis(),
-                shuffleChannels->get_input_partial_shape(0).rank());
+            const size_t normalizedAxis = ov::util::normalize_axis(shuffleChannels->get_friendly_name(),
+                                                                   shuffleChannels->get_axis(),
+                                                                   shuffleChannels->get_input_partial_shape(0).rank());
 
             if (constShape[normalizedAxis] == 1ul) {
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                const auto shuffledConst = fold<ov::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
                 return ov::as_type_ptr<opset1::Constant>(shuffledConst);
             }
         }
@@ -113,4 +113,4 @@ bool ShuffleChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

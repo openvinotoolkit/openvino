@@ -1,7 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part2]
 ov::Core core;
 core.set_property("CPU", ov::hint::inference_precision(ov::element::f32));

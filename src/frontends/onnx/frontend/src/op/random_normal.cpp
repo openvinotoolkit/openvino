@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/random_normal.hpp"
-
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/frontend/common/random_normal_helper.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -22,15 +23,17 @@ OutputVector random_normal(const Node& node) {
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
+    auto scale_node = ov::op::v0::Constant::create(target_type, Shape{1}, {scale});
+    auto mean_node = ov::op::v0::Constant::create(target_type, Shape{1}, {mean});
+
     const auto seed = node.get_attribute_value<float>("seed", 0);
-
-    const auto shape_dims = node.get_attribute_value<std::vector<int64_t>>("shape");
-    const auto shape = default_opset::Constant::create(element::i64, {shape_dims.size()}, shape_dims);
-
-    return detail::make_random_normal(shape, target_type, mean, scale, seed);
+    const auto shape = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
+    auto res = ov::frontend::make_random_normal(shape, target_type, mean_node, scale_node, seed);
+    return res.first;
 }
 
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

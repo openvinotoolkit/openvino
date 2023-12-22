@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -20,6 +20,7 @@ struct typed_program_node<proposal> : public typed_program_node_base<proposal> {
     program_node& cls_score() const { return get_dependency(0); }
     program_node& bbox_pred() const { return get_dependency(1); }
     program_node& image_info() const { return get_dependency(2); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using proposal_node = typed_program_node<proposal>;
@@ -27,6 +28,7 @@ using proposal_node = typed_program_node<proposal>;
 template <>
 class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal> {
     using parent = typed_primitive_inst_base<proposal>;
+    using parent::parent;
 
 public:
     struct anchor {
@@ -63,10 +65,11 @@ public:
         image_info_scale_depth_index,
     };
 
-    static layout calc_output_layout(proposal_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
-public:
     typed_primitive_inst(network& network, proposal_node const& desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }

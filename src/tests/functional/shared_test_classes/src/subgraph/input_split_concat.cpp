@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/input_split_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -15,7 +15,7 @@ std::string InputSplitConcatTest::getTestCaseName(const testing::TestParamInfo<I
     std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -31,17 +31,19 @@ void InputSplitConcatTest::SetUp() {
     std::tie(netPrecision, targetDevice, tempConfig, inputShape) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-    auto relu1 = std::make_shared<ngraph::opset3::Relu>(split->output(0));
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
-    auto const_vals = CommonTestUtils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
+    auto relu1 = std::make_shared<ov::op::v0::Relu>(split->output(0));
+
+    auto const_vals = ov::test::utils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
     auto constant = ngraph::builder::makeConstant(ngPrc, inputShape, const_vals);
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{constant, split->output(1)}, 1);
-    auto relu2 = std::make_shared<ngraph::opset3::Relu>(concat);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{constant, split->output(1)}, 1);
+    auto relu2 = std::make_shared<ov::op::v0::Relu>(concat);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(relu1), std::make_shared<ngraph::op::Result>(relu2) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(relu1), std::make_shared<ov::op::v0::Result>(relu2) };
     function = std::make_shared<ngraph::Function>(results, params, "InputSplitConcatTest");
 }
 }  // namespace SubgraphTestsDefinitions

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include <vector>
 
-#include <ngraph/op/experimental_detectron_detection_output.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
+#include "openvino/core/parallel.hpp"
 #include "experimental_detectron_detection_output.h"
 
 using namespace InferenceEngine;
@@ -111,10 +111,9 @@ void refine_boxes(const float* boxes, const float* deltas, const float* weights,
     }
 }
 
-template <typename T>
-static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                 const std::pair<float, T>& pair2) {
-    return pair1.first > pair2.first;
+static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pair1,
+                                 const std::pair<float, std::pair<int, int>>& pair2) {
+    return (pair1.first > pair2.first) || ((pair1.first == pair2.first) && (pair1.second.second < pair2.second.second));
 }
 
 
@@ -224,9 +223,9 @@ bool ExperimentalDetectronDetectionOutput::needPrepareParams() const {
     return false;
 }
 
-bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+        const auto doOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
             return false;
@@ -237,14 +236,14 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
     return true;
 }
 
-ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput
-                        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const std::shared_ptr<ov::Node>& op,
+                                                                           const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+    auto doOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronDetectionOutput>(op);
     auto attributes = doOp->get_attrs();
 
     score_threshold_ = attributes.score_threshold;
@@ -263,29 +262,29 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (size_t i = 0; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronDetectionOutput::execute(mkldnn::stream strm) {
+void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
-    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
-    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
-    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
+    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
+    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
+    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
+    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
 
-    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->getData());
+    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
+    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->getData());
 
     const float img_H = im_info[0];
     const float img_W = im_info[1];
@@ -345,7 +344,7 @@ void ExperimentalDetectronDetectionOutput::execute(mkldnn::stream strm) {
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,
                           conf_index_class_map.end(),
-                          SortScorePairDescend<std::pair<int, int>>);
+                          SortScorePairDescend);
         conf_index_class_map.resize(max_detections_per_image_);
         total_detections_num = max_detections_per_image_;
     }

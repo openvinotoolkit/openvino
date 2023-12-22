@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,12 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     std::string targetDevice;
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     result << "type=" << reductionType << "_";
     if (keepDims) result << "KeepDims_";
@@ -37,22 +37,20 @@ void ReduceOpsLayerTest::SetUp() {
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             if (axes.size() > 1)
                 FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
             break;
         }
-        case CommonTestUtils::OpType::VECTOR: {
+        case ov::test::utils::OpType::VECTOR: {
             shapeAxes.push_back(axes.size());
             break;
         }
@@ -60,10 +58,10 @@ void ReduceOpsLayerTest::SetUp() {
             FAIL() << "Reduce op doesn't support operation type: " << opType;
     }
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                             std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                             std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
+    const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
+    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }
 InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -79,9 +77,9 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
     auto blob = make_blob_with_precision(td);
     blob->allocate();
     if (reductionType == ngraph::helpers::ReductionType::Max) {
-        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
+        ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
     } else {
-        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+        ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
     }
     return blob;
 }
@@ -100,7 +98,7 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(co
 
     auto blob = make_blob_with_precision(td);
     blob->allocate();
-    CommonTestUtils::fill_data_with_broadcast(blob, axis, raw_values);
+    ov::test::utils::fill_data_with_broadcast(blob, axis, raw_values);
     return blob;
 }
 

@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var NCC_PY_SCRIPT PYTHON_EXECUTABLE OUTPUT_FILE DEFINITIONS EXPECTED_FAIL
+foreach(var NCC_PY_SCRIPT Python3_EXECUTABLE OUTPUT_FILE DEFINITIONS EXPECTED_FAIL
     INPUT_FILE ADDITIONAL_INCLUDE_DIRECTORIES STYLE_FILE CLANG_LIB_PATH)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is not defined for ncc_run.cmake")
@@ -17,7 +17,7 @@ endif()
 
 execute_process(
     COMMAND
-        "${PYTHON_EXECUTABLE}"
+        "${Python3_EXECUTABLE}"
         "${NCC_PY_SCRIPT}"
         --path ${INPUT_FILE}
         --style ${STYLE_FILE}
@@ -26,7 +26,7 @@ execute_process(
         --include ${ADDITIONAL_INCLUDE_DIRECTORIES}
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
-    ERROR_VARIABLE output)
+    ERROR_VARIABLE error)
 
 file(WRITE "${OUTPUT_FILE}" "${output}")
 
@@ -40,6 +40,6 @@ endif()
 
 if(failed AND NOT EXPECTED_FAIL)
     # Display the output to console (to parse it form IDE)
-    message("${output}")
+    message("${output}\n${error}")
     message(FATAL_ERROR  "[ncc naming style] Naming style check failed for ${INPUT_FILE}")
 endif()

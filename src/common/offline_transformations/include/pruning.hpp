@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/manager.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class InitConstMask;
@@ -20,14 +20,14 @@ class ShrinkWeights;
 
 class Pruning;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief Initialising masks for pruned operations
  */
-class ngraph::pass::InitMasks : public ngraph::pass::GraphRewrite {
+class ov::pass::InitMasks : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("InitMasks", "0");
     InitMasks();
@@ -39,11 +39,14 @@ public:
  * masks according to results that are bases on `condition` lambda function.
  * Works for Constant with floating point type (f16, f32, f64).
  */
-class ngraph::pass::InitConstMask : public ngraph::pass::MatcherPass {
+class ov::pass::InitConstMask : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("InitConstMask", "0");
-    explicit InitConstMask(const ngraph::AxisSet & dims,
-                           const std::function<bool(const double & value)> & condition = [](const double & value) { return value == 0; });
+    explicit InitConstMask(
+        const ov::AxisSet& dims,
+        const std::function<bool(const double& value)>& condition = [](const double& value) {
+            return value == 0;
+        });
 };
 
 /**
@@ -51,7 +54,7 @@ public:
  * @brief Contains several MatcherPasses that initialize and propagate
  * masks from Constant operation to the network output.
  */
-class ngraph::pass::PropagateMasks : public ngraph::pass::GraphRewrite {
+class ov::pass::PropagateMasks : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("PropagateMasks", "0");
     PropagateMasks();
@@ -62,18 +65,18 @@ public:
  * @brief Based on masks in Constant operation it inserts Gather operations
  * to shrink them. After this pass execution ConstantFolding is required.
  */
-class ngraph::pass::ShrinkWeights : public ngraph::pass::FunctionPass {
+class ov::pass::ShrinkWeights : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ShrinkWeights", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>&) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief This is just a sequence of passes that performs pruning transformations pipeline
  */
-class ngraph::pass::Pruning : public ngraph::pass::FunctionPass {
+class ov::pass::Pruning : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("Pruning", "0");
-    bool run_on_model(const std::shared_ptr<Function>&) override;
+    bool run_on_model(const std::shared_ptr<Model>&) override;
 };

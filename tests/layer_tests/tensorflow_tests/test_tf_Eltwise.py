@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,10 +15,6 @@ class TestEltwise(CommonTFLayerTest):
             Inputs->Eltwise       =>       Inputs->Eltwise
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -57,17 +53,18 @@ class TestEltwise(CommonTFLayerTest):
     test_data = []
     for operation in ['sum', 'max', 'mul']:
         test_data.extend([dict(shape=[1, 224], operation=operation),
-                          dict(shape=[1, 224, 224], operation=operation),
+                          pytest.param(dict(shape=[1, 224, 224], operation=operation),
+                                       marks=pytest.mark.precommit_tf_fe),
                           dict(shape=[1, 3, 224, 224], operation=operation)])
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_eltwise(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2):
+                     use_old_api):
         self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = []
     for operation in ['sum', 'max', 'mul']:
@@ -75,11 +72,12 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, api_2):
+                                  use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

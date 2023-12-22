@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <node.h>
-#include "kernels/gather_uni_kernel.hpp"
+#include "kernels/x64/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>
@@ -17,15 +17,17 @@ namespace node {
 
 class Gather : public Node {
 public:
-    Gather(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
+    bool isExecutable() const override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     struct threadExecParams {
         std::vector<int> specIdxInBytes;
@@ -46,10 +48,9 @@ public:
     };
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     void initShortParams(threadExecParams& p, uint64_t start);
@@ -80,6 +81,7 @@ private:
     uint64_t totalWork = 0lu;
 
     std::vector<threadExecParams> execParamsPerThread;
+    std::vector<int> constIndices;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;

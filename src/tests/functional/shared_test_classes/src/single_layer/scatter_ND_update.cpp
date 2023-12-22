@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/scatter_ND_update.hpp"
 
 namespace LayerTestsDefinitions {
@@ -19,9 +19,9 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(shapeDescript, inputPrecision, indicesPrecision, targetName) = obj.param;
     std::tie(inShape, indicesShape, indicesValue, updateShape) = shapeDescript;
     std::ostringstream result;
-    result << "InputShape=" << CommonTestUtils::vec2str(inShape) << "_";
-    result << "IndicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
-    result << "UpdateShape=" << CommonTestUtils::vec2str(updateShape) << "_";
+    result << "InputShape=" << ov::test::utils::vec2str(inShape) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
+    result << "UpdateShape=" << ov::test::utils::vec2str(updateShape) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";
     result << "targetDevice=" << targetName << "_";
@@ -62,13 +62,15 @@ void ScatterNDUpdateLayerTest::SetUp() {
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
     ngraph::ParameterVector paramVector;
-    auto inputParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(inShape));
+    auto inputParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(inShape));
     paramVector.push_back(inputParams);
-    auto updateParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(updateShape));
+    auto updateParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(updateShape));
     paramVector.push_back(updateParams);
-    auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto s2d = ngraph::builder::makeScatterNDUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1]);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
+
+    auto indicesNode = std::make_shared<ov::op::v0::Constant>(idxPrc, ov::Shape(indicesShape), indicesValue);
+    auto s2d = std::make_shared<ov::op::v3::ScatterNDUpdate>(paramVector[0], indicesNode, paramVector[1]);
+
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterNDUpdate");
 }
 }  // namespace LayerTestsDefinitions

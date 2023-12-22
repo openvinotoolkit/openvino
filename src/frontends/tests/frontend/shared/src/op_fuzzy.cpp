@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,15 +6,10 @@
 
 #include <cnpy.h>
 
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj) {
@@ -24,7 +19,6 @@ std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<Fu
 }
 
 void FrontEndFuzzyOpTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
@@ -39,13 +33,13 @@ void FrontEndFuzzyOpTest::doLoadFromFile() {
 }
 
 template <typename T>
-inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case, bool is_input = true) {
-    T* npy_begin = npy_array.data<T>();
+inline void addInputOutput(const cnpy::NpyArray& npy_array, ov::test::TestCase& test_case, bool is_input = true) {
+    const T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
-        test_case.add_input(data);
+        test_case.add_input(npy_array.shape, data);
     else
-        test_case.add_expected_output(data);
+        test_case.add_expected_output(npy_array.shape, data);
 }
 
 static bool ends_with(std::string const& value, std::string const& ending) {
@@ -61,44 +55,45 @@ static std::string getModelFolder(const std::string& modelFile) {
     return modelFile.substr(0, found);
 };
 
-void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Function> function,
-                                            const std::string& modelFile) {
+void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Model> model, const std::string& modelFile) {
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = test::TestCase(function, "CPU");
+    auto testCase = ov::test::TestCase(model, "CPU");
 
-    const auto parameters = function->get_parameters();
+    const auto parameters = model->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {
         // read input npy file
         std::string dataFile = modelFolder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
         cnpy::NpyArray input = cnpy::npy_load(dataFile);
         auto input_dtype = parameters[i]->get_element_type();
 
-        if (input_dtype == element::f32) {
+        if (input_dtype == ov::element::f32) {
             addInputOutput<float>(input, testCase, true);
-        } else if (input_dtype == element::i32) {
+        } else if (input_dtype == ov::element::i32) {
             addInputOutput<int32_t>(input, testCase, true);
-        } else if (input_dtype == element::i64) {
+        } else if (input_dtype == ov::element::i64) {
             addInputOutput<int64_t>(input, testCase, true);
+        } else if (input_dtype == ov::element::boolean) {
+            addInputOutput<bool>(input, testCase, true);
         } else {
             throw std::runtime_error("not supported dtype in" + input_dtype.get_type_name());
         }
     }
 
-    const auto results = function->get_results();
+    const auto results = model->get_results();
     bool useFloatTest = false;
     for (size_t i = 0; i < results.size(); i++) {
         // read expected output npy file
         std::string dataFile = modelFolder + "/output" + std::to_string(i) + ".npy";
         cnpy::NpyArray output = cnpy::npy_load(dataFile);
         auto outputDtype = results[i]->get_element_type();
-        if (outputDtype == element::f32) {
+        if (outputDtype == ov::element::f32) {
             addInputOutput<float>(output, testCase, false);
             useFloatTest = true;
-        } else if (outputDtype == element::i32) {
+        } else if (outputDtype == ov::element::i32) {
             addInputOutput<int32_t>(output, testCase, false);
-        } else if (outputDtype == element::i64) {
+        } else if (outputDtype == ov::element::i64) {
             addInputOutput<int64_t>(output, testCase, false);
         } else {
             throw std::runtime_error("not supported dtype out " + outputDtype.get_type_name());
@@ -106,21 +101,26 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     }
 
     if (useFloatTest) {
-        testCase.run_with_tolerance_as_fp(2e-5);
+        testCase.run_with_tolerance_as_fp(2e-5f);
     } else {
         testCase.run();
     }
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 126830
+TEST_P(FrontEndFuzzyOpTest, DISABLED_testOpFuzzy) {
+#else
 TEST_P(FrontEndFuzzyOpTest, testOpFuzzy) {
+#endif
     // load
     ASSERT_NO_THROW(doLoadFromFile());
 
     // convert
-    std::shared_ptr<ngraph::Function> function;
-    function = m_frontEnd->convert(m_inputModel);
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    model = m_frontEnd->convert(m_inputModel);
+    ASSERT_NE(model, nullptr);
 
     // run
-    runConvertedModel(function, m_modelFile);
+    runConvertedModel(model, m_modelFile);
 }

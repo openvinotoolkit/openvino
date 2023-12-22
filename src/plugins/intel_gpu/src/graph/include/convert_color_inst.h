@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -15,7 +15,6 @@ struct typed_program_node<convert_color> : public typed_program_node_base<conver
 public:
     using parent::parent;
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    size_t inputs_count() const { return get_primitive()->input.size(); }
 };
 
 using convert_color_node = typed_program_node<convert_color>;
@@ -23,9 +22,10 @@ using convert_color_node = typed_program_node<convert_color>;
 template <>
 class typed_primitive_inst<convert_color> : public typed_primitive_inst_base<convert_color> {
     using parent = typed_primitive_inst_base<convert_color>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(convert_color_node const& node);
+    static layout calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convert_color_node const& node);
     typed_primitive_inst(network& network, convert_color_node const& desc);
 };

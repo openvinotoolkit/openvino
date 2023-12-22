@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/shuffle_channels.hpp"
 
 namespace LayerTestsDefinitions {
@@ -19,7 +19,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(axis, group) = shuffleChannelsParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Axis=" << std::to_string(axis) << "_";
     result << "Group=" << std::to_string(group) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -39,12 +39,9 @@ void ShuffleChannelsLayerTest::SetUp() {
     int axis, group;
     std::tie(axis, group) = shuffleChannelsParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
-            ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    auto shuffleChannels = std::make_shared<ov::op::v0::ShuffleChannels>(params[0], axis, group);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(shuffleChannels)};
     function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
 }
 }  // namespace LayerTestsDefinitions

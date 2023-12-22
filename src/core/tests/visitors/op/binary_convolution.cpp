@@ -1,20 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/binary_convolution.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/convolution.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, bin_convolution) {
     NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
@@ -28,8 +25,8 @@ TEST(attributes, bin_convolution) {
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::u1, filters_shape);
+    auto data_batch = make_shared<ov::op::v0::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<ov::op::v0::Parameter>(element::u1, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                        filters,
@@ -40,7 +37,7 @@ TEST(attributes, bin_convolution) {
                                                        mode,
                                                        pad_value,
                                                        auto_pad);
-    NodeBuilder builder(conv);
+    NodeBuilder builder(conv, {data_batch, filters});
     auto g_convolution = ov::as_type_ptr<op::v1::BinaryConvolution>(builder.create());
 
     // attribute count

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ public:
     }
 
     uint64_t avg() const { return (num == 0) ? 0 : total_duration / num; }
+    uint32_t count() const { return num; }
 
 private:
     void start_itr() {

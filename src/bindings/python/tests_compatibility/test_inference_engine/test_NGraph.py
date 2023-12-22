@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.inference_engine import IECore, IENetwork
 import ngraph as ng
-from ngraph.impl.op import Parameter
-from ngraph.impl import Function, Shape, Type
+from ngraph.impl import Function
 
 from tests_compatibility.conftest import model_path, create_relu
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from openvino.tools.mo.utils.error import FrameworkError
-
 
 ngraph_available = True
 try:
@@ -21,10 +20,15 @@ ngraph_needed = pytest.mark.skipif(not ngraph_available,
 
 
 class TestMainErrors(unittest.TestCase):
-    @patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace())
-    @patch('openvino.tools.mo.main.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
+    @patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(
+        use_legacy_frontend=False,
+        use_new_frontend=False,
+        framework=None,
+        input_model="abc.pbtxt"
+    ))
+    @patch('openvino.tools.mo.convert_impl.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
     @ngraph_needed
     def test_FrameworkError(self, mock_argparse, mock_driver):
         with self.assertLogs() as logger:
-            main(argparse.ArgumentParser(), None, 'framework_string')
+            main(argparse.ArgumentParser())
             self.assertEqual(logger.output, ['ERROR:root:FW ERROR MESSAGE'])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "seqLengthsShape" << CommonTestUtils::vec2str(secondInputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "seqLengthsShape" << ov::test::utils::vec2str(secondInputShape) << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "batchAxis=" << batchAxisIndx << "_";
     result << "seqAxis=" << seqAxisIndx << "_";
@@ -38,16 +38,18 @@ void ReverseSequenceLayerTest::SetUp() {
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto secondPrc = ngraph::element::Type_t::i32; //according to the specification
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        paramsIn.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
     }
 
-    auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reverse)};
+    auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
 }
 

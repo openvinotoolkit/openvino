@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, eltwise_reverse_infer
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors, \
-    dynamic_dimension_value
+    dynamic_dimension_value, reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.ops.parameter import Parameter
@@ -24,9 +24,9 @@ nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     }
 
 
-@generator
-class TestEltwiseInfer(unittest.TestCase):
-    @generate(*[
+
+class TestEltwiseInfer():
+    @pytest.mark.parametrize("value1, shape1, value2, shape2, shape_infer, exp_value, exp_shape",[
         (np.array(2), [], np.array(3), [], lambda a, b: np.multiply(a, b), np.array(6), []),
         (np.array(2), [], np.array(3), [], lambda a, b: np.maximum(a, b), np.array(3), []),
         (np.array(2), [], np.array(3), [], lambda a, b: np.add(a, b), np.array(5), []),
@@ -67,8 +67,8 @@ class TestEltwiseInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
         if exp_value is not None:
-            self.assertTrue(strict_compare_tensors(res_value, shape_array(exp_value)))
-        self.assertTrue(strict_compare_tensors(res_shape, shape_array(exp_shape)))
+            assert strict_compare_tensors(res_value, shape_array(exp_value))
+        assert strict_compare_tensors(res_shape, shape_array(exp_shape))
 
     def test_eltwise_infer_none_val(self):
         graph = build_graph(nodes_attributes,
@@ -89,9 +89,9 @@ class TestEltwiseInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
         for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+            assert exp_shape[i] == res_shape[i]
 
-        self.assertIsNone(res_value)
+        assert res_value is None
 
     def test_eltwise_infer_none_min_max(self):
         graph = build_graph(nodes_attributes,
@@ -107,7 +107,7 @@ class TestEltwiseInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         eltwise_node = Node(graph, 'eltw_1')
 
-        with self.assertRaisesRegex(Error, 'Input shapes mismatch*'):
+        with pytest.raises(Error, match='Input shapes mismatch*'):
             eltwise_infer(eltwise_node)
 
 
@@ -205,3 +205,41 @@ class TestElementwiseReverseInfer(unittest.TestCase):
                                               out_shape=[1, dyn, dyn, 1],
                                               ref_shape=[1, 4, dyn, 1],
                                               auto_broadcast='none')
+
+
+class TestUnaryElementwiseReverseInfer(unittest.TestCase):
+    @staticmethod
+    def build_and_test_reverse_inference(out_shape):
+
+        nodes = {
+            **shaped_parameter('undefined_shape_data', None, {'reverse_infer': Parameter.reverse_infer}),
+            **regular_op_with_empty_data('elementwise',
+                                         {'op': 'Sqrt', 'type': 'Sqrt',
+                                         'infer': eltwise_infer,
+                                         'reverse_infer': lambda node: reverse_bypass_infer(node,in_ports=[0])}),
+            **result('res'),
+        }
+
+        edges = [
+            *connect('undefined_shape_data', '0:elementwise'),
+            *connect('elementwise', 'res'),
+        ]
+
+        graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
+        Node(graph, 'elementwise').out_port(0).data.set_shape(shape_array(out_shape))
+
+        partial_infer(graph)
+        actual_shape = Node(graph, 'elementwise').in_port(0).data.get_shape()
+
+        # check that out_shape is transferred into only existing in_port(0)
+        assert strict_compare_tensors(actual_shape, shape_array(out_shape))
+
+    def test_reverse_infer_1(self):
+        self.build_and_test_reverse_inference(out_shape=[dyn, dyn, dyn, dyn])
+
+    def test_reverse_infer_2(self):
+        self.build_and_test_reverse_inference(out_shape=[dyn, dyn])
+
+    def test_reverse_infer_3(self):
+        self.build_and_test_reverse_inference(out_shape=[1, 100])

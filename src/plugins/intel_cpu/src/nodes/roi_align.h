@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,15 @@ enum ROIAlignLayoutType {
     nspc
 };
 
+enum ROIAlignedMode {
+    ra_asymmetric,
+    ra_half_pixel_for_nn,
+    ra_half_pixel
+};
+
 struct jit_roi_align_params {
     Algorithm alg;
-    InferenceEngine::Precision data_prc;
+    ov::element::Type data_prc;
     int data_size;
     ROIAlignLayoutType layout;
     int pooled_h;
@@ -61,30 +67,31 @@ struct jit_uni_roi_align_kernel {
 
 class ROIAlign : public Node {
 public:
-    ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     int pooledH = 7;
     int pooledW = 7;
     int samplingRatio = 2;
     float spatialScale = 1.0f;
+    ROIAlignedMode alignedMode;
     template <typename inputType, typename outputType>
     void executeSpecified();
     template<typename T>
     struct ROIAlignExecute;
 
-    void createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout);
+    void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
 
     std::string errorPrefix;

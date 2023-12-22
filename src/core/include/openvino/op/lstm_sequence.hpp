@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,11 +29,10 @@ namespace v0 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMSequence : public Op {
+class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset1");
-    BWDCMP_RTTI_DECLARATION;
-    LSTMSequence();
+    OPENVINO_OP("LSTMSequence", "opset1", util::RNNCellBase);
+    LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;
 
@@ -88,10 +87,13 @@ public:
         return m_activations;
     }
     float get_clip_threshold() const {
-        return m_clip_threshold;
+        return m_clip;
     }
     direction get_direction() const {
         return m_direction;
+    }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
     }
     std::int64_t get_hidden_size() const {
         return m_hidden_size;
@@ -104,35 +106,7 @@ public:
     }
 
 private:
-    ///
-    /// \brief      Gets the masked value according to sequence length in a batch.
-    ///
-    /// \note       Zeros out values or sets them to default value for inputs with
-    ///             sequence length shorter than currently procssed time step.
-    ///
-    /// \param[in]  data           The input value.
-    /// \param[in]  time_step      The current time step denoting sequence length.
-    /// \param[in]  batch_axis     The batch axis index of data tensor.
-    /// \param[in]  default_value  The default value for masked elements.
-    ///
-    /// \return     The masked value.
-    ///
-    std::shared_ptr<Node> get_masked_node(const Output<Node>& data,
-                                          std::int32_t time_step,
-                                          std::size_t batch_axis = 0,
-                                          const Output<Node>& default_value = Output<Node>()) const;
-
-    OutputVector lstm_pass(bool is_reverse = false) const;
-
-    // Split(bi-directional) and squeeze input data to remove 'num_direction' dimension.
-    std::shared_ptr<Node> prepare_input(Output<Node> node, bool is_reverse, size_t num_direction_axis = 0) const;
-
-    std::vector<float> m_activations_alpha;
-    std::vector<float> m_activations_beta;
-    std::vector<std::string> m_activations;
-    float m_clip_threshold;
     direction m_direction;
-    std::int64_t m_hidden_size;
     bool m_input_forget;
     LSTMWeightsFormat m_weights_format;
 };
@@ -151,8 +125,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase);
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;
@@ -190,6 +163,9 @@ public:
 
     direction get_direction() const {
         return m_direction;
+    }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
     }
 
 private:

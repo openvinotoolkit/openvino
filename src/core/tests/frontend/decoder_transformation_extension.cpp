@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/manager.hpp>
+#include <gtest/gtest.h>
 
-#include "gtest/gtest.h"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ov::frontend;
 

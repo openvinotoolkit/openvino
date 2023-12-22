@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,8 +7,6 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-    # disable eager execution of TensorFlow 2 environment immediately
-    tf_v1.disable_eager_execution()
 except ImportError:
     import tensorflow as tf_v1
 
@@ -93,7 +91,7 @@ class TFLoader(Loader):
         graph.__setattr__('name', argv.model_name)
         # 'layout' parameter change may cause an issue in EltwiseInputReshape replacer
         # and convert_nhwc_to_nchw(graph)
-        graph.graph['layout'] = 'NCHW' if argv.disable_nhwc_to_nchw else 'NHWC'
+        graph.graph['layout'] = 'NHWC'
         graph.graph['fw'] = 'tf'
 
         graph.graph['variables_values'] = variables_values
@@ -116,7 +114,7 @@ class TFLoader(Loader):
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed
-        if not argv.disable_nhwc_to_nchw and not graph_or_sub_graph_has_nhwc_ops(graph):
+        if not graph_or_sub_graph_has_nhwc_ops(graph):
             if not argv.silent:
                 log.debug('disable_nhwc_to_nchw" was automatically enabled.')
             for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)

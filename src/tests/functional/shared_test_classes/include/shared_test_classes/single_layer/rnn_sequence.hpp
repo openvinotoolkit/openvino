@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 #include <memory>
 #include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -23,7 +23,8 @@ using RNNSequenceParams = typename std::tuple<
         size_t,                                   // input size
         std::vector<std::string>,                 // activations
         float,                                    // clip
-        ngraph::op::RecurrentSequenceDirection,   // direction
+        ov::op::RecurrentSequenceDirection,   // direction
+        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 

@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorder_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "reorder/reorder_weights_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -16,21 +15,31 @@ namespace ocl {
 struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reorder_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reorder_params, kernel_selector::reorder_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);
     }
 
-protected:
-    bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
-    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        auto input = &instance.input_memory();
-        auto input_layout = input->get_layout();
-        if (_outer.has_mean()) {
+protected:
+    kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
+        if (instance.has_node() && instance.has_mean()) {
+            auto input = &instance.input_memory();
+            auto input_layout = input->get_layout();
+
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -41,85 +50,139 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg) {
-        auto&& input_layout = arg.input().get_output_layout();
-        auto&& output_layout = arg.get_output_layout();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<reorder>();
+        auto&& output_layout = impl_param.get_output_layout();
+        auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
+        auto optional_params = get_default_optional_params<kernel_selector::reorder_optional_params>(impl_param.get_program());
 
-        auto reorder_params = get_default_params<kernel_selector::reorder_params>(arg);
-        auto reorder_optional_params =
-            get_default_optional_params<kernel_selector::reorder_optional_params>(arg.get_program());
-
-        for (size_t i = 1; i < arg.inputs_count(); i++) {
-            reorder_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+        auto inputs_count = primitive->input.size();
+        bool has_mean = !primitive->mean.empty();
+        for (size_t i = 1; i < inputs_count; i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
-        if (arg.get_output_layout().data_padding) {
-            reorder_params.has_padded_output = true;
+        if (impl_param.get_output_layout().data_padding) {
+            params.has_padded_output = true;
         }
 
-        if (arg.has_mean()) {
-            if (input_layout.format == cldnn::format::nv12) {
-                const auto& mean_layout = arg.mean_nv12().get_output_layout();
-                reorder_params.mean = convert_data_tensor(mean_layout);
-                reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
+        params.surface_input = primitive->has_surface_input();
+
+        if (has_mean) {
+            if (impl_param.get_input_layout(0).format == cldnn::format::nv12) {
+                const auto& mean_layout = impl_param.get_input_layout(2);
+                params.mean = convert_data_tensor(mean_layout);
+                params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             } else {
-                const auto& mean_layout = arg.mean().get_output_layout();
-                reorder_params.mean = convert_data_tensor(mean_layout);
-                reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
+                const auto mean_idx = 1;
+                const auto& mean_layout = impl_param.get_input_layout(mean_idx);
+                params.mean = convert_data_tensor(mean_layout);
+                params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (arg.get_primitive()->subtract_per_feature.empty() == false) {
-            reorder_params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
-            reorder_params.meanValues = arg.get_primitive()->subtract_per_feature;
+        } else if (primitive->subtract_per_feature.empty() == false) {
+            params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
+            params.meanValues = primitive->subtract_per_feature;
         } else {
-            reorder_params.mode = kernel_selector::mean_subtruct_mode::NONE;
+            params.mode = kernel_selector::mean_subtruct_mode::NONE;
         }
 
-        if (reorder_params.mode != kernel_selector::mean_subtruct_mode::NONE) {
-            switch (arg.get_primitive()->mean_mode) {
+        if (params.mode != kernel_selector::mean_subtruct_mode::NONE) {
+            switch (primitive->mean_mode) {
                 case reorder_mean_mode::none:
-                    reorder_params.mean_op = kernel_selector::mean_op::NONE;
+                    params.mean_op = kernel_selector::mean_op::NONE;
                     break;
                 case reorder_mean_mode::mul:
-                    reorder_params.mean_op = kernel_selector::mean_op::MUL;
+                    params.mean_op = kernel_selector::mean_op::MUL;
                     break;
                 case reorder_mean_mode::subtract:
-                    reorder_params.mean_op = kernel_selector::mean_op::SUB;
+                    params.mean_op = kernel_selector::mean_op::SUB;
                     break;
                 case reorder_mean_mode::div:
-                    reorder_params.mean_op = kernel_selector::mean_op::DIV;
+                    params.mean_op = kernel_selector::mean_op::DIV;
                     break;
-                default:
-                    throw std::out_of_range(arg.id() + ": unsupported mean_mode value.");
+                default: OPENVINO_ASSERT(false, "[GPU] Unsupported mean_mode value in primitive ", primitive->id);
             }
         }
 
         if (output_layout.format == format::winograd_2x3_s1_data) {
-            reorder_params.winograd_input_offset_x = 0;
-            reorder_params.winograd_input_offset_y = 0;
-            reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.size.spatial[0], 4);
+            params.winograd_input_offset_x = 0;
+            params.winograd_input_offset_y = 0;
+            params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
         }
 
-        reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();
+        params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
+        params.truncate = impl_param.typed_desc<reorder>()->truncate;
 
-        auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
+        return {params, optional_params};
+    }
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 
-        auto reorder = new reorder_impl(arg, best_kernels[0]);
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+        bool is_reorder_weights = format::is_weights_format(impl_param.get_input_layout().format) ||
+                                  format::is_weights_format(impl_param.get_output_layout().format);
+        if (is_reorder_weights) {
+            return create_reorder_weights(impl_param);
+        } else {
+            return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
+        }
+    }
 
-        return reorder;
+    static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {
+        const auto& prim = impl_param.typed_desc<reorder>();
+        const auto& weights_params = prim->weights_reorder_params;
+        auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        OPENVINO_ASSERT(weights_params != nullptr, "[GPU] Attempt to create reorder weights without weights params");
+
+        OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
+                        "[GPU] Input layout doesn't match required reorder weights layout");
+
+        kernel_selector::reorder_weights_params r_params;
+        set_params(impl_param, r_params);
+
+        r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
+        r_params.output = convert_weights_tensor(weights_params->get_output_layout());
+        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
+        r_params.rotate_180 = weights_params->should_be_transposed();
+
+        kernel_selector::reorder_optional_params optional_params;
+        auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);
+
+        return make_unique<reorder_impl>(best_kernel);
     }
 };
 
 namespace detail {
 
 attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, reorder_impl::create, {});
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
+
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+        data_types::i32,
+        data_types::i64,
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+    };
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
+
+    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)

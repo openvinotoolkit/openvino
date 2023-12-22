@@ -1,25 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <dnnl_extension_utils.h>
 #include "convert.h"
-#include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
+        const auto convert = std::dynamic_pointer_cast<const ov::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
@@ -30,33 +30,32 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
-    origPrc = details::convertPrecision(convert->get_destination_type());
+    auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
+    convertParams.origPrc = convert->get_destination_type();
 }
 
-std::vector<VectorDims> Convert::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-}
-
-Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node("Convert", nodeName, eng, cache)
-        , origPrc(outPrc) {
+Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
+                 const std::string &nodeName, const GraphContext::CPtr context)
+        : Node("Convert", nodeName, context) {
+    convertParams.origPrc = outPrc;
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
     outputShapes.push_back(shape);
     addOriginalOutputPrecision(outPrc);
 
     isDynamic = shape.isDynamic();
+    if (isDynamicNode()) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     errorPrefix = "Convert node with name '" + getName() + "'";
 }
@@ -69,9 +68,9 @@ void Convert::getSupportedDescriptors() {
     if (inputShapes.empty())
         inputShapes.push_back(input->getShape());
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc &desc) {
@@ -89,14 +88,22 @@ void Convert::initSupportedPrimitiveDescriptors() {
     PortConfig dataIn;
     PortConfig dataConfigOut;
 
-    config.dynBatchSupport = false;
-
     bool canInitExternalDesc = false;
     if (input && output) {
         canInitExternalDesc = true;
         canInitExternalDesc &= isSupportedDesc(*input);
         canInitExternalDesc &= isSupportedDesc(*output);
     }
+
+    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
+        MemoryDescPtr srcMemoryDesc = config.inConfs[0].getMemDesc();
+        MemoryDescPtr dstMemoryDesc = config.outConfs[0].getMemDesc();
+        convertParams.srcPrc = srcMemoryDesc->getPrecision();
+        convertParams.dstPrc = dstMemoryDesc->getPrecision();
+        auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDesc, dstMemoryDesc,
+                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
+    };
 
     // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were set using setDescs method, so
     // they should be used as the actual descriptors.
@@ -108,7 +115,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
         dataConfigOut.setMemDesc(config.inConfs[0].getMemDesc());
         dataConfigOut.setMemDesc(dataConfigOut.getMemDesc()->cloneWithNewPrecision(output->getPrecision()));
         config.outConfs.push_back(dataConfigOut);
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        supportedPrimitiveDescriptorsBuilder(config);
     } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
         const Shape& insShape = getInputShapeAtPort(0);
         auto insPrecision = getOriginalInputPrecisionAtPort(0);
@@ -119,42 +126,62 @@ void Convert::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(dataConfigOut);
 
         auto creators = BlockedDescCreator::getCommonCreators();
-        auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+
+        // As long as convert is placed right before the output, only planar layout makes sense since the output tensor
+        // is always in a planar layout (ngraph limitation), so there is no reason to convert in any other layout.
+        bool hasOutputChild = false;
+        for (auto& childEdge : getChildEdgesAtPort(0)) {
+            if (Type::Output == childEdge->getChild()->getType()) {
+                hasOutputChild = true;
+                break;
+            }
+        }
+        auto range = hasOutputChild
+                         ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
+                         : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
             config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
             config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+            supportedPrimitiveDescriptorsBuilder(config);
         }
     } else {
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges");
     }
 }
 
-void Convert::executeDynamicImpl(mkldnn::stream strm) {
+void Convert::prepareParams() {
+    auto& parentMem = getParentEdgeAt(0)->getMemory();
+    convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    MemoryDescPtr srcDesc = getParentEdgeAt(0)->getMemoryPtr()->getDescPtr();
+    MemoryDescPtr dstDesc = getChildEdgeAt(0)->getMemoryPtr()->getDescPtr();
+    execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
+                                                                                       srcDesc,
+                                                                                       dstDesc,
+                                                                                       {});
+    selectedPD->setImplementationType(execPtr->getImplType());
+}
+
+void Convert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Convert::execute(mkldnn::stream strm) {
+void Convert::execute(dnnl::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 
-    const auto parentPaddElemCount = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-    const auto childPaddElemCount = childMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    const auto parentPaddElemCount = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    const auto childPaddElemCount = childMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     if (parentPaddElemCount != childPaddElemCount)
-        IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
+        OPENVINO_THROW(errorPrefix, " has different elements number in input and output buffers");
 
-    void* srcPtr = parentMem.GetPtr();
-    void* dstPtr = childMem.GetPtr();
-
-    cpu_convert(srcPtr,
-                dstPtr,
-                parentMem.getDesc().getPrecision(),
-                origPrc,
-                childMem.getDesc().getPrecision(),
-                parentPaddElemCount);
+    MemoryCPtr srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    MemoryPtr dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    execPtr->exec(srcMemory, dstMemory);
 }
 
 bool Convert::created() const {

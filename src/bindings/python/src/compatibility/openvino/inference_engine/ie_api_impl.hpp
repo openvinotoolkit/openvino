@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,12 +114,6 @@ struct InferRequestWrap {
     InferenceEngine::Blob::Ptr getBlobPtr(const std::string& blob_name);
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
-
-    void setBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info);
-
-    void setBatch(int size);
 
     const InferenceEngine::PreProcessInfo& getPreProcess(const std::string& blob_name);
 

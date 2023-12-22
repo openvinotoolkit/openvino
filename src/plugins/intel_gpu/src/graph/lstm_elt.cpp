@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "lstm_elt_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -10,16 +8,12 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_elt::type_id() {
-    static primitive_type_base<lstm_elt> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_elt)
 
-layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_elt_node!");
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
 
     // tempGEMM{bfyx} = [b: batch, f: direction, x: 1,         y: 4 * hidden_size ] input
     // cell{bfyx}     = [b: batch, f: direction, x: 1,         y: hidden_size ] optional
@@ -29,9 +23,28 @@ layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node) {
     auto result =
         layout(input_layout.data_type,
                input_layout.format,
-               tensor(input_layout.size.batch[0], 2, input_layout.size.spatial[0] / 4, input_layout.size.feature[0]));
+               tensor(input_layout.batch(), 2, input_layout.spatial(0) / 4, input_layout.feature()));
     return result;
 }
+
+template<typename ShapeType>
+std::vector<layout> lstm_elt_inst::calc_output_layouts(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
+    std::vector<layout> output_layouts;
+
+    // input partial shape [batch, input_size (= hidden_size * 4)]
+    auto input_layout = impl_param.get_input_layout();
+    auto input_pshape = input_layout.get_partial_shape();
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_elt_node!");
+    OPENVINO_ASSERT(input_pshape.rank().get_length() == 2, "input_layout rank should be 2 on dynamic shape.");
+
+    auto lstm_input_size = static_cast<cldnn::tensor::value_type>(input_pshape[1].get_length());
+    auto lstm_batch_size = static_cast<cldnn::tensor::value_type>(input_pshape[0].get_length());
+    auto lstm_hidden_size = static_cast<cldnn::tensor::value_type>(lstm_input_size / 4);
+
+    return {cldnn::layout{ov::PartialShape{lstm_batch_size, 2, 1, lstm_hidden_size}, input_layout.data_type, input_layout.format}};
+}
+
+template std::vector<layout> lstm_elt_inst::calc_output_layouts<ov::PartialShape>(lstm_elt_node const& node, const kernel_impl_params& impl_param);
 
 std::string lstm_elt_inst::to_string(lstm_elt_node const& node) {
     auto desc = node.get_primitive();

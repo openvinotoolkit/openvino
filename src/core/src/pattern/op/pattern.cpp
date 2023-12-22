@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
 #include <algorithm>
 #include <regex>
@@ -47,6 +47,12 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map) {
 std::function<bool(Output<Node>)> consumers_count(size_t n) {
     return [=](Output<Node> output) -> bool {
         return output.get_target_inputs().size() == n;
+    };
+}
+
+std::function<bool(Output<Node>)> consumers_more_than(size_t n) {
+    return [=](Output<Node> output) -> bool {
+        return output.get_target_inputs().size() > n;
     };
 }
 

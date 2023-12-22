@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params> ConcatNeighboringGraphTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params> ConcatNeighboringGraphTransformationParams;
 
 class ConcatWithNeighborsGraphTransformation :
     public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,

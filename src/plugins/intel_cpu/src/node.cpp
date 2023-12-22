@@ -1,14 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "node.h"
-#include "dnnl_debug.h"
 #include "edge.h"
 #include "extension_mngr.h"
+#include "partitioned_mem_mgr.h"
 #include "itt.h"
 
 #include "caseless.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
 #include <limits>
@@ -21,7 +23,6 @@
 #include "nodes/eltwise.h"
 #include "nodes/matmul.h"
 #include "nodes/fullyconnected.h"
-#include "nodes/generic.h"
 #include "nodes/if.h"
 #include "nodes/input.h"
 #include "nodes/lrn.h"
@@ -47,22 +48,24 @@
 #include "nodes/reference.h"
 #include "nodes/fake_quantize.h"
 #include "dnnl_extension_utils.h"
-#include "mkldnn/iml_type_mapper.h"
 
 #include "nodes/common/cpu_memcpy.h"
-#include "mkldnn_debug.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
+#include <dnnl_debug.h>
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
@@ -76,38 +79,51 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
-          type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
-    algorithm = Algorithm::Default;
-    fusingPort = -1;
-    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
-
+Node::Node(const std::shared_ptr<ov::Node>& op,
+           const GraphContext::CPtr ctx,
+           const ShapeInferFactory& shapeInferFactory)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      algorithm(Algorithm::Default),
+      fusingPort(-1),
+      engine(ctx->getEngine()),
+      name(op->get_friendly_name()),
+      typeStr(op->get_type_name()),
+      type(TypeFromName(op->get_type_name())),
+      profiling(op->get_friendly_name()) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
-            IE_THROW(Unexpected) << "CPU plug-in doesn't support " << getTypeStr() << " operation with dynamic rank. Operation name: " << getName();
+            OPENVINO_THROW("Unexpected: CPU plug-in doesn't support ",
+                           getTypeStr(),
+                           " operation with dynamic rank. Operation name: ",
+                           getName());
         }
 
         bool isScalar = shape.rank().get_length() == 0;
-        inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
-        originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
+        inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
+        originalInputPrecisions.emplace_back(op->get_input_element_type(i));
     }
 
     if (typeStr != "Result" && typeStr != "Assign") {
         if (op->get_output_size() == 0) {
-            IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
+            OPENVINO_THROW("Node with type '", typeStr, "' and name '", name, "' does not have any outputs.");
         }
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto &shape = op->get_output_partial_shape(i);
             if (shape.rank().is_dynamic()) {
-                IE_THROW(Unexpected) << "CPU plug-in doesn't support " << getTypeStr() << " operation with dynamic rank. Operation name: " << getName();
+                OPENVINO_THROW("Unexpected: CPU plug-in doesn't support ",
+                               getTypeStr(),
+                               " operation with dynamic rank. Operation name: ",
+                               getName());
             }
 
             bool isScalar = shape.rank().get_length() == 0;
-            outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
-            originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
+            outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
+            originalOutputPrecisions.emplace_back(op->get_output_element_type(i));
         }
     }
 
@@ -115,7 +131,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
     if (isDynamic) {
-        shapeInference = make_shape_inference(op);
+        shapeInference = shapeInferFactory.makeShapeInfer();
     }
 
     const auto& rtInfo = op->get_rt_info();
@@ -127,18 +143,20 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
         addOriginalLayer(name);
     }
 
-    auto primitivesPriority = getPrimitivesPriorityValue(op);
+    auto primitivesPriority = getImplPriorityValue(op);
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            implPriorities.push_back(parse_impl_name(str));
-            if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
+            customImplPriorities.push_back(parse_impl_name(str));
+            if (customImplPriorities.back() == impl_desc_type::unknown &&
                 str != "cpu:unknown")
-                IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
+                OPENVINO_THROW("Unsupported CPU implementation ", str, " for node ", getName());
         }
+        const auto& defaultImplPriorities = getDefaultImplPriority();
+        customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
 
     std::string inputMemoryFormats = getInputMemoryFormats(op);
@@ -148,7 +166,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -159,7 +177,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -169,10 +187,18 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      fusingPort(-1),
+      engine(ctx->getEngine()),
+      name(name),
+      typeStr(type),
+      type(TypeFromName(type)),
+      profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
@@ -242,7 +268,7 @@ void Node::createPrimitive() {
 }
 
 void Node::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
+    selectPreferPrimitiveDescriptor(getImplPriority(), false);
 }
 
 void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
@@ -250,50 +276,81 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
-            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
-            if (type == supportedType) {
-                int equalsLocalFormatCount = 0;
-                if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
+            const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+            const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
+
+            if (supportedType != type) {
+                continue;
+            }
+
+            int equalsLocalFormatCount = 0;
+            const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
+
+            if (descInConfSize > getParentEdges().size()) {
+                OPENVINO_THROW(getName(),
+                               " Desc ",
+                               i,
+                               " with type: ",
+                               supportedType,
+                               " has more input ports than node: ",
+                               descInConfSize,
+                               " vs ",
+                               getParentEdges().size());
+                continue;
+            }
+
+            for (size_t j = 0; j < descInConfSize; j++) {
+                auto parentEdge = getParentEdgeAt(j);
+                auto parentPtr = parentEdge->getParent();
+
+                // We don't take into account constant edges since reorders on them will be executed on load network stage
+                if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                    equalsLocalFormatCount++;
                     continue;
-                for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
-                    auto parentEdge = getParentEdgeAt(j);
-                    auto parentPtr = parentEdge->getParent();
-
-                    // We don't take into account constant edges since reorders on them will be executed on load network stage
-                    if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
-                        equalsLocalFormatCount++;
-                        continue;
-                    }
-
-                    auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
-
-                    if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
-                        int inNum = parentEdge->getInputNum();
-                        if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
-                            inNum = 0;
-                        }
-                        auto curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].getMemDesc();
-                        auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
-
-                        if (curDesc->isCompatible(*parentDesc)) {
-                            equalsLocalFormatCount++;
-                        }
-                    }
                 }
+
+                auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+
+                if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                    int inNum = parentEdge->getInputNum();
+                    if (inNum < 0 || inNum >= static_cast<int>(parent_spd->getConfig().outConfs.size())) {
+                        inNum = 0;
+                    }
+                    auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
+                    auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
+
+                    const bool isCompatible = curDesc->isCompatible(*parentDesc);
+
+                    if (isCompatible) {
+                        equalsLocalFormatCount++;
+                    }
+
+                    DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                              " is ", (isCompatible ? "compatible" : "not compatible"),
+                              " with parent ", parentPtr->getName(),
+                              " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
+                }
+
                 if (equalsLocalFormatCount > equalsFormatCount) {
                     equalsFormatCount = equalsLocalFormatCount;
                     selectedPrimitive = static_cast<int>(i);
+                    DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
                 }
             }
         }
+
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
             return;
         }
     }
 
-    if (getSupportedPrimitiveDescriptors().empty())
-        IE_THROW() << "Supported primitive descriptors list is empty for node: " << getName();
+    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
+                    "Supported primitive descriptors list is empty for node: ",
+                    getName(),
+                    " type: ",
+                    NameFromType(getType()));
+
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
 }
@@ -324,33 +381,54 @@ bool Node::canBeInPlace() const {
     return true;
 }
 
-void Node::resolveInPlaceEdges() {
+void Node::resolveInPlaceEdges(Edge::LOOK look) {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
-        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
-    for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
+        OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
+    if (look & Edge::LOOK_DOWN) {
+        for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
+            auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
-        if (parentEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
-            continue;
+            if (inplaceOutIndx < 0)
+                continue;
 
-        auto memMgr = parentEdge->getMemory().getDnnlMemoryMngr();
-        parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
+            auto parentEdge = getParentEdgeAt(i);
+            OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
+                            " Unexpected inplace resolve call to an allocated edge: ",
+                            parentEdge->name());
 
-        parentEdge->changeStatus(Edge::Status::Allocated);
+            //search for already allocated edge
+            const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
+            auto itr = std::find_if(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
+            OPENVINO_ASSERT(itr != childEdges.end(),
+                            " Could not find an allocated edge to resolve in-place for node: ",
+                            getName());
+
+            auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            parentEdge->reuse(newMem);
+        }
     }
-    for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
-        auto childEdge = getChildEdgeAt(i);
+    if (look & Edge::LOOK_UP) {
+        for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
+            auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
-        if (childEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
-            continue;
+            if (inplaceInpIndx < 0)
+                continue;
 
-        auto memMgr = childEdge->getMemory().getDnnlMemoryMngr();
-        childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
+            auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            const auto& childEdges = getChildEdgesAtPort(i);
 
-        childEdge->changeStatus(Edge::Status::Allocated);
+            for (auto& childEdge : childEdges) {
+                OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+                                " Unexpected inplace resolve call to an allocated edge: ",
+                                childEdge->name());
+                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                childEdge->reuse(newMem);
+            }
+        }
     }
 }
 
@@ -358,25 +436,25 @@ MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& inConfs = primDesc->getConfig().inConfs;
         if (inConfs.size() < portNum) {
-            IE_THROW() << "Can't get input memory desc at port: " << portNum << ", incorrect port number";
+            OPENVINO_THROW("Can't get input memory desc at port: ", portNum, ", incorrect port number");
         }
         return inConfs[portNum].getMemDesc();
     }
-    IE_THROW() << "Can't get input memory desc, primitive descriptor is not selected";
+    OPENVINO_THROW("Can't get input memory desc, primitive descriptor is not selected");
 }
 
 MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = primDesc->getConfig().outConfs;
         if (outConfs.size() < portNum) {
-            IE_THROW() << "Can't get output memory desc at port: " << portNum << ", incorrect port number";
+            OPENVINO_THROW("Can't get output memory desc at port: ", portNum, ", incorrect port number");
         }
         return outConfs[portNum].getMemDesc();
     }
-    IE_THROW() << "Can't get output memory desc, primitive descriptor is not selected";
+    OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
 }
 
-std::string Node::getPrimitiveDescriptorType() {
+std::string Node::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
@@ -410,12 +488,17 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
+    SEARCH_TYPE(mlas);
     SEARCH_TYPE(any);
     SEARCH_TYPE(uni);
 
     SEARCH_TYPE(winograd);
+    SEARCH_TYPE(sparse);
+    SEARCH_TYPE(acl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
+
+#undef SEARCH_TYPE
 
     if (type == impl_desc_type::unknown)
         str_type = "unknown";
@@ -428,14 +511,14 @@ std::string Node::getPrimitiveDescriptorType() {
     // it is mixed precision.
     if (selectedPrimitiveDesc) {
         if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
-            if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision().get_type_name());
             } else {
                 str_type += "_I8";
             }
         } else {
-            if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
             } else {
                 str_type += "_I8";
             }
@@ -447,46 +530,46 @@ std::string Node::getPrimitiveDescriptorType() {
 
 const EdgePtr Node::getParentEdgeAt(size_t idx) const {
     if (idx >= parentEdges.size())
-        IE_THROW() << "Node " << getName() << " contains less parent edges than " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains less parent edges than ", idx);
     auto parentEdgePtr = parentEdges[idx].lock();
     if (!parentEdgePtr)
-        IE_THROW() << "Node " << getName() << " contains empty parent edge for index " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains empty parent edge for index ", idx);
     return parentEdgePtr;
 }
 
 const EdgePtr Node::getChildEdgeAt(size_t idx) const {
     if (idx >= childEdges.size())
-        IE_THROW() << "Node " << getName() << " contains less child edges than " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains less child edges than ", idx);
     auto childEdgePtr = childEdges[idx].lock();
     if (!childEdgePtr)
-        IE_THROW() << "Node " << getName() << " contains empty child edge for index " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains empty child edge for index ", idx);
     return childEdgePtr;
 }
 
 const std::vector<EdgePtr> Node::getParentEdgesAtPort(size_t idx) const {
     if (idx >= inputShapes.size())
-        IE_THROW() << "Node " << getName() << " contains less input ports than " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains less input ports than ", idx);
 
     std::vector<EdgePtr> res;
     for (auto &edge_w : parentEdges) {
         auto edge = edge_w.lock();
         if (!edge)
-            IE_THROW() << "Node " << getName() << " contains dead weak ptr";
-        if (edge->getOutputNum() == idx) res.push_back(edge);
+            OPENVINO_THROW("Node ", getName(), " contains dead weak ptr");
+        if (edge->getOutputNum() == static_cast<int>(idx)) res.push_back(edge);
     }
     return res;
 }
 
 const std::vector<EdgePtr> Node::getChildEdgesAtPort(size_t idx) const {
     if (idx >= outputShapes.size())
-        IE_THROW() << "Node " << getName() << " contains less output ports than " << idx;
+        OPENVINO_THROW("Node ", getName(), " contains less output ports than ", idx);
 
     std::vector<EdgePtr> res;
     for (auto &edge_w : childEdges) {
         auto edge = edge_w.lock();
         if (!edge)
-            IE_THROW() << "Node " << getName() << " contains dead weak ptr";
-        if (edge->getInputNum() == idx) res.push_back(edge);
+            OPENVINO_THROW("Node ", getName(), " contains dead weak ptr");
+        if (edge->getInputNum() == static_cast<int>(idx)) res.push_back(edge);
     }
     return res;
 }
@@ -509,48 +592,86 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
-void Node::execute(mkldnn::stream strm) {
-    if (prim) {
-        (*prim).execute(strm, primArgs);
+void Node::updateShapes() {
+    OPENVINO_ASSERT(isDynamicNode(),
+                    "Node::updateShapes() is called to a static shape node of type: ",
+                    getTypeStr(),
+                    " with name: ",
+                    getName());
+    if (needShapeInfer()) {
+        auto result = shapeInfer();
+        if (ShapeInferStatus::success == result.status) {
+            redefineOutputMemory(result.dims);
+        }
     }
 }
 
-void Node::executeDynamic(mkldnn::stream strm) {
-    if (needShapeInfer()) {
-        redefineOutputMemory(shapeInfer());
-    }
+void Node::updateDynamicParams() {
+    OPENVINO_ASSERT(isDynamicNode(),
+                    "Node::updateDynamicParams() is called to a static shape node of type: ",
+                    getTypeStr(),
+                    " with name: ",
+                    getName());
     if (isExecutable()) {
         if (needPrepareParams()) {
-            IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
-                " since the input shapes are not defined.";
+            OPENVINO_ASSERT(inputShapesDefined(),
+                            "Can't prepare params for ",
+                            getTypeStr(),
+                            " node with name: ",
+                            getName(),
+                            " since the input shapes are not defined.");
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
+    }
+}
+void Node::executeDynamic(dnnl::stream strm) {
+    if (isExecutable()) {
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
 }
 
+bool Node::outputShapeDataDependency() const {
+    auto port_mask = shapeInference->get_port_mask();
+    if (EMPTY_PORT_MASK != port_mask) {
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            if ((port_mask & (1 << i)) && !getParentEdgeAt(i)->getParent()->isConstant()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (newOutputShapes.size() != outputShapes.size()) {
-        IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
+        OPENVINO_THROW("Number shapes mismatch with real outputs number for node with name: ", getName());
     }
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        const auto edges = getChildEdgesAtPort(i);
+    for (size_t i = 0lu; i < outputShapes.size(); i++) {
+        redefineOutputMemory(i, newOutputShapes[i]);
+    }
+}
 
-        // avoid 0D shape incompatible
-        auto newOutputShape = newOutputShapes[i];
-        if (newOutputShape.empty()) {
-            newOutputShape.push_back(1);
-        }
+void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
+    const auto edges = getChildEdgesAtPort(port);
 
-        const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
-            continue;
+    // avoid 0D shape incompatible
+    auto new_shape = new_output_shape;
+    if (new_shape.empty()) {
+        new_shape.push_back(1);
+    }
 
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
-        for (size_t j = 0; j < edges.size(); j++) {
-            edges[j]->getMemoryPtr()->redefineDesc(memDesc);
-        }
+    const auto& curr_desc = edges[0]->getMemory().getDesc();
+    if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
+        return;
+    }
+
+    const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
+    const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
+    for (size_t j = 0lu; j < edges.size(); j++) {
+        edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
 
@@ -558,146 +679,106 @@ void Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto attr = initPrimitiveAttr();
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+
+            inConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK);
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK, inPlaceOutPort);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    /* When custom implementation priorities are NOT defined it is enough to
+    * just use the first implementation from the priority list.
+    * When custom implementation priorities are defined, all the implementations should be considered,
+    * since custom implementations can be not available at all, so a fallback to the default ones must happen
+    * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+    * since oneDNN primitive is mutating while iterating */
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd;
-        if (attr) {
-            itpd = desc.createPrimitiveDescriptorIterator(engine, *attr);
-        } else {
-            itpd = desc.createPrimitiveDescriptorIterator(engine);
-        }
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
 
-        while (static_cast<bool>(itpd)) {
-            NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.inConfs.push_back(portConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.outConfs.push_back(portConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-            if (!itpd.next_impl())
-                break;
-        }
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
+    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
+        return;
+
     // Compare by format tag
-    auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
+    auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                               DnnlExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                               DnnlExtensionUtils::ElementTypeToDataType(desc.getPrecision()),
                                                fmt);
         return desc.isCompatible(fmt_tdesc);
     };
 
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
-        auto itpd = supportedPrimitiveDescriptors.begin();
-        while (itpd != supportedPrimitiveDescriptors.end()) {
-            const auto &config = itpd->getConfig();
-            if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
-                IE_THROW() << "Incorrect number of input or output memory formats";
+    auto isNotSuitableDesc = [&](const NodeDesc& desc) {
+        const auto &config = desc.getConfig();
+        if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
+            OPENVINO_THROW("Incorrect number of input or output memory formats");
 
-            bool isSuitableDesc = true;
-            for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            if (!isSuitableDesc) {
-                itpd = supportedPrimitiveDescriptors.erase(itpd);
-            } else {
-                itpd++;
+        for (size_t i = 0; i < inputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
             }
         }
-    }
+
+        for (size_t i = 0; i < outputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    supportedPrimitiveDescriptors.erase(
+        std::remove_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.end(), isNotSuitableDesc),
+        supportedPrimitiveDescriptors.end());
+
+    OPENVINO_ASSERT(!supportedPrimitiveDescriptors.empty(),
+                    getName(),
+                    " type: ",
+                    NameFromType(getType()),
+                    " No supported primitive descriptors matched the provided input / output memory format filters.");
 }
 
 void Node::initDescriptor(const NodeConfig& config) {
-    if (!getSelectedPrimitiveDescriptor()) {
-        return;
-    }
-    std::vector<MemoryDescPtr> inDescs;
-    for (const auto& inConf : config.inConfs)
-        inDescs.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs;
-    for (const auto& outConf : config.outConfs)
-        outDescs.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs, outDescs);
-
-    AttrPtr attr = initPrimitiveAttr();
-
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    NodeConfig rightConfig = selectedPD->getConfig();
-    size_t selected_count = 0;
-    for (size_t j = 0; j < descs.size(); j++) {
-        const auto &desc = descs[j];
-        primitive_desc_iterator itpd;
-        if (attr == nullptr) {
-            itpd = desc.createPrimitiveDescriptorIterator(engine);
-        } else {
-            itpd = desc.createPrimitiveDescriptorIterator(engine, *(attr.get()));
-        }
-        while (static_cast<bool>(itpd)) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
-                cfg.inConfs.push_back(dataConfig);
-            }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-                cfg.outConfs.push_back(dataConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (selected_count == selectedPrimitiveDescriptorIndex) {
-                if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
-                }
-                rightConfig = cfg;
-            }
-            if (j == descs.size() - 1) {
-                if (impl_type == selectedPD->getImplementationType()) {
-                    rightConfig = config;
-                }
-            }
-            selected_count++;
-            if (!itpd.next_impl())
-                break;
-        }
+    if (!selectedPD) {
+        return;
     }
 
     if (descs.empty()) {
@@ -707,77 +788,175 @@ void Node::initDescriptor(const NodeConfig& config) {
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
             if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
+                OPENVINO_THROW("Incorrect descriptor for node: ", getName(), " on ", i, " intput port");
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
             if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
+                OPENVINO_THROW("Incorrect descriptor for node: ", getName(), " on ", i, " output port");
         }
-        rightConfig = config;
+        selectedPD->setConfig(config);
+
+        return;
     }
 
-    selectedPD->setConfig(rightConfig);
+    auto updateNodeConfig = [&](const NodeConfig& cfg){
+        auto updatedConfig = cfg;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.inConfs[i];
+            dataConfig.inPlace(canBeInPlace() ? 0 : -1);    // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.outConfs[i];
+            dataConfig.inPlace(-1);                         // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
+
+        return updatedConfig;
+    };
+
+    descs.clear();
+
+    std::vector<MemoryDescPtr> inDescs;
+    for (const auto& inConf : config.inConfs)
+        inDescs.emplace_back(inConf.getMemDesc());
+    std::vector<MemoryDescPtr> outDescs;
+    for (const auto& outConf : config.outConfs)
+        outDescs.emplace_back(outConf.getMemDesc());
+    createDescriptor(inDescs, outDescs);
+
+    for (auto& desc : descs) {
+        if (DnnlExtensionUtils::find_implementation(desc, selectedPD->getImplementationType())) {
+            selectedPD->setConfig(config);
+            return;
+        }
+    }
+
+    const auto& currentConfig = selectedPD->getConfig();
+    const auto& updatedConfig = updateNodeConfig(currentConfig);
+
+    selectedPD->setConfig(updatedConfig);
 }
 
-void Node::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
+void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
+    size_t minSize = indx + 1;
+    if (internalBlobMemory.size() < minSize) {
+        internalBlobMemory.resize(minSize);
     }
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
+
+    if (minSize > internalBlobs.size()) {
+        OPENVINO_THROW("Can't prepare memory for internal blob, requested index: ",
+                       indx,
+                       " is out of bounds of the internalBlobs vector of size ",
+                       internalBlobs.size());
     }
+
+    const auto& internalBlob = internalBlobs[indx];
+
+    auto create = [&]() {
+        auto newDesc = internalBlob->getDescPtr();
+        Memory memory{engine, newDesc, internalBlob->getData()};
+
+        MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
+        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    auto weightCache = context->getWeightsCache();
+    if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
+        const auto& format = intDesc->serializeFormat();
+        const uint64_t data_hash =
+            weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
+                                            internalBlob->getSize());
+
+        const std::string string_hash = name + "_" + std::to_string(indx)
+                                        + "_" + format
+                                        + "_" + std::to_string(internalBlob->getSize())
+                                        + "_" + std::to_string(data_hash);
+
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        ptr = create();
+    }
+
+    internalBlobMemory[indx] = ptr;
+}
+
+void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
+    if (internalBlobs.size() != intDescs.size()) {
+        OPENVINO_THROW("Can't prepare memory for internal blob, internal blob and internal descs number do not match ",
+                       internalBlobs.size(),
+                       " vs ",
+                       intDescs.size());
+    }
+
+    internalBlobMemory.clear();
+    for (size_t i = 0; i < internalBlobs.size(); i++) {
+        prepareMemory(intDescs[i], i);
+    }
+}
+
+void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     std::vector<DnnlMemoryDescPtr> intDescs;
     for (auto &it : internalBlobDesc)
         intDescs.push_back(it(itpd, 0));
 
-    internalBlobMemory.clear();
-    for (size_t i = 0; i < internalBlobs.size(); i++) {
-        const auto &internalBlob = internalBlobs[i];
+    Node::prepareMemory(intDescs);
+}
 
-        auto create = [&] () {
-            // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-            auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        OPENVINO_THROW("Weight input is not const for node ", getName(), ".");
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        OPENVINO_THROW("Cannot get const weights edgeMem for node ", getName(), ".");
 
-            Memory memory{ engine };
-            memory.Create(newDesc, internalBlob->buffer());
+    if (!srcWeightDesc) {
+        auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+        auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+        weightSrcDesc = weightSrcDesc.reshape(dstWeightDesc->getDnnlDesc().get_dims());
+        srcWeightDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+    }
 
-            MemoryPtr _ptr = MemoryPtr(new Memory(engine));
-            _ptr->Create(*intDescs[i]);
-            _ptr->SetData(memory);
+    auto create = [&] () {
+        Memory srcMemory{ getEngine(), srcWeightDesc, edgeMem->getData() };
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
-            return _ptr;
-        };
+        return _ptr;
+    };
 
-        MemoryPtr ptr;
+    MemoryPtr ptr;
+    const auto& format = dstWeightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
-            const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                    internalBlob->buffer(), internalBlob->byteSize());
-
-            const std::string string_hash = name + "_" + std::to_string(i)
-                                            + "_" + std::to_string(internalBlob->byteSize())
-                                            + "_" + std::to_string(data_hash);
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->getSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
             ptr = create();
         }
-
-        internalBlobMemory.push_back(ptr);
+        privateWeightCache[format] = ptr;
     }
+
+    return ptr;
 }
 
-bool Node::isInPlace() {
+bool Node::isInPlace() const {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
+            OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
         inplace = InPlaceType::NoInPlace;
         auto config = selected_pd->getConfig();
@@ -863,145 +1042,173 @@ void Node::cleanup() {
     }
 }
 
-const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
-            impl_desc_type::unknown,
-            impl_desc_type::brgconv_avx512_amx_1x1,
-            impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw,
-            impl_desc_type::jit_avx512_amx_1x1,
-            impl_desc_type::jit_avx512_amx,
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-//            impl_desc_type::brgconv_avx512_1x1,
-//            impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1,
-            impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw,
-            impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw,
-            impl_desc_type::jit_avx_1x1,
-            impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw,
-            impl_desc_type::jit_sse42_1x1,
-            impl_desc_type::jit_sse42,
-            impl_desc_type::gemm_any,
-            impl_desc_type::gemm_blas,
-            impl_desc_type::gemm_avx512,
-            impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx,
-            impl_desc_type::gemm_sse42,
-            impl_desc_type::jit_gemm,
-            impl_desc_type::ref_any,
-            impl_desc_type::ref,
+const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
+    static const std::vector<impl_desc_type> priorities {
+        impl_desc_type::unknown,
+        // Undef impl type is used to express use-cases there real type is unkown during compilation
+        // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
+        impl_desc_type::undef,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+        // impl_desc_type::brgconv_avx512_1x1,
+        // impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+
+    return priorities;
+}
+
+const std::vector<impl_desc_type>& Node::getImplPriority() {
+    if (!customImplPriorities.empty())
+        return customImplPriorities;
+
+
+    return getDefaultImplPriority();
 }
 
 PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
-    int num = getParentEdgeAt(idx)->getInputNum();
-    auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
+    const auto& inConf = config.inConfs[idx];
 
-    if (config.inConfs[idx].inPlace() >= 0) {
-        auto inplaceIndx = static_cast<size_t>(config.inConfs[idx].inPlace());
+    if (inConf.inPlace() >= 0) { // node have inplace input
+        auto inplaceIndx = static_cast<size_t>(inConf.inPlace());
         PortDescBasePtr outPortDesc;
         const auto& outConf = config.outConfs[inplaceIndx];
-        if (outConf.inPlace() == idx) {
-            outPortDesc = outConf.getPortDesc();
+        if (outConf.inPlace() == static_cast<int>(idx)) { // the input desc port is the same port used for inplace output
+            outPortDesc = outConf.getPortDesc(); // just use desc from this output port
         } else {
-            outPortDesc = getConsistentOutputDesc(config, inplaceIndx);
+            outPortDesc = getConsistentOutputDesc(config, inplaceIndx); // get consistent desc otherwise
         }
-        if (config.inConfs[idx].getPortDesc()->isCompatible(*outPortDesc)) {
+        if (inConf.getPortDesc()->isCompatible(*outPortDesc)) { // use the desc if compatible
             return outPortDesc;
         }
     }
 
+    auto *parentSelectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
+    if (!parentSelectedPD)
+        OPENVINO_THROW("Cannot get selected primitive descriptor for node: ", getParentEdgeAt(idx)->getParent()->getName());
+
+    int num = getParentEdgeAt(idx)->getInputNum();
     if (num >= 0) {
-        auto parentConf = selectedPD->getConfig().outConfs[num];
-        parentConf.setMemDesc(parentConf.getMemDesc()->cloneWithNewPrecision(config.inConfs[idx].getMemDesc()->getPrecision()));
+        auto parentConf = parentSelectedPD->getConfig().outConfs[num];
+        const auto desc = parentConf.getMemDesc()->cloneWithNewPrecision(inConf.getMemDesc()->getPrecision());
+        parentConf.setMemDesc(desc);
+
         if (!parentConf.getMemDesc()->isDefined() && parentConf.inPlace() >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
-        parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-        if (parentConf.getMemDesc()->isDefined() && config.inConfs[idx].getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
+
+        // config might be changed
+        parentConf = parentSelectedPD->getConfig().outConfs[num];
+        if (parentConf.getMemDesc()->isDefined() && inConf.getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
             return parentConf.getPortDesc();
         }
     }
 
-    return config.inConfs[idx].getPortDesc();
+    return inConf.getPortDesc();
 }
 
 PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
-    int num = getChildEdgeAt(idx)->getOutputNum();
-    auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
+    const auto& outConf = config.outConfs[idx];
 
-    if (config.outConfs[idx].inPlace() >= 0) {
-        auto inplaceIndx = static_cast<size_t>(config.outConfs[idx].inPlace());
+    if (outConf.inPlace() >= 0) { // node have inplace output
+        auto inplaceIndx = static_cast<size_t>(outConf.inPlace());
         PortDescBasePtr inpPortDesc;
         const auto& inpConf = config.inConfs[inplaceIndx];
-        if (inpConf.inPlace() == idx) {
-            inpPortDesc = inpConf.getPortDesc();
+        if (inpConf.inPlace() == static_cast<int>(idx)) { // the input desc port is the same port used for inplace output
+            inpPortDesc = inpConf.getPortDesc(); // just use desc from this output port
         } else {
-            inpPortDesc = getConsistentInputDesc(config, inplaceIndx);
+            inpPortDesc = getConsistentInputDesc(config, inplaceIndx); // get consistent desc otherwise
         }
-        if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
+        if (outConf.getPortDesc()->isCompatible(*inpPortDesc)) { // use the desc if compatible
             return inpPortDesc;
         }
     }
 
+    auto *childSelectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
+    if (!childSelectedPD)
+        OPENVINO_THROW("Cannot get selected primitive descriptor for node: ", getChildEdgeAt(idx)->getChild()->getName());
+
+    int num = getChildEdgeAt(idx)->getOutputNum();
     if (num >= 0) {
-        auto childConf = selectedPD->getConfig().inConfs[num];
-        childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision()));
+        auto childConf = childSelectedPD->getConfig().inConfs[num];
+        const auto desc = childConf.getMemDesc()->cloneWithNewPrecision(outConf.getMemDesc()->getPrecision());
+        childConf.setMemDesc(desc);
+
         if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
-        childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
+
+        // config might be changed
+        childConf = childSelectedPD->getConfig().inConfs[num];
+        if (childConf.getMemDesc()->isDefined() && outConf.getPortDesc()->isCompatible(*childConf.getPortDesc())) {
             return childConf.getPortDesc();
         }
     }
 
-    return config.outConfs[idx].getPortDesc();
+    return outConf.getPortDesc();
 }
 
 void Node::initOptimalPrimitiveDescriptor() {
+    if (one_of(getType(), Type::RNNCell, Type::RNNSeq)) // can be skipped for RNN node
+        return;
+
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
+            auto inpPortDesc = getConsistentInputDesc(config, i);
+            DEBUG_LOG(getName(), ": input PortDesc before: ", *inpPortDesc->getMemDesc());
+            config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
+            DEBUG_LOG(getName(), ": input PortDesc after: ", *config.inConfs[i].getMemDesc());
+        }
+    }
+
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
+            auto outPortDesc = getConsistentOutputDesc(config, i);
+            DEBUG_LOG(getName(), ": output PortDesc before: ", *outPortDesc->getMemDesc());
+            config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
             }
         }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            auto inpPortDesc = getConsistentInputDesc(config, i);
-            config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
-        }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outPortDesc = getConsistentOutputDesc(config, i);
-            config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
-        }
-    }
-    if (getType() != Type::RNNSeq && getType() != Type::RNNCell) {
-        initDescriptor(config);
-    }
+    initDescriptor(config);
 }
 
 bool Node::isConfigDefined(const NodeConfig &config) const {
@@ -1014,91 +1221,25 @@ bool Node::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-MemoryDescPtr Node::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
-MemoryDescPtr Node::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
-int Node::batchToProcess() const {
-    return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
-}
-
-// TODO [DS]: how we should process this for dynamic shape?
-size_t Node::getMaxBatch() const {
-    // FIXME: batch != 0 dims number
-    if (!inputShapes.empty()) {
-        if (inputShapes[0].getRank())
-            return static_cast<int>(inputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    if (!outputShapes.empty()) {
-        if (outputShapes[0].getRank())
-            return static_cast<int>(outputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    return 0;
-}
-
-void Node::setDynamicBatchLim(int lim) {
-    dynBatchLim = lim;
-
-    auto setDynamicBatch = [this](int argType, int newBatch) {
-        auto param = primArgs.find(argType);
-        if (param != primArgs.end()) {
-            auto oldMem = param->second;
-            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.data.dims[0] = newBatch;
-            newMemDesc.data.padded_dims[0] = newBatch;
-            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-            primArgs.at(argType) = newMem;
-        }
-    };
-
-    if (!primArgs.empty()) {
-        int newBatch = batchToProcess();
-        setDynamicBatch(DNNL_ARG_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DST, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
-    }
-}
-
-void Node::appendPostOpArgs(const mkldnn::primitive_attr& attr,
-                                  std::unordered_map<int, mkldnn::memory>& primArgs,
-                                  const std::vector<MemoryPtr>& postOpsArgs) {
-    constexpr size_t maxPrimArgsCapacity = 32;
-    auto post_ops = attr.get_post_ops();
-    int idx = 0;
-    for (int i = 0; i < post_ops.len(); i++) {
-        if (one_of(post_ops.kind(i), mkldnn::primitive::kind::binary, mkldnn::primitive::kind::depthwise, mkldnn::primitive::kind::quantization)) {
-            if (idx >= postOpsArgs.size()) {
-                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
-            }
-            // oneDNN has implicit limitation on number of supported post ops arguments
-            if (i >= maxPrimArgsCapacity) {
-                IE_THROW() << "Cannot initialize primitive arguments: post-ops data pointers count exceed max capacity";
-            }
-
-            primArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1] = postOpsArgs[idx++]->GetPrimitive();
-        } else if (post_ops.kind(i) == mkldnn::primitive::kind::convolution) {
-            if (idx + 1 >= postOpsArgs.size()) {
-                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
-            }
-
-            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = postOpsArgs[idx++]->GetPrimitive();
-            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = postOpsArgs[idx++]->GetPrimitive();
-        }
+void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
+                            std::unordered_map<int, dnnl::memory>& primArgs,
+                            const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
+    for (auto & entry : postOpsArgs) {
+        primArgs[entry.first] = entry.second->getPrimitive();
     }
 }
 
@@ -1111,65 +1252,59 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const SizeVector& dims) const {
     switch (dims.size()) {
-        case 0:
-            return InferenceEngine::Layout::SCALAR;
-        case 1:
-            return InferenceEngine::Layout::C;
-        case 2:
-            return InferenceEngine::Layout::NC;
-        case 3:
-            return InferenceEngine::Layout::CHW;
-        case 4:
-            return InferenceEngine::Layout::OIHW;
-        case 5:
-            return isGrouped ? InferenceEngine::Layout::GOIHW : InferenceEngine::Layout::OIDHW;
-        case 6:
-            return isGrouped ? InferenceEngine::Layout::GOIDHW : InferenceEngine::Layout::BLOCKED;
-        default:
-            return InferenceEngine::Layout::BLOCKED;
+    case 1:
+        return dnnl::memory::format_tag::a;
+    case 2:
+        return dnnl::memory::format_tag::ab;
+    case 3:
+        return dnnl::memory::format_tag::abc;
+    case 4:
+        return dnnl::memory::format_tag::abcd;
+    case 5:
+        return dnnl::memory::format_tag::abcde;
+    case 6:
+        return dnnl::memory::format_tag::abcdef;
+    default:
+        OPENVINO_THROW("getWeightsFormatTagByDims doesn't support dims.size() = ", dims.size());
     }
 }
 
-void Node::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
-    IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis) {
+    OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-void Node::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
-    IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
+    OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-void Node::appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MemoryPtr>& binaryPostOpsMem) {
-    IE_THROW() << "Binary fusing of " << NameFromType(this->getType()) << " operation is not implemented";
-}
-
-std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+std::vector<ov::element::Type> Node::getInputPrecisions() const {
+    std::vector<ov::element::Type> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return inputPrecisions;
 }
 
-std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
-    std::vector<InferenceEngine::Precision> outputPrecisions;
+std::vector<ov::element::Type> Node::getOutputPrecisions() const {
+    std::vector<ov::element::Type> outputPrecisions;
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+            outputPrecisions.emplace_back(childEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return outputPrecisions;
 }
 
-InferenceEngine::Precision Node::getRuntimePrecision() const {
+ov::element::Type Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
-    InferenceEngine::Precision runtimePrecision = Precision::UNSPECIFIED;
+    ov::element::Type runtimePrecision = ov::element::undefined;
     auto inputPrecisions = getInputPrecisions();
     if (!inputPrecisions.empty()) {
         runtimePrecision = inputPrecisions[0];
@@ -1183,15 +1318,14 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                             const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
     // /path-to-openVino-root/src/plugins/intel_cpu/nodes/gather.cpp:42 [ NOT_IMPLEMENTED ] Only opset7 Gather operation is supported
     // The most important part of the message is the reason, so the lambda trims everything up to "]"
     // Note that the op type and its friendly name will also be provided if we fail to create the node.
-    auto getExceptionDescWithoutStatus = [](const InferenceEngine::Exception& ex) {
+    auto getExceptionDescWithoutStatus = [](const ov::Exception& ex) {
         std::string desc = ex.what();
         size_t pos = desc.find("]");
         if (pos != std::string::npos) {
@@ -1206,18 +1340,18 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     Node *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
+        if (ol != nullptr && ol->created(context->getExtensionManager()))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
-        } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+        } catch (const ov::Exception& ex) {
+            if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {
                 errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
                 throw;
@@ -1227,11 +1361,11 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(new Reference(op, eng, w_cache, errorMessage));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
-        } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+        } catch (const ov::Exception& ex) {
+            if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
                     errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
@@ -1241,40 +1375,32 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
         }
     }
 
-    //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and mkldnn::eng.
-    if (newNode) {
-        if (newNode->getType() == Type::TensorIterator) {
-            if (auto ti = dynamic_cast<TensorIterator*>(newNode))
-                ti->setExtManager(extMgr);
-        } else if (newNode->getType() == Type::If) {
-            if (auto ifNode = dynamic_cast<If*>(newNode))
-                ifNode->setExtManager(extMgr);
-        }
-    }
-//    //  WA-end
-
     if (!newNode) {
         std::string errorDetails;
         if (!errorMessage.empty()) {
             errorDetails = "\nDetails:\n" + errorMessage;
         }
-        IE_THROW() << "Unsupported operation of type: " << op->get_type_name() << " name: " << op->get_friendly_name() << errorDetails;
+        OPENVINO_THROW("Unsupported operation of type: ",
+                       op->get_type_name(),
+                       " name: ",
+                       op->get_friendly_name(),
+                       errorDetails);
     }
 
     return newNode;
 }
 
 bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
-    IE_ASSERT(parentNode);
+#if defined(OPENVINO_ARCH_X86_64)
+    OPENVINO_ASSERT(parentNode);
 
     size_t fusingPort = 0;
-    const size_t channelAxis = parentNode->getFusingAxis();
+    const auto channelAxis = parentNode->getFusingAxis();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         Node *node = getParentEdgesAtPort(i)[0]->getParent().get();
         if (node == nullptr) {
-            IE_THROW() << "Cannot get parent node for " << getName() << " on " << i << " port";
+            OPENVINO_THROW("Cannot get parent node for ", getName(), " on ", i, " port");
         }
         if (node == parentNode) {
             fusingPort = i;
@@ -1302,7 +1428,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
         if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
             const auto eltwise = dynamic_cast<const Eltwise *>(this);
             if (!eltwise) {
-                IE_THROW() << "Cannot cast " << getName() << " to Eltwise";
+                OPENVINO_THROW("Cannot cast ", getName(), " to Eltwise");
             }
             return eltwise->getAlpha() == 1.0f;
         }
@@ -1316,6 +1442,10 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
                                    Algorithm::EltwisePrelu,
                                    Algorithm::EltwiseMulAdd) && isBroadcastableToDataInput())
             || isConvertablePowerStatic();
+#else
+    // TODO: provide correct list of operations for other backends
+    return false;
+#endif
 }
 
 // @todo shifts for Subtract and scales for Divide are replaced with
@@ -1327,15 +1457,15 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     const auto fillValuesFrom = [&](const NodePtr& constInput, std::vector<float>& buffer) {
         auto *constInputNode = dynamic_cast<node::Input *>(constInput.get());
         if (!constInputNode) {
-            IE_THROW() << "Cannot cast " << constInput->getName() << " to Input";
+            OPENVINO_THROW("Cannot cast ", constInput->getName(), " to Input");
         }
         auto constBlob = constInputNode->getMemoryPtr();
-        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->GetPtr(),
+        cpu_convert(constBlob->getData(),
                     &buffer[0],
-                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
-                    Precision::FP32,
+                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                    ov::element::f32,
                     elementsCount);
     };
 
@@ -1351,12 +1481,12 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     } else if (one_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto power = dynamic_cast<const Eltwise *>(this);
         if (!power) {
-            IE_THROW() << "Cannot cast " << getName() << " to Eltwise";
+            OPENVINO_THROW("Cannot cast ", getName(), " to Eltwise");
         }
         scales.push_back(power->getBeta());
         shifts.push_back(power->getGamma());
     } else {
-        IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
+        OPENVINO_THROW("Can't fill scale and shifts for node: ", getName(), " with type: ", NameFromType(getType()));
     }
 
     switch (getAlgorithm()) {
@@ -1386,16 +1516,34 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
 
 bool Node::isInputTensorAtPortEmpty(size_t port) const {
     if (inputShapes.size() <= port) {
-        IE_THROW() << "Incorrect input port number for node " << getName();
+        OPENVINO_THROW("Incorrect input port number for node ", getName());
     }
-    return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+
+    if (inputShapes[port].hasZeroDims()) {
+        return true;
+    }
+    auto edge = getParentEdgesAtPort(port)[0];
+    if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
+        auto&& mem = edge->getMemory();
+        if (mem.isAllocated()) {
+            return mem.getShape().hasZeroDims();
+        }
+    }
+    return false;
 }
 
 bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     if (outputShapes.size() <= port) {
-        IE_THROW() << "Incorrect output port number for node " << getName();
+        OPENVINO_THROW("Incorrect output port number for node ", getName());
     }
-    return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+    if (outputShapes[port].isStatic()) {
+        return outputShapes[port].hasZeroDims();
+    }
+    auto&& mem = getChildEdgesAtPort(port)[0]->getMemory();
+    if (mem.isAllocated()) {
+        return mem.getShape().hasZeroDims();
+    }
+    return false;
 }
 
 bool Node::hasEmptyInputTensors() const {
@@ -1444,7 +1592,7 @@ bool Node::inputShapesModified() const {
     if (lastInputDims.size() != getParentEdges().size()) {
         if (lastInputDims.empty())
             return true;
-        IE_THROW() << "Input dims and parent edges number mismatch!";
+        OPENVINO_THROW("Input dims and parent edges number mismatch!");
     }
 
     for (size_t i = 0; i < lastInputDims.size(); i++) {
@@ -1458,83 +1606,70 @@ bool Node::needShapeInfer() const {
     return inputShapesModified();
 }
 
-std::vector<VectorDims> Node::shapeInfer() const {
-    return shapeInferGeneric();
-}
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-                                                uint32_t input_value_port_mask) const {
-    // collect input values
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
-    if (input_value_port_mask) {
-        const auto & iranks = shapeInference->get_input_ranks();
-        for (size_t port = 0; port < iranks.size(); port++) {
-            if (input_value_port_mask & (1 << port)) {
-                const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
+        input_shapes.reserve(shapes.size());
+        for (size_t i = 0; i < shapes.size(); i++)
+            input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
 
-                ov::Shape shape(memPtr.getStaticDims());
-
-                // use scalar shape {} instead of {1} if required by shapeInference
-                if (iranks[port] == 0) {
-                    shape = ov::Shape();
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
                 }
-
-                input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
-                    InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-                    shape,
-                    memPtr.GetPtr());
             }
         }
-    }
 
-    // call shape inference API
-    std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
-        return s.to_shape();
-    });
-
-    return result;
-}
-
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes,
-                                                      uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
-
-    input_shapes.reserve(shapes.size());
-    for (size_t i = 0; i < shapes.size(); i++)
-        input_shapes.emplace_back(shapes[i].getStaticDims());
-
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
-}
-
-std::vector<VectorDims> Node::shapeInferGeneric(uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
-    const auto & iranks = shapeInference->get_input_ranks();
-
-    input_shapes.reserve(iranks.size());
-
-    for (size_t port = 0; port < iranks.size(); port++) {
-        if (iranks[port] == 0) {
-            input_shapes.emplace_back();
-        } else {
-            input_shapes.emplace_back(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims());
+        auto result = shapeInference->infer(input_shapes, input_values);
+        if (ShapeInferStatus::success != result.status) {
+            OPENVINO_THROW("Unexpected: Shape inference unexpectedly skipped");
         }
-    }
 
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
+        return std::move(result.dims);
+    }
+    catch (const std::runtime_error& exp) {
+        OPENVINO_THROW("Shape inference of ", getTypeStr() , " node with name ", getName(), " failed: ", exp.what());
+    }
+}
+
+IShapeInfer::Result Node::shapeInfer() const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
+
+        input_shapes.reserve(inputShapes.size());
+        for (size_t port = 0; port < inputShapes.size(); ++port)
+            input_shapes.emplace_back(std::ref(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims()));
+
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+                }
+            }
+        }
+
+        return shapeInference->infer(input_shapes, input_values);
+    }
+    catch (const std::runtime_error& exp) {
+        OPENVINO_THROW("Shape inference of ", getTypeStr() , " node with name ", getName(), " failed: ", exp.what());
+    }
 }
 
 void Node::updateLastInputDims() {
     if (lastInputDims.size() != getParentEdges().size()) {
         if (!lastInputDims.empty())
-            IE_THROW() << "Input dims and parent edges number mismatch!";
+            OPENVINO_THROW("Input dims and parent edges number mismatch!");
         lastInputDims.resize(getParentEdges().size());
     }
 
     for (size_t i = 0; i < lastInputDims.size(); i++)
-        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().getDims();
 }
 
 bool Node::canFuseSimpleOperation(const NodePtr& node) const {
@@ -1545,22 +1680,7 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
         }
         return ret;
     } else if (node->getType() == Type::Eltwise) {
-        return one_of(node->getAlgorithm(),
-                      Algorithm::EltwiseRelu,
-                      Algorithm::EltwiseGelu,
-                      Algorithm::EltwiseElu,
-                      Algorithm::EltwiseSigmoid,
-                      Algorithm::EltwiseClamp,
-                      Algorithm::EltwiseTanh,
-                      Algorithm::EltwiseSwish,
-                      Algorithm::EltwiseHswish,
-                      Algorithm::EltwiseMish,
-                      Algorithm::EltwiseHsigmoid,
-                      Algorithm::EltwiseRoundHalfToEven,
-                      Algorithm::EltwiseRoundHalfAwayFromZero,
-                      Algorithm::EltwiseAbs,
-                      Algorithm::EltwiseSqrt,
-                      Algorithm::EltwiseSoftRelu) ||
+        return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
             node->canBePerformedAsScaleShift(this);
     }
     return false;
@@ -1570,5 +1690,109 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
 }
 
+void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
+                                const std::vector<PortConfigurator>& outPortConfigs,
+                                impl_desc_type implType) {
+    auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
+                         ov::element::Type prc, std::vector<PortConfig>& port) -> bool {
+        // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
+        // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
+            return false;
+
+        PortConfig portConfig;
+        portConfig.inPlace(portConfigurator.inPlace);
+        portConfig.constant(portConfigurator.constant);
+        portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
+
+        port.push_back(std::move(portConfig));
+
+        return true;
+    };
+
+    NodeConfig config;
+    for (size_t i = 0; i < inPortConfigs.size(); i++) {
+        auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
+        auto prc = inPortConfigs[i].prc == ov::element::undefined ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+        if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
+            return;
+    }
+
+    for (size_t i = 0; i < outPortConfigs.size(); i++) {
+        auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
+        auto prc = outPortConfigs[i].prc == ov::element::undefined ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+        if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
+            return;
+    }
+
+    supportedPrimitiveDescriptors.emplace_back(config, implType);
+}
+
+void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
+    if (DQScales.empty())
+        DQScales.resize(scaleSize, 1.0);
+    OPENVINO_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize,
+                    "set invalid scales size , DQScales vector size: ",
+                    DQScales.size(),
+                    ", scale data size: ",
+                    scaleSize,
+                    "Node: ##",
+                    getName());
+    if (scaleSize > DQScales.size())
+        DQScales.resize(scaleSize, DQScales[0]);
+    if (1 == scaleSize) {
+        std::transform(DQScales.begin(), DQScales.end(),  DQScales.begin(), [=](float val){ return (scaleData[0] * val); });
+     } else {
+         for (size_t i = 0; i < DQScales.size(); i++) {
+             DQScales[i] *= scaleData[i];
+         }
+     }
+     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
+        DQScales.resize(1);
+}
+
+int Node::inPlaceInputPort(int portIdx) const {
+    if (inputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
+
+    const auto& conf = selected_pd->getConfig();
+
+    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size()),
+                    "Wrong portIndx: ",
+                    portIdx,
+                    " acceptable interval: [0, ",
+                    conf.inConfs.size(),
+                    ")");
+
+    return conf.inConfs[portIdx].inPlace();
+}
+
+int Node::inPlaceOutPort(int portIdx) const {
+    if (outputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
+
+    const auto& conf = selected_pd->getConfig();
+
+    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size()),
+                    "Wrong portIndx: ",
+                    portIdx,
+                    " acceptable interval: [0, ",
+                    conf.outConfs.size(),
+                    ")");
+
+    return conf.outConfs[portIdx].inPlace();
+}
 }   // namespace intel_cpu
 }   // namespace ov

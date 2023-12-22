@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import absolute_import
@@ -24,8 +24,16 @@ class ONNXLoader(Loader):
     run_not_recursively = True
 
     def load(self, graph: Graph):
+        import onnx
+        import io
         argv = graph.graph['cmd_params']
-        model_proto = load_onnx_model(argv.input_model)
+        if isinstance(argv.input_model, str):
+            model_proto = load_onnx_model(argv.input_model)
+        elif isinstance(argv.input_model, io.BytesIO):
+            model_proto = onnx.load_model_from_string(argv.input_model.getvalue())
+        else:
+            raise Error('Unknown ONNX model type: {}'.format(type(argv.input_model)))
+
         model_graph = model_proto.graph  # pylint: disable=no-member
         # print(model_graph)
         # assert len(model_graph) == 1, "An ONNX model contains more than 1 graph: unsupported"

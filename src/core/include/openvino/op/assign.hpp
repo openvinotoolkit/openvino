@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset3", op::Sink, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Assign", "opset3", util::AssignBase);
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -35,8 +34,6 @@ public:
 
 private:
     std::string m_variable_id;
-    template <class T>
-    friend void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v3
 
@@ -45,8 +42,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset6", op::Sink, 6);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Assign", "opset6", util::AssignBase);
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -67,17 +63,11 @@ public:
         OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
         return m_variable->get_info().variable_id;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs,
-                  const HostTensorVector& inputs,
+    bool evaluate(TensorVector& outputs,
+                  const TensorVector& inputs,
                   const EvaluationContext& evaluation_context) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
-
-private:
-    template <class T>
-    friend void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

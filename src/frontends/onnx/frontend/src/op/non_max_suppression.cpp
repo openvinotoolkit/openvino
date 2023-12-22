@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "op/non_max_suppression.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -44,7 +45,7 @@ OutputVector non_max_suppression(const Node& node) {
     if (ng_inputs.size() > 4 && !is_null(ng_inputs.at(4))) {
         score_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(4));
     } else {
-        score_threshold = default_opset::Constant::create(element::f32, Shape{}, {.0f});
+        score_threshold = default_opset::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::max()});
     }
 
     const auto center_point_box = node.get_attribute_value<std::int64_t>("center_point_box", 0);
@@ -53,16 +54,16 @@ OutputVector non_max_suppression(const Node& node) {
                      center_point_box == 0 || center_point_box == 1,
                      "Allowed values of the 'center_point_box' attribute are 0 and 1.");
 
-    const auto box_encoding = center_point_box == 0 ? default_opset::NonMaxSuppression::BoxEncodingType::CORNER
-                                                    : default_opset::NonMaxSuppression::BoxEncodingType::CENTER;
+    const auto box_encoding = center_point_box == 0 ? ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER
+                                                    : ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER;
 
-    return {std::make_shared<default_opset::NonMaxSuppression>(boxes,
-                                                               scores,
-                                                               max_output_boxes_per_class,
-                                                               iou_threshold,
-                                                               score_threshold,
-                                                               box_encoding,
-                                                               false)};
+    return {std::make_shared<ov::op::v9::NonMaxSuppression>(boxes,
+                                                            scores,
+                                                            max_output_boxes_per_class,
+                                                            iou_threshold,
+                                                            score_threshold,
+                                                            box_encoding,
+                                                            false)};
 }
 
 }  // namespace set_1
@@ -72,3 +73,4 @@ OutputVector non_max_suppression(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

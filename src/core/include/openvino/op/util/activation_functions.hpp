@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    pragma warning(push)
-
 #    pragma warning(disable : 4100)
 #endif
 
@@ -22,7 +21,9 @@ namespace op {
 namespace util {
 namespace error {
 struct UnknownActivationFunction : Exception {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     UnknownActivationFunction(const std::string& func_name) : Exception{"Unknown activation function: " + func_name} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace error
 
@@ -81,6 +82,6 @@ ActivationFunction get_activation_func_by_name(const std::string& func_name);
 
 }  // namespace ov
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    pragma warning(pop)
 #endif

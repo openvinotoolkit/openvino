@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API VariadicSplit : public Op {
 public:
-    OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("VariadicSplit", "opset1", op::Op);
 
     /// \brief Constructs a variadic split operation.
     VariadicSplit() = default;
@@ -30,20 +29,17 @@ public:
     /// outputs. The sum of split_lengths must match data.shape[axis]
     VariadicSplit(const Output<Node>& data, const Output<Node>& axis, const Output<Node>& split_lengths);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     size_t get_default_output_index() const override {
         return no_default_index();
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    bool has_evaluate() const override;
 
-private:
-    bool evaluate_variadic_split(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+    bool has_evaluate() const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 };
 }  // namespace v1
 }  // namespace op

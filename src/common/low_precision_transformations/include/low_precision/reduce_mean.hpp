@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include "low_precision/reduce_base_transformation.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
 #include "layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -19,7 +19,7 @@ namespace low_precision {
  * @brief ReduceMeanTransformation propagates dequantization operations through ReduceMean operation.
  *
  * For more details about the transformation, refer to
- * [ReduceMeanTransformation](@ref openvino_docs_IE_DG_lpt_ReduceMeanTransformation) page
+ * [ReduceMeanTransformation](@ref openvino_docs_OV_UG_lpt_ReduceMeanTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
@@ -35,4 +35,4 @@ protected:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

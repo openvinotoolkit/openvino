@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +26,14 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
             auto image_size = input_image_sizes.at(0);
             if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
                 fillBlobImInfo<float>(inputBlob, batchSize, image_size);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::FP64) {
+                fillBlobImInfo<double>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
                 fillBlobImInfo<short>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
                 fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+                fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
                 fillBlobImInfo<uint8_t>(inputBlob, batchSize, image_size);
             } else {
@@ -40,10 +44,14 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
         // Fill random
         if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
             fillBlobRandom<float>(inputBlob);
+        } else if (item.second->getPrecision() == InferenceEngine::Precision::FP64) {
+            fillBlobRandom<double>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
             fillBlobRandom<short>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
             fillBlobRandom<int32_t>(inputBlob);
+        } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+            fillBlobRandom<int64_t>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
             fillBlobRandom<uint8_t>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {

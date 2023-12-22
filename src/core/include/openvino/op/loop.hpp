@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -31,8 +32,7 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp);
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
@@ -62,9 +62,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:
@@ -86,7 +84,6 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

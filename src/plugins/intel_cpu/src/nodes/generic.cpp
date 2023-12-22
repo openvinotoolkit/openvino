@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,25 +11,50 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache), ngraphOp(op) {
+namespace {
+/**
+ * Dummy Shape Inference while Generic op doesn't support Dynamism
+ *
+ */
+class GenericShapeInfer : public ShapeInferEmptyPads {
+public:
+    GenericShapeInfer() = default;
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        OPENVINO_THROW("Unexpected: Generic operations doesn't support shape inference.");
+        return {{}, ShapeInferStatus::skip};
+    }
+
+    port_mask_t get_port_mask() const override { return EMPTY_PORT_MASK; }
+};
+
+class GenericShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<GenericShapeInfer>();
+    }
+};
+} // namespace
+
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, GenericShapeInferFactory()), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {
     if (impls.empty()) {
-        IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << getTypeStr();
+        OPENVINO_THROW("Cannot get generic primitive for layer: ", getName(), " with type: ", getTypeStr());
     }
 }
 
 NodeConfig Generic::convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig) {
     NodeConfig config;
-    config.dynBatchSupport = layerConfig.dynBatchSupport;
     config.inConfs.resize(layerConfig.inConfs.size());
     for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace(layerConfig.inConfs[i].inPlace);
@@ -47,7 +72,6 @@ NodeConfig Generic::convertLayerToNodeConfig(const InferenceEngine::LayerConfig 
 
 InferenceEngine::LayerConfig Generic::convertNodeToLayerConfig(const NodeConfig &nodeConfig) {
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = nodeConfig.dynBatchSupport;
     config.inConfs.resize(nodeConfig.inConfs.size());
     for (size_t i = 0; i < nodeConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace = nodeConfig.inConfs[i].inPlace();
@@ -72,7 +96,7 @@ void Generic::initSupportedPrimitiveDescriptors() {
         std::vector<InferenceEngine::LayerConfig> configs;
         auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
+            OPENVINO_THROW(resp.msg);
         }
 
         for (auto& config : configs) {
@@ -80,18 +104,18 @@ void Generic::initSupportedPrimitiveDescriptors() {
         }
     }
     if (impls.empty()) {
-        IE_THROW() << "Layer " << getName() << " hasn't available configurations!";
+        OPENVINO_THROW("Layer ", getName(), " hasn't available configurations!");
     }
 }
 
 void Generic::createPrimitive() {
 }
 
-void Generic::execute(mkldnn::stream strm) {
+void Generic::execute(dnnl::stream strm) {
     if (!impls.empty()) {
         execLayer();
     } else {
-        IE_THROW() << "Descriptor for generic primitive doesn't exist";
+        OPENVINO_THROW("Descriptor for generic primitive doesn't exist");
     }
 }
 
@@ -120,7 +144,6 @@ void Generic::cleanup() {
 }
 
 void Generic::execLayer() {
-    bool isDynBatch = dynBatchLim > 0;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     std::vector<InferenceEngine::Blob::CPtr> constInputs;
     std::vector<InferenceEngine::TensorDesc> inputDescs;
@@ -129,18 +152,9 @@ void Generic::execLayer() {
         auto inputBlob = MemoryDescUtils::interpretAsBlob(getParentEdgeAt(i)->getMemory());
         inputs.push_back(inputBlob);
         constInputs.push_back(inputBlob);
-        if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
-            isDynBatch = false;
-        } else {
-            // TODO: Ask the right dims using getShape() from previous node
-            inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
-            if (inputDescs[inputDescs.size() - 1].getDims().size() > 0)
-                inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
-        }
+        // TODO: Ask the right dims using getShape() from previous node
+        inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
     }
-
-    // TODO: use ngraph-based extension mechnism if needed to recompute shape
-    isDynBatch = false;
 
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
@@ -149,7 +163,7 @@ void Generic::execLayer() {
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
     if (rc != InferenceEngine::OK) {
-        IE_THROW() << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
+        OPENVINO_THROW(this->getTypeStr(), ":", this->getName(), ": ", resp.msg);
     }
 }
 
@@ -163,10 +177,10 @@ void Generic::initDescriptor(const NodeConfig &config) {
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
+            OPENVINO_THROW(resp.msg);
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
-            if (t == selectedPrimitiveDescriptorIndex) {
+            if (t == static_cast<size_t>(selectedPrimitiveDescriptorIndex)) {
                 selectedImpl = impls[k];
             }
         }
@@ -180,7 +194,8 @@ void Generic::initDescriptor(const NodeConfig &config) {
         }
     }
     for (auto &outConf : rightConfig.outConfs) {
-        if (outConf.inPlace() < getParentEdges().size() &&
+        if (outConf.inPlace() < static_cast<int>(getParentEdges().size()) &&
+            outConf.inPlace() >= 0 &&
             getParentEdgeAt(static_cast<size_t>(outConf.inPlace()))->getParent()->getChildEdges().size() > 1) {
             outConf.inPlace(-1);
         }
@@ -192,7 +207,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
     auto ieConfig = convertNodeToLayerConfig(rightConfig);
     rc = impls[0]->init(ieConfig, &resp);
     if (rc != InferenceEngine::OK) {
-        IE_THROW() << resp.msg;
+        OPENVINO_THROW(resp.msg);
     }
     rightConfig = convertLayerToNodeConfig(ieConfig);
     auto descriptor = getSelectedPrimitiveDescriptor();

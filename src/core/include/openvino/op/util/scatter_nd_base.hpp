@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace util {
 class OPENVINO_API ScatterNDBase : public Op {
 public:
     OPENVINO_OP("ScatterNDBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     // Respective input ordinal number.
     static constexpr int INPUTS = 0;
     static constexpr int INDICES = 1;

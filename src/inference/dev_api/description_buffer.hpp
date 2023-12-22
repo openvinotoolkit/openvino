@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,13 @@
 #include "ie_common.h"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief      A description buffer wrapping StatusCode and ResponseDesc
  * @ingroup    ie_dev_api_error_debug
  */
-struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<char>> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<char>> {
     /**
      * @brief      Creeates a description buffer with parameters
      *
@@ -119,4 +120,5 @@ private:
         }
     }
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

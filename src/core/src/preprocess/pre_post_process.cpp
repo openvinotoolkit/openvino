@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -285,7 +285,8 @@ PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type
 }
 
 PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) {
-    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
+    OPENVINO_ASSERT(dst_height <= static_cast<size_t>(std::numeric_limits<int>::max()) &&
+                        dst_width <= static_cast<size_t>(std::numeric_limits<int>::max()),
                     "Resize: Width/Height dimensions cannot be greater than ",
                     std::to_string(std::numeric_limits<int>::max()));
     m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));

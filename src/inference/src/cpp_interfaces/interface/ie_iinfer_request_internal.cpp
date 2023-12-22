@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
+#include <ie_parallel.hpp>
 #include <map>
 #include <memory>
 #include <openvino/core/partial_shape.hpp>
@@ -38,7 +39,7 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
     : _parameters(inputs),
       _results(outputs) {
     const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
-        auto name = ngraph::op::util::get_ie_output_name(output);
+        auto name = ov::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
         SizeVector dims(1, 0);
@@ -64,6 +65,7 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
 
     for (const auto& param : _parameters) {
         const auto& input = create_old_input_data(param->output(0));
+        input->setName(param->get_friendly_name());
         _networkInputs[input->name()] = input;
     }
 
@@ -118,7 +120,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     DataPtr foundOutput;
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto input = findInputByNodeName(name);
-    const auto output = findInputByNodeName(name);
+    const auto output = findOutputByNodeName(name);
 
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
@@ -129,7 +131,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
     const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
-    const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
+    const bool isOutputDynamic = output && output->get_input_partial_shape(0).is_dynamic();
 
     size_t dataSize = userBlob->size();
     if (isInput) {
@@ -153,7 +155,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
                                    ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                                    : 1;
             if (!isInputDynamic && dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
+                IE_THROW() << "Input tensor size is not equal network input size (" << dataSize << "!=" << inputSize
                            << ").";
             }
             _inputs[name] = userBlob;
@@ -312,7 +314,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
         if (net) {
             remote_context = net->GetContext();
         }
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (remote_context) {
         mem_blob = remote_context->CreateHostBlob(batched_desc);
@@ -324,7 +326,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
     auto ptr = mem_blob->wmap();
 
     // Perform memory copy
-    for (size_t i = 0; i < batched_blob->size(); i++) {
+    InferenceEngine::parallel_for(batched_blob->size(), [&](size_t i) {
         const auto& blob = as<MemoryBlob>(batched_blob->getBlob(i));
         OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
         const auto& blob_desc = blob->getTensorDesc().getBlockingDesc();
@@ -346,7 +348,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
                blob->rmap().as<uint8_t*>() +
                    blob->getTensorDesc().getBlockingDesc().getOffsetPadding() * blob->element_size(),
                blob->byteSize());
-    }
+    });
     SetBlob(name, mem_blob);
 }
 
@@ -405,18 +407,6 @@ BatchedBlob::Ptr IInferRequestInternal::GetBlobs(const std::string& name) {
     return nullptr;
 }
 
-void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) {
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        foundInput->getPreProcess() = copyPreProcess(info);
-    } else {
-        IE_THROW() << "Pre-process can't be set to output blob";
-    }
-
-    SetBlob(name, data);
-}
-
 const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& name) const {
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
@@ -425,10 +415,6 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
     } else {
         IE_THROW() << "Output blob can't have pre-processing";
     }
-}
-
-void IInferRequestInternal::SetBatch(int batch) {
-    IE_THROW(NotImplemented);
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
@@ -458,7 +444,7 @@ void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& prep
         // using preconfigured resize algorithm.
         auto it = _preProcData.find(input.first);
         if (it != _preProcData.end()) {
-            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, m_curBatch);
+            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, -1);
         }
     }
 }
@@ -573,6 +559,14 @@ void IInferRequestInternal::setPointerToExecutableNetworkInternal(
 
 std::shared_ptr<IExecutableNetworkInternal> IInferRequestInternal::getPointerToExecutableNetworkInternal() const {
     return _exeNetwork;
+}
+
+void IInferRequestInternal::setPointerToSo(const std::shared_ptr<void>& so) {
+    _so = so;
+}
+
+std::shared_ptr<void> IInferRequestInternal::getPointerToSo() const {
+    return _so;
 }
 
 bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,

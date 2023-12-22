@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,18 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "conv.h"
+#include <memory>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
@@ -32,25 +33,25 @@
 #endif
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
 template <cpu_isa_t isa>
 struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
-    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
-            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
+    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
+        jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator(jit_name())  {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -63,10 +64,10 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
         for (int i = 0; i < end_idx; i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
                         this, post_op.eltwise, true, eltwise_reserved, mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
-                depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
+                depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this, post_op, mask_post_op_reserved));
             }
         }
@@ -183,20 +184,20 @@ private:
 
     reg64_t reg_shift = aux_reg_input;
 
-    Vmm vmm_scale = Vmm(isa == x64::avx512_common ? 30 : 14);
+    Vmm vmm_scale = Vmm(isa == x64::avx512_core ? 30 : 14);
     Vmm vmm_shift = Vmm(0);
-    Vmm vmm_sum = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_lookup = Vmm(isa == x64::avx512_common ? 28 : 12);
-    Vmm vmm_mask = Vmm(isa == x64::avx512_common ? 29 : 13);
-    Vmm vmm_one_u8 = Vmm(isa == x64::avx512_common ? 30 : 14);
-    Vmm vmm_one_s16 = Vmm(isa == x64::avx512_common ? 31 : 15);
-    Ymm ymm_tmp = Ymm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_tmp = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_tmp1 = Vmm(isa == x64::avx512_common ? 27 : 11);
+    Vmm vmm_sum = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_lookup = Vmm(isa == x64::avx512_core ? 28 : 12);
+    Vmm vmm_mask = Vmm(isa == x64::avx512_core ? 29 : 13);
+    Vmm vmm_one_u8 = Vmm(isa == x64::avx512_core ? 30 : 14);
+    Vmm vmm_one_s16 = Vmm(isa == x64::avx512_core ? 31 : 15);
+    Ymm ymm_tmp = Ymm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_tmp = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_tmp1 = Vmm(isa == x64::avx512_core ? 27 : 11);
     Vmm vmm_src = Vmm(0);
-    Vmm vmm_tmp2 = Vmm(isa == x64::avx512_common ? 25 : 9);
-    Vmm vmm_thr = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_out_mask = Vmm(isa == x64::avx512_common ? 30 : 14);
+    Vmm vmm_tmp2 = Vmm(isa == x64::avx512_core ? 25 : 9);
+    Vmm vmm_thr = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_out_mask = Vmm(isa == x64::avx512_core ? 30 : 14);
 
     const unsigned char _cmp_gt_os = 6;
 
@@ -210,10 +211,10 @@ private:
 
     Xbyak::Label l_table;
 
-    nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
-    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
-    void cvt2ps(mkldnn::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
+    void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
         Xmm xmm_in = Xmm(vmm_in.getIdx());
 
         switch (type_in) {
@@ -510,7 +511,7 @@ private:
 
         kh_loop(ur_w, pad_l, pad_r, oc_blocks, oc_step);
 
-        if (isa == x64::avx512_common && oc_step != jcp_.oc_block) {
+        if (isa == x64::avx512_core && oc_step != jcp_.oc_block) {
             int mask = (1 << oc_step) - 1;
             mov(reg_tmp_32, mask);
             kmovw(ktail_mask, reg_tmp_32);
@@ -586,8 +587,8 @@ private:
                         add(reg_d_weights, jcp_.oc_block * sizeof(float));
                     }
 
-                    depthwise_inj_idx++;
                     post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
+                    depthwise_inj_idx++;
 
                     push(reg_oc_off);
                 } else if (post_op.is_sum(false)) {
@@ -596,7 +597,7 @@ private:
                             Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
                             if (is_scalar_store) {
-                                if (isa == x64::avx512_common) {
+                                if (isa == x64::avx512_core) {
                                     int o_off =  jj * jcp_.oc * jcp_.ngroups;
 
                                     Vmm vmm_in = vmm_sum | ktail_mask | T_z;
@@ -636,6 +637,8 @@ private:
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
 
+            OPENVINO_ASSERT(binarization_idx >= 0, "postops don't contain binarization");
+
             pop(reg_oc_off);
 
             mov(reg_b_weights, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.weights_data));
@@ -655,7 +658,7 @@ private:
 
                         Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
-                        if (isa == x64::avx512_common) {
+                        if (isa == x64::avx512_core) {
                             vcmpps(bin_mask0, vmm_dst, vmm_thr, _cmp_gt_os);
                             vptestmd(bin_mask1, vmm_out_mask, vmm_out_mask);
                             kxnorw(bin_mask0, bin_mask0, bin_mask1);
@@ -665,7 +668,7 @@ private:
                         }
 
                         if (r == 0) {
-                            if (isa == x64::avx512_common) {
+                            if (isa == x64::avx512_core) {
                                 kmovw(reg_tmp_32, bin_mask0);
                             } else {
                                 uni_vmovmskps(reg_tmp_32, vmm_dst);
@@ -679,7 +682,7 @@ private:
                         }
 
                         if (r == repeats - 1) {
-                            if (isa == x64::avx512_common && oc_step > nbits) {
+                            if (isa == x64::avx512_core && oc_step > nbits) {
                                 const size_t o_off = (2 * ii + jj * div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_16);
                             } else {
@@ -698,7 +701,7 @@ private:
                     for (int jj = 0; jj < ur_w; jj++) {
                         Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
-                        if (isa == x64::avx512_common) {
+                        if (isa == x64::avx512_core) {
                             size_t o_off;
                             if (jcp_.with_dw_conv)
                                 o_off = jj * jcp_.oc_block;
@@ -874,21 +877,21 @@ private:
         }
     }
 };
-
-bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+#endif
+bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
 
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
             return false;
         }
-        if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
+        if (binConv->get_mode() != ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
+            errorMessage = "Doesn't support mode: " + ov::as_string(binConv->get_mode());
             return false;
         }
     } catch (...) {
@@ -897,25 +900,24 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
-                                                         const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (int i = 0; i < binConv->get_strides().size(); i++) {
+        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
             stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
         }
-        for (int i = 0; i < binConv->get_dilations().size(); i++) {
+        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
         }
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
 
-        if (mayiuse(x64::avx512_common)) {
+        if (mayiuse(x64::avx512_core)) {
             implType = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             implType = impl_desc_type::jit_avx2;
@@ -925,18 +927,15 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
             implType = impl_desc_type::ref;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void BinaryConvolution::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
-    int expectedInputEdgesNum = 2;
-    for (int i = 0; i < fusedWith.size(); i++) {
+    size_t expectedInputEdgesNum = 2;
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         auto *eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
@@ -945,21 +944,21 @@ void BinaryConvolution::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
 
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 }
 
@@ -970,7 +969,6 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.inConfs[0].constant(false);
     config.inConfs[0].inPlace(-1);
@@ -987,7 +985,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 
         //activation
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
 
         //weights
         size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512 ? 16 : 8; //memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
@@ -996,10 +994,10 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder));
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::u1, Shape(weiDims), weiBlockDims, weiOrder));
 
         //result
-        auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
+        auto outputPrecision = withBinarization ? ov::element::u1 : ov::element::f32;
         config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
         if (withSum) {
             config.inConfs.push_back(config.outConfs[0]);
@@ -1011,9 +1009,9 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
-        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0)));
-        config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1)));
-        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0)));
+        config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(1)));
+        config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 }
@@ -1021,7 +1019,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
 
     auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
@@ -1082,9 +1080,9 @@ void BinaryConvolution::createPrimitive() {
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(dstPrecision);
-    jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
-    jcp.typesize_out = dstPrecision == Precision::BIN ? 1 : dstPrecision.size();
+    jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(dstPrecision);
+    jcp.typesize_in = srcPrecision == ov::element::u1 ? 1 : srcPrecision.size();
+    jcp.typesize_out = dstPrecision == ov::element::u1 ? 1 : dstPrecision.size();
 
     int r_pad_no_tail = nstl::max(0, (jcp.ow - jcp.ur_w_tail - 1) * jcp.stride_w
                                      + (jcp.kw - 1) * (jcp.dilate_w + 1) - (jcp.iw + jcp.l_pad - 1));
@@ -1092,10 +1090,11 @@ void BinaryConvolution::createPrimitive() {
     bool args_ok = jcp.l_pad <= jcp.ur_w && (r_pad_no_tail <= jcp.ur_w) && (jcp.l_pad <= jcp.ur_w) &&
                    IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok)
-        IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
-
+        OPENVINO_THROW("BinaryConvolution with name '", getName(), "' has unsupported parameters");
+#if defined(OPENVINO_ARCH_X86_64)
+    jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_common>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::jit_avx2) {
         bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx2>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::sse42) {
@@ -1103,6 +1102,7 @@ void BinaryConvolution::createPrimitive() {
     }
     if (bin_conv_kernel)
         bin_conv_kernel->create_ker();
+#endif
 }
 
 bool BinaryConvolution::canFuse(const NodePtr& node) const {
@@ -1124,8 +1124,8 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
     }
 }
 
-void BinaryConvolution::setPostOps(mkldnn::primitive_attr &attr) {
-    mkldnn::post_ops ops;
+void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
@@ -1146,14 +1146,18 @@ void BinaryConvolution::setPostOps(mkldnn::primitive_attr &attr) {
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
 }
 
 void BinaryConvolution::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                                                   const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
+                                         const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_f32 = reinterpret_cast<float *>(dst);
 
     const int MB = jcp.mb;
@@ -1297,36 +1301,36 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
     });
 }
 
-void BinaryConvolution::execute(mkldnn::stream strm) {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+void BinaryConvolution::execute(dnnl::stream strm) {
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
-    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->getData());
+    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->getData());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->getData());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
-    for (int i = 0; i < srcStride.size(); i++) {
+    for (size_t i = 0; i < srcStride.size(); i++) {
         srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
-    auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto weiDesc = getParentEdgeAt(1)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
-    for (int i = 0; i < weightsStride.size(); i++) {
+    for (size_t i = 0; i < weightsStride.size(); i++) {
         weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> dstStride(dstDesc->getStrides().size());
-    for (int i = 0; i < dstStride.size(); i++) {
+    for (size_t i = 0; i < dstStride.size(); i++) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {

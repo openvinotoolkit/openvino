@@ -1,0 +1,9 @@
+[
+    {
+       "custom_attributes": {
+            "masks_node_prefix_name": "node_name"
+        },
+        "id": "ConfigBasedTestReplacement",
+        "match_kind": "general"
+    }
+]

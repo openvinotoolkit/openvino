@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "ngraph/validation_util.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -33,10 +34,12 @@ Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
 
 void validate_zero_point_type(const Node& onnx_node, const Output<ngraph::Node>& y_zero_point) {
     const auto& y_zero_point_et = y_zero_point.get_element_type();
-    CHECK_VALID_NODE(onnx_node,
-                     y_zero_point_et.is_static() && (y_zero_point_et == element::u8 || y_zero_point_et == element::i8),
-                     "\"y_zero_point\" input data type must be static and of 8-bit "
-                     "integer type.");
+    CHECK_VALID_NODE(
+        onnx_node,
+        y_zero_point_et.is_static() && (y_zero_point_et == element::u8 || y_zero_point_et == element::i8 ||
+                                        y_zero_point_et == element::u16 || y_zero_point_et == element::i16),
+        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u8, i8, u16 or i16"
+        "integer type.");
 }
 
 Output<ngraph::Node> validate_scale(const Node& onnx_node, const Output<ngraph::Node>& y_scale) {
@@ -64,12 +67,28 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_out
     std::shared_ptr<ngraph::Node> output_low;
     std::shared_ptr<ngraph::Node> output_high;
 
-    if (destination_type == element::i8) {
+    // These values could be used in a ConvertQuantizeDequantize transformation and
+    // should be aligned
+    switch (destination_type) {
+    case element::i8:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -128);
         output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 127);
-    } else {
+        break;
+    case element::u8:
         output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
         output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 255);
+        break;
+    case element::i16:
+        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -32768);
+        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 32767);
+        break;
+    case element::u16:
+        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
+        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 65535);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type for QuantizeLinear");
+        break;
     }
 
     return std::make_tuple(output_low, output_high);
@@ -88,13 +107,19 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    if (auto constant = ov::get_constant_from_source(input_low))
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (auto constant = ov::get_constant_from_source(input_low)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         input_low = constant;
+    }
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    if (auto constant = ov::get_constant_from_source(input_high))
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (auto constant = ov::get_constant_from_source(input_high)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         input_high = constant;
+    }
 
     return std::make_tuple(input_low, input_high);
 }
@@ -114,7 +139,7 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
     std::tie(input_low, input_high) =
         detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
 
-    const std::size_t levels = 1 << destination_type.bitwidth();
+    const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
 
     return std::make_shared<default_opset::Convert>(
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
@@ -152,7 +177,9 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = normalize_axis(node.get_description(), axis, x_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
@@ -199,9 +226,15 @@ OutputVector quantize_linear(const Node& node) {
                  "input. Got: ",
                  inputs.size());
 
-    const auto x = inputs[0];
-    auto scale = inputs[1];
-    auto zero_point = op::detail::get_zero_point(inputs);
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = op::detail::get_zero_point(inputs);
+
+    // per-tensor quantization, axis attribute ignored
+    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
+        zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
+        return set_1::quantize_linear(node);
+    }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
@@ -212,3 +245,4 @@ OutputVector quantize_linear(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

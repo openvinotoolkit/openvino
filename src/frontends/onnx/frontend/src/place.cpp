@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,20 @@ using namespace ov::frontend::onnx;
 
 PlaceInputEdge::PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
 
 PlaceInputEdge::PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{std::move(edge)},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
+
+void PlaceInputEdge::check_if_valid() const {
+    FRONT_END_GENERAL_CHECK(m_editor->get_source_tensor_name(m_edge) == m_initial_source_tensor_name,
+                            "The place ",
+                            get_names().at(0),
+                            " is outdated since the topology of the model has been changed.");
+}
 
 onnx_editor::InputEdge PlaceInputEdge::get_input_edge() const {
     return m_edge;
@@ -26,6 +35,7 @@ std::vector<std::string> PlaceInputEdge::get_names() const {
 }
 
 bool PlaceInputEdge::is_input() const {
+    check_if_valid();
     return m_editor->is_input(m_edge);
 }
 
@@ -34,6 +44,9 @@ bool PlaceInputEdge::is_output() const {
 }
 
 bool PlaceInputEdge::is_equal(const Place::Ptr& another) const {
+    if (m_editor->get_source_tensor_name(m_edge) != m_initial_source_tensor_name) {
+        return false;
+    }
     if (const auto in_edge = std::dynamic_pointer_cast<PlaceInputEdge>(another)) {
         const auto& editor_edge = in_edge->get_input_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
@@ -46,10 +59,12 @@ bool PlaceInputEdge::is_equal_data(const Place::Ptr& another) const {
 }
 
 ov::frontend::Place::Ptr PlaceInputEdge::get_source_tensor() const {
+    check_if_valid();
     return std::make_shared<PlaceTensor>(m_editor->get_source_tensor_name(m_edge), m_editor);
 }
 
 std::vector<ov::frontend::Place::Ptr> PlaceInputEdge::get_consuming_operations() const {
+    check_if_valid();
     return {std::make_shared<PlaceOp>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor)};
 }
 
@@ -64,11 +79,21 @@ ov::frontend::Place::Ptr PlaceInputEdge::get_producing_port() const {
 PlaceOutputEdge::PlaceOutputEdge(const onnx_editor::OutputEdge& edge,
                                  std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_target_tensor_name{m_editor->get_target_tensor_name(edge)} {}
 
 PlaceOutputEdge::PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{std::move(edge)},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_target_tensor_name{m_editor->get_target_tensor_name(m_edge)} {}
+
+void PlaceOutputEdge::check_if_valid() const {
+    bool is_valid_place = m_editor->get_target_tensor_name(m_edge) == m_initial_target_tensor_name;
+    FRONT_END_GENERAL_CHECK(is_valid_place,
+                            "The place ",
+                            get_names().at(0),
+                            " is outdated since the topology of the model has been changed.");
+}
 
 onnx_editor::OutputEdge PlaceOutputEdge::get_output_edge() const {
     return m_edge;
@@ -83,10 +108,14 @@ bool PlaceOutputEdge::is_input() const {
 }
 
 bool PlaceOutputEdge::is_output() const {
+    check_if_valid();
     return m_editor->is_output(m_edge);
 }
 
 bool PlaceOutputEdge::is_equal(const Place::Ptr& another) const {
+    if (m_editor->get_target_tensor_name(m_edge) != m_initial_target_tensor_name) {
+        return false;
+    }
     if (const auto out_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(another)) {
         const auto& editor_edge = out_edge->get_output_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
@@ -99,6 +128,7 @@ bool PlaceOutputEdge::is_equal_data(const Place::Ptr& another) const {
 }
 
 ov::frontend::Place::Ptr PlaceOutputEdge::get_target_tensor() const {
+    check_if_valid();
     return std::make_shared<PlaceTensor>(m_editor->get_target_tensor_name(m_edge), m_editor);
 }
 
@@ -107,6 +137,7 @@ std::vector<ov::frontend::Place::Ptr> PlaceOutputEdge::get_consuming_ports() con
 }
 
 ov::frontend::Place::Ptr PlaceOutputEdge::get_producing_operation() const {
+    check_if_valid();
     return std::make_shared<PlaceOp>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor);
 }
 
@@ -199,11 +230,21 @@ void PlaceTensor::set_name_for_dimension(size_t shape_dim_index, const std::stri
 
 PlaceOp::PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{node},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
 
 PlaceOp::PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{std::move(node)},
-      m_editor{std::move(editor)} {}
+      m_editor{std::move(editor)},
+      m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
+
+void PlaceOp::check_if_valid() const {
+    FRONT_END_GENERAL_CHECK(m_editor->is_correct_and_unambiguous_node(m_node) &&
+                                m_editor->get_output_ports(m_node).at(0) == m_initial_first_output,
+                            "The place ",
+                            get_names().at(0),
+                            " is outdated since the topology of the model has been changed.");
+}
 
 std::vector<std::string> PlaceOp::get_names() const {
     if (!m_node.m_node_name.empty()) {
@@ -225,7 +266,9 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port() const {
 }
 
 ov::frontend::Place::Ptr PlaceOp::get_output_port(int output_port_index) const {
-    if (output_port_index < m_editor->get_output_ports(m_node).size()) {
+    check_if_valid();
+    const int out_ports_number = static_cast<int>(m_editor->get_output_ports(m_node).size());
+    if (output_port_index < out_ports_number) {
         return std::make_shared<PlaceOutputEdge>(
             m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index}),
             m_editor);
@@ -234,6 +277,7 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port(int output_port_index) const {
 }
 
 ov::frontend::Place::Ptr PlaceOp::get_output_port(const std::string& output_port_name) const {
+    check_if_valid();
     const auto output_ports = m_editor->get_output_ports(m_node);
     if (std::count(std::begin(output_ports), std::end(output_ports), output_port_name) == 1) {
         return std::make_shared<PlaceOutputEdge>(
@@ -251,7 +295,9 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port() const {
 }
 
 ov::frontend::Place::Ptr PlaceOp::get_input_port(int input_port_index) const {
-    if (input_port_index < m_editor->get_input_ports(m_node).size()) {
+    check_if_valid();
+    const int in_ports_number = static_cast<int>(m_editor->get_input_ports(m_node).size());
+    if (input_port_index < in_ports_number) {
         return std::make_shared<PlaceInputEdge>(
             m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index}),
             m_editor);
@@ -260,6 +306,7 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(int input_port_index) const {
 }
 
 ov::frontend::Place::Ptr PlaceOp::get_input_port(const std::string& input_name) const {
+    check_if_valid();
     const auto input_ports = m_editor->get_input_ports(m_node);
     if (std::count(std::begin(input_ports), std::end(input_ports), input_name) == 1) {
         return std::make_shared<PlaceInputEdge>(m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_name}),
@@ -270,8 +317,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(const std::string& input_name) 
 
 std::vector<ov::frontend::Place::Ptr> PlaceOp::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
-    const auto out_ports_size = m_editor->get_output_ports(m_node).size();
-    for (int out_idx = 0; out_idx < out_ports_size; ++out_idx) {
+    const auto out_ports_number = static_cast<int>(m_editor->get_output_ports(m_node).size());
+    for (int out_idx = 0; out_idx < out_ports_number; ++out_idx) {
         auto consuming_ops_out = get_output_port(out_idx)->get_consuming_ports();
         consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
     }
@@ -332,6 +379,10 @@ ov::frontend::Place::Ptr PlaceOp::get_producing_operation(const std::string& inp
 }
 
 bool PlaceOp::is_equal(const Place::Ptr& another) const {
+    if (m_editor->is_correct_and_unambiguous_node(m_node) &&
+        m_editor->get_output_ports(m_node).at(0) != m_initial_first_output) {
+        return false;
+    }
     if (const auto place_op = std::dynamic_pointer_cast<PlaceOp>(another)) {
         const auto& another_node = place_op->get_editor_node();
         if (m_editor->is_correct_and_unambiguous_node(m_node) ||

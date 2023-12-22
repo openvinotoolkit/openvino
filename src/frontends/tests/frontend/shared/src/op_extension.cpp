@@ -1,15 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op_extension.hpp"
 
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/frontend/extension/op.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/runtime/core.hpp>
-
+#include "openvino/runtime/core.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -20,7 +15,6 @@ std::string FrontEndOpExtensionTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndOpExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     initParamTest();
 }
 

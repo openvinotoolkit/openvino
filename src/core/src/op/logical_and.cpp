@@ -1,83 +1,51 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/logical_and.hpp"
+
 #include "itt.hpp"
-#include "ngraph/op/and.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/and.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/reference/and.hpp"
+#include "utils.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v1::LogicalAnd);
-
-op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
-                               const Output<Node>& arg1,
-                               const AutoBroadcastSpec& auto_broadcast)
+namespace ov {
+namespace op {
+namespace v1 {
+LogicalAnd::LogicalAnd(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::LogicalAnd::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_visit_attributes);
-    BinaryElementwiseLogical::visit_attributes(visitor);
-    return true;
-}
-
-shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_clone_with_new_inputs);
+std::shared_ptr<Node> LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v1_LogicalAnd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
+    return std::make_shared<LogicalAnd>(new_args.at(0), new_args.at(1), get_autob());
 }
 
-namespace logand {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::logical_and(arg0->get_data_ptr<ET>(),
-                                    arg1->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg0->get_shape(),
-                                    arg1->get_shape(),
-                                    broadcast_spec);
-    return true;
-}
+bool LogicalAnd::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_LogicalAnd_evaluate);
+    OPENVINO_ASSERT(outputs.size() == 1);
 
-bool evaluate_logand(const HostTensorPtr& arg0,
-                     const HostTensorPtr& arg1,
-                     const HostTensorPtr& out,
-                     const op::AutoBroadcastSpec& broadcast_spec) {
-    bool rc = true;
-    out->set_broadcast(broadcast_spec, arg0, arg1);
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace logand
+    outputs[0].set_shape(infer_broadcast_shape(this, inputs));
 
-bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
-    return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
-}
-
-bool op::v1::LogicalAnd::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
+    if (inputs[0].get_element_type() == element::boolean) {
+        using T = fundamental_type_for<element::boolean>;
+        reference::logical_and(inputs[0].data<const T>(),
+                               inputs[1].data<const T>(),
+                               outputs[0].data<T>(),
+                               inputs[0].get_shape(),
+                               inputs[1].get_shape(),
+                               get_autob());
         return true;
-    default:
-        break;
+    } else {
+        return false;
     }
-    return false;
 }
+
+bool LogicalAnd::has_evaluate() const {
+    OV_OP_SCOPE(v1_LogicalAnd_has_evaluate);
+    return get_input_element_type(0) == element::boolean;
+}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

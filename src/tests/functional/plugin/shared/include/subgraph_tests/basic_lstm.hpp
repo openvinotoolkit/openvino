@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
                                                   InferenceEngine::SizeVector({1, hidden_size}),
                                                   InferenceEngine::Layout::NC);
     // Reshape
-    auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, third_dim} });
-    function->replace_parameter(0, params[0]);
+    auto params = std::make_shared<ov::op::v0::Parameter>(function->get_parameters().at(0)->get_element_type(), ov::Shape{1, third_dim});
+    function->replace_parameter(0, params);
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()
     std::vector<uint64_t> outFormShapes1 = { 1, 1, third_dim };
-    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
+    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
     auto param_target_inputs = function->get_parameters().at(0)->output(0).get_target_inputs();
 
     // replace hardcoded shape

@@ -13,7 +13,7 @@
 #
 #   cython_add_module( <module_name> <src1> <src2> ... <srcN> )
 #
-# To avoid dependence on Python, set the PYTHON_LIBRARY cache variable to point
+# To avoid dependence on Python, set the Python3_LIBRARY cache variable to point
 # to a static library.  If a MAIN_MODULE source is specified,
 # the "if __name__ == '__main__':" from that module is used as the C main() method
 # for the executable.  If MAIN_MODULE, the source with the same basename as
@@ -42,7 +42,7 @@
 #
 # See also FindCython.cmake
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,8 +89,7 @@ find_package( Cython REQUIRED
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
 
-find_package(PythonInterp 3 REQUIRED)
-find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -234,7 +233,7 @@ function( compile_pyx _name generated_file )
 
   set( cython_debug_arg "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:--gdb>" )
 
-  if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
+  if( Python3_VERSION_MAJOR EQUAL 3 )
     set( version_arg "-3" )
   else()
     set( version_arg )
@@ -285,12 +284,15 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  include_directories( ${PYTHON_INCLUDE_DIRS} )
-  python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
-  # set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
+  python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
+  # Python3_SOABI is not defined during cross-compilation
+  if (Python3_SOABI AND NOT PYTHON_MODULE_EXTENSION MATCHES "^\.${Python3_SOABI}.+$")
+    message(FATAL_ERROR "Python3_SOABI (${Python3_SOABI}) and PYTHON_MODULE_EXTENSION (${PYTHON_MODULE_EXTENSION}) are not matching")
+  endif()
+  pybind11_extension( ${_name} )
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   else()
-    target_link_libraries( ${_name} PRIVATE ${PYTHON_LIBRARIES} )
+    target_link_libraries( ${_name} PRIVATE ${Python3_LIBRARIES} )
   endif()
 endfunction()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@ struct jit_args_logistic {
 };
 
 struct jit_logistic_config_params {
-    InferenceEngine::Precision src_dt;
-    InferenceEngine::Precision dst_dt;
+    ov::element::Type src_dt;
+    ov::element::Type dst_dt;
     unsigned src_data_size = 0;
     unsigned dst_data_size = 0;
 };
@@ -41,19 +41,19 @@ struct jit_uni_logistic_kernel {
 
 class RegionYolo : public Node {
 public:
-    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:
     int classes;
@@ -61,12 +61,12 @@ private:
     int num;
     float do_softmax;
     std::vector<int64_t> mask;
-    InferenceEngine::Precision input_prec, output_prec;
+    ov::element::Type input_prec, output_prec;
 
     std::string errorPrefix;
 
     int block_size;
-    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel;
+    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
 
     union U {

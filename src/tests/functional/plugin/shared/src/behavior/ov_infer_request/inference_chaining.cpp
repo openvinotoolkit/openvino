@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,11 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/core/model.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {
 namespace test {
@@ -34,15 +35,18 @@ std::string OVInferenceChaining::getTestCaseName(const testing::TestParamInfo<In
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
     params[1]->set_friendly_name("param_1");
     params[2]->get_output_tensor(0).set_names({"input_tensor_2"});
     params[2]->set_friendly_name("param_2");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise2 = ngraph::builder::makeEltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise2 = ov::test::utils::make_eltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
     eltwise2->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise2->set_friendly_name("result_0");
 
@@ -50,12 +54,15 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov:
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
     params[1]->set_friendly_name("param_1");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::MULTIPLY);
     eltwise->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise->set_friendly_name("result_0");
 
@@ -63,7 +70,10 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape, shape});
+    ov::ParameterVector params;
+    for (auto&& sp : {shape, shape, shape, shape}) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
+    }
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -72,9 +82,9 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
     params[2]->set_friendly_name("param_2");
     params[3]->get_output_tensor(0).set_names({"input_tensor_3"});
     params[3]->set_friendly_name("param_3");
-    auto eltwise = ngraph::builder::makeEltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise2 = ngraph::builder::makeEltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
-    auto eltwise3 = ngraph::builder::makeEltwise(eltwise2, params[3], ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto eltwise = ov::test::utils::make_eltwise(params[0], params[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise2 = ov::test::utils::make_eltwise(eltwise, params[2], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise3 = ov::test::utils::make_eltwise(eltwise2, params[3], ngraph::helpers::EltwiseTypes::MULTIPLY);
     eltwise3->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise3->set_friendly_name("result_0");
 
@@ -83,9 +93,9 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
 
 void OVInferenceChaining::Run() {
     ov::CompiledModel execNet0, execNet1, execNet2;
-    OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, targetDevice, configuration));
-    OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, targetDevice, configuration));
-    OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, targetDevice, configuration));
+    OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, target_device, configuration));
+    OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, target_device, configuration));
+    OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, target_device, configuration));
 
     ov::InferRequest r0, r1, r2;
     OV_ASSERT_NO_THROW(r0 = execNet0.create_infer_request());
@@ -134,7 +144,19 @@ void OVInferenceChaining::Run() {
     }
 }
 
+// DEPRECATED VERSION
 TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    function0 = getFirstStaticFunction();
+    function1 = getSecondStaticFunction();
+    function2 = getThirdStaticFunction();
+
+    Run();
+}
+
+TEST_P(OVInferenceChainingStatic, StaticOutputToStaticInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 

@@ -1,10 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/util/nms_base.hpp"
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
+#include "ngraph/op/util/multiclass_nms_base.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 
 namespace ngraph {
@@ -12,5 +22,8 @@ namespace op {
 namespace v8 {
 using ov::op::v8::MulticlassNms;
 }  // namespace v8
+namespace v9 {
+using ov::op::v9::MulticlassNms;
+}  // namespace v9
 }  // namespace op
 }  // namespace ngraph

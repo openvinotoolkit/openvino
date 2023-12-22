@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,14 @@ namespace node {
 
 class ShuffleChannels : public Node {
 public:
-    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ShuffleChannels(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~ShuffleChannels() override = default;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     void prepareParams() override;
@@ -42,7 +42,7 @@ public:
     };
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     ShuffleChannelsAttributes attrs;
@@ -57,8 +57,6 @@ private:
     };
     using executorPtr = std::shared_ptr<ShuffleChannelsExecutor>;
     executorPtr execPtr = nullptr;
-
-    bool supportDynamicBatch = false;
 };
 
 }   // namespace node

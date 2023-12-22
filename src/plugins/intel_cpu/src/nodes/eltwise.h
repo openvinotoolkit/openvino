@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
+#include "executors/eltwise_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,8 +23,8 @@ struct jit_eltwise_params {
     size_t inputs_number;
     size_t input_size;
 
-    InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc[MAX_ELTWISE_INPUTS];
+    ov::element::Type dst_prc;
 
     VectorDims dims;
     VectorDims src_offsets[MAX_ELTWISE_INPUTS];
@@ -35,6 +36,7 @@ struct jit_eltwise_params {
     size_t oc_size;
 
     size_t work_amount;
+    bool use_runtime_ptrs;
 };
 
 struct jit_eltwise_call_args_ptrs {
@@ -42,6 +44,11 @@ struct jit_eltwise_call_args_ptrs {
     void *dst_ptr;
     //ptr to array of post op inputs pointers (flat list)
     const void** post_op_data;
+
+    // shape agnostic kernel
+    size_t work_amount;
+    const void *src_offsets[MAX_ELTWISE_INPUTS];
+    const void *dst_offsets;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -66,11 +73,17 @@ struct jit_uni_eltwise_kernel {
     jit_eltwise_params jep_;
 };
 
+enum class EltwiseImplType {
+    reference = 0,
+    optimized = 1,
+    optimizedShapeAgnostic = 2
+};
+
 class Eltwise : public Node {
 public:
     struct EltwiseData {
         Algorithm algo;
-        mkldnn::algorithm onednnAlgorithm;
+        dnnl::algorithm onednnAlgorithm;
         float alpha;
         float beta;
         float gamma;
@@ -90,37 +103,35 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const NodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
 
-    mkldnn::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
+    dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
 
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-    void setDynamicBatchLim(int lim) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     enum BroadcastingPolicy {
         PerChannel,
@@ -130,23 +141,33 @@ public:
 
     BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     executorPtr execPtr = nullptr;
     BroadcastingPolicy broadcastingPolicy;
 
-    mkldnn::algorithm onednnAlgorithm = mkldnn::algorithm::undef;
+    dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
-    bool canUseOptimizedImpl = false;
-    bool isDynBatchEnabled = false;
+    EltwiseImplType implType = EltwiseImplType::reference;
+    std::vector<bool> broadcastPolicy;
     bool specialConvolutionAddFusing = false;
     size_t inputNum = 0;
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
 
+    std::vector<ov::element::Type> inpPrc;
+    ov::element::Type outPrc;
+
     // blocked dims for which kernel compiled and params prepared
     std::vector<VectorDims> currentInBlkDims = {};
+
+    // shape agnostic kernel
+    struct {
+        VectorDims outDims;
+        std::vector<VectorDims> inOffsets;
+        VectorDims outOffsets;
+    } execParams;
 
     float alpha = 0;
     float beta = 0;
@@ -164,18 +185,32 @@ private:
     std::vector<MemoryPtr> memPtrs = {};
     std::vector<const void*> fqDataPtrs;
 
-    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, Eltwise& node)>;
-    static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
+    using Initializer = std::function<void(const std::shared_ptr<ov::Node>&, Eltwise& node)>;
+    static const std::map<const ov::DiscreteTypeInfo, Initializer>& getInitializers();
 
-    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
+    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op);
 
     size_t getOpInputsNum() const;
 
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem, const int channelAxis = 1);
 
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+
+    bool canUseAclExecutor = false;
+    EltwiseAttrs eltwiseAttrs;
+    std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
+};
+
+class eltwise_precision_helper {
+public:
+    static ov::element::Type get_precision(const size_t inputs_number,
+                                                    const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
+                                                    const std::vector<Eltwise::EltwiseData>& eltwise_data);
+
+private:
+    static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
 };
 
 }   // namespace node

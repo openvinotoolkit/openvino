@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/bucketize.hpp"
 
 namespace LayerTestsDefinitions {
-
     std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
@@ -18,8 +17,8 @@ namespace LayerTestsDefinitions {
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-        result << "BS=" << CommonTestUtils::vec2str(bucketsShape) << "_";
+        result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+        result << "BS=" << ov::test::utils::vec2str(bucketsShape) << "_";
         if (with_right_bound)
             result << "rightIntervalEdge_";
         else
@@ -57,11 +56,11 @@ namespace LayerTestsDefinitions {
         auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
         auto ngInBucketsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inBucketsPrc);
         auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
-        auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
+        auto data = std::make_shared<ov::op::v0::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
         data->set_friendly_name("a_data");
-        auto buckets = std::make_shared<ngraph::op::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
+        auto buckets = std::make_shared<ov::op::v0::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
         buckets->set_friendly_name("b_buckets");
-        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
+        auto bucketize = std::make_shared<ov::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
     }
 } // namespace LayerTestsDefinitions

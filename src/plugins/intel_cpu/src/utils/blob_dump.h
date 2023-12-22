@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,9 +28,8 @@ class BlobDumper {
 public:
     BlobDumper() = default;
     BlobDumper(const DnnlBlockedMemoryDesc &desc) {
-        mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
-        memory = std::make_shared<Memory>(eng);
-        memory->Create(desc);
+        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+        memory = std::make_shared<Memory>(eng, desc);
     }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;
@@ -47,7 +46,7 @@ public:
     void dumpAsTxt(std::ostream &stream) const;
 
     void *getDataPtr() const {
-        return memory->GetPtr();
+        return memory->getData();
     }
 };
 

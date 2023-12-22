@@ -1,41 +1,140 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "resample_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
+
+#include "interpolate_shape_inference.hpp"
 #include "json_object.h"
+#include "memory_accessor.hpp"
+#include "primitive_type_base.h"
+#include "resample_inst.h"
 
 namespace cldnn {
-primitive_type_id resample::type_id() {
-    static primitive_type_base<resample> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(resample)
 
-layout resample_inst::calc_output_layout(resample_node const& node) {
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<resample>();
+    auto input_layout = impl_param.get_input_layout();
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample_type::nearest) {
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
         output_type = data_types::f32;
     }
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto result_sizes = desc->output_size;
-
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.size.batch[0], "output batch size", result_sizes.batch[0], "");
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.size.feature[0], "output feature size", result_sizes.feature[0], "");
-
-    auto result = layout({output_type, input_layout.format, result_sizes});
-    return result;
+    return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
+                                 layout({desc->sizes, output_type, input_layout.format});
 }
+
+namespace v4 {
+template<typename ShapeType>
+static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<resample>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto input_shape = input_layout.get<ShapeType>();
+    size_t input_rank = input_shape.size();
+
+    ov::op::v4::Interpolate op;
+    op.set_attrs(desc->get_attrs());
+
+    ShapeType sizes_shape = desc->sizes.empty() ? ov::Shape{ input_rank }
+                                                : ov::Shape{ desc->sizes.size() };
+    ShapeType scales_shape = desc->scales.empty() ? ov::Shape{input_rank} : ov::Shape{desc->scales.size()};
+    std::vector<ShapeType> input_shapes = {input_shape, sizes_shape, scales_shape};
+
+    std::unordered_map<size_t, ov::Tensor> tensors;
+
+    auto sizes = desc->sizes;
+    if (!sizes.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{sizes.size()}, sizes.data()));
+    }
+
+    auto scales = desc->scales;
+    if (!scales.empty()) {
+        tensors.emplace(2, ov::Tensor(ov::element::f32, ov::Shape{scales.size()}, scales.data()));
+    }
+
+    auto axes = desc->axes;
+    if (!axes.empty()) {
+        auto axes_shape = ov::Shape{axes.size()};
+        input_shapes.push_back(axes_shape);
+        tensors.emplace(3, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
+    }
+
+    auto& memory_deps = impl_param.memory_deps;
+    const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
+
+    auto pads_begin = desc->pads_begin;
+    auto pads_end = desc->pads_end;
+    const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
+
+    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+}
+} // namespace v4
+
+namespace v11 {
+template<typename ShapeType>
+static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<resample>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto input_shape = input_layout.get<ShapeType>();
+    size_t input_rank = input_shape.size();
+
+    ov::op::v11::Interpolate op;
+    op.set_attrs(desc->get_attrs());
+
+    ShapeType sizes_or_scales_shape;
+    if (!desc->sizes.empty()) {
+        sizes_or_scales_shape = ov::Shape{ desc->sizes.size() };
+    } else if (!desc->scales.empty()) {
+        sizes_or_scales_shape = ov::Shape{ desc->scales.size() };
+    } else {
+        sizes_or_scales_shape = ov::Shape{ input_rank };
+    }
+    std::vector<ShapeType> input_shapes = {input_shape, sizes_or_scales_shape};
+
+    std::unordered_map<size_t, ov::Tensor> tensors;
+
+    auto sizes = desc->sizes;
+    auto scales = desc->scales;
+    if (!sizes.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{sizes.size()}, sizes.data()));
+    } else if (!scales.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::f32, ov::Shape{scales.size()}, scales.data()));
+    }
+    auto axes = desc->axes;
+    if (!axes.empty()) {
+        auto axes_shape = ov::Shape{axes.size()};
+        input_shapes.push_back(axes_shape);
+        tensors.emplace(2, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
+    }
+
+    auto& memory_deps = impl_param.memory_deps;
+    const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
+
+    auto pads_begin = desc->pads_begin;
+    auto pads_end = desc->pads_end;
+    const auto output_shapes = ov::op::v11::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
+
+    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+}
+} // namespace v11
+
+template<typename ShapeType>
+std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node, const kernel_impl_params& impl_param) {
+    using Mode = ov::op::util::InterpolateBase::InterpolateMode;
+    auto desc = impl_param.typed_desc<resample>();
+    if (desc->operation_type == Mode::BILINEAR_PILLOW || desc->operation_type == Mode::BICUBIC_PILLOW)
+        return v11::calc_output_layouts<ShapeType>(node, impl_param);
+    else
+        return v4::calc_output_layouts<ShapeType>(node, impl_param);
+}
+
+template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
 
 std::string resample_inst::to_string(resample_node const& node) {
     auto desc = node.get_primitive();
@@ -44,76 +143,60 @@ std::string resample_inst::to_string(resample_node const& node) {
     std::stringstream primitive_description;
 
     json_composite resample_info;
-    if (desc->operation_type == resample_type::nearest)
+    if (desc->operation_type == resample::InterpolateOp::InterpolateMode::NEAREST)
         resample_info.add("resample_type:", "nearest_neighbor");
-    else if (desc->operation_type == resample_type::bilinear)
-        resample_info.add("resample_type:", "bilinear_interp");
-    else if (desc->operation_type == resample_type::caffe_bilinear)
+    else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::LINEAR)
         resample_info.add("resample_type:", "caffe_bilinear_interp");
-    else if (desc->operation_type == resample_type::cubic)
+    else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::CUBIC)
         resample_info.add("resample_type:", "cubic");
-    else if (desc->operation_type == resample_type::linear_onnx)
+    else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::LINEAR_ONNX)
         resample_info.add("resample_type:", "linear_onnx");
     else
         resample_info.add("resample_type:", "not supported sample type");
 
-    if (desc->shape_calc_mode == shape_calculation_mode::sizes)
+    if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SIZES)
         resample_info.add("shape_calculation_mode:", "sizes");
     else
         resample_info.add("shape_calculation_mode:", "scales");
 
-    if (desc->shape_calc_mode == shape_calculation_mode::scales) {
+    if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES) {
         std::string axesAndScalesDump;
         std::string delim = "";
-        for (auto& it : desc->axesAndScales) {
+        for (size_t i = 0; i < desc->axes.size(); i++) {
             axesAndScalesDump += delim;
             delim = ", ";
-            if (it.first == resample::resample_axis::along_b)
-                axesAndScalesDump += "b: ";
-            else if (it.first == resample::resample_axis::along_f)
-                axesAndScalesDump += "f: ";
-            else if (it.first == resample::resample_axis::along_x)
-                axesAndScalesDump += "x: ";
-            else if (it.first == resample::resample_axis::along_y)
-                axesAndScalesDump += "y: ";
-            else if (it.first == resample::resample_axis::along_z)
-                axesAndScalesDump += "z: ";
-            else
-                axesAndScalesDump += "w: ";
-            axesAndScalesDump += std::to_string(it.second);
+            axesAndScalesDump += std::to_string(desc->axes[i]) + ": ";
+            if (desc->scales.size() > i)
+                axesAndScalesDump += std::to_string(desc->scales[i]);
         }
         resample_info.add("scales:", axesAndScalesDump);
     }
 
-    if (desc->coord_trans_mode == coordinate_transformation_mode::half_pixel)
+    if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL)
         resample_info.add("coordinate_transformation_mode:", "half_pixel");
-    else if (desc->coord_trans_mode == coordinate_transformation_mode::pytorch_half_pixel)
+    else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL)
         resample_info.add("coordinate_transformation_mode:", "pytorch_half_pixel");
-    else if (desc->coord_trans_mode == coordinate_transformation_mode::tf_half_pixel_for_nn)
+    else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN)
         resample_info.add("coordinate_transformation_mode:", "tf_half_pixel_for_nn");
-    else if (desc->coord_trans_mode == coordinate_transformation_mode::align_corners)
+    else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS)
         resample_info.add("coordinate_transformation_mode:", "align_corners");
     else
         resample_info.add("coordinate_transformation_mode:", "asymmetric");
 
-    if (desc->round_mode == nearest_mode::round_prefer_floor)
+    if (desc->round_mode == resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR)
         resample_info.add("nearest_mode:", "round_prefer_floor");
-    if (desc->round_mode == nearest_mode::round_prefer_ceil)
+    if (desc->round_mode == resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL)
         resample_info.add("nearest_mode:", "round_prefer_ceil");
-    if (desc->round_mode == nearest_mode::floor)
+    if (desc->round_mode == resample::InterpolateOp::NearestMode::FLOOR)
         resample_info.add("nearest_mode:", "floor");
-    if (desc->round_mode == nearest_mode::ceil)
+    if (desc->round_mode == resample::InterpolateOp::NearestMode::CEIL)
         resample_info.add("nearest_mode:", "ceil");
     else
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("output padding lower size", desc->output_padding.lower_size());
-    resample_info.add("output padding upper size", desc->output_padding.upper_size());
-
-    if (desc->operation_type == resample_type::bilinear) {
-        resample_info.add("align_corners", desc->align_corners);
-    }
+    resample_info.add("output padding lower size", desc->output_paddings[0].lower_size());
+    resample_info.add("output padding upper size", desc->output_paddings[0].upper_size());
 
     node_info->add("resample_info", resample_info);
     node_info->dump(primitive_description);
@@ -122,9 +205,5 @@ std::string resample_inst::to_string(resample_node const& node) {
 }
 
 resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
-    if (node.get_primitive()->operation_type == resample_type::bilinear &&
-        node.get_output_layout().format.dimension() > 4) {
-        CLDNN_ERROR_MESSAGE(node.id(), "5D not supported for interp resample type.");
-    }
 }
 }  // namespace cldnn

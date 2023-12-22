@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@
 #include <memory>
 #include <algorithm>
 
+#include "prior_box_clustered_shape_inference.hpp"
+#include "prior_box_shape_inference.hpp"
+
 namespace cldnn {
-primitive_type_id prior_box::type_id() {
-    static primitive_type_base<prior_box> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
 
 namespace {
 template <typename dtype>
@@ -26,8 +26,8 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     // All the inputs for this layer are known at this point,
     // so the output buffer is written here and not in execute().
 
-    const int layer_width = input_layout.size.spatial[0];
-    const int layer_height = input_layout.size.spatial[1];
+    const int layer_width = input_layout.spatial(0);
+    const int layer_height = input_layout.spatial(1);
     const int img_width = argument.img_size.spatial[0];
     const int img_height = argument.img_size.spatial[1];
     float step_w = argument.step_width;
@@ -39,7 +39,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     const float offset = argument.offset;
     int num_priors = argument.is_clustered() ?
         static_cast<int>(argument.widths.size()) :
-        output_mem->get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+        output_mem->get_layout().spatial(1) / 4 / layer_width / layer_height;
     int var_size = static_cast<int>(argument.variance.size());
 
     mem_lock<dtype> lock{output_mem, stream};
@@ -204,7 +204,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     }
 
     // set the variance.
-    int count = output_mem->get_layout().size.spatial[0] * output_mem->get_layout().size.spatial[1];
+    int count = output_mem->get_layout().spatial(0) * output_mem->get_layout().spatial(1);
     int var_loop_count = argument.is_clustered() ? var_size : 4;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
@@ -217,11 +217,68 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
         }
     }
 }
-}  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
-    constant = true;
+std::string vector_to_string(const std::vector<float>& vec) {
+    std::stringstream result;
+    for (size_t i = 0; i < vec.size(); i++)
+        result << vec.at(i) << ", ";
+    return result.str();
 }
+
+std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+    std::set<float> unique_ratios;
+    for (auto ratio : aspect_ratio) {
+        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        if (flip)
+            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+    }
+    unique_ratios.insert(1);
+    return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
+}
+
+int64_t number_of_priors(const std::vector<float>& aspect_ratio,
+                         const std::vector<float>& min_size,
+                         const std::vector<float>& max_size,
+                         const std::vector<float>& fixed_size,
+                         const std::vector<float>& fixed_ratio,
+                         const std::vector<float>& densities,
+                         bool scale_all_sizes,
+                         bool flip) {
+    // Starting with 0 number of prior and then various conditions on attributes will contribute
+    // real number of prior boxes as PriorBox is a fat thing with several modes of
+    // operation that will be checked in order in the next statements.
+    int64_t num_priors = 0;
+
+    // Total number of boxes around each point; depends on whether flipped boxes are included
+    // plus one box 1x1.
+    int64_t total_aspect_ratios = normalized_aspect_ratio(aspect_ratio, flip).size();
+
+    if (scale_all_sizes) {
+        num_priors = total_aspect_ratios * min_size.size() + max_size.size();
+    } else {
+        num_priors = total_aspect_ratios + min_size.size() - 1;
+    }
+
+    if (!fixed_size.empty()) {
+        num_priors = total_aspect_ratios * fixed_size.size();
+    }
+
+    for (auto density : densities) {
+        auto rounded_density = static_cast<int64_t>(density);
+        auto density_2d = (rounded_density * rounded_density - 1);
+        if (!fixed_ratio.empty()) {
+            num_priors += fixed_ratio.size() * density_2d;
+        } else {
+            num_priors += total_aspect_ratios * density_2d;
+        }
+    }
+    return num_priors;
+}
+
+tensor get_output_shape(int32_t height, int32_t width, int32_t number_of_priors) {
+    return tensor{std::vector<int32_t>{2, 4 * height * width * number_of_priors}};
+}
+}  // namespace
 
 void prior_box_node::calc_result() {
     if (result != nullptr)
@@ -344,60 +401,126 @@ void prior_box_node::calc_result() {
 
     // perform calculations
     if (get_output_layout().data_type == data_types::f16)
-        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f16>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
     else
-        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f32>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
 }
 
-layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
-
-    const int layer_width = input_layout.size.spatial[0];
-    const int layer_height = input_layout.size.spatial[1];
-
-    int num_priors = node.is_clustered() ?
-        static_cast<int>(desc->widths.size()) :
-        desc->scale_all_sizes
-            ? static_cast<int>(desc->aspect_ratios.size()) * static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size())
-            : static_cast<int>(desc->aspect_ratios.size()) + static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size()) - 1;
-
-    if (desc->fixed_size.size() > 0) {
-        num_priors = static_cast<int>(desc->aspect_ratios.size() * desc->fixed_size.size());
+layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param) {
+    const auto primitive = impl_param.typed_desc<prior_box>();
+    auto number = number_of_priors(primitive->aspect_ratios,
+                                   primitive->min_sizes,
+                                   primitive->max_sizes,
+                                   primitive->fixed_size,
+                                   primitive->fixed_ratio,
+                                   primitive->density,
+                                   primitive->scale_all_sizes,
+                                   primitive->flip);
+    if (primitive->is_clustered()) {
+        number = primitive->widths.size();
     }
+    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
+    const auto output_shape = get_output_shape(primitive->output_size.spatial[1], primitive->output_size.spatial[0], number);
 
-    if (desc->density.size() > 0) {
-        for (size_t i = 0; i < desc->density.size(); ++i) {
-            if (desc->fixed_ratio.size() > 0) {
-                num_priors += static_cast<int>(desc->fixed_ratio.size()) * (static_cast<int>(pow(desc->density[i], 2)) - 1);
+    return {output_type, impl_param.get_input_layout().format, output_shape};
+}
+
+template<typename ShapeType>
+std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*node*/, kernel_impl_params const& impl_param) {
+    const auto primitive = impl_param.typed_desc<prior_box>();
+
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>()
+    };
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::unordered_map<size_t, ov::Tensor> const_data;
+
+    auto& memory_deps = impl_param.memory_deps;
+
+    if (memory_deps.count(0) && memory_deps.count(1)) {
+        auto output_size_mem = memory_deps.at(0);
+        auto img_size_mem = memory_deps.at(1);
+
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
+
+        const_data.emplace(0, make_tensor(output_size_mem->get_layout(), output_size_lock.data()));
+
+        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
+            auto output_height = reinterpret_cast<int64_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int64_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int64_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int64_t*>(img_size_lock.data())[1];
+
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
             } else {
-                num_priors += static_cast<int>(desc->aspect_ratios.size()) * (static_cast<int>(pow(desc->density[i], 2)) - 1);
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
+            }
+        } else { //int32_t
+            auto output_height = reinterpret_cast<int32_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int32_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int32_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int32_t*>(img_size_lock.data())[1];
+
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
+            } else {
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
             }
         }
     }
 
-    // Since all images in a batch has same height and width, we only need to
-    // generate one set of priors which can be shared across all images.
-    // 2 features. First feature stores the mean of each prior coordinate.
-    // Second feature stores the variance of each prior coordinate.
+    const auto tensor_accessor = ov::make_tensor_accessor(const_data);
+    if (primitive->is_clustered()) {
+        ov::op::v0::PriorBoxClustered op;
+        op.set_attrs(primitive->get_attrs_clustered());
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
+    } else {
+        if (primitive->is_v8_support()) {
+            ov::op::v8::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v8());
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, tensor_accessor);
+        } else {
+            ov::op::v0::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v0());
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
+        }
+    }
+    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
 
-    auto output_data_type = input_layout.data_type == data_types::f16 ? data_types::f16 : data_types::f32;
-    if (node.get_primitive()->output_data_type)
-        output_data_type = *node.get_primitive()->output_data_type;
-    return {output_data_type, cldnn::format::bfyx, cldnn::tensor(1, 2, 1, layer_width * layer_height * num_priors * 4)};
+    return {layout{output_shapes[0], output_type, impl_param.get_input_layout().format}};
 }
 
-std::string vector_to_string(std::vector<float> vec) {
-    std::stringstream result;
-    for (size_t i = 0; i < vec.size(); i++) result << vec.at(i) << ", ";
-    return result.str();
-}
+template std::vector<layout> prior_box_inst::calc_output_layouts<ov::PartialShape>(prior_box_node const& /*node*/, kernel_impl_params const& impl_param);
 
 std::string prior_box_inst::to_string(prior_box_node const& node) {
     auto desc = node.get_primitive();
@@ -419,18 +542,18 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     json_composite prior_info;
     prior_info.add("input id", node.input().id());
     prior_info.add("iamge size", desc->img_size);
-    prior_info.add("variance", str_variance);
+    prior_info.add("variance", std::move(str_variance));
 
     json_composite box_sizes_info;
-    box_sizes_info.add("min sizes", str_min_sizes);
-    box_sizes_info.add("max sizes", str_max_sizes);
+    box_sizes_info.add("min sizes", std::move(str_min_sizes));
+    box_sizes_info.add("max sizes", std::move(str_max_sizes));
     prior_info.add("box sizes", box_sizes_info);
 
     prior_info.add("aspect_ratio", str_aspect_ratio);
     prior_info.add("flip", flip);
     prior_info.add("clip", clip);
     prior_info.add("scale all sizes", scale_all_sizes);
-    prior_info.add("fixed size", str_fixed_size);
+    prior_info.add("fixed size", std::move(str_fixed_size));
     prior_info.add("fixed ratio", str_fixed_ratio);
     prior_info.add("density", str_density);
 
@@ -439,6 +562,7 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     step_info.add("step height", desc->step_height);
     step_info.add("offset", desc->offset);
     prior_info.add("step", step_info);
+    prior_info.add("min max aspect ratios order", desc->min_max_aspect_ratios_order);
 
     if (node.is_clustered()) {
         json_composite clustered_info;
@@ -453,7 +577,6 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
 }
 
 prior_box_inst::typed_primitive_inst(network& network, prior_box_node const& node) : parent(network, node) {
-    CLDNN_ERROR_MESSAGE(node.id(), "Prior box primitive instance should not be created!");
 }
 
 }  // namespace cldnn

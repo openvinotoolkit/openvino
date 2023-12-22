@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,7 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API Equal : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OP("Equal", "opset1", op::util::BinaryElementwiseComparison, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Equal", "opset1", op::util::BinaryElementwiseComparison);
     /// \brief Constructs an equal operation.
     Equal() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs an equal operation.
@@ -42,12 +41,11 @@ public:
           const Output<Node>& arg1,
           const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v1

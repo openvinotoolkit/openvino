@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,29 +6,36 @@
 
 #include <istream>
 #include <map>
+#include <memory>
 #include <ostream>
 #include <string>
 
-namespace InferenceEngine {
+#include "openvino/core/any.hpp"
 
-class CNNNetwork;
+namespace ov {
 
-struct NetworkCompilationContext final {
-    static std::string calculateFileInfo(const std::string& filePath);
+class Tensor;
+class Model;
 
-    static std::string computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
+struct ModelCache final {
+    static std::string calculate_file_info(const std::string& filePath);
 
-    static std::string computeHash(const std::string& modelName,
-                                   const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
+
+    static std::string compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions);
+    static std::string compute_hash(const std::string& modeStr,
+                                    const ov::Tensor& data,
+                                    const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {
     std::string m_ieVersion;
     std::string m_fileInfo;
+    std::string m_runtimeInfo;
 
 public:
     CompiledBlobHeader();
-    CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo);
+    CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo, const std::string& runtimeInfo);
 
     const std::string& getIeVersion() const {
         return m_ieVersion;
@@ -38,9 +45,13 @@ public:
         return m_fileInfo;
     }
 
+    const std::string& getRuntimeInfo() const {
+        return m_runtimeInfo;
+    }
+
     friend std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header);
 
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);
 };
 
-}  // namespace InferenceEngine
+}  // namespace ov

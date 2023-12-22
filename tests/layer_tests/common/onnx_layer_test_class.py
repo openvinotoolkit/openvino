@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -14,31 +14,12 @@ def save_to_onnx(onnx_model, path_to_saved_onnx_model):
     assert os.path.isfile(path), "model.onnx haven't been saved here: {}".format(path_to_saved_onnx_model)
     return path
 
-
-class Caffe2OnnxLayerTest(CommonLayerTest):
-    def produce_model_path(self, framework_model, save_path):
-        return save_to_onnx(framework_model, save_path)
-
-    def get_framework_results(self, inputs_dict, model_path):
-        # Evaluate model via Caffe2 and IE
-        # Load the ONNX model
-        import onnx
-        model = onnx.load(model_path)
-        # Run the ONNX model with Caffe2
-        import caffe2.python.onnx.backend
-        caffe2_res = caffe2.python.onnx.backend.run_model(model, inputs_dict)
-        res = dict()
-        for field in caffe2_res._fields:
-            res[field] = caffe2_res[field]
-        return res
-
-
 class OnnxRuntimeInfer(BaseInfer):
     def __init__(self, net):
         super().__init__('OnnxRuntime')
         self.net = net
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         import onnxruntime as rt
 
         sess = rt.InferenceSession(self.net)
@@ -52,7 +33,6 @@ class OnnxRuntimeInfer(BaseInfer):
 
         return result
 
-
 class OnnxRuntimeLayerTest(CommonLayerTest):
     def produce_model_path(self, framework_model, save_path):
         return save_to_onnx(framework_model, save_path)
@@ -61,3 +41,9 @@ class OnnxRuntimeLayerTest(CommonLayerTest):
         ort = OnnxRuntimeInfer(net=model_path)
         res = ort.infer(input_data=inputs_dict)
         return res
+
+def onnx_make_model(graph_def, **args):
+    from onnx import helper
+    if not 'opset_imports' in args:
+        args['opset_imports'] = [helper.make_opsetid("", 18)]   # Last released opset
+    return helper.make_model(graph_def, **args)

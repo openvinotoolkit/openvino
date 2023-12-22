@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <tuple>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
+#include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -67,7 +67,7 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
         param.branch2.fakeQuantizeAfter,
         param.fakeQuantizeAfter);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void ElementwiseBranchSelectionTransformation::Run() {
@@ -100,7 +100,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
             } else if (type == "Convolution") {
                 const auto& precisionIt = it.second.find("runtimePrecision");
                 const auto precision = precisionIt->second.as<std::string>();
-                ASSERT_EQ("U8", precision);
+                ASSERT_EQ("u8", precision);
             }
         }
 
@@ -114,6 +114,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,19 @@
 
 #include <pybind11/stl.h>
 
+#include "pyopenvino/core/common.hpp"
+#include "pyopenvino/core/version.hpp"
+
 namespace py = pybind11;
 
 void regclass_Version(py::module m) {
     py::class_<ov::Version> cls(m, "Version");
     cls.doc() =
         "openvino.runtime.Version represents version information that describes plugins and the OpenVINO library.";
+
+    cls.def("__repr__", [](const ov::Version& self) {
+        return "<" + Common::get_class_name(self) + ": " + std::string(self.buildNumber) + " " + self.description + ">";
+    });
 
     cls.def_readonly("build_number",
                      &ov::Version::buildNumber,
@@ -44,6 +51,16 @@ void regclass_Version(py::module m) {
         },
         R"(
             :return: OpenVINO's minor version.
+            :rtype: int
+        )");
+
+    cls.def_property_readonly(
+        "patch",
+        [](ov::Version& self) {
+            return OPENVINO_VERSION_PATCH;
+        },
+        R"(
+            :return: OpenVINO's version patch.
             :rtype: int
         )");
 }

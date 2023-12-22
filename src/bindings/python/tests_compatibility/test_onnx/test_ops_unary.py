@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import onnx
@@ -210,6 +212,8 @@ def test_hardmax_special_cases():
     assert np.allclose(ng_results, [expected])
 
 
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_hardsigmoid():
     def hardsigmoid(data, alpha=0.2, beta=0.5):
         return np.clip(alpha * data + beta, 0, 1)
@@ -326,7 +330,7 @@ def test_identity():
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -343,7 +347,7 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
     input_data = np.random.randint(range_start, range_end, size=(2, 2), dtype=in_dtype)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -359,7 +363,7 @@ def test_cast_to_int(val_type):
     input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -372,7 +376,7 @@ def test_cast_to_uint(val_type):
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -447,6 +451,8 @@ def test_cast_errors():
 @pytest.mark.parametrize("value_type",
                          [pytest.param(np.float64),
                           pytest.param(np.float32)])
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(
@@ -455,7 +461,7 @@ def test_constant(value_type):
         outputs=["values"],
         value=onnx.helper.make_tensor(
             name="const_tensor",
-            data_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype(value_type)],
+            data_type=onnx.helper.np_dtype_to_tensor_dtype(np.dtype(value_type)),
             dims=values.shape,
             vals=values.flatten(),
         ),
@@ -473,7 +479,7 @@ def test_constant_err():
         outputs=["values"],
         value=onnx.helper.make_tensor(
             name="const_tensor",
-            data_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype(np.float16)],
+            data_type=onnx.helper.np_dtype_to_tensor_dtype(np.dtype(np.float16)),
             dims=values.shape,
             vals=values.flatten(),
         ),

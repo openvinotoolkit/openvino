@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,21 @@
 #include <cstddef>
 #include <memory>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
 /**
  * @interface AllocatorImpl
+ * @deprecated This class will be removed in 2024.0 release
  * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
  */
-struct AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
+OPENVINO_SUPPRESS_DEPRECATED_START
+struct OPENVINO_DEPRECATED("Do not inherit from AllocatorImpl. This class will be removed in 2024.0 release. Pass "
+                           "std::pmr::memory_resource like object directly to ov::Allocator") AllocatorImpl
+    : public std::enable_shared_from_this<AllocatorImpl> {
     /**
      * @brief A smart pointer containing AllocatorImpl object
      */
@@ -53,29 +59,71 @@ struct AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
     virtual bool is_equal(const AllocatorImpl& other) const = 0;
 
 protected:
-    ~AllocatorImpl() = default;
+    virtual ~AllocatorImpl() = default;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 class Tensor;
 
 /**
  * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
+ *        Accepts any [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource) like
+ *        allocator
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Allocator {
-    AllocatorImpl::Ptr _impl;
-    std::shared_ptr<void> _so;
-
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
-     * @param impl Initialized shared pointer
+     * @param other Initialized allocator
      * @param so Plugin to use. This is required to ensure that Allocator can work properly even if plugin object is
      * destroyed.
      */
-    Allocator(const AllocatorImpl::Ptr& impl, const std::shared_ptr<void>& so);
+    Allocator(const Allocator& other, const std::shared_ptr<void>& so);
 
     friend class ov::Tensor;
+
+    struct Base : public std::enable_shared_from_this<Base> {
+        virtual void* addressof() = 0;
+        const void* addressof() const {
+            return const_cast<Base*>(this)->addressof();
+        }
+        virtual const std::type_info& type_info() const = 0;
+        virtual void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) = 0;
+        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) = 0;
+        virtual bool is_equal(const Base& other) const = 0;
+
+    protected:
+        virtual ~Base() = default;
+    };
+
+    template <typename A>
+    struct Impl : public Base {
+        template <typename... Args>
+        explicit Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
+        void* addressof() override {
+            return &a;
+        }
+        const std::type_info& type_info() const override {
+            return typeid(a);
+        }
+        void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
+            return a.allocate(bytes, alignment);
+        }
+        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
+            a.deallocate(handle, bytes, alignment);
+        }
+        bool is_equal(const Base& other) const override {
+            if (util::equal(type_info(), other.type_info())) {
+                return a.is_equal(*static_cast<const A*>(other.addressof()));
+            }
+            return false;
+        }
+        A a;
+    };
+
+    std::shared_ptr<Base> _impl;
+    std::shared_ptr<void> _so;
 
 public:
     /**
@@ -104,11 +152,26 @@ public:
     /// @return reference to the current object
     Allocator& operator=(Allocator&& other) = default;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @brief Constructs Allocator from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
      */
     Allocator(const AllocatorImpl::Ptr& impl);
+    /**
+     * @brief Initialize allocator using any allocator like object
+     * @tparam A Type of allocator
+     * @param a allocator object
+     */
+    template <
+        typename A,
+        typename std::enable_if<!std::is_convertible<A, AllocatorImpl::Ptr>::value &&
+                                    !std::is_same<typename std::decay<A>::type, Allocator>::value &&
+                                    !std::is_abstract<typename std::decay<A>::type>::value &&
+                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value,
+                                bool>::type = true>
+    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Allocates memory
@@ -129,9 +192,9 @@ public:
     void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t));
 
     /**
-     * @brief Compares with other AllocatorImpl
+     * @brief Compares with other Allocator
      * @param other Other instance of allocator
-     * @return `true` if and only if memory allocated from one AllocatorImpl can be deallocated from the other and vice
+     * @return `true` if and only if memory allocated from one Allocator can be deallocated from the other and vice
      * versa
      */
     bool operator==(const Allocator& other) const;
@@ -149,9 +212,11 @@ public:
     explicit operator bool() const noexcept;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace runtime {
 using ov::Allocator;
 using ov::AllocatorImpl;
 }  // namespace runtime
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov

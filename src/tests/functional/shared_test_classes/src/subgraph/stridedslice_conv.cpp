@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/stridedslice_conv.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -20,8 +21,8 @@ std::string SliceConvTest::getTestCaseName(const testing::TestParamInfo<SliceCon
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "OC=" << outputChannels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -37,7 +38,7 @@ InferenceEngine::Blob::Ptr SliceConvTest::GenerateInput(const InferenceEngine::I
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -2.0f, 2.0f);
+    std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -2.0f, 2.0f);
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = values[i];
     }
@@ -58,16 +59,30 @@ void SliceConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
-    auto ss = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, 0, 0, 64}, std::vector<int64_t>{1, 1, 1, 128},
-                                                std::vector<int64_t>{1, 1, 1, 1}, ngPrc, std::vector<int64_t>{1, 1, 1, 0},
-                                                std::vector<int64_t>{1, 1, 1, 0}, std::vector<int64_t>{0, 0, 0, 0},
-                                                std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
+    ov::Shape constShape = {4};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{0, 0, 0, 64});
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1, 1, 1, 128});
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1, 1, 1, 1});
+    auto ss = std::make_shared<ov::op::v1::StridedSlice>(params[0],
+                                                        beginNode,
+                                                        endNode,
+                                                        strideNode,
+                                                        std::vector<int64_t>{1, 1, 1, 0},
+                                                        std::vector<int64_t>{1, 1, 1, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0},
+                                                        std::vector<int64_t>{0, 0, 0, 0});
+
+    auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(ss, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+    auto conv = ov::test::utils::make_convolution(ss,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
 }

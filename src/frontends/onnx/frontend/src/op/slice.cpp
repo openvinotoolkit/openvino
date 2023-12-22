@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -49,11 +50,9 @@ namespace set_1 {
 OutputVector slice(const Node& node) {
     Output<ngraph::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
-    const auto ends_atr = node.get_attribute_value<std::vector<int64_t>>("ends");
+    const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 
     const auto starts = std::make_shared<default_opset::Constant>(element::i64, Shape{starts_atr.size()}, starts_atr);
-    const auto ends = std::make_shared<default_opset::Constant>(element::i64, Shape{ends_atr.size()}, ends_atr);
-
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
     const auto steps = default_opset::Constant::create(element::i64,
@@ -71,3 +70,4 @@ OutputVector slice(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "caseless.hpp"
-
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,6 +22,7 @@ enum class Type {
     Reorder,
     Input,
     Output,
+    Eye,
     Convolution,
     Deconvolution,
     Lrn,
@@ -71,13 +72,14 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
-    Select,
     Roll,
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -98,13 +100,22 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposals,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
+    Multinomial,
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA,
+    RandomUniform,
+    Unique,
+    Ngram,
+    ScaledDotProductAttention,
+    RoPE,
 };
 
 enum class Algorithm {
@@ -128,6 +139,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
@@ -150,11 +164,13 @@ enum class Algorithm {
     EltwiseLogicalXor,
     EltwiseLogicalNot,
     EltwiseRelu,
-    EltwiseGelu,
+    EltwiseGeluErf,
+    EltwiseGeluTanh,
     EltwiseElu,
     EltwiseTanh,
     EltwiseSigmoid,
     EltwiseAbs,
+    EltwiseSelect,
     EltwiseSqrt,
     EltwiseSoftRelu,
     EltwiseExp,
@@ -167,6 +183,12 @@ enum class Algorithm {
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
+    EltwiseSoftSign,
+    EltwiseLog,
+    EltwiseBitwiseAnd,
+    EltwiseBitwiseNot,
+    EltwiseBitwiseOr,
+    EltwiseBitwiseXor,
 
     // FakeQuantize algorithms
     FQCommon,
@@ -214,7 +236,6 @@ enum class Algorithm {
     MathErf,
     MathFloor,
     MathHardSigmoid,
-    MathLog,
     MathNegative,
     MathReciprocal,
     MathSelu,
@@ -242,5 +263,5 @@ std::string NameFromType(const Type type);
 
 std::string algToString(const Algorithm alg);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

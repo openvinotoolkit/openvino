@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,15 +29,25 @@ ov::CompiledModel compiled_model = core.compile_model("model.pdmodel", "AUTO");
 }
 {
 //! [part2_4]
+ov::CompiledModel compiled_model = core.compile_model("model.pb", "AUTO");
+//! [part2_4]
+}
+{
+//! [part2_5]
+ov::CompiledModel compiled_model = core.compile_model("model.tflite", "AUTO");
+//! [part2_5]
+}
+{
+//! [part2_6]
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
     // To construct a model, please follow 
-    // https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_UG_Model_Representation.html
+    // https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_Representation.html
     return model;
 };
 std::shared_ptr<ov::Model> model = create_model();
 compiled_model = core.compile_model(model, "AUTO");
-//! [part2_4]
+//! [part2_6]
 }
 
 //! [part3]
@@ -63,7 +73,19 @@ infer_request.wait();
 // Get output tensor by tensor name
 auto output = infer_request.get_tensor("tensor_name");
 const float *output_buffer = output.data<const float>();
-/* output_buffer[] - accessing output tensor data */
+// output_buffer[] - accessing output tensor data
 //! [part6]
 return 0;
 }
+/*
+//! [part7]
+project/
+   ├── CMakeLists.txt  - CMake file to build
+   ├── ...             - Additional folders like includes/
+   └── src/            - source folder
+       └── main.cpp
+build/                  - build directory
+   ... 
+
+//! [part7]
+*/

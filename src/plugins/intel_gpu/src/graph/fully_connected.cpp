@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include <algorithm>
+#include "utils.hpp"
+
+#include "matmul_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id fully_connected::type_id() {
-    static primitive_type_base<fully_connected> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
 
 namespace {
 bool is_batch_after_spatial(const std::string order) {
@@ -39,17 +37,21 @@ bool is_batch_after_spatial(const std::string order) {
     return false;
 }
 
-format::type get_preferred_format(const fully_connected_node& node) {
-    auto input_layout = node.input().get_output_layout();
+format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        return node.get_preferred_output_fmt();
+    }
+
+    auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
-    if (node.get_primitive()->input_size == 3)
+    if (impl_param.typed_desc<fully_connected>()->input_size == 3)
         return format::bfyx;
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_x_bsv16 ||
-         input_layout.format == format::bs_xs_xsv8_bsv8))
+         input_layout.format == format::bs_f_bsv16 ||
+         input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
     bool no_spatial_padding = true;
@@ -64,7 +66,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
     if (input_layout.data_type == data_types::f32 &&
         input_layout.format == format::bfyx &&
         no_spatial_padding &&
-        input_layout.size.batch[0] != 8)
+        input_layout.batch() != 8)
         return format::bfyx;
 
     auto input_pitches = input_layout.get_pitches();
@@ -72,7 +74,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
         input_layout.format == format::bfyx &&
         no_spatial_padding &&
         input_pitches.batch[0] % 2 == 0 &&
-        input_layout.size.batch[0] != 16)
+        input_layout.batch() != 16)
         return format::bfyx;
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
@@ -80,7 +82,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.size.batch[0] > 1)
+        input_layout.batch() > 1)
         return format::yxfb;
 
     return format::bfyx;
@@ -88,27 +90,146 @@ format::type get_preferred_format(const fully_connected_node& node) {
 
 }  // namespace
 
-layout fully_connected_inst::calc_output_layout(fully_connected_node const& node) {
-    auto desc = node.get_primitive();
+layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<fully_connected>();
 
-    auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
+    auto input_pshape = input_layout.get_partial_shape();
+    auto weights_layout = *impl_param.weights_layout;
+    auto weights_pshape = weights_layout.get_partial_shape();
     auto output_type = input_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
-        output_type = *desc->output_data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto output_size = tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1);
+    auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+        auto staticShape = shape.to_shape();
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        return reshapeSize;
+    };
+
+    int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
     if (desc->input_size == 3) {
-        output_size = tensor(input_layout.size.batch[0], input_layout.size.feature[0], 1, weights_layout.size.batch[0]);
+        feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
-    format output_format = get_preferred_format(node);
+
+    if (desc->input_size > 3) {
+       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+    }
+    if (weights_pshape.size() != 2) {
+        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+    }
+
+    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+    if (desc->input_size == 3) {
+        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+    }
+    format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
 }
+
+template<typename ShapeType>
+std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<fully_connected>();
+    auto input_layout = impl_param.get_input_layout();
+    auto weights_layout = *impl_param.weights_layout;
+
+    auto output_type = input_layout.data_type;
+    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
+
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ov::op::v0::MatMul op;
+    op.set_transpose_b(true);
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>(),
+        weights_layout.get<ShapeType>()
+    };
+
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+
+    bool is_static = input_layout.is_static() && weights_layout.is_static();
+    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
+                                              input_layout.format.value;
+
+    if (node.get_preferred_output_fmt() != format::any)
+        output_format = node.get_preferred_output_fmt();
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    // fc_tiled_opt kernel is optimized for row shape aligned by 8.
+    // Thus, use fake aligned shape at kernel execution for better performance.
+    auto orig_input_layout = orig_impl_param.get_input_layout();
+    auto orig_output_layout = orig_impl_param.get_output_layout();
+    OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
+                    "in/out layouts should be static for fake alignment!");
+
+    auto input_shape = orig_input_layout.get_partial_shape().to_shape();
+    auto output_shape = orig_output_layout.get_partial_shape().to_shape();
+
+    // Allow padding only for feature and outermost dimmension
+    auto can_apply_fake_alignment = true;
+    if (input_shape.size() == 3)
+        can_apply_fake_alignment &= orig_input_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_input_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (output_shape.size() == 3)
+        can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
+                                    orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
+        auto updated_param = orig_impl_param;
+
+        auto batch_size = std::accumulate(input_shape.begin(),
+                                          input_shape.end() - 1,
+                                          size_t{1},
+                                          std::multiplies<size_t>());
+
+        // Vector by matrix multiplication sometimes works slower if we align it
+        if (batch_size == 1 && input_shape.back() >= 1024) {
+            return std::move(orig_impl_param);
+        }
+
+        size_t fake_align_base = 8;
+        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
+            auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
+            auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_extra_alignment_needed = batch_size >= 256;
+            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+        }
+
+        std::fill(input_shape.begin(), input_shape.end() - 1, 1);
+        std::fill(output_shape.begin(), output_shape.end() - 1, 1);
+
+        input_shape[0] = align_to(batch_size, fake_align_base);
+        output_shape[0] = align_to(batch_size, fake_align_base);
+
+        updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
+                                                orig_input_layout.data_type,
+                                                orig_input_layout.format,
+                                                orig_input_layout.data_padding);
+        updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
+                                             orig_output_layout.data_type,
+                                             orig_output_layout.format,
+                                             orig_output_layout.data_padding);
+        return updated_param;
+    }
+    return std::move(orig_impl_param);
+}
+
+template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,
+                                                                                         const kernel_impl_params& impl_param);
 
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     auto desc = node.get_primitive();
@@ -121,6 +242,14 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
+    fc_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        fc_info.add("decompression scale id", desc->decompression_scale);
+        fc_info.add("decompression zp id", desc->decompression_zero_point);
+        if (desc->decompression_zero_point_scalar.has_value()) {
+            fc_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
+        }
+    }
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);
@@ -129,14 +258,5 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
-    : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
-    auto output_layout = node.get_output_layout();
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input size",
-                          input_layout.size.raw.size(),
-                          "output size",
-                          output_layout.size.raw.size(),
-                          "");
-}
+    : parent(network, node) { }
 }  // namespace cldnn

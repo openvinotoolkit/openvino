@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,12 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
 
-using PyRTMap = ngraph::RTMap;
+using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
@@ -36,6 +35,6 @@ void regclass_pyngraph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) {
-        return m.at(k).as<std::shared_ptr<ngraph::Variant>>();
+        return m.at(k).as<std::shared_ptr<ov::RuntimeAttribute>>();
     });
 }

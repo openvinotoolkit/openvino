@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import onnx
 import onnx.backend.test
 import unittest
+import dataclasses
 
 from collections import defaultdict, namedtuple
 from onnx import numpy_helper, NodeProto, ModelProto
@@ -17,7 +18,9 @@ from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, C
 
 
 # add post-processing function as part of test data
-ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
+OnnxTestCase_fields = [field.name for field in dataclasses.fields(OnnxTestCase)]
+ExtOnnxTestCase = dataclasses.make_dataclass(cls_name="TestCaseExt",
+                                             fields=[*OnnxTestCase_fields, "post_processing"])
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
@@ -53,6 +56,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 kind="OnnxBackendRealModelTest",
                 rtol=model.get("rtol", 0.001),
                 atol=model.get("atol", 1e-07),
+                __test__=True,
                 post_processing=model.get("post_processing", None)
             )
             self._add_model_import_test(test_case)

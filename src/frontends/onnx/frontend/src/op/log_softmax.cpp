@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,12 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
-    const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
+    const auto coerced_data = ngraph::builder::opset1::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
     return std::make_shared<default_opset::Reshape>(result, data_shape, false);
@@ -37,12 +38,16 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::normalize_axis(node.get_description(), axis, data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         result = std::make_shared<default_opset::LogSoftmax>(data, 0);
         break;
     }
     default: {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;
@@ -72,3 +77,4 @@ OutputVector log_softmax(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

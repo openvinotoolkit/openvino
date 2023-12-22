@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/frontend/extension/conversion.hpp>
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/frontend/extension/conversion.hpp"
 
+#include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -19,7 +20,6 @@ std::string FrontEndConversionExtensionTest::getTestCaseName(
 }
 
 void FrontEndConversionExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     initParamTest();
 }
 
@@ -29,7 +29,8 @@ void FrontEndConversionExtensionTest::initParamTest() {
 }
 
 inline std::string get_lib_path(const std::string& lib_name) {
-    return ov::util::make_plugin_library_name<char>(ov::util::get_ov_lib_path(), lib_name + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                    lib_name + OV_BUILD_POSTFIX);
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -54,6 +55,15 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
                                                       auto res = std::make_shared<ov::opset8::Relu>(ng_input);
                                                       return {res};
                                                   }));
+    } else if (m_param.m_frontEndName == "tflite") {
+        frontend->add_extension(
+            std::make_shared<ConversionExtension>(m_param.m_translatorName,
+                                                  [&](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                                                      invoked = true;
+                                                      auto input = node.get_input(0);
+                                                      auto res = std::make_shared<ov::opset8::Sigmoid>(input);
+                                                      return {res};
+                                                  }));
     } else if (m_param.m_frontEndName == "onnx") {
         frontend->add_extension(
             std::make_shared<ConversionExtension>(m_param.m_translatorName,
@@ -76,7 +86,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
 
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     auto frontend = m_param.m_frontend;
-    const auto& lib_path = get_lib_path("test_builtin_extensions_1");
+    const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);
     std::shared_ptr<InputModel> input_model;
     ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,18 @@ namespace node {
 
 class DetectionOutput : public Node {
 public:
-    DetectionOutput(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     static const int ID_LOC = 0;
@@ -60,6 +60,7 @@ private:
     int imgWidth = 0;
     int imgHeight = 0;
     int coordOffset = 0;
+    int cacheSizeL3 = 0;
 
     enum CodeType {
         CORNER = 1,
@@ -73,10 +74,10 @@ private:
 
     inline void confReorderDense(const float* confData, const float* ARMConfData, float* reorderedConfData);
 
-    inline void confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confFilterCF(const float* pConf, int* pindices, int* pbuffer, int* detectionsData, const int& n);
 
     inline void confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+        int* indicesData, int* indicesBufData, int* detectionsData, const int& n);
 
     inline void confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
         int* indicesData, int* indicesBufData, int* detectionsData);

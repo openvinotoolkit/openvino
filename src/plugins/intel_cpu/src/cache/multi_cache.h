@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,8 @@ MultiCache::EntryPtr<KeyType, ValueType> MultiCache::getEntry() {
     return std::static_pointer_cast<EntryType>(itr->second);
 }
 
+using MultiCacheWeakPtr = std::weak_ptr<MultiCache>;
+using MultiCacheWeakCPtr = std::weak_ptr<const MultiCache>;
 using MultiCachePtr = std::shared_ptr<MultiCache>;
 using MultiCacheCPtr = std::shared_ptr<const MultiCache>;
 

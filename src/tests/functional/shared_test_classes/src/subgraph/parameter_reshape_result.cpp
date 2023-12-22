@@ -13,7 +13,7 @@ std::string ParamReshapeResult::getTestCaseName(const testing::TestParamInfo<Par
     std::tie(inputShape, netPrecision, targetName, config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const& configItem : config) {
@@ -30,14 +30,14 @@ void ParamReshapeResult::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto shape = inputShape;
     shape[shape.size() - 2] *= 2;
     shape[shape.size() - 1] /= 2;
-    auto reshape_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+    auto reshape_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
         ngraph::Shape{shape.size()}, shape);
-    auto reshape = std::make_shared<ngraph::opset8::Reshape>(params[0], reshape_const, false);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_const, false);
 
     function = std::make_shared<ngraph::Function>(reshape, params, "ParamReshapeResult");
 }

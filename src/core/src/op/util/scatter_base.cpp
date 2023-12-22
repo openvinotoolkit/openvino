@@ -1,17 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/scatter_base.hpp"
+#include "openvino/op/util/scatter_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
-
-using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::ScatterBase);
+#include "validation_util.hpp"
 
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
                                        const Output<Node>& indices,
@@ -22,7 +16,7 @@ ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
 }
 
 void ov::op::util::ScatterBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
     const auto& updates_et = get_input_element_type(UPDATES);
@@ -76,11 +70,11 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
         return;
 
     // Get axis value if possible.
-    if (const auto& axis_const_input = get_constant_from_source(input_value(AXIS))) {
+    if (const auto& axis_const_input = ov::util::get_constant_from_source(input_value(AXIS))) {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
-        int64_t data_rank = data_shape.rank().get_length();
-        axis = ngraph::normalize_axis(this, axis, data_rank);
+        const int64_t data_rank = data_shape.rank().get_length();
+        axis = ov::util::normalize_axis(this, axis, data_rank);
 
         if (indices_shape.rank().is_static() && updates_shape.rank().is_static()) {
             int64_t indices_rank = indices_shape.rank().get_length();
@@ -113,6 +107,6 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
 }
 
 bool ov::op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes);
+    OV_OP_SCOPE(util_ScatterBase_visit_attributes);
     return true;
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,9 +20,6 @@ project(memory_tests)
 set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
-
-# Search OpenVINO Inference Engine installed
-find_package(OpenVINO REQUIRED)
 
 add_subdirectory(src)
 

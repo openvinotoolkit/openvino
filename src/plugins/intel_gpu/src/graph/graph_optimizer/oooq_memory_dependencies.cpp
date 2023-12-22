@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -70,7 +68,7 @@ protected:
 }  // namespace
 
 void oooq_memory_dependencies::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::OooqMemoryDependencies");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::OooqMemoryDependencies");
     // For oooq memory dependencies nodes A and B can't share memory if
     // processing_num(A) < processing_num(B) and there is no path from A to B.
     // Assuming precalculation of reachability this function has complexity O(N^2 log N).
@@ -78,14 +76,19 @@ void oooq_memory_dependencies::run(program& p) {
     // First create transitive closure of the graph,
     // giving us mapping of node to set of all users that can be reached from this node.
     auto& processing_order = p.get_processing_order();
-
-    // maps program nodes to bimap vector ids
-    auto user_map = std::map<program_node*, unsigned int>();
-    unsigned int processing_order_idx = 0;
-    for (auto node : processing_order) {
-        user_map[node] = processing_order_idx++;
+    std::list<program_node*> processing_order_except_const;
+    for (auto n : processing_order) {
+        if (!n->is_type<data>()) {
+            processing_order_except_const.push_back(n);
+        }
     }
 
+    // maps program nodes to bimap vector ids
+    auto user_map = std::unordered_map<program_node*, unsigned int>();
+    unsigned int processing_order_idx = 0;
+    for (auto node : processing_order_except_const) {
+        user_map[node] = processing_order_idx++;
+    }
     unsigned int num_nodes = static_cast<unsigned int>(user_map.size());
 
     // full cross ref [node<->node] bitmap.
@@ -102,7 +105,7 @@ void oooq_memory_dependencies::run(program& p) {
 
         size_t num_dep_nodes = 0;
         for (const auto& dep : node.first->get_dependencies()) {
-            if (!dep->is_constant()) {
+            if (!dep.first->is_constant()) {
                 ++num_dep_nodes;
             }
         }
@@ -118,9 +121,7 @@ void oooq_memory_dependencies::run(program& p) {
         for (unsigned int n = 0; n < num_nodes; n++) {
             auto& users = user_bitmap[n];
 
-            // iterate over all users
-            for (unsigned int user_id = 0; user_id < num_nodes; user_id++) {
-                // if we have this user set, then add its sub-users to the map
+            for (unsigned int user_id = n + 1; user_id < num_nodes; user_id++) {
                 if (users.is_set(user_id)) {
                     changed |= users._or(user_bitmap[user_id]);
                 }
@@ -134,13 +135,15 @@ void oooq_memory_dependencies::run(program& p) {
     };
 
     unsigned int A = 0;
-    auto itr_A = processing_order.begin();
+    auto itr_A = processing_order_except_const.begin();
 
-    while (itr_A != processing_order.end()) {
+    while (itr_A != processing_order_except_const.end()) {
         if (suspect_nodes.is_set(A)) {
             std::vector<std::pair<program_node*, unsigned int>> deps;
             for (const auto& dep : (*itr_A)->get_dependencies()) {
-                deps.emplace_back(dep, user_map.at(dep));
+                if (!dep.first->is_type<data>()) {
+                    deps.emplace_back(dep.first, user_map.at(dep.first));
+                }
             }
 
             std::sort(deps.begin(), deps.end(),
@@ -161,10 +164,18 @@ void oooq_memory_dependencies::run(program& p) {
         }
         unsigned int B = ++A;
         auto itr_B = ++itr_A;
-        while (itr_B != processing_order.end()) {
+        while (itr_B != processing_order_except_const.end()) {
             if (!are_connected(A, B)) {
                 add_memory_dependency(*itr_A, *itr_B);
                 add_memory_dependency(*itr_B, *itr_A);
+            } else {
+                for (auto u : (*itr_A)->get_users()) {
+                    if (u != (*itr_B) && !are_connected(B, user_map[u]) && !are_connected(user_map[u], B)) {
+                        add_memory_dependency(*itr_A, *itr_B);
+                        add_memory_dependency(*itr_B, *itr_A);
+                        break;
+                    }
+                }
             }
             itr_B++;
             B++;

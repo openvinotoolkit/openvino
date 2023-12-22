@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,16 +16,22 @@ namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    InputModel(const std::string& path, ExtensionHolder extensions = {});
+    InputModel(const std::string& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(const std::wstring& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
 #endif
-    InputModel(std::istream& model_stream, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream, const bool enable_mmap = false, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModel(std::istream& model_stream, const std::string& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::string& path,
+               const bool enable_mmap = false,
+               ExtensionHolder extensions = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModel(std::istream& model_stream, const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::wstring& path,
+               const bool enable_mmap = false,
+               ExtensionHolder extensions = {});
 #endif
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -52,6 +58,7 @@ public:
     void set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) override;
     ngraph::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
     void set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) override;
+    ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr& place) override;
     void remove_output(const ov::frontend::Place::Ptr& place) override;
 

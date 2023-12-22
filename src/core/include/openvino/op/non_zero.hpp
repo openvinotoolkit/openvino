@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonZero : public Op {
 public:
-    OPENVINO_OP("NonZero", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("NonZero", "opset3", op::Op);
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.
@@ -58,9 +57,7 @@ public:
     // Overload collision with method on Node
     using Node::set_output_type;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:

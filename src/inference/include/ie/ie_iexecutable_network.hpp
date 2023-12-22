@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,16 @@
  * @file ie_iexecutable_network.hpp
  */
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <map>
 #include <memory>
@@ -24,13 +34,12 @@
 
 namespace InferenceEngine {
 
-_IE_SUPPRESS_DEPRECATED_START_GCC
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork instead") IExecutableNetwork
-    : public std::enable_shared_from_this<IExecutableNetwork> {
+class INFERENCE_ENGINE_1_0_DEPRECATED IExecutableNetwork : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
@@ -126,7 +135,7 @@ public:
      * The method is responsible to extract information
      * which affects executable network execution. The list of supported configuration values can be extracted via
      * ExecutableNetwork::GetMetric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
-     * dymanically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
+     * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
      * device.
      *
      * @param name config key, can be found in ie_plugin_config.hpp
@@ -159,9 +168,9 @@ public:
     virtual StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept = 0;
 
 protected:
-    ~IExecutableNetwork() = default;
+    virtual ~IExecutableNetwork() = default;
 };
 
-_IE_SUPPRESS_DEPRECATED_END_GCC
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

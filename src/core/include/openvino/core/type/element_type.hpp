@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -51,7 +50,9 @@ enum class Type_t {
     u8,         //!< u8 element type
     u16,        //!< u16 element type
     u32,        //!< u32 element type
-    u64         //!< u64 element type
+    u64,        //!< u64 element type
+    nf4,        //!< nf4 element type
+    string      //!< string element type
 };
 
 /// \brief Base class to define element type
@@ -62,8 +63,9 @@ public:
     Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
+    explicit Type(const std::string& type);
     Type& operator=(const Type&) = default;
-    const std::string& c_type_string() const;
+    std::string c_type_string() const;
     size_t size() const;
     size_t hash() const;
     bool is_static() const;
@@ -81,7 +83,7 @@ public:
     bool is_quantized() const;
     size_t bitwidth() const;
     // The name of this type, the enum name of this type
-    const std::string& get_type_name() const;
+    std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
     static std::vector<const Type*> get_known_types();
 
@@ -114,6 +116,8 @@ public:
     constexpr operator Type_t() const {
         return m_type;
     }
+    // Return element type in string representation
+    std::string to_string() const;
 
 private:
     Type_t m_type{Type_t::undefined};
@@ -175,10 +179,16 @@ constexpr Type u32(Type_t::u32);
 /// \brief u64 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u64(Type_t::u64);
+/// \brief nf4 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type nf4(Type_t::nf4);
+/// \brief string element type
+/// \ingroup ov_element_cpp_api
+constexpr Type string(Type_t::string);
 
 template <typename T>
 Type from() {
-    throw std::invalid_argument("Unknown type");
+    OPENVINO_THROW("Unknown type");
 }
 template <>
 OPENVINO_API Type from<char>();
@@ -208,6 +218,8 @@ template <>
 OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
+template <>
+OPENVINO_API Type from<std::string>();
 
 OPENVINO_API Type fundamental_type_for(const Type& type);
 
@@ -224,14 +236,12 @@ public:
     AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
-    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
@@ -249,7 +259,6 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
-    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
 };
 

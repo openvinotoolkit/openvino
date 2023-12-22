@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj) {
@@ -15,7 +14,6 @@ std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndElementTypeTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
@@ -39,14 +37,14 @@ TEST_P(FrontEndElementTypeTest, testSetElementType) {
     ASSERT_NE(place, nullptr);
     auto name = place->get_names()[0];
 
-    ASSERT_NO_THROW(m_inputModel->set_element_type(place, element::f16));
+    ASSERT_NO_THROW(m_inputModel->set_element_type(place, ov::element::f16));
 
-    std::shared_ptr<ngraph::Function> function;
-    function = m_frontEnd->convert(m_inputModel);
-    auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+    std::shared_ptr<ov::Model> model;
+    model = m_frontEnd->convert(m_inputModel);
+    auto ops = model->get_ordered_ops();
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
         return node->get_friendly_name().find(name) != std::string::npos;
     });
     ASSERT_NE(it, ops.end());
-    EXPECT_EQ((*it)->get_output_element_type(0), element::f16);
+    EXPECT_EQ((*it)->get_output_element_type(0), ov::element::f16);
 }

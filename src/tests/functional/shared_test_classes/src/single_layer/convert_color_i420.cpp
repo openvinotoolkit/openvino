@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ std::string ConvertColorI420LayerTest::getTestCaseName(const testing::TestParamI
     std::string targetName;
     std::tie(inputShape, type, conversion, singlePlane, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << type.c_type_string() << "_";
     result << "convRGB=" << conversion << "_";
     result << "singlePlane=" << singlePlane << "_";
@@ -35,9 +35,9 @@ void ConvertColorI420LayerTest::SetUp() {
         auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
         std::shared_ptr<ov::Node> convert_color;
         if (conversionToRGB) {
-            convert_color = std::make_shared<ov::op::v8::NV12toRGB>(param);
+            convert_color = std::make_shared<ov::op::v8::I420toRGB>(param);
         } else {
-            convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param);
+            convert_color = std::make_shared<ov::op::v8::I420toBGR>(param);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
                                                       ov::ParameterVector{param}, "ConvertColorI420");

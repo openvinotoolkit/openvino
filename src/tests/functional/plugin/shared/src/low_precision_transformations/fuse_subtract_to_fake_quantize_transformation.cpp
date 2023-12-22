@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/fuse_subtract_to_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_subtract_to_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -35,7 +35,7 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareWithRefImpl) {

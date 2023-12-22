@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Divide : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic);
     /// \brief Constructs a division operation.
     Divide() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
@@ -46,14 +45,10 @@ public:
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
 protected:
     bool m_pythondiv{true};

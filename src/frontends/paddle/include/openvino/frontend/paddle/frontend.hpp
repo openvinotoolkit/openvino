@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ namespace frontend {
 namespace paddle {
 
 class OpPlace;
+class TensorPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -57,6 +58,10 @@ public:
 
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
+    /// \brief Runs normalization passes on Model that was loaded with partial conversion
+    /// \param Model partially converted OV Model
+    void normalize(const std::shared_ptr<ov::Model>& model) const override;
+
 protected:
     /// \brief Check if FrontEnd can recognize model from given parts
     /// \param params Can be path to folder which contains __model__ file or path to
@@ -72,8 +77,18 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 protected:
-    static std::shared_ptr<Model> convert_each_node(
+    void try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const;
+    void fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const;
+
+    static std::vector<std::shared_ptr<Model>> convert_each_node(
         const std::shared_ptr<InputModel>& frontend_model,
+        std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
+                                                          const std::shared_ptr<OpPlace>&)> func);
+    static std::map<int32_t, std::shared_ptr<Model>> convert_each_node_recursive(
+        const std::shared_ptr<InputModel>& frontend_model,
+        const int32_t block_idx,
+        const std::vector<std::shared_ptr<TensorPlace>>& input_tensors,
+        const std::vector<std::shared_ptr<TensorPlace>>& output_tensors,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
 

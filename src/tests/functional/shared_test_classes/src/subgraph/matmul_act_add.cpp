@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,16 @@ void MatMulActAddTest::SetUp() {
 
     std::vector<size_t> outFormShapes = {1,  2 * inputSize};
 
-    auto params = ngraph::builder::makeParams(ngPrc, {{ 1, inputSize }});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{ 1, inputSize })};
 
     auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { outFormShapes[1], inputSize },
-        CommonTestUtils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
+        ov::test::utils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
 
-    auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], mul_const, false, true);
 
-    auto tanh = std::make_shared<ngraph::op::Tanh>(matmul);
-    auto eltw = std::make_shared<ngraph::opset8::Add>(matmul, tanh);
-    auto res = std::make_shared<ngraph::op::Result>(eltw);
+    auto tanh = std::make_shared<ov::op::v0::Tanh>(matmul);
+    auto eltw = std::make_shared<ov::op::v1::Add>(matmul, tanh);
+    auto res = std::make_shared<ov::op::v0::Result>(eltw);
     function = std::make_shared<ngraph::Function>(res, params, "MatMul_Act_Add");
 }
 } // namespace SubgraphTestsDefinitions

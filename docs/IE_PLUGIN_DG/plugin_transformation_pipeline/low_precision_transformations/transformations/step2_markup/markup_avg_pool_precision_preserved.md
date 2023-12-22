@@ -1,3 +1,0 @@
-# MarkupAvgPoolPrecisionPreserved transformation {#openvino_docs_IE_DG_lpt_MarkupAvgPoolPrecisionPreserved}
-
-ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved class represents the `MarkupAvgPoolPrecisionPreserved` transformation.
