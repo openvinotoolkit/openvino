@@ -16,7 +16,7 @@ class TestDiv(CommonTFLayerTest):
         inputs_data = {}
         # generate x and y
         inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(1, 10, y_shape).astype(self.input_type)
+        inputs_data['y'] = np.random.randint(1, 10, y_shape)*np.random.choice([-1,1], y_shape)
         return inputs_data
 
     def create_div_net(self, input_shape, input_type):
@@ -36,6 +36,7 @@ class TestDiv(CommonTFLayerTest):
         dict(input_shape=[10, 20], input_type=np.float32),
         dict(input_shape=[2, 3, 4], input_type=np.float32),
         dict(input_shape=[8, 5], input_type=np.int32),
+        dict(input_shape=[], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
