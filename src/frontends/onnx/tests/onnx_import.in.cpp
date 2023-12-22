@@ -6147,7 +6147,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or) {
     test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
     test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
     test_case.add_expected_output<int>(Shape{5}, {5, 7, 7, 5, 5});
-  
+
     test_case.run();
 }
 
@@ -6170,10 +6170,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_divisible_by_outpu
                                                    14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
     test_case.add_input<float>({0, 0, 0, 3, 3});
     test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {7., 9., 17., 19.});
-  
+
     test_case.run();
 }
-  
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_not_divisible_by_output_shape) {
     auto model = convert_model("max_roi_pool_non_divisible.onnx");
 
