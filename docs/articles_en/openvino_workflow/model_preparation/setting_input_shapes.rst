@@ -136,6 +136,4 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
          ovc ocr.onnx --input data[1..3,150,200,1],seq_len[1..3]
 
 In practice, not every model is designed in a way that allows change of input shapes. An attempt to change the shape for such models may lead to an exception during model conversion, later in model inference, or even to wrong results of inference without explicit exception raised. A knowledge about model topology is required to set shapes appropriately.
-For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>`
-and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
 

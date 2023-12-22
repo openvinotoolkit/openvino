@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_op/embedding_bag_packed_sum.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/embedding_bag_packed_sum.hpp"
 
 namespace ov {
 namespace test {
@@ -50,7 +51,7 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto embBag = ngraph::builder::makeEmbeddingBagPackedSum(model_type, ind_type, param, indices, with_weights);
+    auto embBag = ov::test::utils::make_embedding_bag_packed_sum(model_type, ind_type, param, indices, with_weights);
 
     auto result = std::make_shared<ov::op::v0::Result>(embBag);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "embeddingBagPackedSum");

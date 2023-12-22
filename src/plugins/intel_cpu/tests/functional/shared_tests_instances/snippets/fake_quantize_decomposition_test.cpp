@@ -7,7 +7,7 @@
 
 #include "snippets/fake_quantize_decomposition_test.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::snippets;
 
 namespace {
 

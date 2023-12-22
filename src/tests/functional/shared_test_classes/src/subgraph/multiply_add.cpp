@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
@@ -32,9 +32,9 @@ void MultiplyAddLayerTest::SetUp() {
     std::vector<size_t> constShape(inputShape.size(), 1);
     constShape[1] = inputShape[1];
 
-    auto const_mul = ngraph::builder::makeConstant<float>(element_type, constShape, {}, true);
+    auto const_mul = ov::test::utils::deprecated::make_constant<float>(element_type, constShape, {}, true);
     auto mul = std::make_shared<ov::op::v1::Multiply>(params[0], const_mul);
-    auto const_add = ngraph::builder::makeConstant<float>(element_type, constShape, {}, true);
+    auto const_add = ov::test::utils::deprecated::make_constant<float>(element_type, constShape, {}, true);
     auto add = std::make_shared<ov::op::v1::Add>(mul, const_add);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
     function = std::make_shared<ov::Model>(results, params, "multiplyAdd");
