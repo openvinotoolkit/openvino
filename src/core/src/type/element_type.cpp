@@ -135,10 +135,11 @@ ov::element::Type type_from_string(const std::string& type) {
 
 std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
     std::vector<const ov::element::Type*> rc = {
-        &ov::element::dynamic, &ov::element::boolean, &ov::element::bf16,   &ov::element::f16,    &ov::element::f32,
-        &ov::element::f64,     &ov::element::i4,      &ov::element::i8,     &ov::element::i16,    &ov::element::i32,
-        &ov::element::i64,     &ov::element::u1,      &ov::element::u4,     &ov::element::u8,     &ov::element::u16,
-        &ov::element::u32,     &ov::element::u64,     &ov::element::f8e4m3, &ov::element::f8e5m2, &ov::element::string};
+        &ov::element::dynamic, &ov::element::boolean, &ov::element::bf16, &ov::element::f16,    &ov::element::f32,
+        &ov::element::f64,     &ov::element::i4,      &ov::element::i8,   &ov::element::i16,    &ov::element::i32,
+        &ov::element::i64,     &ov::element::u1,      &ov::element::u4,   &ov::element::u8,     &ov::element::u16,
+        &ov::element::u32,     &ov::element::u64,     &ov::element::nf4,  &ov::element::f8e4m3, &ov::element::f8e5m2,
+        &ov::element::string};
     return rc;
 }
 
@@ -167,7 +168,7 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
-        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "nf4"}},
+        {ov::element::Type_t::nf4, {4, false, false, true, "nfloat4", "nf4"}},
         {ov::element::Type_t::f8e4m3, {8, true, true, true, "f8e4m3", "f8e4m3"}},
         {ov::element::Type_t::f8e5m2, {8, true, true, true, "f8e5m2", "f8e5m2"}},
         {ov::element::Type_t::string, {8 * sizeof(std::string), false, false, false, "string", "string"}},
@@ -313,6 +314,8 @@ Type fundamental_type_for(const Type& type) {
         return from<element_type_traits<Type_t::u32>::value_type>();
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
+    case Type_t::nf4:
+        return from<element_type_traits<Type_t::nf4>::value_type>();
     case Type_t::string:
         return from<element_type_traits<Type_t::string>::value_type>();
     default:
