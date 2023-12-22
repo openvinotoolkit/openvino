@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -98,7 +98,7 @@ void QuantizedConvolutionBatchNorm::SetUp() {
     auto low_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {-0.72519057});
     auto high_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {0.72519057});
     std::shared_ptr<Node> activations = nullptr;
-    std::shared_ptr<Node> weights = ngraph::builder::makeConstant(element::f32, weights_shape, {}, true, 0.5f, -0.5f);
+    std::shared_ptr<Node> weights = ov::test::utils::deprecated::make_constant(element::f32, weights_shape, {}, true, 0.5f, -0.5f);
     if (quantize_type == QuantizeType::FAKE_QUANTIZE) {
         activations = std::make_shared< ov::op::v0::FakeQuantize>(parameter, low_act, high_act, low_act, high_act, 256);
         weights = std::make_shared< ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, low_weights, high_weights, 255);
@@ -158,10 +158,10 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(activations, weights, Strides{1, 1},
                 CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
     }
-    auto gamma = ngraph::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto beta = ngraph::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto mean = ngraph::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto var = ngraph::builder::makeConstant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto gamma = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto beta = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto mean = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+    auto var = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
     auto batch_norm = std::make_shared<ov::op::v5::BatchNormInference>(conv, gamma, beta, mean, var, 0.00001);
     function = std::make_shared<ov::Model>(batch_norm, ParameterVector{parameter});
 }

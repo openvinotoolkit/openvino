@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/cascade_concat.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 std::string CascadeConcat::getTestCaseName(const testing::TestParamInfo<CascadeConcatTuple> &obj) {
@@ -53,7 +55,7 @@ void CascadeConcat::SetUp() {
                                                                                  1);
     ngraph::ResultVector results;
     if (multioutput) {
-        auto const_mult = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, input1[0][1]+input2[0][1]},
+        auto const_mult = ov::test::utils::deprecated::make_constant(ngPrc, ngraph::Shape{1, input1[0][1]+input2[0][1]},
                                                   std::vector<float>{1.01f});
         auto mult = std::make_shared<ov::op::v1::Multiply>(concat, const_mult);
         results = ngraph::ResultVector{std::make_shared<ov::op::v0::Result>(concat2),
@@ -109,7 +111,7 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
     inputShapeSqueezed.insert(std::begin(inputShapeSqueezed), 1);
     ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapeSqueezed))};
     auto relu = std::make_shared<ov::op::v0::Relu>(input[0]);
-    auto const1 = ngraph::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
+    auto const1 = ov::test::utils::deprecated::make_constant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
     auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{relu, const1}, inputShapeSqueezed.size() - 1);
 
     auto squeeze_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
@@ -120,7 +122,7 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
     auto unsqueeze1_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
     auto unsqueeze1 = std::make_shared<ov::op::v0::Unsqueeze>(relu1, unsqueeze1_constant);
 
-    auto const2 = ngraph::builder::makeConstant(ngPrc, inputShape, std::vector<float>{}, true);
+    auto const2 = ov::test::utils::deprecated::make_constant(ngPrc, inputShape, std::vector<float>{}, true);
     auto concat2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{squeeze, const2}, 1);
     // Change concat name to make it the second connection in the map of squeeze output connections
     concat2->set_friendly_name("XConcat");

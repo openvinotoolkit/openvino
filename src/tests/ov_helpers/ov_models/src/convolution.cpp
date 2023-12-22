@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "ov_models/builders.hpp"
 
@@ -29,7 +30,8 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in,
     auto shape = in.get_partial_shape();
     std::vector<size_t> filterWeightsShape = {numOutChannels, static_cast<size_t>(shape[1].get_length())};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode =
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
     auto conv = std::make_shared<ov::op::v1::Convolution>(in,
                                                           filterWeightsNode,
                                                           strides,
@@ -39,7 +41,8 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in,
                                                           autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);
+        auto biasesWeightsNode =
+            ov::test::utils::deprecated::make_constant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {
@@ -64,7 +67,8 @@ std::shared_ptr<Node> makeConvolution(const ov::Output<Node>& in_data,
         std::make_shared<ov::op::v1::Convolution>(in_data, in_weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);
+        auto biasesWeightsNode =
+            ov::test::utils::deprecated::make_constant(type, {1, numOutChannels, 1, 1}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {

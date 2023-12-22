@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -40,15 +40,15 @@ public:
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ov::element::f32, Shape{1}, std::vector<float>{4}));
+            ov::test::utils::deprecated::make_constant(ov::element::f32, Shape{1}, std::vector<float>{4}));
         mul1->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ov::element::f32, Shape{1}, std::vector<float>{5}));
+            ov::test::utils::deprecated::make_constant(ov::element::f32, Shape{1}, std::vector<float>{5}));
         mul2->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul3 = std::make_shared<ov::op::v1::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ov::element::f32, Shape{1}, std::vector<float>{6}));
+            ov::test::utils::deprecated::make_constant(ov::element::f32, Shape{1}, std::vector<float>{6}));
         mul3->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(mul1),

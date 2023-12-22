@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "ov_models/builders.hpp"
 
@@ -25,9 +26,9 @@ std::shared_ptr<ov::Node> makeGRU(const OutputVector& in,
                                   ov::op::RecurrentSequenceDirection direction,
                                   ov::test::utils::SequenceTestsMode mode) {
     std::vector<float> empty;
-    auto W = ngraph::builder::makeConstant(in[0].get_element_type(), constants[0], empty, true);
-    auto R = ngraph::builder::makeConstant(in[0].get_element_type(), constants[1], empty, true);
-    auto B = ngraph::builder::makeConstant(in[0].get_element_type(), constants[2], empty, true);
+    auto W = ov::test::utils::deprecated::make_constant(in[0].get_element_type(), constants[0], empty, true);
+    auto R = ov::test::utils::deprecated::make_constant(in[0].get_element_type(), constants[1], empty, true);
+    auto B = ov::test::utils::deprecated::make_constant(in[0].get_element_type(), constants[2], empty, true);
     if (!make_sequence) {
         return std::make_shared<ov::op::v3::GRUCell>(in[0],
                                                      in[1],
@@ -62,19 +63,19 @@ std::shared_ptr<ov::Node> makeGRU(const OutputVector& in,
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {
                 std::vector<float> lengths(in[0].get_partial_shape()[0].get_min_length(),
                                            in[0].get_partial_shape()[1].get_min_length());
-                seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, false);
+                seq_lengths = ov::test::utils::deprecated::make_constant(element::i64, constants[3], lengths, false);
                 break;
             }
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
             case ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST: {
                 for (size_t i = 0; i <= in[0].get_shape().at(0); ++i) {
                     std::vector<float> lengths;
-                    seq_lengths = ngraph::builder::makeConstant(element::i64,
-                                                                constants[3],
-                                                                lengths,
-                                                                true,
-                                                                static_cast<float>(in[0].get_shape()[1]),
-                                                                0.f);
+                    seq_lengths = ov::test::utils::deprecated::make_constant(element::i64,
+                                                                             constants[3],
+                                                                             lengths,
+                                                                             true,
+                                                                             static_cast<float>(in[0].get_shape()[1]),
+                                                                             0.f);
                 }
                 break;
             }

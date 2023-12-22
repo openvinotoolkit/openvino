@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_infer_request/infer_consistency.hpp"
-#include "ov_models/builders.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <thread>
+
+#include "behavior/ov_infer_request/infer_consistency.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -15,17 +17,17 @@ std::shared_ptr<ngraph::Function> GetDefaultGraph() {
     size_t spatialDims = 2;
     std::vector<ptrdiff_t> padBegin(spatialDims, 0), padEnd(spatialDims, 0);
     ngraph::Shape strides(spatialDims, 1);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {64, 3, 7, 7}, {},
+    auto weights = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64, 3, 7, 7}, {},
             true);
     auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides,
             padBegin, padEnd, strides);
-    auto gamma = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
+    auto gamma = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
             true);
-    auto beta = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
+    auto beta = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
             true);
-    auto mean = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
+    auto mean = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
             true);
-    auto variance = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
+    auto variance = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
             true);
     auto batchNorm1 = std::make_shared<ov::op::v0::BatchNormInference>(conv1, gamma,
             beta, mean, variance, 1e-5);

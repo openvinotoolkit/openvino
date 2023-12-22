@@ -6,6 +6,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 
@@ -59,7 +60,7 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     if (pos == 0) {
         in0 = std::make_shared<op::v1::Transpose>(in0, const_order);
     }
-    auto constant = ngraph::builder::makeConstant(ov::element::i8, const_shape.get_shape(), std::vector<int8_t>{}, true);
+    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i8, const_shape.get_shape(), std::vector<int8_t>{}, true);
     auto convert = std::make_shared<op::v0::Convert>(constant, ov::element::f32);
     auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);

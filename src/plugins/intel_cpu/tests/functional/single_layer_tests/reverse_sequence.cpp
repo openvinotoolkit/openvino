@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -80,7 +80,7 @@ protected:
             paramsIn.push_back(param);
         } else {
             const auto maxSeqLength = dataInputShape.second.front().at(seqAxisIndex);
-            seqLengthsInput = ngraph::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
+            seqLengthsInput = ov::test::utils::deprecated::make_constant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
         }
 
         const auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);

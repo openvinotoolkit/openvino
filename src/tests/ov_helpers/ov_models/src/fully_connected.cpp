@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
 #include "ov_models/builders.hpp"
@@ -26,14 +27,14 @@ std::shared_ptr<Node> makeFullyConnected(const ov::Output<Node>& in,
     }
 
     bool randomWeights = weights.empty();
-    auto weightsNode = makeConstant(type, shape, weights, randomWeights);
+    auto weightsNode = ov::test::utils::deprecated::make_constant(type, shape, weights, randomWeights);
 
     auto fc = std::make_shared<ov::op::v0::MatMul>(in, weightsNode, false, false);
     fc->set_friendly_name("FullyConnected");
 
     if (addBias) {
         bool randomBiasWeights = biasWeights.empty();
-        auto biasWeightsNode = makeConstant(type, {}, biasWeights, randomBiasWeights);
+        auto biasWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasWeights, randomBiasWeights);
         auto add = std::make_shared<ov::op::v1::Add>(fc, biasWeightsNode);
 
         return add;

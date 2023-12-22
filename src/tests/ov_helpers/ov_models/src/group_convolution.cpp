@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "ov_models/builders.hpp"
@@ -34,7 +35,8 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
     filterWeightsShape[1] /= numGroups;
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode =
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     return makeGroupConvolution(in,
                                 filterWeightsNode,
@@ -62,7 +64,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
         std::make_shared<ov::op::v1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {

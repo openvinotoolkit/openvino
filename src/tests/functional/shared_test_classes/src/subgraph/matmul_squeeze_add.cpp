@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -40,7 +40,7 @@ void MatmulSqueezeAddTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
-    auto constant_0 = ngraph::builder::makeConstant<float>(
+    auto constant_0 = ov::test::utils::deprecated::make_constant<float>(
         element_type,
         {outputSize, inputShape[1]},
         ov::test::utils::generate_float_numbers(outputSize * inputShape[1], 0, 1, seed),
@@ -51,7 +51,7 @@ void MatmulSqueezeAddTest::SetUp() {
         std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, std::vector<size_t>{0});
     auto unsqueeze_0 = std::make_shared<ov::op::v0::Unsqueeze>(matmul_0, constant_1);
 
-    auto constant_2 = ngraph::builder::makeConstant<float>(
+    auto constant_2 = ov::test::utils::deprecated::make_constant<float>(
         element_type,
         {1, inputShape[0], outputSize},
         ov::test::utils::generate_float_numbers(inputShape[0] * outputSize, 0, 1, seed),

@@ -67,7 +67,6 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
     }
     return weightsNode;
 }
-
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
