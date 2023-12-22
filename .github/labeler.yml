@@ -115,9 +115,6 @@
 - 'src/frontends/paddle/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_paddle_frontend.py'
 
-'category: POT':
-- 'tools/pot/**/*'
-
 'category: preprocessing':
 - 'src/common/preprocessing/**/*'
 
@@ -163,7 +160,6 @@
 
 'category: tools':
 - any: ['tools/**',
-        '!tools/pot/**/*',
         '!tools/mo/**/*',
         '!tools/ovc/**/*']
 
