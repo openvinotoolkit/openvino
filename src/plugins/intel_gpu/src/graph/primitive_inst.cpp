@@ -494,7 +494,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevemt reading beyound the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>()) {
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
             user->update_shape();
             user->update_shape_done_by_other = true;
 
@@ -1112,8 +1112,14 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
+    // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
+    bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
+        [](const std::pair<std::shared_ptr<primitive_inst>, int32_t>& dep) {
+            return dep.first->is_dynamic();
+    });
+
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output()) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || (!is_dynamic() && has_dynamic_dependencies_insts)) {
         set_arguments();
     }
     on_execute();
