@@ -30,24 +30,14 @@ struct CPUStreamsExecutor::Impl {
             CpuSet _mask;
             int _ncpus = 0;
             int _threadBindingStep = 0;
-            int _offset = 0;
             std::vector<int> _cpu_ids;
-            Observer(custom::task_arena& arena,
-                     CpuSet mask,
-                     int ncpus,
-                     const int streamId,
-                     const int threadsPerStream,
-                     const int threadBindingStep,
-                     const int threadBindingOffset,
-                     const std::vector<int> cpu_ids = {})
+            Observer(custom::task_arena& arena, CpuSet mask, int ncpus, const std::vector<int> cpu_ids = {})
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
                   _ncpus(ncpus),
-                  _threadBindingStep(threadBindingStep),
-                  _offset{streamId * threadsPerStream + threadBindingOffset},
                   _cpu_ids(cpu_ids) {}
             void on_scheduler_entry(bool) override {
-                pin_thread_to_vacant_core(_offset + tbb::this_task_arena::current_thread_index(),
+                pin_thread_to_vacant_core(tbb::this_task_arena::current_thread_index(),
                                           _threadBindingStep,
                                           _ncpus,
                                           _mask,
@@ -159,8 +149,7 @@ struct CPUStreamsExecutor::Impl {
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
                     if (nullptr != processMask) {
-                        _observer.reset(
-                            new Observer{*_taskArena, std::move(processMask), ncpus, 0, concurrency, 0, 0, _cpu_ids});
+                        _observer.reset(new Observer{*_taskArena, std::move(processMask), ncpus, _cpu_ids});
                         _observer->observe(true);
                     }
                 }
