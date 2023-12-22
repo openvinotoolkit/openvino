@@ -1542,6 +1542,12 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
+        // When we set input shape with range dims, real input shape maybe mismatch with output shape, we just change
+        // range min value to 1 to meet this case.
+        // For example:
+        // Output shape = {1, 160, {128, 256}, {128, 256}}
+        // Real input shape = {1, 160, 1, 1}
+        // Update shape to {1, 160, {1, 256}, {1, 256}}
         auto shape = getOutputShapeAtPort(0);
         auto minDims = shape.getMinDims();
         auto maxDims = shape.getMaxDims();
