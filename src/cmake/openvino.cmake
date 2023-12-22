@@ -54,12 +54,6 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
-
-    # TODO: remove together we GNA plugin
-    # for static linkage the dependencies are in opposite order
-    if(TARGET inference_engine_ir_v7_reader)
-        target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_ir_v7_reader)
-    endif()
 endif()
 
 if(WIN32)
@@ -78,8 +72,8 @@ if(TBB_FOUND)
     if(NOT TBB_LIB_INSTALL_DIR)
         message(FATAL_ERROR "Internal error: variable 'TBB_LIB_INSTALL_DIR' is not defined")
     endif()
-    # set LC_RPATH to TBB library directory
-    ov_set_apple_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
+    # set RPATH / LC_RPATH to TBB library directory
+    ov_set_install_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
 endif()
 
 # must be called after all target_link_libraries

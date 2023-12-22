@@ -41,7 +41,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
         R"(.*_DW_GroupConv.*_inFmts=(ndhwc|nCdhw16c).*ENFORCE_BF16=YES.*)",
         // TODO: 56143. Enable nspc convolutions for bf16 precision
-        R"(.*ConvolutionLayerCPUTest.*_inFmts=(ndhwc|nhwc).*ENFORCE_BF16=YES.*)",
+        R"(.*ConvolutionLayerCPUTest.*_inFmts=(ndhwc|nhwc).*INFERENCE_PRECISION_HINT=bf16.*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -178,7 +178,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Old API cannot deallocate tensor
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
-        R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+        R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765

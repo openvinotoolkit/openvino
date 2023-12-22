@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/single_layer/roi_pooling.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -161,7 +160,11 @@ protected:
                     }
                 }
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 1000;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
 
             inputs.insert({ funcInput.get_node_shared_ptr(), tensor });

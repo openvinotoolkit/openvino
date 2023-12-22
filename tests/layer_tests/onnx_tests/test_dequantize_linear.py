@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -89,7 +89,7 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model',
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model',
                                      opset_imports=[helper.make_opsetid("", opset)])
         onnx.checker.check_model(onnx_net)
 

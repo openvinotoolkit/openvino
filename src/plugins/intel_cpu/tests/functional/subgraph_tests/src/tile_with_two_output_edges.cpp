@@ -25,8 +25,8 @@ protected:
         const auto const1 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
         const auto const2 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
 
-        const auto add1 = utils::makeEltwise(tile->output(0), const1, utils::EltwiseTypes::ADD);
-        const auto add2 = utils::makeEltwise(tile->output(0), const2, utils::EltwiseTypes::ADD);
+        const auto add1 = utils::make_eltwise(tile->output(0), const1, utils::EltwiseTypes::ADD);
+        const auto add2 = utils::make_eltwise(tile->output(0), const2, utils::EltwiseTypes::ADD);
 
         NodeVector results{add1, add2};
         function = std::make_shared<ov::Model>(results, inputParams, "TileWithTwoOutputEdges");

@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
@@ -85,7 +86,7 @@ void QuantGroupConvLayerTest::SetUp() {
     }
 
     auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
-            ngraph::builder::makeGroupConvolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
+            ov::test::utils::make_group_convolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
     function = std::make_shared<ov::Model>(results, params, "QuantGroupConvolution");

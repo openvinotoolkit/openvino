@@ -14,6 +14,9 @@
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
 namespace Common {
+
+namespace type_helpers {
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
         {ov::element::f16, py::dtype("float16")},
@@ -33,8 +36,13 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},
         {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},
+        {ov::element::string, py::dtype("bytes_")},
     };
     return ov_type_to_dtype_mapping;
+}
+
+py::dtype get_dtype(const ov::element::Type& ov_type) {
+    return ov_type_to_dtype().at(ov_type);
 }
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
@@ -51,9 +59,35 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
         {"uint32", ov::element::u32},
         {"uint64", ov::element::u64},
         {"bool", ov::element::boolean},
+        {"bytes_", ov::element::string},
+        {"str_", ov::element::string},
+        {"bytes", ov::element::string},
+        {"str", ov::element::string},
     };
     return dtype_to_ov_type_mapping;
 }
+
+ov::element::Type get_ov_type(const py::array& array) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
+    char ctype = array.dtype().kind();
+    if (ctype == 'U' || ctype == 'S') {
+        return ov::element::string;
+    }
+    return dtype_to_ov_type().at(py::str(array.dtype()));
+}
+
+ov::element::Type get_ov_type(py::dtype& dtype) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
+    char ctype = dtype.kind();
+    if (ctype == 'U' || ctype == 'S') {
+        return ov::element::string;
+    }
+    return dtype_to_ov_type().at(py::str(dtype));
+}
+
+};  // namespace type_helpers
 
 namespace containers {
 const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
@@ -76,14 +110,108 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 }
 };  // namespace containers
 
+namespace string_helpers {
+
+py::array bytes_array_from_tensor(ov::Tensor&& t) {
+    if (t.get_element_type() != ov::element::string) {
+        OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    auto data = t.data<std::string>();
+    auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
+        return x.length() < y.length();
+    });
+    auto max_stride = max_element->length();
+    auto dtype = py::dtype("|S" + std::to_string(max_stride));
+    // Adjusting strides to follow the numpy convention:
+    py::array array;
+    auto new_strides = t.get_strides();
+    if (new_strides.size() == 0) {
+        array = py::array(dtype, t.get_shape(), {});
+    } else {
+        auto element_stride = new_strides[new_strides.size() - 1];
+        for (size_t i = 0; i < new_strides.size(); ++i) {
+            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+        }
+        array = py::array(dtype, t.get_shape(), new_strides);
+    }
+    // Create an empty array and populate it with utf-8 encoded strings:
+    auto ptr = array.data();
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        auto start = &data[i][0];
+        auto length = data[i].length();
+        auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
+        std::fill_n(end, max_stride - length, 0);
+    }
+    return array;
+}
+
+py::array string_array_from_tensor(ov::Tensor&& t) {
+    if (t.get_element_type() != ov::element::string) {
+        OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    // Approach that is compact and faster than np.char.decode(tensor.data):
+    auto data = t.data<std::string>();
+    py::list _list;
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "replace");
+        _list.append(_unicode_obj);
+        Py_XDECREF(_unicode_obj);
+    }
+    // Adjusting shape to follow the numpy convention:
+    py::array array(_list);
+    array.resize(t.get_shape());
+    return array;
+}
+
+void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
+    if (tensor.get_size() != static_cast<size_t>(array.size())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    py::buffer_info buf = array.request();
+    auto data = tensor.data<std::string>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
+        data[i] = std::string(ptr, buf.ndim == 0 ? buf.itemsize : buf.strides[0]);
+    }
+}
+
+void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
+    if (tensor.get_size() != static_cast<size_t>(array.size())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    py::buffer_info buf = array.request();
+    auto data = tensor.data<std::string>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
+        // TODO: check other unicode kinds? 2BYTE and 1BYTE?
+        PyObject* _unicode_obj =
+            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
+        PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
+        const char* _tmp_str = PyBytes_AsString(_utf8_obj);
+        data[i] = std::string(_tmp_str);
+        Py_XDECREF(_unicode_obj);
+        Py_XDECREF(_utf8_obj);
+    }
+}
+
+void fill_string_tensor_data(ov::Tensor& tensor, py::array& array) {
+    // More about character codes:
+    // https://numpy.org/doc/stable/reference/arrays.scalars.html
+    if (array.dtype().kind() == 'S') {
+        fill_tensor_from_bytes(tensor, array);
+    } else if (array.dtype().kind() == 'U') {
+        fill_tensor_from_strings(tensor, array);
+    } else {
+        OPENVINO_THROW("Unknown string kind passed to fill the Tensor's data!");
+    }
+}
+
+};  // namespace string_helpers
+
 namespace array_helpers {
 
 bool is_contiguous(const py::array& array) {
     return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-}
-
-ov::element::Type get_ov_type(const py::array& array) {
-    return Common::dtype_to_ov_type().at(py::str(array.dtype()));
 }
 
 std::vector<size_t> get_shape(const py::array& array) {
@@ -134,9 +262,18 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
 }
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
+    // Special case for string data type.
+    if (t.get_element_type() == ov::element::string) {
+        PyErr_WarnEx(PyExc_RuntimeWarning,
+                     "Data of string type will be copied! Please use dedicated properties "
+                     "`str_data` and `bytes_data` to avoid confusion while accessing "
+                     "Tensor's contents.",
+                     1);
+        return string_helpers::bytes_array_from_tensor(std::move(t));
+    }
+    // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
-    auto dtype = Common::ov_type_to_dtype().at(ov_type);
-
+    auto dtype = Common::type_helpers::get_dtype(ov_type);
     // Return the array as a view:
     if (is_shared) {
         if (ov_type.bitwidth() < Common::values::min_bitwidth) {
@@ -157,16 +294,16 @@ template <>
 ov::op::v0::Constant create_copied(py::array& array) {
     // Do not copy data from the array, only return empty tensor based on type.
     if (array.size() == 0) {
-        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array));
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
-        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
     }
     // Create actual Constant and a constructor is copying data.
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
-    return ov::op::v0::Constant(array_helpers::get_ov_type(array),
+    return ov::op::v0::Constant(type_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
                                 array.ndim() == 0 ? array.data() : array.data(0));
 }
@@ -188,7 +325,7 @@ ov::op::v0::Constant create_shared(py::array& array) {
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
-        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
+        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
@@ -202,7 +339,7 @@ ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
 template <>
 ov::Tensor create_copied(py::array& array) {
     // Create actual Tensor.
-    auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    auto tensor = ov::Tensor(type_helpers::get_ov_type(array), array_helpers::get_shape(array));
     // If size of an array is equal to 0, the array is empty.
     // Alternative could be `array.nbytes()`.
     // Do not copy data from it, only return empty tensor based on type.
@@ -211,7 +348,13 @@ ov::Tensor create_copied(py::array& array) {
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
-        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
+    }
+    // Special case with string data type of kind "S"(bytes_) or "U"(str_).
+    // pass through check for other string types like bytes and str.
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        string_helpers::fill_string_tensor_data(tensor, array);
+        return tensor;
     }
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     std::memcpy(tensor.data(),
@@ -222,12 +365,15 @@ ov::Tensor create_copied(py::array& array) {
 
 template <>
 ov::Tensor create_shared(py::array& array) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
+    }
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
         // If ndim of py::array is 0, array is a numpy scalar.
         // If size of an array is equal to 0, the array is empty.
-        return ov::Tensor(array_helpers::get_ov_type(array),
+        return ov::Tensor(type_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
                           (array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0));
     }
@@ -236,7 +382,11 @@ ov::Tensor create_shared(py::array& array) {
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
-    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
+    }
+
+    auto element_type = (type == ov::element::undefined) ? Common::type_helpers::get_ov_type(array) : type;
 
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
@@ -245,7 +395,11 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port) {
-    auto array_type = array_helpers::get_ov_type(array);
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
+    }
+
+    auto array_type = type_helpers::get_ov_type(array);
     auto array_shape_size = ov::shape_size(array_helpers::get_shape(array));
     auto port_element_type = port.get_element_type();
     auto port_shape_size = ov::shape_size(port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape());
@@ -348,7 +502,15 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out), share_outputs);
+        auto t = request.m_request.get_tensor(out);
+        if (t.get_element_type() == ov::element::string) {
+            if (share_outputs) {
+                PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
+            }
+            res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
+        } else {
+            res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
+        }
     }
     return res;
 }

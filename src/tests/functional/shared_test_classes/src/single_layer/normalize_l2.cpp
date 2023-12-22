@@ -9,7 +9,7 @@ namespace LayerTestsDefinitions {
 std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj) {
     std::vector<int64_t> axes;
     float eps;
-    ngraph::op::EpsMode epsMode;
+    ov::op::EpsMode epsMode;
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -40,7 +40,7 @@ void NormalizeL2LayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> axes;
     float eps;
-    ngraph::op::EpsMode epsMode;
+    ov::op::EpsMode epsMode;
     InferenceEngine::Precision netPrecision;
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -51,7 +51,7 @@ void NormalizeL2LayerTest::SetUp() {
     auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
     auto norm = std::make_shared<ov::op::v0::NormalizeL2>(data_input, normAxes, eps, epsMode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }
 

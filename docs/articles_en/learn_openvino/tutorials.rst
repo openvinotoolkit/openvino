@@ -58,17 +58,30 @@ The Jupyter notebooks are categorized into following classes:
 
 Below you will find a selection of recommended tutorials that demonstrate inference on a particular model. These tutorials are guaranteed to provide a great experience with inference in OpenVINO:
 
+
+.. showcase::
+   :title: 272-paint-by-example
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
+
+   Paint by Example using Stable Diffusion and OpenVINO.
+
+.. showcase::
+   :title: 271-sdxl-turbo
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/271-sdxl-turbo/271-sdxl-turbo.png
+
+   Single step image generation using SDXL-turbo and OpenVINO.
+
+.. showcase::
+   :title: 270-sound-generation-audioldm2
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/270-sound-generation-audioldm2/270-sound-generation-audioldm2.png
+   
+   Sound Generation with AudioLDM2 and OpenVINO.
+
 .. showcase::
    :title: 269-film-slowmo
-   :img: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/269-film-slowmo/269-film-slowmo.gif
 
    Frame interpolation using FILM and OpenVINO.
-
-.. showcase::
-   :title: 268-table-question-answering
-   :img: _static/images/notebook_eye.png
-
-   Table Question Answering using TAPAS and OpenVINO.
 
 .. showcase::
    :title: 267-distil-whisper-asr
@@ -77,82 +90,34 @@ Below you will find a selection of recommended tutorials that demonstrate infere
    Automatic speech recognition using Distil-Whisper and OpenVINO.
 
 .. showcase::
-   :title: 266-speculative-sampling
-   :img: _static/images/notebook_eye.png
-
-   Text Generation via Speculative Sampling, KV Caching, and OpenVINO.
-
-.. showcase::
    :title: 265-wuerstchen-image-generation
-   :img: https://user-images.githubusercontent.com/76161256/277724498-6917c558-d74c-4cc9-b81a-679ce0a299ee.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/265-wuerstchen-image-generation/265-wuerstchen-image-generation.png
 
    Image generation with Würstchen and OpenVINO.
 
 .. showcase::
    :title: 264-qrcode-monster
-   :img: https://user-images.githubusercontent.com/76463150/278011447-1a5978c6-e7a0-4824-9318-a3d8f4912c47.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/264-qrcode-monster/264-qrcode-monster.png
 
    Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
 
 .. showcase::
    :title: 263-latent-consistency-models-image-generation
-   :img: https://user-images.githubusercontent.com/29454499/277367065-13a8f622-8ea7-4d12-b3f8-241d4499305e.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/263-latent-consistency-models-image-generation/263-latent-consistency-models-image-generation.png
 
    Image generation with Latent Consistency Model and OpenVINO.
+
+.. showcase::
+   :title: 263-lcm-lora-controlnet
+   :img: https://user-images.githubusercontent.com/29454499/284292122-f146e16d-7233-49f7-a401-edcb714b5288.png
+
+   Text-to-Image Generation with LCM LoRA and ControlNet Conditioning.
 
 .. showcase::
    :title: 262-softvc-voice-conversion
    :img: _static/images/notebook_eye.png
 
    SoftVC VITS Singing Voice Conversion and OpenVINO.
-
-.. showcase::
-   :title: 261-fast-segment-anything
-   :img: https://user-images.githubusercontent.com/26833433/248551984-d98f0f6d-7535-45d0-b380-2e1440b52ad7.jpg
-
-   Object segmentation with FastSAM and OpenVINO.
-
-.. showcase::
-   :title: 259-decidiffusion-image-generation
-   :img: https://user-images.githubusercontent.com/29454499/274927904-cd734349-9954-4656-ab96-08a903e846ef.png
-
-   Image generation with DeciDiffusion and OpenVINO.
-
-.. showcase::
-   :title: 258-blip-diffusion-subject-generation
-   :img: https://user-images.githubusercontent.com/76161256/275485611-0ecf621f-b544-44ae-8258-8a49be704989.png
-
-   Subject-driven image generation and editing using BLIP Diffusion and OpenVINO.
-
-.. showcase::
-   :title: 257-llava-multimodal-chatbot
-   :img: https://raw.githubusercontent.com/haotian-liu/LLaVA/main/images/llava_logo.png
-
-   Visual-language assistant with LLaVA and OpenVINO.
-
-.. showcase::
-   :title: 256-bark-text-to-audio
-   :img: https://user-images.githubusercontent.com/29454499/269278630-9a770279-0045-480e-95f2-1a2f2d0a5115.png
-
-   Text-to-speech generation using Bark and OpenVINO.
-
-.. showcase::
-   :title: 254-llm-chatbot
-   :img: _static/images/notebook_eye.png
-
-   Create an LLM-powered Chatbot using OpenVINO.
-
-.. showcase::
-   :title: 253-zeroscope-text2video
-   :img: https://camo.githubusercontent.com/64eec6e52d060ca971c5a3be3f0d60e712907c98b4661b454d7e3e9575c2bc6b/68747470733a2f2f68756767696e67666163652e636f2f64617461736574732f68756767696e67666163652f646f63756d656e746174696f6e2d696d616765732f7265736f6c76652f6d61696e2f6469666675736572732f646172746876616465725f63657270656e73652e676966
-
-   Video generation with ZeroScope and OpenVINO.
-
-.. showcase::
-   :title: 251-tiny-sd-image-generation
-   :img: https://user-images.githubusercontent.com/29454499/260904650-274fc2f9-24d2-46a3-ac3d-d660ec3c9a19.png
-
-   Image Generation with Tiny-SD and OpenVINO.
 
 
 .. note::
