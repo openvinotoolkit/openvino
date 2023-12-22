@@ -3,13 +3,6 @@
 Changing Input Shapes
 =====================
 
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   troubleshooting_reshape_errors
-
 .. meta::
    :description: OpenVINO™ allows changing model input shape during the runtime when the provided
                  input has a different size than the model's input shape.
@@ -22,8 +15,8 @@ The following instructions are for cases where you need to change the model inpu
 .. note::
 
    If you need to do this only once, prepare a model with updated shapes via
-   :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-   For more information, refer to the :ref:`Specifying input_shape Parameter <when_to_specify_input_shapes>` article.
+   :doc:`Model Conversion API <openvino_docs_model_processing_introduction>`.
+   For more information, refer to the :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` article.
 
 
 The reshape method
@@ -165,7 +158,7 @@ You can find the usage scenarios of the ``reshape`` method in
 .. note::
 
    In some cases, models may not be ready to be reshaped. Therefore, a new input
-   shape cannot be set neither with :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+   shape cannot be set neither with :doc:`Model Conversion API <openvino_docs_model_processing_introduction>`
    nor the ``reshape`` method.
 
 The set_batch method
@@ -192,8 +185,7 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
 
 
 The ``set_batch`` method is a high-level API of the reshape functionality, so all
-information about the ``reshape`` method implications are applicable for ``set_batch``
-too, including the troubleshooting section.
+information about the ``reshape`` method implications are applicable for ``set_batch`` too.
 
 Once you set the input shape of the model, call the ``compile_model`` method to
 get a ``CompiledModel`` object for inference with updated shapes.
