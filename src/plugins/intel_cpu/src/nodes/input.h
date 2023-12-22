@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
 #include <openvino/op/constant.hpp>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -39,9 +37,6 @@ public:
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
-
-protected:
-    void resetMemoryPtr(const MemoryCPtr& mem);
 
 private:
     void cloneBlobIfRequired();

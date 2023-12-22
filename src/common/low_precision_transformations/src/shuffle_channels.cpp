@@ -5,13 +5,12 @@
 #include "low_precision/shuffle_channels.hpp"
 
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -48,12 +47,9 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const size_t normalizedAxis = ov::normalize_axis(
-                shuffleChannels->get_friendly_name(),
-                shuffleChannels->get_axis(),
-                shuffleChannels->get_input_partial_shape(0).rank());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const size_t normalizedAxis = ov::util::normalize_axis(shuffleChannels->get_friendly_name(),
+                                                                   shuffleChannels->get_axis(),
+                                                                   shuffleChannels->get_input_partial_shape(0).rank());
 
             if (constShape[normalizedAxis] == 1ul) {
                 return normalizedConst;
