@@ -329,8 +329,8 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
 LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs,
                                         const std::vector<size_t>& loop_ids, const constExprIt& place) {
     OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
-     OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
-                    "Failed to replace node: node output port count is not equal to output count of last old expression");
+    OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
+                   "Failed to replace node: node output port count is not equal to output count of last old expression");
 
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
@@ -370,8 +370,8 @@ LinearIR::exprIt LinearIR::replace_node(const std::shared_ptr<ov::Node>& new_nod
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(new_node->output(i), last_old_expr->get_output_port_descriptor(0)->clone());
 
     // Notes:
-    // - we cannot automatically updated loop ports in node insertion since there are old_exprs
-    // - we should update loop ports firstly and onlyt after that - remove old exprs from linearIR
+    // - we cannot automatically update loop ports in node insertion since there are old_exprs
+    // - we should update loop ports firstly and only after that - remove old exprs from linearIR
     const auto new_expr_it = insert_node(new_node, new_inputs, loop_ids, false, place, consumers);
     const auto input_ports = new_expr_it->get()->get_input_ports();
     const auto output_ports = new_expr_it->get()->get_output_ports();

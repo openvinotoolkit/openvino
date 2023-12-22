@@ -198,9 +198,7 @@ std::vector<size_t> LinearIR::LoopManager::get_common_outer_loops(const Expressi
     const auto& rhs_ids = rhs->get_loop_ids();
     const auto& lhs_ids = lhs->get_loop_ids();
     size_t idx = 0;
-    while (idx < std::min(rhs_ids.size(), lhs_ids.size())) {
-        if (rhs_ids[idx] != lhs_ids[idx])
-            break;
+    while (idx < std::min(rhs_ids.size(), lhs_ids.size()) && rhs_ids[idx] == lhs_ids[idx]) {
         idx++;
     }
     return std::vector<size_t>(rhs_ids.cbegin(), rhs_ids.cbegin() + idx);
