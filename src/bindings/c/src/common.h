@@ -19,12 +19,12 @@
         return ov_status_e::StatusCode;               \
     }
 
-#define CATCH_OV_EXCEPTIONS                                   \
-    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
-    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
-    catch (...) {                                             \
-        dup_last_err_msg("An unknown exception occurred");    \
-        return ov_status_e::UNKNOW_EXCEPTION;                 \
+#define CATCH_OV_EXCEPTIONS                                \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)    \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)           \
+    catch (...) {                                          \
+        dup_last_err_msg("An unknown exception occurred"); \
+        return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \
