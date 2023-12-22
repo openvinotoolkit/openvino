@@ -61,6 +61,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
                 childEdge->collectConsumers(result);
             }
         }
+        return;
     } else if (!this->getChild()->getChildEdges().empty()) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
             bool isBaseEdge = false;
@@ -72,17 +73,17 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
                         childEdge->collectConsumers(result);
                 }
             }
-            if (!isBaseEdge)
-                result.push_back(this->getChild());
+            if (isBaseEdge)
+                return;
         }
-    } else {
-        auto childNode = this->getChild();
-        if (Type::ShapeOf == childNode->getType()) {
-            // ShapeOf doesn't actually read the data, it only reads shape
-            return;
-        }
-        result.push_back(childNode);
     }
+
+    auto childNode = this->getChild();
+    if (Type::ShapeOf == childNode->getType()) {
+        // ShapeOf doesn't actually read the data, it only reads shape
+        return;
+    }
+    result.push_back(childNode);
 }
 
 bool Edge::enforceReorder() {
