@@ -26,6 +26,7 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     auto k = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
     auto v = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
     auto init = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
     auto var_k = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{inputShape, element::f32, "pastk"});
     std::shared_ptr<ov::Node> pastk = std::make_shared<ov::op::v6::ReadValue>(k, var_k);
@@ -40,11 +41,13 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     if (isRef) {
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
         config.fuse_concat = true;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(OutputVector{q, k, v, pastk, pastv}, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(OutputVector{q, k, v, beam_idx, pastk, pastv}, config);
         sdp = new_node->output(0);
         concatK = new_node->output(1);
         concatV = new_node->output(2);
     } else {
+        pastk = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+        pastv = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
         concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, k}, 2);
         concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, v}, 2);
         sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concatK, concatV, false);
@@ -59,7 +62,7 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
 
     ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
     SinkVector sinks{pastk_assign, pastv_assign};
-    return std::make_shared<Model>(results, sinks, ParameterVector{q, k, v, init}, "ConcatSDP");
+    return std::make_shared<Model>(results, sinks, ParameterVector{q, k, v, init, beam_idx}, "ConcatSDP");
 }
 
 TEST(TransformationTests, StateConcatSDPA) {

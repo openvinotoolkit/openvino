@@ -71,7 +71,10 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = 10;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -107,9 +110,9 @@ protected:
 
         if (withQuantization) {
             std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-            eltwiseOps.push_back(makeEltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
+            eltwiseOps.push_back(make_eltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
             for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
-                eltwiseOps.push_back(makeEltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
+                eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
             }
 
             std::vector<size_t> constShape(targetStaticShapes[0][0].size(), 1);
@@ -119,15 +122,15 @@ protected:
                                                         256,
                                                         constShape);
 
-            eltwiseOps.push_back(makeEltwise(fq, inputNodes[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
+            eltwiseOps.push_back(make_eltwise(fq, inputNodes[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
 
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
             function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_fq");
         } else {
             std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-            eltwiseOps.push_back(makeEltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
+            eltwiseOps.push_back(make_eltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
             for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
-                eltwiseOps.push_back(makeEltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
+                eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
             }
 
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};

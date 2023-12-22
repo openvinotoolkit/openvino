@@ -60,7 +60,7 @@ ov_override_component_names()
 #
 # Override include / exclude rules for components
 # This is required to exclude some files from installation
-# (e.g. rpm packages don't require setupvars scripts or deployment_manager)
+# (e.g. rpm packages don't require setupvars scripts or others)
 #
 
 macro(ov_define_component_include_rules)
@@ -69,6 +69,9 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
     unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
     set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    # tbb
+    set(OV_CPACK_COMP_TBB_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # licensing
     set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # samples
@@ -94,9 +97,10 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # because numpy is installed by rpm
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # nodejs
+    set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

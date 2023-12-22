@@ -17,14 +17,14 @@ namespace ov {
 namespace test {
 
 std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
-    subgraph::EltwiseTestParams basicParamsSet;
+    EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     bool enforceSnippets;
     std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = obj.param;
 
     std::ostringstream result;
-    result << subgraph::EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<subgraph::EltwiseTestParams>(
+    result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(
                                                               basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -85,7 +85,11 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
-    return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = params.start_from;
+    in_data.range = params.range;
+    in_data.resolution = params.resolution;
+    return ov::test::utils::create_and_fill_tensor(type, shape, in_data);
 }
 
 void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -98,7 +102,7 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void EltwiseLayerCPUTest::SetUp() {
-    subgraph::EltwiseTestParams basicParamsSet;
+    EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     bool enforceSnippets;
@@ -209,7 +213,7 @@ void EltwiseLayerCPUTest::SetUp() {
             }
         }
     }
-    auto eltwise = utils::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 

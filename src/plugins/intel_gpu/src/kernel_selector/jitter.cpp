@@ -197,10 +197,14 @@ std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, boo
             pad_str = " + " + std::to_string(dim.pad.Total());
         }
     }
-    if (dim.is_dynamic || pad_is_dynamic) {
+    if (dim.is_dynamic) {
         snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
-        snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
+        if (pad_is_dynamic) {
+            snprintf(buf, sizeof(buf), "(%zu %s)", dim.v, pad_str.c_str()); // Static dim, dynamic padding
+        } else {
+            snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));  // Static dim, static padding
+        }
     }
     return buf;
 }

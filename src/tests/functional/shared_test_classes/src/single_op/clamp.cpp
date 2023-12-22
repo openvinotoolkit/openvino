@@ -44,7 +44,7 @@ void ClampLayerTest::SetUp() {
     auto input = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
     auto clamp = std::make_shared<ov::op::v0::Clamp>(input, interval.first, interval.second);
     auto result = std::make_shared<ov::op::v0::Result>(clamp);
-    function = std::make_shared<ov::Model>(result, ngraph::ParameterVector{input});
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{input});
 }
 } // namespace test
 } // namespace ov

@@ -36,14 +36,18 @@ namespace SubgraphTestsDefinitions {
             memory_init.emplace_back(static_cast<float>(dist(gen)));
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
-        auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
-        auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "memory");
+        auto mem_c = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
+        auto mem_r = std::make_shared<ov::op::v3::ReadValue>(mem_c, "memory");
 
         // Use memory layer as the second input of 'concat' to get negative offset
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input[0], mem_r }, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
-        auto mem_w = std::make_shared<ngraph::opset3::Assign>(split->output(0), "memory");
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
+        auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ input[0], mem_r }, 1);
+
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{hiddenSize, inputSize});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op, num_split);
+
+        auto mem_w = std::make_shared<ov::op::v3::Assign>(split->output(0), "memory");
+        auto sigm = std::make_shared<ov::op::v0::Sigmoid>(split->output(1));
 
         mem_w->add_control_dependency(mem_r);
         sigm->add_control_dependency(mem_w);
@@ -58,10 +62,14 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, std::ignore) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
-        auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input[0], mem_c }, 1);
-        auto split = ngraph::builder::makeVariadicSplit(concat, { hiddenSize, inputSize }, 1);
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
+        auto mem_c = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ input[0], mem_c }, 1);
+
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{hiddenSize, inputSize});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(concat, split_axis_op, num_split);
+
+        auto sigm = std::make_shared<ov::op::v0::Sigmoid>(split->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");
     }

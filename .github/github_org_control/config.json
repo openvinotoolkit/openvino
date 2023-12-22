@@ -24,7 +24,6 @@
         "openvino-docs-maintainers": "category: docs",
         "openvino-ie-maintainers": "category: inference",
         "openvino-ie-cpu-maintainers": "category: CPU",
-        "openvino-ie-gna-maintainers": "category: GNA",
         "openvino-ie-gpu-maintainers": "category: GPU",
         "openvino-ie-lpt-maintainers": "category: LP transformations",
         "openvino-ie-transformations-maintainers": "category: transformations",

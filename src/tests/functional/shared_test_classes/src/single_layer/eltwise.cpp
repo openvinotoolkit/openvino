@@ -5,6 +5,7 @@
 #include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 
@@ -124,7 +125,7 @@ void EltwiseLayerTest::SetUp() {
     parameters[0]->set_friendly_name("param0");
     secondaryInput->set_friendly_name("param1");
 
-    auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
 

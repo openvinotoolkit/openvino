@@ -5,6 +5,7 @@
 
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -39,9 +40,7 @@ std::vector<TRShape> shape_infer(const Unsqueeze* op,
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        normalize_axes(op, expanded_rank, unique_axes);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axes(op, expanded_rank, unique_axes);
         const std::set<int64_t> axes(unique_axes.begin(), unique_axes.end());
 
         out_shape = arg_shape;

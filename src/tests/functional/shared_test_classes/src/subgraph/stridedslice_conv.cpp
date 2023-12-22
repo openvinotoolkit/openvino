@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/stridedslice_conv.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -76,12 +77,12 @@ void SliceConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(ss,
+    auto conv = ov::test::utils::make_convolution(ss,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
 }
