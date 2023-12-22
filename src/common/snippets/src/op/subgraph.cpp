@@ -475,10 +475,10 @@ void Subgraph::control_flow_transformations(const std::vector<snippets::lowered:
     m_linear_ir->update_shape_infer();
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
 
-    // After transformations configure runtime parameters
+    // After transformations init runtime configurator
     // If shapes are static - creates static loop descriptors with inited data ptr shifts
     // If shapes are dynamic - creates full set of loop descriptor for the following initialization by static shapes
-    m_linear_ir->configure_runtime_args();
+    m_linear_ir->init_runtime_configurator();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,

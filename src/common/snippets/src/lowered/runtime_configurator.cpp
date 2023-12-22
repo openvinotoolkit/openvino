@@ -15,25 +15,30 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-void RuntimeConfigurator::init_linear_info(const lowered::LinearIR& linear_ir) {
+void RuntimeConfigurator::init(const lowered::LinearIR& linear_ir) {
+    if (m_inited) {
+        reset();
+    }
     init_io_info(linear_ir);
+    init_loop_descriptors(linear_ir.get_loop_manager());
+    init_data_offsets();
+    m_inited = true;
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIR& linear_ir) {
-    if (m_is_first_init) {
-        reset();
-        init_linear_info(linear_ir);
-    }
+    OPENVINO_ASSERT(m_inited, "Configurator must be already inited!");
+    init_loop_descriptors(linear_ir.get_loop_manager());
+    init_data_offsets();
+}
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    init_loop_descriptors(loop_manager);
-    init_data_offsets(linear_ir);
-
-    m_is_first_init = false;
+std::shared_ptr<RuntimeConfigurator> RuntimeConfigurator::clone(const lowered::LinearIR& linear_ir) {
+    auto cloned = std::make_shared<RuntimeConfigurator>(*this);
+    cloned->init_io_info(linear_ir);
+    return cloned;
 }
 
 void RuntimeConfigurator::reset() {
-    m_is_first_init = true;
+    m_inited = false;
     m_config.clear();
 }
 
@@ -48,24 +53,24 @@ void RuntimeConfigurator::init_loop_descriptors(const lowered::LinearIR::LoopMan
         lowered::pass::InitLoops::init_loop_info(loop_info, true);
 
         OPENVINO_ASSERT(!utils::is_dynamic_vdim(loop_info->get_increment()), "Increment must be static value!");
-        OPENVINO_ASSERT(utils::implication(m_is_first_init, m_config.m_loops.count(loop_id) == 0),
+        OPENVINO_ASSERT(utils::implication(!m_inited, m_config.m_loops.count(loop_id) == 0),
                         "If it's an first initialization, there should not be loop descriptors");
-        if (m_is_first_init) m_config.m_loops[loop_id] = {};
+        if (!m_inited) m_config.m_loops[loop_id] = {};
 
         if (is_first_iter_loop_needed(loop_info)) {
-            auto desc_it = m_is_first_init ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::First)
+            auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::First)
                                            : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::First);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "First Loop Descriptor has not been found!");
             init_first_iter_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_vector_loop_needed(loop_info)) {
-            auto desc_it = m_is_first_init ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Vector)
+            auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Vector)
                                            : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Vector);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "Vector Loop Descriptor has not been found!");
             init_vector_loop_descriptor(loop_info, loop_id, *desc_it);
         }
         if (is_tail_loop_needed(loop_info)) {
-            auto desc_it = m_is_first_init ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Tail)
+            auto desc_it = !m_inited ? m_config.push_new_desc(loop_id, RuntimeConfig::LoopDescriptor::Tail)
                                            : m_config.get_loop_desc_it(loop_id, RuntimeConfig::LoopDescriptor::Tail);
             OPENVINO_ASSERT(desc_it != m_config.m_loops.at(loop_id).end(), "Tail Loop Descriptor has not been found!");
             init_tail_loop_descriptor(loop_info, loop_id, *desc_it);
@@ -152,8 +157,8 @@ void RuntimeConfigurator::init_inner_splited_tail_loop_descriptors(const LinearI
         if (inner_dim_idx != outer_dim_idx)
             continue;
 
-        auto splited_tail_desc_it = m_is_first_init ? m_config.push_new_desc(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail)
-                                                    : m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail);
+        auto splited_tail_desc_it = !m_inited ? m_config.push_new_desc(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail)
+                                              : m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::SplitedTail);
         auto inner_vector_dest_it = m_config.get_loop_desc_it(inner_loop_id, RuntimeConfig::LoopDescriptor::Vector);
         OPENVINO_ASSERT(inner_vector_dest_it != m_config.m_loops.at(inner_loop_id).end(), "Splited inner Loop should be already inited!");
         splited_tail_desc_it->work_amount = tail_size;
@@ -218,6 +223,7 @@ void RuntimeConfigurator::init_io_info(const LinearIR& linear_ir) {
     m_io_descs.resize(m_io_num);
     m_io_data_sizes.resize(m_io_num);
     m_in_num = 0;
+    m_tensor_rank = linear_ir.get_config().m_tensor_rank;
 
     size_t idx = 0;
     for (const auto& expr : io_exprs) {
@@ -253,13 +259,11 @@ void RuntimeConfigurator::init_io_info(const LinearIR& linear_ir) {
     }
 }
 
-void RuntimeConfigurator::init_data_offsets(const LinearIR& linear_ir) {
+void RuntimeConfigurator::init_data_offsets() {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::RuntimeConfig::init_data_offsets")
 
-    const auto& tensor_rank = linear_ir.get_config().m_tensor_rank;
-
     for (size_t i = 0; i < m_io_num; ++i) {
-        offset_calculation(m_io_descs[i], m_io_data_sizes[i], i < m_in_num, tensor_rank, m_config.m_data_offsets[i]);
+        offset_calculation(m_io_descs[i], m_io_data_sizes[i], i < m_in_num, m_tensor_rank, m_config.m_data_offsets[i]);
     }
 }
 

@@ -147,6 +147,7 @@ public:
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 
+    void init_runtime_configurator();
     void configure_runtime_args();
     const RuntimeConfig& get_runtime_config() const;
 

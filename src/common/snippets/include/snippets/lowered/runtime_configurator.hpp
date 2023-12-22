@@ -22,16 +22,20 @@ public:
     RuntimeConfigurator() = default;
 
     /**
-     * @brief Initialize port descs of io expressions and their data sizes
+     * @brief Initialize config using LinearIR state
      * @param linear_ir the updated LinearIR
      */
-    void init_linear_info(const lowered::LinearIR& linear_ir);
-
+    void init(const lowered::LinearIR& linear_ir);
     /**
      * @brief Initialize config using LinearIR state
      * @param linear_ir the updated LinearIR
      */
     void update(const lowered::LinearIR& linear_ir);
+    /**
+     * @brief Clone with new LinearIR info with loop descs, data offsets savings
+     * @param linear_ir the updated LinearIR
+     */
+    std::shared_ptr<RuntimeConfigurator> clone(const lowered::LinearIR& linear_ir);
     /**
      * @brief Reset config: remove all loop descriptors
      */
@@ -52,9 +56,8 @@ private:
     void init_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager);
     /**
      * @brief Initialize input and output data offsets
-     * @param linear_ir Linear IR
      */
-    void init_data_offsets(const LinearIR& linear_ir);
+    void init_data_offsets();
     /**
      * @brief Calculate offset for input or output of body
      * @param desc port descriptor
@@ -148,11 +151,12 @@ private:
 
     size_t m_io_num = 0;
     size_t m_in_num = 0;
+    size_t m_tensor_rank = 0;
     std::vector<PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
 
     RuntimeConfig m_config;
-    bool m_is_first_init = true;
+    bool m_inited = false;
 };
 
 } // namespace lowered
