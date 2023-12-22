@@ -1,7 +1,7 @@
 .. {#troubleshooting_reshape_errors}
 
-Troubleshooting Reshape Errors
-==============================
+[LEGACY] Troubleshooting Reshape Errors
+=======================================
 
 
 .. meta::
@@ -9,6 +9,10 @@ Troubleshooting Reshape Errors
                  of non-reshape-able models and shape collision, which prevent 
                  normal shape propagation.
 
+
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
 How To Avoid Shape Collision
 ############################
@@ -24,7 +28,7 @@ Model structure and logic should not change significantly after model reshaping.
 
 * The Global Pooling operation is commonly used to reduce output feature map of classification models output. Having the input of the shape *[N, C, H, W]*, Global Pooling returns the output of the shape *[N, C, 1, 1]*. Model architects usually express Global Pooling with the help of the ``Pooling`` operation with the fixed kernel size *[H, W]*. During spatial reshape, having the input of the shape *[N, C, H1, W1]*, ``Pooling`` with the fixed kernel size *[H, W]* returns the output of the shape *[N, C, H2, W2]*, where *H2* and *W2* are commonly not equal to *1*. It breaks the classification model structure. For example, the public `Inception family models from TensorFlow <https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models>`__ have this issue.
 
-* Changing the model input shape may significantly affect its accuracy. For example, Object Detection models from TensorFlow have resizing restrictions by design. To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the ``pipeline.config`` file. For details, refer to the :ref:`Tensorflow Object Detection API models resizing techniques <custom-input-shape>`.
+* Changing the model input shape may significantly affect its accuracy. For example, Object Detection models from TensorFlow have resizing restrictions by design. To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the ``pipeline.config`` file.
 
 .. _how-to-fix-non-reshape-able-model:
 
