@@ -56,7 +56,7 @@ protected:
                                                       {-5.031249523162842},
                                                       {4.991942882537842});
 
-        auto Add_0 = ov::test::utils::makeEltwise(FQ_0, FQ, ov::test::utils::EltwiseTypes::ADD);
+        auto Add_0 = ov::test::utils::make_eltwise(FQ_0, FQ, ov::test::utils::EltwiseTypes::ADD);
 
         auto FQ_1 = ngraph::builder::makeFakeQuantize(params[0],
                                                       netPrecision,
@@ -85,7 +85,7 @@ protected:
                                                               CoordinateDiff{0},
                                                               Strides{1});
 
-        auto Add = ov::test::utils::makeEltwise(Add_0, Conv, ov::test::utils::EltwiseTypes::ADD);
+        auto Add = ov::test::utils::make_eltwise(Add_0, Conv, ov::test::utils::EltwiseTypes::ADD);
 
         auto FQ_11 = ngraph::builder::makeFakeQuantize(params[0],
                                                        netPrecision,
@@ -115,7 +115,7 @@ protected:
                                                                CoordinateDiff{0},
                                                                CoordinateDiff{0},
                                                                Strides{1});
-        auto Add2 = ov::test::utils::makeEltwise(Add, Conv2, ov::test::utils::EltwiseTypes::ADD);
+        auto Add2 = ov::test::utils::make_eltwise(Add, Conv2, ov::test::utils::EltwiseTypes::ADD);
         auto relu3 = ov::test::utils::make_activation(Add2, netPrecision, ov::test::utils::ActivationTypes::Relu);
 
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
