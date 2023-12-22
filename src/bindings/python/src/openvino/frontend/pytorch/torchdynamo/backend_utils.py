@@ -29,7 +29,7 @@ def _get_device(options) -> Optional[Any]:
     return device
 
 def _is_cache_dir_in_config(options) -> Optional[Any]:
-    if "config" in options:
+    if options is not None and "config" in options:
         cfg = options["config"]
         if cfg is not None and "CACHE_DIR" in cfg:
             return True
@@ -57,7 +57,11 @@ def _get_model_caching(options) -> Optional[Any]:
         else:
             return False
     else:
-        return os.getenv("OPENVINO_TORCH_MODEL_CACHING")
+        caching = os.getenv("OPENVINO_TORCH_MODEL_CACHING")
+        if caching is not None and caching.lower() not in ["false", "0"]:
+            return True
+        else:
+            return False
 
 
 def _get_config(options) -> Optional[Any]:
