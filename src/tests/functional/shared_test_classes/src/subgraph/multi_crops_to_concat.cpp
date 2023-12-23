@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/subgraph/multi_crops_to_concat.hpp"
-#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -68,7 +67,7 @@ void MultiCropsToConcatTest::SetUp() {
                                                             std::vector<int64_t>{ 0, 0 },
                                                             std::vector<int64_t>{ 0, 0 });
 
-    auto concat1 = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
+    auto concat1 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
     std::shared_ptr<ov::op::v0::Result> result;
 
     // Case with 3 crops
@@ -87,10 +86,10 @@ void MultiCropsToConcatTest::SetUp() {
                                                                 std::vector<int64_t>{ 0, 0 },
                                                                 std::vector<int64_t>{ 0, 0 });
 
-        auto concat2 = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
-        result = std::make_shared<ngraph::opset8::Result>(concat2);
+        auto concat2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
+        result = std::make_shared<ov::op::v0::Result>(concat2);
     } else {
-        result = std::make_shared<ngraph::opset8::Result>(concat1);
+        result = std::make_shared<ov::op::v0::Result>(concat1);
     }
     function = std::make_shared<ngraph::Function>(result, params, "InputSplitConcatTest");
 }

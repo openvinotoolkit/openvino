@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/activation.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -48,7 +49,7 @@ void ActivationLayerTest::SetUp() {
         std::iota(constantsValue.begin(), constantsValue.end(), -10);
     }
 
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+    auto activation = ov::test::utils::make_activation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
@@ -217,8 +218,8 @@ void ActivationParamLayerTest::SetUp() {
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
-    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
+    auto activation = ov::test::utils::make_activation(params, ngPrc, activationType);
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
 }
 

@@ -29,6 +29,8 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/bitwise_and.hpp"
+#include "op/bitwise_or.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
@@ -351,6 +353,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
@@ -575,6 +579,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    register_operator_in_custom_domain("DequantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::dequantize_linear,
+                                       "com.microsoft");
+    register_operator_in_custom_domain("QuantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::quantize_linear,
+                                       "com.microsoft");
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);

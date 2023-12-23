@@ -12,7 +12,7 @@ namespace pass {
 
 /**
  * @interface BrgemmBlocking
- * @brief Covers BrgemmCPU with blocking loop by M
+ * @brief Covers BrgemmCPU with blocking loops
  * @ingroup snippets
  */
 

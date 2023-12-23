@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <openvino/op/scatter_elements_update.hpp>
-
+#include "openvino/op/scatter_elements_update.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -49,9 +49,7 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
 
     if (data_shape.rank().is_static()) {
         if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::normalize_axis(op, (*axis_input)[0], data_rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::normalize_axis(op, (*axis_input)[0], data_rank);
         }
     }
     return {data_shape};

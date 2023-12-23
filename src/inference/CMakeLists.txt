@@ -23,14 +23,6 @@ file (GLOB LIBRARY_SRC
 set(OV_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${OV_STATIC_DEPENDENT_FILES})
 
-if(BUILD_SHARED_LIBS OR ENABLE_IR_V7_READER)
-    # TODO: remove together with GNA plugin
-    # we have unconditional adding of the ENABLE_IR_V7_READER compile definition for shared libs case
-    # to avoid rebuild, relink during work with build tree
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
-        COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
-endif()
-
 file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
@@ -222,7 +214,8 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)

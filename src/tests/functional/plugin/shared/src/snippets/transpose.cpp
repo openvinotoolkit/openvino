@@ -6,7 +6,6 @@
 #include "snippets/transpose.hpp"
 #include "subgraph_transpose.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -36,9 +35,8 @@ void Transpose::SetUp() {
 
     auto f = ov::test::snippets::TransposeFunction({inputShape}, order);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -66,9 +64,8 @@ void TransposeMul::SetUp() {
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
     auto f = ov::test::snippets::TransposeMulFunction(inputShapes, order);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 

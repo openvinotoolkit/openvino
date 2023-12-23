@@ -10,15 +10,19 @@
 #include "openvino/util/file_util.hpp"
 #include <random>
 #include "ie_algorithm.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
-    [] {return ngraph::builder::subgraph::makeSplitMultiConvConcat();},
-    [] {return ngraph::builder::subgraph::makeNestedSplitConvConcat();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
-    [] {return ngraph::builder::subgraph::makeNestedBranchConvConcat();},
+    [] {return ov::test::utils::make_split_multi_conv_concat();},
+    [] {return ov::test::utils::make_nested_split_conv_concat();},
+    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch();},
+    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out();},
+    [] {return ov::test::utils::make_nested_branch_conv_concat();},
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(

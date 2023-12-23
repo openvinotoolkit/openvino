@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -95,13 +95,13 @@ protected:
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
             inp2 =
-                ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ngraph::builder::makeConstant<float>(netPrecision,
+                ov::test::utils::deprecated::make_constant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ov::test::utils::deprecated::make_constant<float>(netPrecision,
                                                         {inputShape.second.front().at(1)},
                                                         {},
                                                         true,
                                                         maxBeamIndex);
-            inp4 = ngraph::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            inp4 = ov::test::utils::deprecated::make_constant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }
@@ -118,10 +118,10 @@ protected:
         const auto& funcInputs = function->inputs();
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(),
-                                                                  targetInputStaticShapes[i],
-                                                                  maxBeamIndex,
-                                                                  (i == 2 || i == 3) ? maxBeamIndex / 2 : 0);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = (i == 2 || i == 3) ? maxBeamIndex / 2 : 0;
+            in_data.range = maxBeamIndex;
+            auto tensor = ov::test::utils::create_and_fill_tensor(funcInputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
         }
     }

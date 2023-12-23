@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/simple_if.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -70,7 +70,7 @@ void SimpleIfTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res2}, ov::ParameterVector{p3});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -108,7 +108,7 @@ void SimpleIf2OutTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -175,10 +175,10 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
             auto* dataPtr = tensor.data<bool>();
             dataPtr[0] = condition;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                             targetInputStaticShapes[i],
-                                                             10,
-                                                             -5);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -5;
+            in_data.range = 10;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});

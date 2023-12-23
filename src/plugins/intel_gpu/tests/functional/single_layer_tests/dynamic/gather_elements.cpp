@@ -2,36 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::test;
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph::helpers;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/gather_elements.hpp"
 
-namespace GPULayerTestsDefinitions  {
+namespace {
+using ov::test::InputShape;
 
 using GatherElementsParams = std::tuple<
         std::vector<InputShape>,           // Dynamic shape + Target static shapes
         int,                               // Axis
-        ElementType,                       // Data precision
-        ElementType,                       // Indices precision
-        TargetDevice                       // Device name
->;
+        ov::element::Type,                 // Data type
+        ov::element::Type,                 // Indices type
+        std::string>;                      // Device name
 
 class GatherElementsGPUTest : public testing::WithParamInterface<GatherElementsParams>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsParams>& obj) {
         std::vector<InputShape> shapes;
-        ElementType dPrecision, iPrecision;
+        ov::element::Type data_type, indices_type;
         int axis;
         std::string device;
-        std::tie(shapes, axis, dPrecision, iPrecision, device) = obj.param;
+        std::tie(shapes, axis, data_type, indices_type, device) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -45,21 +42,25 @@ public:
             }
         }
         result << "Ax=" << axis << "_";
-        result << "DP=" << dPrecision << "_";
-        result << "IP=" << iPrecision << "_";
+        result << "DP=" << data_type << "_";
+        result << "IP=" << indices_type << "_";
         result << "device=" << device;
 
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 15, 0, 32768);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 15;
+            in_data.resolution = 32768;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -68,28 +69,26 @@ public:
 protected:
     void SetUp() override {
         std::vector<InputShape> shapes;
-        ElementType dPrecision, iPrecision;
+        ov::element::Type data_type, indices_type;
         int axis;
-        std::tie(shapes, axis, dPrecision, iPrecision, targetDevice) = this->GetParam();
+        std::tie(shapes, axis, data_type, indices_type, targetDevice) = this->GetParam();
         init_input_shapes(shapes);
 
-        ngraph::ParameterVector params = {
-            std::make_shared<ngraph::opset1::Parameter>(dPrecision, inputDynamicShapes[0]),
-            std::make_shared<ngraph::opset1::Parameter>(iPrecision, inputDynamicShapes[1]),
+        ov::ParameterVector params = {
+            std::make_shared<ov::op::v0::Parameter>(data_type, inputDynamicShapes[0]),
+            std::make_shared<ov::op::v0::Parameter>(indices_type, inputDynamicShapes[1]),
         };
 
-        auto gather = std::make_shared<ngraph::op::v6::GatherElements>(params[0], params[1], axis);
+        auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], params[1], axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather)};
-        function = std::make_shared<ngraph::Function>(results, params, "GatherElements");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
+        function = std::make_shared<ov::Model>(results, params, "GatherElements");
     }
 };
 
-TEST_P(GatherElementsGPUTest, CompareWithRefs) {
+TEST_P(GatherElementsGPUTest, Inference) {
     run();
 }
-
-namespace {
 
 const std::vector<std::vector<InputShape>> inDynamicShapeParams = {
     {{{-1, -1, -1, -1}, {{2, 3, 5, 7}, {3, 4, 6, 8}}},
@@ -102,10 +101,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
                 ::testing::Combine(
                     ::testing::ValuesIn(inDynamicShapeParams),                // shape
                     ::testing::ValuesIn(std::vector<int>({2, -2})),           // Axis
-                    ::testing::ValuesIn(std::vector<ElementType>({ElementType::f16, ElementType::f32})),
-                    ::testing::Values(ElementType::i32),
+                    ::testing::ValuesIn(std::vector<ov::element::Type>({ov::element::f16, ov::element::f32})),
+                    ::testing::Values(ov::element::i32),
                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GatherElementsGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions
