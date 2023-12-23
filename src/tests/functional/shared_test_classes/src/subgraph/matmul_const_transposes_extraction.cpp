@@ -8,7 +8,6 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/matmul_const_transposes_extraction.hpp"
 
 namespace ov {

@@ -23,11 +23,6 @@ To run OpenVINO Python API 2.0 tests:
 pytest tests/
 ```
 
-To run OpenVINO Python API 1.0 tests, use this command:
-```
-pytest tests_compatibility/
-```
-
 By default, tests are run on the CPU plugin. If you want to run them on a different plugin,
 you need to specify this environment variable:
 ```
@@ -146,10 +141,6 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 * Hardcode desired results...
 * ... or create reference values during runtime. Always use a good, thrust-worthy library for that!
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
-
-### Difference between *tests* and *tests_compatibility* directories
-<!-- TO-DELETE when compatibility layer is no longer supported in the project -->
-Someone could notice two similar folders [`tests`](./../tests/) and [`tests_compatibility`](./../tests_compatibility/). First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO™ reviewers. Please do not duplicate tests in both directories if not necessary.
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)
