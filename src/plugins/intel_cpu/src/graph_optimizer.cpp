@@ -2564,10 +2564,20 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         for (auto ccEdge : childEdges)
             reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
 
-        graph.DropNode(trans_node);
-        graph.DropNode(reorder_node);
+        // detach trans_node and reorder_node from graph by remove all of their edges
+        // they will be removed in future graph.RemoveDroppedNodes() call
+        auto detachNode = [&](std::shared_ptr<Node>& node) {
+            std::vector<EdgeWeakPtr> edges;
+            edges = node->getParentEdges();
+            for (auto& edge : edges)
+                graph.RemoveEdge(edge.lock());
+            edges = node->getChildEdges();
+            for (auto& edge : edges)
+                graph.RemoveEdge(edge.lock());
+        };
+        detachNode(trans_node);
+        detachNode(reorder_node);
 
-        // pp ===> cc0, cc1, ...
         auto reorderInDesc = trans_node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
         auto finalDesc = reorder_node->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
         auto reorderOutDesc = finalDesc->cloneWithNewPrecision(reorderInDesc->getPrecision());
@@ -2611,10 +2621,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             graph.GetEdges().push_back(new_edge);
             parent->addEdge(new_edge);
         };
-
-        // remove all edges from pp to cc0,cc1,...
-        for (auto& ce : parentParentNode->getChildEdgesAtPort(parentParenPort))
-            graph.RemoveEdge(ce);
 
         connect(parentParentNode, reorder_layout, parentParenPort, 0);
 
