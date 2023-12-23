@@ -11,7 +11,7 @@ Stateful models and State API {#openvino_docs_OV_UG_stateful_models_intro}
 
 @endsphinxdirective
 
-## What is a Stateful Network?
+## What is Stateful Network?
 
  Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
  we can process it with RNN like networks that contain a cycle inside. But in some cases, like online speech recognition of time series 
@@ -28,10 +28,17 @@ Deep learning frameworks provide a dedicated API to build models with state. For
 ## OpenVINO State Representation
 
  OpenVINO contains a special abstraction `Variable` to represent a state in a network. There are two operations to work with the state: 
-* `Assign` to save value in state
+* `Assign` to save value to the state
 * `ReadValue` to read value saved on previous iteration
 
 ![state_network_example](./img/state_network_example.png)
+
+The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations. They have no connection with each other and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
+In addition, this may impose additional overhead due to data representation conversion.
+
+Having operations such as ReadValue and Assign allows users to replace the looped Parameter/Result pairs of operations and shift the work of copying data to OpenVINO. After the replacement, the OpenVINO model no longer contains inputs and outputs with such names, all internal work on data copying is hidden from the user, but data from the intermediate inference can always be retrieved using State API methods.
+
+In some cases, users need to set an initial value for State, or it may be necessary to reset the value of State at a certain inference to the initial value. For such situations, an initializing subgraph for the ReadValue operation and a special "reset" method are provided.
 
 You can find more details on these operations in [ReadValue specification](../ops/infrastructure/ReadValue_3.md) and 
 [Assign specification](../ops/infrastructure/Assign_3.md).
@@ -59,15 +66,24 @@ You can find more details on these operations in [ReadValue specification](../op
 
 OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a network and `ov::VariableState` class to operate with states. 
  Below you can find brief description of methods and the example of how to use this interface.
+
+ `ov::InferRequest` methods:
  
+ * `std::vector<VariableState> query_state();`
+   allows to get all available stats for the given inference request.
+ * `void reset_state()`
+   allows to reset all States to their default values.
+
+ `ov::VariableState` methods:
+
  * `std::string get_name() const`
-   returns name(variable_id) of according Variable
+   returns name(variable_id) of the according State(Variable)
  * `void reset()`
-   reset state to default value
+   reset state to the default value
  * `void set_state(const Tensor& state)`
-   set new value for state
+   set new value for State
  * `Tensor get_state() const`
-   returns current value of state
+   returns current value of State
 
 ## Example of Stateful Network Inference
 
