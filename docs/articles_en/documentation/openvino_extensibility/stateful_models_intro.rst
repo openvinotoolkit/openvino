@@ -11,27 +11,27 @@ Stateful models and State API {#openvino_docs_OV_UG_stateful_models_intro}
 
 @endsphinxdirective
 
-## What is Stateful Network?
+## What is Stateful model?
 
  Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
- we can process it with RNN like networks that contain a cycle inside. But in some cases, like online speech recognition of time series 
+ we can process it with RNN like models that contain a cycle inside. But in some cases, like online speech recognition of time series 
  forecasting, length of data sequence is unknown. Then data can be divided in small portions and processed step-by-step. But dependency 
- between data portions should be addressed. For that, networks save some data between inferences - state. When one dependent sequence is over,
+ between data portions should be addressed. For that, models save some data between inferences - state. When one dependent sequence is over,
  state should be reset to initial value and new sequence can be started.
  
 Deep learning frameworks provide a dedicated API to build models with state. For example, Keras has special option for RNNs `stateful` that turns on saving state 
- between inferences. Kaldi contains special specifier `Offset` to define time offset in a network. 
+ between inferences. Kaldi contains special specifier `Offset` to define time offset in a model. 
  
- OpenVINO also contains special API to simplify work with networks with states. State is automatically saved between inferences, 
+ OpenVINO also contains special API to simplify work with models with states. State is automatically saved between inferences, 
  and there is a way to reset state when needed. You can also read state or set it to some new value between inferences.
  
 ## OpenVINO State Representation
 
- OpenVINO contains a special abstraction `Variable` to represent a state in a network. There are two operations to work with the state: 
+ OpenVINO contains a special abstraction `Variable` to represent a state in a model. There are two operations to work with the state: 
 * `Assign` to save value to the state
 * `ReadValue` to read value saved on previous iteration
 
-![state_network_example](./img/state_network_example.png)
+![state_model_example](./img/state_model_example.png)
 
 The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations. They have no connection with each other and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
 In addition, this may impose additional overhead due to data representation conversion.
@@ -64,7 +64,7 @@ You can find more details on these operations in [ReadValue specification](../op
 
 ## OpenVINO State API
 
-OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a network and `ov::VariableState` class to operate with states. 
+OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a model and `ov::VariableState` class to operate with states. 
  Below you can find brief description of methods and the example of how to use this interface.
 
  `ov::InferRequest` methods:
@@ -85,7 +85,7 @@ OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list
  * `Tensor get_state() const`
    returns current value of State
 
-## Example of Stateful Network Inference
+## Example of Stateful model Inference
 
 The example below demonstrates inference of three independent sequences of data. State should be reset between these sequences.
 
@@ -96,11 +96,11 @@ if the first step is done in one infer request and the second in another, state 
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_network_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
          :language: cpp
          :fragment: [ov:state_api_usage]
 
 @endsphinxdirective
 
-You can find more powerful examples demonstrating how to work with networks with states in speech sample and demo. 
+You can find more powerful examples demonstrating how to work with models with states in speech sample and demo. 
 Descriptions can be found in [Samples Overview](./Samples_Overview.md)
