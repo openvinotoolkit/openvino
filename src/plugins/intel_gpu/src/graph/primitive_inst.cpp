@@ -1058,8 +1058,27 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
         do_runtime_in_place_kv_cache();
+        bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            can_skip_execution = true;
+        }
+
+        if (_node->is_in_shape_of_subgraph()) {
+            bool subgraph_input_changed = false;
+            for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
+                if (dependant_shape_of_insts[i]->shape_changed()) {
+                    subgraph_input_changed = true;
+                    break;
+                }
+            }
+            if (!subgraph_input_changed) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                can_skip_execution = true;
+            }
+        }
+
+        if (can_skip_execution) {
             auto ev = get_network().get_stream().create_user_event(true);
             update_shape_done_by_other = false; // reset
             return ev;
