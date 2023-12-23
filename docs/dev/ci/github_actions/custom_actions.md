@@ -8,3 +8,4 @@ You can find all the custom actions and their source code [here](../../../../.gi
 
 * Setup Python
 * System Info Print
+* Smart CI (see details: [feature documentation](./smart_ci.md))

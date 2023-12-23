@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
@@ -62,7 +64,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ngraph::builder::makeConstant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
@@ -71,7 +73,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
     auto convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
-            ngraph::builder::makeConvolutionBackpropData(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
+            ov::test::utils::make_convolution_backprop_data(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
     function = std::make_shared<ov::Model>(results, params, "QuantConvolutionBackpropData");

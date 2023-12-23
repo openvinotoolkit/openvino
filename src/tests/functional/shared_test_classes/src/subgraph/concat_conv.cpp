@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/concat_conv.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -65,7 +67,7 @@ void ConcatConvTest::SetUp() {
     auto relu1 = std::make_shared<ov::op::v0::Relu>(params[0]);
 
     auto const_values = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, inputShape, const_values);
+    auto constant = ov::test::utils::deprecated::make_constant(ngPrc, inputShape, const_values);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{constant, relu1}, 1);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, 2 * inputShape[0] * inputShape[1] / inputChannels};
@@ -74,7 +76,7 @@ void ConcatConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
