@@ -183,7 +183,9 @@ NamedOutputs pool3d(const NodeContext& node) {
                                                                     pad_end,
                                                                     ov::Shape{kernel_d, kernel_h, kernel_w},
                                                                     rounding_type,
-                                                                    auto_pad)
+                                                                    auto_pad,
+                                                                    ov::element::i32,
+                                                                    2)
                                ->outputs();
         } else {
             bool exclude_pad = node.get_attribute<bool>("exclusive", false);
@@ -205,11 +207,125 @@ NamedOutputs pool3d(const NodeContext& node) {
             std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 2, 3, 4, 1}));
     }
 
-    if (pool_outputs.size() == 1) {
+    auto output_name = node.get_output_names();
+    if (output_name.size() == 1) {
         return NamedOutputs{{"Out", {pool_outputs[0]}}};
     } else {
+        PADDLE_OP_CHECK(node, pool_outputs.size() == 2, "returnmask can`t use with global_pooling");
         return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
     }
+}
+
+NamedOutputs pool3d_with_index(const NodeContext& node) {
+    auto data = node.get_input("X");
+    auto pooling_type = node.get_attribute<std::string>("pooling_type", {});
+    auto adaptive = node.get_attribute<bool>("adaptive");
+    auto kernel_shape = node.get_attribute<std::vector<int32_t>>("ksize");
+
+    auto rounding_type =
+        node.get_attribute<bool>("ceil_mode", false) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
+
+    if (pooling_type.empty()) {
+        pooling_type = "max";
+    }
+
+    PADDLE_OP_CHECK(node, (pooling_type == "max") || (pooling_type == "avg"), "pool3d: not supported pooling type !");
+    PADDLE_OP_CHECK(node, kernel_shape.size() == 1 || kernel_shape.size() == 3, "pool3d: ksize must be 1 or 3!");
+
+    PartialShape input_shape = data.get_partial_shape();
+
+    int32_t input_rank = static_cast<int32_t>(input_shape.rank().get_length());
+    PADDLE_OP_CHECK(node, input_rank >= 2, "input tensor rank must be greater than 2");
+
+    auto auto_pad = ov::op::PadType::EXPLICIT;
+    ov::Shape pad_begin, pad_end;
+    std::string data_format = node.get_attribute<std::string>("data_format", "NCDHW");
+
+    get_paddings(node, pad_begin, pad_end, auto_pad, data_format);
+
+    if (data_format == "NDHWC") {
+        data = std::make_shared<default_opset::Transpose>(
+            data,
+            std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 4, 1, 2, 3}));
+        input_shape = data.get_partial_shape();
+    }
+
+    std::vector<Output<Node>> pool_outputs;
+    if (adaptive) {
+        auto pool_size = std::vector<int64_t>(3, 0);
+
+        if (kernel_shape.size() == 1) {
+            // Not tested: implemented according to spec, but can't generate real
+            // model to test
+            pool_size[0] = pool_size[1] = pool_size[2] = kernel_shape[0];
+        } else {
+            pool_size[0] = kernel_shape[0];
+            pool_size[1] = kernel_shape[1];
+            pool_size[2] = kernel_shape[2];
+        }
+
+        const Output<ov::Node> output_shape =
+            default_opset::Constant::create(ov::element::i64, {pool_size.size()}, pool_size);
+
+        pool_outputs =
+            std::make_shared<default_opset::AdaptiveMaxPool>(data, output_shape, ov::element::i32)->outputs();
+
+    } else {
+        auto strides = node.get_attribute<std::vector<int32_t>>("strides");
+
+        size_t kernel_d, kernel_h, kernel_w;
+        if (kernel_shape.size() == 1) {
+            // Not tested: implemented according to spec, but can't generate real
+            // model to test
+            kernel_d = kernel_h = kernel_w = kernel_shape[0];
+        } else {
+            kernel_d = kernel_shape[0];
+            kernel_h = kernel_shape[1];
+            kernel_w = kernel_shape[2];
+        }
+
+        PADDLE_OP_CHECK(node,
+                        kernel_d > 0 && kernel_h > 0 && kernel_w > 0,
+                        "pool3d kernel shape must be greater than 0");
+
+        // Note: this shape check is only valid when the spatial dim of input_shape
+        // is static.
+        if (input_shape[2].is_static() && input_shape[3].is_static() && input_shape[4].is_static()) {
+            uint64_t input_d = input_shape[input_rank - 3].get_length();
+            uint64_t input_h = input_shape[input_rank - 2].get_length();
+            uint64_t input_w = input_shape[input_rank - 1].get_length();
+            if ((input_d > 0) && (input_d + pad_begin[0] + pad_end[0] < kernel_d)) {
+                kernel_d = input_d + pad_begin[0] + pad_end[0];
+            }
+            if ((input_h > 0) && (input_h + pad_begin[1] + pad_end[1] < kernel_h)) {
+                kernel_h = input_h + pad_begin[1] + pad_end[1];
+            }
+            if ((input_w > 0) && (input_w + pad_begin[2] + pad_end[2] < kernel_w)) {
+                kernel_w = input_w + pad_begin[2] + pad_end[2];
+            }
+        }
+
+        pool_outputs = std::make_shared<default_opset::MaxPool>(data,
+                                                                ov::Strides(strides.begin(), strides.end()),
+                                                                ov::Strides{1, 1, 1},
+                                                                pad_begin,
+                                                                pad_end,
+                                                                ov::Shape{kernel_d, kernel_h, kernel_w},
+                                                                rounding_type,
+                                                                auto_pad,
+                                                                ov::element::i32,
+                                                                2)
+                           ->outputs();
+    }
+
+    if (data_format == "NDHWC") {
+        pool_outputs[0] = std::make_shared<default_opset::Transpose>(
+            pool_outputs[0],
+            std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 2, 3, 4, 1}));
+    }
+
+    auto output_name = node.get_output_names();
+    return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
 }
 
 }  // namespace op
