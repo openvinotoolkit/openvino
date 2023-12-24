@@ -207,13 +207,7 @@ NamedOutputs pool3d(const NodeContext& node) {
             std::make_shared<default_opset::Constant>(ov::element::i64, Shape{5}, std::vector<int64_t>{0, 2, 3, 4, 1}));
     }
 
-    auto output_name = node.get_output_names();
-    if (output_name.size() == 1) {
-        return NamedOutputs{{"Out", {pool_outputs[0]}}};
-    } else {
-        PADDLE_OP_CHECK(node, pool_outputs.size() == 2, "returnmask can`t use with global_pooling");
-        return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
-    }
+    return NamedOutputs{{"Out", {pool_outputs[0]}}};
 }
 
 NamedOutputs pool3d_with_index(const NodeContext& node) {
