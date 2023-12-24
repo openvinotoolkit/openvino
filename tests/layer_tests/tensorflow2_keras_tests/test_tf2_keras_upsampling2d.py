@@ -54,7 +54,37 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     def test_keras_upsampling2d_nearest(self, params, input_type, data_format, interpolation,
                                         ie_device, precision, ir_version, temp_dir,
                                         use_old_api, use_new_frontend):
-        self._test(*self.create_keras_upsampling2d_net(**params, input_type=input_type, data_format=data_format,
-                                                       interpolation=interpolation, ir_version=ir_version),
+        self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   use_new_frontend=use_new_frontend, **params)
+
+    # Tests for bilinear interpolation
+    test_data_bilinear = [
+        pytest.param((["x1"], [[1, 6, 2, 1]], tf.float32, (3, 1), 'channels_last', 'bilinear'), marks=pytest.mark.precommit_tf_fe),
+        (["x1"], [[1, 3, 1, 6]], tf.float32, (5, 2), 'channels_last', 'bilinear')
+    ]
+
+    @pytest.mark.parametrize("params", test_data_bilinear)
+    @pytest.mark.nightly
+    def test_keras_upsampling2d_bilinear(self, params, ie_device, precision, ir_version, temp_dir,
+                                         use_old_api, use_new_frontend):
+        input_names, input_shapes, input_type, size, data_format, interpolation = params
+        self._test(*self.create_keras_upsampling2d_net(input_names=input_names, input_shapes=input_shapes, input_type=input_type, size=size, data_format=data_format, interpolation=interpolation,
+        ir_version=ir_version), ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version, use_new_frontend=use_new_frontend, **params)
+
+    test_data_channels_first = [
+        dict(input_names=["x1"], input_shapes=[[5, 4, 5, 3]], input_type=tf.float32,
+             size=(3, 4), data_format='channels_first', interpolation='nearest'),
+        dict(input_names=["x1"], input_shapes=[[3, 2, 7, 2]], input_type=tf.float32,
+             size=(2, 3), data_format='channels_first', interpolation='nearest'),
+        dict(input_names=["x1"], input_shapes=[[3, 5, 4, 6]], input_type=tf.float32,
+             size=(5, 2), data_format='channels_first', interpolation='nearest'),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_channels_first)
+    @pytest.mark.nightly
+    def test_keras_upsampling2d_channels_first(self, params, ie_device, precision, ir_version,
+                                               temp_dir, use_old_api, use_new_frontend):
+        self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
