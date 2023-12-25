@@ -22,9 +22,9 @@ namespace set_7 {
 OutputVector batch_norm(const Node& node);
 
 }  // namespace set_7
-namespace set_14{
-OutputVector batch_norm{const Node& node};
-} //namespace set_14
+namespace set_14 {
+OutputVector batch_norm{const Node & node};
+}  // namespace set_14
 
 }  // namespace op
 
