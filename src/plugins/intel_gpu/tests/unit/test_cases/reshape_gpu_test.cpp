@@ -10,6 +10,8 @@
 #include <intel_gpu/primitives/reduce.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 
 #include "reshape_inst.h"
 
@@ -1038,6 +1040,116 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
 
     for (size_t i = 0; i < expected_res.size(); i++) {
         ASSERT_EQ(expected_res[i], output_ptr[i]);
+    }
+}
+
+TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_activation_fusion) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{3, 3, 2, 2, 1, 1}, data_types::f32, format::bfwzyx});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx }));
+    topology.add(reorder("input_reorder", input_info("input"), format::bfwzyx, data_types::f16));
+    topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
+    topology.add(reduce("reduced_shape", input_info("shape_of_input"), reduce_mode::prod, {0}, true));
+    topology.add(reshape("reshape", input_info("input_reorder"), input_info("reduced_shape"), false, ov::PartialShape::dynamic(1)));
+    topology.add(activation("activation", input_info("reshape"), activation_func::pow, {2.0f, 0.0f}));
+    topology.add(reorder("output_reorder", input_info("activation"), format::bfyx, data_types::f32));
+
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output_reorder");
+
+    auto output = outputs.at("output_reorder").get_memory();
+
+    ASSERT_TRUE(network.get_primitive("reshape")->can_be_optimized());
+
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_TRUE(are_equal(input_data[i] * input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, reshape_reorder_trucation_mode)
+{
+    auto& engine = get_test_engine();
+    const int b = 1;
+    const int f = 4;
+    const int x = 2;
+    const int y = 2;
+
+    const int f_reshape = 1;
+    const int w_reshape = 2;
+    const int z_reshape = 2;
+
+    std::vector<uint16_t> permute_order = { 0, 1, 4, 5, 3, 2 };
+
+    auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y));
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, input_size });
+    std::vector<float> input_data = {
+        0.f, 0.f, 0.f, 0.f,
+        1.f, 1.f, 1.f, 1.f,
+        2.f, 2.f, 2.f, 2.f,
+        3.f, 3.f, 3.f, 3.f
+    };
+
+    std::vector<float> expected_out = {
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f
+    };
+
+    set_values(input_mem, input_data);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_6d", input_info("input"), { data_types::f32, format::bfwzyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) }),
+        activation("relu", input_info("input_6d"), activation_func::relu),
+        reshape("reshape_4_to_6", input_info("relu"), cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape))),
+        reorder("reorder_i32", input_info("reshape_4_to_6"), format::bfwzyx, data_types::i32, {}, reorder_mean_mode::subtract, padding(), true),
+        permute("permute", input_info("reorder_i32"), permute_order),
+        reshape("reshape_6_to_4", input_info("permute"), cldnn::tensor(batch(b), feature(f), spatial(x, y))),
+        reorder("output_4d", input_info("reshape_6_to_4"), { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
+    );
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input_mem);
+
+    EXPECT_NO_THROW(network.get_primitive_info("reorder_i32")); // To check whether the reoder node is not moved in front of reshape
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output_4d");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i)
+    {
+        ASSERT_EQ(expected_out[i], output_ptr[i]);
     }
 }
 

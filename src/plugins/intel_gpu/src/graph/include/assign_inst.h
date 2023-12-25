@@ -6,22 +6,21 @@
 
 #include "intel_gpu/primitives/assign.hpp"
 #include "primitive_inst.h"
+#include "variable.hpp"
 
 namespace cldnn {
-namespace memory_state {
-
-class variable {
-public:
-    explicit variable(const std::string& variable_id) : variable_id_ {variable_id} {}
-
-    const std::string& variable_id() const { return variable_id_; }
-    void set_variable_id(const std::string& variable_id) { variable_id_ = variable_id; }
-
+template <>
+struct typed_program_node<assign> : public typed_program_node_base<assign> {
 private:
-    std::string variable_id_;
-};
+    using parent = typed_program_node_base<assign>;
 
-} // namespace memory_state
+public:
+    using parent::parent;
+
+    program_node& input() const { return get_dependency(0); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 
 using assign_node = typed_program_node<assign>;
 
@@ -42,8 +41,7 @@ public:
     typed_primitive_inst(network& network, const assign_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
+    void on_execute() override;
 };
 
 using assign_inst = typed_primitive_inst<assign>;

@@ -13,11 +13,16 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
+    using parent = typed_primitive_impl<condition>;
+    using parent::parent;
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
+
+    condition_impl() : parent() {}
 
     explicit condition_impl(const condition_node& outer) {
         set_node_params(outer);
@@ -74,13 +79,22 @@ struct condition_impl : typed_primitive_impl<condition> {
                                       << ", external: " << input_external_node->first << ")" << std::endl;
                         for (size_t dep_idx = 0; dep_idx < instance.dependencies().size(); ++dep_idx) {
                             if (instance.dependencies()[dep_idx].first->id() == input_external_node->first) {
-                                output_events.push_back(events[dep_idx]);
+                                if (events.size() > dep_idx)
+                                    output_events.push_back(events[dep_idx]);
                                 output_mem_ptr = instance.input_memory_ptr(dep_idx);
-                                output_layout = output_mem_ptr->get_layout();
+                                output_layout = instance.dependencies()[dep_idx].first->get_output_layout();
                                 break;
                             }
                         }
                     }
+                }
+
+                if (output_layout.get_partial_shape().rank().get_length() == 0) {
+                    auto other_branch = !pred ? instance.get_branch_true() : instance.get_branch_false();
+                    auto other_layout = other_branch.inner_program->get_outputs()[out_idx]->get_output_layout();
+                    output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
+                    output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
+                    GPU_DEBUG_LOG << "    output layout is updated to " << output_layout.to_short_string() << std::endl;
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
@@ -95,18 +109,25 @@ struct condition_impl : typed_primitive_impl<condition> {
                 if (iter != branch.input_map.end()) {
                     const primitive_id& input_internal_id = iter->second;
                     auto mem_ptr = instance.input_memory_ptr(mem_idx);
+                    auto dep = instance.dependencies()[mem_idx];
+                    auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
                     if (mem_ptr) {
-                        auto dep = instance.dependencies()[mem_idx];
-                        auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
                         GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string() << " to "
                                       << layout.to_short_string() << std::endl;
                         // Preallocation logic may allocate more memory than actually produced on current iteration, so
                         // we need to adjust input buffers layout
                         mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+                    } else if (layout.count() == 0) {
+                        // Use dummy memory for empty tensor
+                        mem_ptr = std::make_shared<simple_attached_memory>(layout, nullptr);
                     }
+                    OPENVINO_ASSERT(mem_ptr != nullptr, "[GPU] Can't assign nullptr memory buffer for condition primitive with id=", instance.id(), " ("
+                                                        "mem_idx=", mem_idx, ", "
+                                                        "external_id=", input_external_id, ", "
+                                                        "internal_id=", input_internal_id, ")");
                     executed_net->set_input_data(input_internal_id, mem_ptr);
-                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string()
-                                  << std::endl;
+                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
+                                  << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
         }
@@ -131,6 +152,16 @@ struct condition_impl : typed_primitive_impl<condition> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _node_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _node_id;
+    }
+
 private:
     primitive_id _node_id;
 };
@@ -150,5 +181,5 @@ attach_condition_common::attach_condition_common() {
 }  // namespace common
 }  // namespace cldnn
 
-// TODO: Change code like cldnn::loop
-ASSIGN_TYPE_NAME(cldnn::common::condition_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::condition_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::condition)

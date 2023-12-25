@@ -4,7 +4,7 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 using namespace InferenceEngine;
@@ -86,16 +86,16 @@ protected:
 
         ngraph::Shape proposalShape = { proposal.size() / 5, 5 };
 
-        auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
+        auto coords = ov::test::utils::deprecated::make_constant<float>(ngraph::element::f32, proposalShape, proposal);
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(featureMapShape))};
 
-        auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,
+        auto psroi = std::make_shared<ov::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,
                                                        spatialScale, spatialBinsX, spatialBinsY, mode);
         psroi->get_rt_info() = getCPUInfo();
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         threshold = 1e-2f;
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(psroi)};
         function = std::make_shared<ngraph::Function>(results, params, "PSROIPooling");
     }
 };

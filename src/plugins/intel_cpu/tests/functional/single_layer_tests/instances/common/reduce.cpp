@@ -3,16 +3,13 @@
 //
 
 #include "single_layer_tests/classes/reduce.hpp"
-#include "shared_test_classes/single_layer/reduce_ops.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 namespace Reduce {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes = {
@@ -161,5 +158,6 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
-} // namespace Reduce
-} // namespace CPULayerTestsDefinitions
+}  // namespace Reduce
+}  // namespace test
+}  // namespace ov

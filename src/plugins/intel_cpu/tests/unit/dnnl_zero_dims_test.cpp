@@ -11,7 +11,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 using namespace testing;
 
 /* ======================================= BASE ZERO DIM TEST ======================================= */
@@ -28,13 +27,13 @@ protected:
         {
             auto origShape = shape.toPartialShape();
             auto replaceShape = origShape;
-            std::replace(replaceShape.begin(), replaceShape.end(), ngraph::Dimension(0), ngraph::Dimension(3));
+            std::replace(replaceShape.begin(), replaceShape.end(), ov::Dimension(0), ov::Dimension(3));
             Shape dummyShape(replaceShape);
             DnnlBlockedMemoryDesc dummyDesc(dummyShape, DnnlExtensionUtils::ElementTypeToDataType(precision), fmt);
             expectedBlkDims = dummyDesc.getBlockDims();
             expectedOrder = dummyDesc.getOrder();
             for (size_t i = 0; i < dummyShape.getRank(); i++) {
-                if (origShape[expectedOrder[i]] == ngraph::Dimension(0)) {
+                if (origShape[expectedOrder[i]] == ov::Dimension(0)) {
                     expectedBlkDims[i] = 0;
                 }
             }
@@ -95,16 +94,16 @@ const std::vector<Shape> staticShapes = {
 };
 
 const std::vector<Shape> dynamicShapes = {
-    Shape(ngraph::PartialShape{0, -1, {0, 48}, -1}),
-    Shape(ngraph::PartialShape{16, 0, -1, {0, 64}}),
-    Shape(ngraph::PartialShape{-1, -1, 0, -1}),
-    Shape(ngraph::PartialShape{{0, 16}, -1, {0, 48}, 0}),
-    Shape(ngraph::PartialShape{-1, 32, 0, 0}),
-    Shape(ngraph::PartialShape{0, 0, 48, -1}),
-    Shape(ngraph::PartialShape{{0, 16}, 0, 0, 64}),
-    Shape(ngraph::PartialShape{0, 0, 0, -1}),
-    Shape(ngraph::PartialShape{{0, 16}, 0, 0, 0}),
-    Shape(ngraph::PartialShape{0, 0, 0, 0})
+    Shape(ov::PartialShape{0, -1, {0, 48}, -1}),
+    Shape(ov::PartialShape{16, 0, -1, {0, 64}}),
+    Shape(ov::PartialShape{-1, -1, 0, -1}),
+    Shape(ov::PartialShape{{0, 16}, -1, {0, 48}, 0}),
+    Shape(ov::PartialShape{-1, 32, 0, 0}),
+    Shape(ov::PartialShape{0, 0, 48, -1}),
+    Shape(ov::PartialShape{{0, 16}, 0, 0, 64}),
+    Shape(ov::PartialShape{0, 0, 0, -1}),
+    Shape(ov::PartialShape{{0, 16}, 0, 0, 0}),
+    Shape(ov::PartialShape{0, 0, 0, 0})
 };
 
 const std::vector<dnnl::memory::format_tag> fmts = {
@@ -229,8 +228,8 @@ TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
 }
 
 const std::vector<Shape> srcDynShapes = {
-    Shape(ngraph::PartialShape({-1, -1, -1, -1})),
-    Shape(ngraph::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))
+    Shape(ov::PartialShape({-1, -1, -1, -1})),
+    Shape(ov::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest, MemDescWithZeroDimsCloneNewDimsTest,

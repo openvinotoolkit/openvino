@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/detection_output.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/detection_output.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 enum {
     idxLocation,
@@ -65,7 +63,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputGPUTestParams> obj) {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
-        ngraph::op::DetectionOutputAttrs attrs;
+        ov::op::v0::DetectionOutput::Attributes attrs;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
         std::string targetDevice;
@@ -101,14 +99,30 @@ public:
             result << " }_";
         }
 
-        using LayerTestsDefinitions::operator<<;
-        result << attrs;
+        result << "attributes={";
+        result << "Classes=" << attrs.num_classes << "_";
+        result << "backgrId=" << attrs.background_label_id << "_";
+        result << "topK="  << attrs.top_k << "_";
+        result << "varEnc=" << attrs.variance_encoded_in_target << "_";
+        result << "keepTopK=" << ov::test::utils::vec2str(attrs.keep_top_k) << "_";
+        result << "codeType=" << attrs.code_type << "_";
+        result << "shareLoc=" << attrs.share_location << "_";
+        result << "nmsThr=" << attrs.nms_threshold << "_";
+        result << "confThr=" << attrs.confidence_threshold << "_";
+        result << "clipAfterNms=" << attrs.clip_after_nms << "_";
+        result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
+        result << "decrId=" << attrs.decrease_label_id << "_";
+        result << "norm=" << attrs.normalized << "_";
+        result << "inH=" << attrs.input_height << "_";
+        result << "inW=" << attrs.input_width << "_";
+        result << "OS=" << attrs.objectness_score;
+        result << "}_";
         result << "RDS=" << (replaceDynamicShapesToIntervals ? "true" : "false") << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (auto i = 0ul; i < funcInputs.size(); ++i) {
@@ -128,7 +142,11 @@ public:
                 resolution = 10;
             }
 
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, 0, resolution);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = range;
+            in_data.resolution = resolution;
+            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -197,7 +215,7 @@ protected:
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
 
         if (attrs.num_classes == -1) {
             std::shared_ptr<ov::op::v8::DetectionOutput> detOut;
@@ -209,8 +227,8 @@ protected:
             else
                 throw std::runtime_error("DetectionOutput layer supports only 3 or 5 inputs");
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
-            function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
+            ov::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
+            function = std::make_shared<ov::Model>(results, params, "DetectionOutputDynamic");
         } else {
             std::shared_ptr<ov::op::v0::DetectionOutput> detOut;
             if (params.size() == 3)
@@ -220,8 +238,8 @@ protected:
             else
                 OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
-            function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
+            ov::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
+            function = std::make_shared<ov::Model>(results, params, "DetectionOutputDynamic");
         }
     }
 
@@ -253,17 +271,13 @@ private:
             }
         }
     }
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     std::vector<ov::test::InputShape> inShapes;
 };
 
-TEST_P(DetectionOutputLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(DetectionOutputLayerGPUTest, Inference) {
     run();
 }
-
-namespace {
 
 const std::vector<int> numClasses = {11, -1};
 const int backgroundLabelId = 0;
@@ -438,4 +452,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputV8Dynamic3In, DetectionOutputLa
                          params3InputsDynamic_v8,
                          DetectionOutputLayerGPUTest::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions

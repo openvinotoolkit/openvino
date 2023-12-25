@@ -53,6 +53,7 @@ struct kernel_impl_params {
     optional_layout weights_zero_points_layout = optional_layout();
     optional_layout activations_zero_points_layout = optional_layout();
     optional_layout compensation_layout = optional_layout();
+    optional_layout state_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
@@ -141,8 +142,6 @@ struct kernel_impl_params {
 
     virtual primitive_type_id type() const { return desc->type; }
 
-    void save(BinaryOutputBuffer& ob) const;
-    void load(BinaryInputBuffer& ib);
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;

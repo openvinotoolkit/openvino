@@ -5,9 +5,6 @@
 #include "snippets/mha.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_system_conf.h"
 
 namespace ov {
 namespace test {
@@ -30,7 +27,7 @@ const std::vector<std::vector<ov::PartialShape>> inputShapes_3D = {
 };
 
 static inline bool is_bf16_supported() {
-    return InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16();
+    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
 }
 
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {
@@ -48,10 +45,7 @@ static inline std::vector<std::vector<element::Type>> precision_bf16(size_t coun
 
 static std::map<std::string, std::string> enable_callback() {
     return std::map<std::string, std::string>{
-        {
-          InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-          InferenceEngine::PluginConfigInternalParams::ENABLE
-        },
+        {"SNIPPETS_MODE", "ENABLE"},
      };
 }
 

@@ -38,11 +38,8 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                               "",
-                               false,
-                               "Not Implemented",
-                               "CompiledModel::set_property is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                       "Set property to Core::compile_model during compilation");
     };
 
 private:
@@ -85,4 +82,3 @@ private:
 
 }   // namespace intel_cpu
 }   // namespace ov
-

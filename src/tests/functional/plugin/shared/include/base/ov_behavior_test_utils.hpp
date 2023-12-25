@@ -27,14 +27,19 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
-                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
+                                                                              ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
+    return ov::test::utils::make_split_concat(inputShape, ngPrc);
 }
 
 inline bool sw_plugin_in_target_device(std::string targetDevice) {
@@ -170,18 +175,18 @@ inline ov::Core createCoreWithTemplate() {
 
 class OVClassNetworkTest {
 public:
-    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+    std::shared_ptr<ov::Model> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
+        actualNetwork = ov::test::utils::make_split_concat();
         // Quite simple network
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+        simpleNetwork = ov::test::utils::make_single_concat_with_constant();
         // Multinput to substruct network
-        multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
+        multinputNetwork = ov::test::utils::make_concat_with_params();
         // Network with KSO
-        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
+        ksoNetwork = ov::test::utils::make_kso_function();
     }
 
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
@@ -233,14 +238,14 @@ class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Model> actualNetwork;
 
 public:
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::test::utils::make_split_conv_concat();
     }
 };
 

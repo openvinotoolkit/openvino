@@ -18,7 +18,6 @@
 #include "openvino/runtime/itensor.hpp"
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 
 using CPUTensorExtTest = ::testing::Test;
 

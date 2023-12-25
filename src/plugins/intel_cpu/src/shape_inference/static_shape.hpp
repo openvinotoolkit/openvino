@@ -334,7 +334,9 @@ constexpr typename std::enable_if<is_static_shape_adapter<T>() && is_static_shap
  * @param explanation    Exception explanation string.
  */
 template <>
-void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void NodeValidationFailure::create(const char* file,
+                                   int line,
+                                   const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
                                    const std::string& explanation);
 
@@ -347,7 +349,9 @@ void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
  * @param explanation    Exception explanation string.
  */
 template <>
-void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void NodeValidationFailure::create(const char* file,
+                                   int line,
+                                   const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShapeRef>*>&& ctx,
                                    const std::string& explanation);
 }  // namespace ov

@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
-#include <ngraph/ngraph.hpp>
+
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -19,12 +21,12 @@ public:
 
     FakeQuantizeOnData(
         const uint64_t quantizationLevel,
-        const ngraph::Shape& constantShape,
+        const ov::Shape& constantShape,
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
-        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const ov::element::Type outputPrecision = ov::element::undefined,
         const std::vector<ov::Any>& attributes = {});
 
     virtual ~FakeQuantizeOnData();
@@ -33,12 +35,12 @@ public:
     virtual bool empty() const;
 
     uint64_t quantizationLevel;
-    ngraph::Shape constantShape;
+    ov::Shape constantShape;
     std::vector<float> inputLowValues;
     std::vector<float> inputHighValues;
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
-    ngraph::element::Type outputPrecision;
+    ov::element::Type outputPrecision;
     std::vector<ov::Any> attributes;
 };
 
@@ -64,7 +66,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
         "_input_high=" << data.inputHighValues <<
         "_output_low=" << data.outputLowValues <<
         "_output_high" << data.outputHighValues <<
-        "_precision=" << (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+        "_precision=" << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 class FakeQuantizeOnDataWithConstant {
@@ -73,12 +75,12 @@ public:
 
     FakeQuantizeOnDataWithConstant(
         const uint64_t quantizationLevel,
-        const std::vector<ngraph::Shape>& constantShapes,
+        const std::vector<ov::Shape>& constantShapes,
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
-        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const ov::element::Type outputPrecision = ov::element::undefined,
         const std::vector<ov::Any>& attributes = {},
         const bool addConverts = false);
     virtual ~FakeQuantizeOnDataWithConstant();
@@ -86,12 +88,12 @@ public:
     virtual bool empty() const;
 
     uint64_t quantizationLevel;
-    std::vector<ngraph::Shape> constantShapes;
+    std::vector<ov::Shape> constantShapes;
     std::vector<float> inputLowValues;
     std::vector<float> inputHighValues;
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
-    ngraph::element::Type outputPrecision;
+    ov::element::Type outputPrecision;
     std::vector<ov::Any> attributes;
     bool addConverts;
 };
@@ -101,12 +103,12 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithC
         return out << "{}";
     }
     return out << "level=" << data.quantizationLevel <<
-        "_shape=" <<(data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) <<
+        "_shape=" <<(data.constantShapes.empty() ? ov::Shape{} : data.constantShapes[0]) <<
         "_input_low=" << data.inputLowValues <<
         "_input_high=" << data.inputHighValues <<
         "_output_low=" << data.outputLowValues <<
         "_output_high=" << data.outputHighValues <<
-        "_precision=" << (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
+        "_precision=" << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 }  // namespace subgraph

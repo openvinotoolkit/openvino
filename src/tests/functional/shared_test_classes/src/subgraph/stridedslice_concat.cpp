@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/stridedslice_concat.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -46,18 +46,28 @@ void SliceConcatTest::SetUp() {
 
     ngraph::Output<ngraph::Node> input = params[0];
     if (inputShape[0] != 1 || inputShape.size() != 2) {
-        input = std::make_shared<ngraph::opset8::Reshape>(params[0],
-            ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
+        input = std::make_shared<ov::op::v1::Reshape>(params[0],
+            ov::test::utils::deprecated::make_constant(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape), false);
     }
 
-    auto ss = ngraph::builder::makeStridedSlice(input, begin, end, strides, ngPrc, beginMask, endMask,
-                                                std::vector<int64_t>(inputShape.size(), 0),
-                                                std::vector<int64_t>(inputShape.size(), 0),
-                                                std::vector<int64_t>(inputShape.size(), 0));
+    ov::Shape constShape = {begin.size()};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, begin.data());
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, end.data());
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, strides.data());
+
+    auto ss = std::make_shared<ov::op::v1::StridedSlice>(input,
+                                                        beginNode,
+                                                        endNode,
+                                                        strideNode,
+                                                        beginMask,
+                                                        endMask,
+                                                        std::vector<int64_t>(inputShape.size(), 0),
+                                                        std::vector<int64_t>(inputShape.size(), 0),
+                                                        std::vector<int64_t>(inputShape.size(), 0));
 
     ngraph::Shape const_shape(inputShape.size(), 1);
     const_shape.back() = 32;
-    auto const_input = ngraph::builder::makeConstant(ngPrc, const_shape, std::vector<float>{}, true);
+    auto const_input = ov::test::utils::deprecated::make_constant(ngPrc, const_shape, std::vector<float>{}, true);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_input, ss}, inputShape.size() - 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "StridedSliceConcatTest");

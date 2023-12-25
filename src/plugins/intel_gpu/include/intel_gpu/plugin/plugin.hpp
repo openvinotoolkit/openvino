@@ -19,6 +19,7 @@ private:
     std::string m_default_device_id = "0";
     std::map<std::string, cldnn::device::ptr> m_device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
+    ov::AnyMap m_compiled_model_runtime_properties;
 
     mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
     mutable std::once_flag m_default_contexts_once;

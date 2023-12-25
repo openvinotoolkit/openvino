@@ -43,15 +43,6 @@ inline bool can_use_usm_host(const cldnn::engine& engine) {
     return can_use_usm;
 }
 
-inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
-    ov::Shape res(pshape.size());
-    for (size_t i = 0; i < pshape.size(); i++) {
-        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
-    }
-
-    return res;
-}
-
 inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
     std::string name;
     // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
@@ -71,122 +62,14 @@ inline std::string get_port_name(const ov::Output<const ov::Node>& port, const b
     return name;
 }
 
-template <typename src_t, typename dst_t>
-void convert_any_copy(const src_t* src, dst_t* dst, size_t size) {
-    OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
-    for (size_t i = 0; i < size; i++)
-        dst[i] = static_cast<dst_t>(src[i]);
-}
-
-void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size) {
-    if (size == 0)
-        return;
-
-    if (src_et == dst_et) {
-        std::memcpy(dst_ptr, src_ptr, size * src_et.size());
-        return;
-    }
-
-    #define CASE(s_et, d_et, s_type, d_type) \
-        if (src_et == s_et && dst_et == d_et) return convert_any_copy(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size)
-
-    // For unsupported inputs
-    CASE(ov::element::f64, ov::element::f32, double, float);
-    CASE(ov::element::i16, ov::element::f32, int16_t, float);
-    CASE(ov::element::u16, ov::element::f32, uint16_t, float);
-    CASE(ov::element::u64, ov::element::i32, uint64_t, int32_t);
-    CASE(ov::element::i64, ov::element::i32, int64_t, int32_t);
-    CASE(ov::element::u32, ov::element::i32, uint32_t, int32_t);
-
-    // For unsupported outputs
-    CASE(ov::element::f32, ov::element::f64, float, double);
-    CASE(ov::element::i32, ov::element::i64, int32_t, int64_t);
-    CASE(ov::element::i32, ov::element::u64, int32_t, uint64_t);
-    CASE(ov::element::i32, ov::element::u32, int32_t, uint32_t);
-    CASE(ov::element::f32, ov::element::i16, float, int16_t);
-    CASE(ov::element::f32, ov::element::u16, float, uint16_t);
-
-    // TODO: Need instances below?
-    CASE(ov::element::u32, ov::element::i64, uint32_t, int64_t);
-    CASE(ov::element::u32, ov::element::u64, uint32_t, uint64_t);
-
-    OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
-}
-
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
     return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
-}
-
-void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
-    auto src_et = src->get_layout().data_type;
-    auto dst_et = dst->get_element_type();
-
-    size_t size = ov::shape_size(dst->get_shape());
-
-    cldnn::mem_lock<uint8_t> src_lock(src, stream);
-    std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
-
-    const void* src_ptr = src_lock.data();
-    void* dst_ptr = nullptr;
-
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
-        auto mem = remote->get_original_memory();
-        dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
-        dst_ptr = dst_lock->data();
-    } else {
-        dst_ptr = dst->data();
-    }
-
-    return convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size);
-}
-
-void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
-    auto src_et = src->get_element_type();
-    auto dst_et = dst->get_element_type();
-
-    size_t size = ov::shape_size(dst->get_shape());
-
-    const void* src_ptr = nullptr;
-    void* dst_ptr = nullptr;
-
-    std::unique_ptr<cldnn::mem_lock<uint8_t>> src_lock = nullptr;
-    std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
-
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
-        auto mem = remote->get_original_memory();
-        src_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
-        src_ptr = src_lock->data();
-    } else {
-        src_ptr = src->data();
-    }
-
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
-        auto mem = remote->get_original_memory();
-        dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
-        dst_ptr = dst_lock->data();
-    } else {
-        dst_ptr = dst->data();
-    }
-
-    return convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size);
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     const uint8_t* device_ptr = memory->get_allocation_type() == cldnn::allocation_type::usm_host ?
                                 static_cast<uint8_t*>(memory->get_internal_params().mem) : nullptr;
     return device_ptr == host_ptr;
-}
-
-ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
-    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
-    const auto& preallocation_shape = prealloc_info.second;
-    auto can_preallocate_buffer = prealloc_info.first &&
-                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
-    if (can_preallocate_buffer) {
-        return preallocation_shape;
-    }
-
-    return current_shape;
 }
 
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
@@ -262,13 +145,9 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
-    const auto& variable_states = m_graph->get_network()->get_variable_memories();
-    for (const auto& pair : variable_states) {
-        ret.emplace_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine()));
+    for (const auto& pair : m_variables) {
+        ret.emplace_back(pair.second, nullptr);
     }
-    auto expected_states_count = m_graph->get_network()->get_variables_state_info().size();
-    OPENVINO_ASSERT(expected_states_count == ret.size(), "[GPU] Mismatch of expected states count (",
-                                                         expected_states_count,  ") and actual size (", ret.size(), ")");
     return ret;
 }
 
@@ -281,7 +160,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port: \'", name, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "[GPU] Mismtach tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
-    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0},
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with name: ",
                     name,
                     ", because model input (shape=",
@@ -411,8 +290,13 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    for (const auto& it : m_variables) {
+        const auto& name = it.first;
+        const auto& variable = it.second;
+        prepare_state(name, variable);
+    }
+
     auto network = m_graph->get_network();
-    network->assign_variables_memories();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
@@ -467,8 +351,8 @@ void SyncInferRequest::wait() {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (host): " << output_tensor->data() << std::endl;
         }
 
-        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || output_tensor_wrapper.actual_size >= output_memory->size(),
-                        "[GPU] Output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
+        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic || output_tensor_wrapper.actual_size >= output_memory->size(),
+                        "[GPU] Output port is static and output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
                         "than required (", output_memory->size(), ")");
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
@@ -487,6 +371,8 @@ void SyncInferRequest::wait() {
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
                 if (usm_host_tensor && output_memory)
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+                else if (!is_remote && output_memory)
+                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
 
                 if (need_reallocate) {
                     auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), *m_shape_predictor);
@@ -687,7 +573,16 @@ void SyncInferRequest::allocate_outputs() {
 }
 
 void SyncInferRequest::allocate_states() {
-    m_graph->get_network()->allocate_variables_memories();
+    const auto& network = m_graph->get_network();
+    const auto& variables_info = network->get_variables_info();
+    for (auto& vi : variables_info) {
+        auto variable = std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor);
+        m_variables.emplace(vi.first, variable);
+    }
+}
+
+void SyncInferRequest::prepare_state(const std::string& name, const VariableState::Ptr variable) {
+    m_graph->get_network()->set_variable(name, variable);
 }
 
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std::string& name,

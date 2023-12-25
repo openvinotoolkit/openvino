@@ -1,13 +1,42 @@
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+LP_transformations:
+  revalidate:
+    - CPU
+    - GPU
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+
+preprocessing:
+  revalidate:
+    - inference
+    - C_API
+    - Python_API
+
+inference:
+  revalidate: 'all'
+
 CPU:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
+    - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
   build:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - IR_FE
 
 GPU:
@@ -15,22 +44,13 @@ GPU:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - IR_FE
-
-GNA:
-  build:
-    - HETERO
-    - AUTO_BATCH
-    - TEMPLATE
-    - AUTO
-    - IR_FE
+    - PROXY
 
 HETERO:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -43,7 +63,6 @@ AUTO_BATCH:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -56,13 +75,13 @@ TEMPLATE:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
     - C_API
     - Python_API
+    - NVIDIA
   build:
     - IR_FE
 
@@ -75,10 +94,17 @@ AUTO:
   build:
     - IR_FE
 
+PROXY:
+  revalidate:
+    - inference
+    - GPU
+  build: []
+
 IR_FE:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
   build:
     - CPU
@@ -130,7 +156,6 @@ Python_API:
   revalidate:
     - samples
     - MO
-    - POT
     - tools
   build:
     - CPU
@@ -145,6 +170,13 @@ Python_API:
     - TFL_FE
     - PyTorch_FE
 
+JS_API:
+  revalidate:
+    - samples
+  build:
+    - CPU
+    - IR_FE
+
 samples:
   build:
     - CPU
@@ -158,23 +190,16 @@ IE_Tests:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
+    - NVIDIA
   build:
     - IR_FE
 
 MO:
-  revalidate:
-    - POT
   build:
-    - Python_API
-
-POT:
-  build:
-    - CPU
     - Python_API
 
 tools:
@@ -187,5 +212,13 @@ docs:
   build: []
 
 licensing:
+  revalidate: []
+  build: []
+
+NVIDIA:
+  revalidate: []
+  build: []
+
+ONNX_RT:
   revalidate: []
   build: []
