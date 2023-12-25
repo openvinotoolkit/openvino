@@ -71,9 +71,9 @@ OutputVector batch_norm(const Node& node) {
 }
 
 }  // namespace set_7
-namespace set_14{
+namespace set_14 {
 // This version supports ONNX BatchNormalization-14 and BatchNormalization-15
-OutputVector batch_norm(const Node& node){
+OutputVector batch_norm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
@@ -82,14 +82,14 @@ OutputVector batch_norm(const Node& node){
     auto var = inputs.at(4);
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
-    int training_mode{node.get_attribute_value<int>("training_mode",0)};
-    if(training_mode == 1){
+    int training_mode{node.get_attribute_value<int>("training_mode", 0)};
+    if(training_mode == 1) {
         OPENVINO_THROW("Training mode of BatchNormalization is not supported.");
     }
     return {std::make_shared<default_opset::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
 
-}// namespace set_14
+}  // namespace set_14
 
 }  // namespace op
 
