@@ -193,16 +193,19 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
         if (new_layout.format.is_image_2d()) {
            return std::make_shared<ocl::gpu_image2d>(this,
                                      new_layout,
-                                     reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer());
+                                     reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer(),
+                                     memory.get_mem_tracker());
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             return std::make_shared<ocl::gpu_usm>(this,
                                      new_layout,
                                      reinterpret_cast<const ocl::gpu_usm&>(memory).get_buffer(),
-                                     memory.get_allocation_type());
+                                     memory.get_allocation_type(),
+                                     memory.get_mem_tracker());
         } else {
            return std::make_shared<ocl::gpu_buffer>(this,
                                     new_layout,
-                                    reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer());
+                                    reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer(),
+                                    memory.get_mem_tracker());
         }
     } catch (cl::Error const& err) {
         throw ocl::ocl_error(err);
@@ -213,7 +216,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
    try {
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
             cl::Image2D img(static_cast<cl_mem>(params.mem), true);
-            return std::make_shared<ocl::gpu_image2d>(this, new_layout, img);
+            return std::make_shared<ocl::gpu_image2d>(this, new_layout, img, nullptr);
         } else if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_vasurface) {
             return std::make_shared<ocl::gpu_media_buffer>(this, new_layout, params);
 #ifdef _WIN32
@@ -227,7 +230,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
-            return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
+            return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf, nullptr);
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
             cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
             auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
@@ -235,7 +238,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
-            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
+            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer, nullptr);
         } else {
             OPENVINO_THROW("[GPU] unknown shared object fromat or type");
         }

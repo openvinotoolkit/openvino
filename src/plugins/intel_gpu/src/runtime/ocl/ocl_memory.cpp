@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
@@ -34,13 +35,16 @@ static int get_cl_map_type(mem_lock_type type) {
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false)
-    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) { }
+    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, nullptr)
+    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) {
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
+}
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& new_layout,
-                       const cl::Buffer& buffer)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, true)
+                       const cl::Buffer& buffer,
+                       std::shared_ptr<MemoryTracker> mem_tracker)
+    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
     , _buffer(buffer) {}
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
@@ -166,7 +170,12 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 #endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _width(0), _height(0), _row_pitch(0), _slice_pitch(0) {
+    : lockable_gpu_mem()
+    , memory(engine, layout, allocation_type::cl_mem, nullptr)
+    , _width(0)
+    , _height(0)
+    , _row_pitch(0)
+    , _slice_pitch(0) {
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
     cl_channel_order order = CL_R;
     switch (layout.format) {
@@ -218,12 +227,14 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     _buffer = cl::Image2D(engine->get_cl_context(), CL_MEM_READ_WRITE, imageFormat, _width, _height, 0);
     size_t elem_size = _buffer.getImageInfo<CL_IMAGE_ELEMENT_SIZE>();
     _bytes_count = elem_size * _width * _height;
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
 }
 
 gpu_image2d::gpu_image2d(ocl_engine* engine,
                          const layout& new_layout,
-                         const cl::Image2D& buffer)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, true),
+                         const cl::Image2D& buffer,
+                         std::shared_ptr<MemoryTracker> mem_tracker)
+    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker),
       _buffer(buffer) {
     _width = _buffer.getImageInfo<CL_IMAGE_WIDTH>();
     _height = _buffer.getImageInfo<CL_IMAGE_HEIGHT>();
@@ -367,7 +378,7 @@ event::ptr gpu_image2d::copy_to(stream& stream, void* host_ptr, bool blocking) {
 gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
                                    const layout& new_layout,
                                    shared_mem_params params)
-    : gpu_image2d(engine, new_layout, cl::ImageVA(engine->get_cl_context(), CL_MEM_READ_WRITE, params.surface, params.plane)),
+    : gpu_image2d(engine, new_layout, cl::ImageVA(engine->get_cl_context(), CL_MEM_READ_WRITE, params.surface, params.plane), nullptr),
     device(params.user_device),
     surface(params.surface),
     plane(params.plane) { }
@@ -383,7 +394,7 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
                              const layout& new_layout,
                              shared_mem_params params)
     : gpu_buffer(engine, new_layout,
-                cl::BufferDX(engine->get_cl_context(), CL_MEM_READ_WRITE, params.mem)),
+                cl::BufferDX(engine->get_cl_context(), CL_MEM_READ_WRITE, params.mem), nullptr),
     device(params.user_device),
     resource(params.mem) { }
 
@@ -394,23 +405,23 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 }
 #endif
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, type, true)
+    , memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), true)
+    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
-    , memory(engine, layout, type, false)
+    , memory(engine, layout, type, nullptr)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
     switch (get_allocation_type()) {
@@ -427,6 +438,8 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
         CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
             "Unknown unified shared memory type!");
     }
+
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), type);
 }
 
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {

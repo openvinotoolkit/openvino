@@ -134,7 +134,7 @@ public:
     memory::ptr num_select_per_class_mem() const {
         return dep_memory_ptr(2);
     }
-    std::shared_ptr<const primitive_inst> num_select_per_class_inst() const {
+    const primitive_inst* num_select_per_class_inst() const {
         return dependencies().at(2).first;
     }
 
@@ -142,7 +142,7 @@ public:
     memory::ptr iou_threshold_mem() const {
         return dep_memory_ptr(get_iou_threshold_offset());
     }
-    std::shared_ptr<const primitive_inst> iou_threshold_inst() const {
+    const primitive_inst* iou_threshold_inst() const {
         return dependencies().at(get_iou_threshold_offset()).first;
     }
 
@@ -150,7 +150,7 @@ public:
     memory::ptr score_threshold_mem() const {
         return dep_memory_ptr(get_score_threshold_offset());
     }
-    std::shared_ptr<const primitive_inst> score_threshold_inst() const {
+    const primitive_inst* score_threshold_inst() const {
         return dependencies().at(get_score_threshold_offset()).first;
     }
 
@@ -158,7 +158,7 @@ public:
     memory::ptr soft_nms_sigma_mem() const {
         return dep_memory_ptr(get_soft_nms_sigma_offset());
     }
-    std::shared_ptr<const primitive_inst> soft_nms_sigma_inst() const {
+    const primitive_inst* soft_nms_sigma_inst() const {
         return dependencies().at(get_soft_nms_sigma_offset()).first;
     }
 

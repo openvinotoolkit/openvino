@@ -17,25 +17,32 @@
 
 namespace cldnn {
 
-memory::memory(engine* engine, const layout& layout, allocation_type type, bool reused)
-    : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {
-    if (!_reused && _engine) {
-        _engine->add_memory_used(_bytes_count, type);
-        GPU_DEBUG_LOG << "Allocate " << _bytes_count << " bytes of " << type << " allocation type"
-                      << " (current=" << _engine->get_used_device_memory(type) << ";"
-                      << " max=" << _engine->get_max_used_device_memory(type) << ")" << std::endl;
+MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_size, allocation_type alloc_type)
+    : m_engine(engine)
+    , m_buffer_ptr(buffer_ptr)
+    , m_buffer_size(buffer_size)
+    , m_alloc_type(alloc_type) {
+    if (m_engine) {
+        m_engine->add_memory_used(m_buffer_size, m_alloc_type);
+        GPU_DEBUG_LOG << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+                      << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
+                      << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
 }
 
-memory::~memory() {
-    if (!_reused && _engine) {
+MemoryTracker::~MemoryTracker() {
+    if (m_engine) {
         try {
-            _engine->subtract_memory_used(_bytes_count, _type);
+            m_engine->subtract_memory_used(m_buffer_size, m_alloc_type);
         } catch (...) {}
-        GPU_DEBUG_LOG << "Free " << _bytes_count << " bytes of " << _type << " allocation type"
-                      << " (current=" << _engine->get_used_device_memory(_type) << ";"
-                      << " max=" << _engine->get_max_used_device_memory(_type) << ")" << std::endl;
+        GPU_DEBUG_LOG << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+                      << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
+                      << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
+}
+
+memory::memory(engine* engine, const layout& layout, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
+    : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), m_mem_tracker(mem_tracker), _type(type) {
 }
 
 std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream) {
