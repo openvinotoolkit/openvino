@@ -2,33 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/fake_quantize.hpp"
-
-#include <memory>
-#include <vector>
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "ov_models/utils/data_utils.hpp"
 
-namespace ngraph {
-namespace builder {
-
-std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& constantType,
-                                       std::size_t levels,
-                                       std::vector<size_t> constShapes,
-                                       const std::vector<float>& inputLowData,
-                                       const std::vector<float>& inputHighData,
-                                       const std::vector<float>& outputLowData,
-                                       const std::vector<float>& outputHighData) {
-    auto inputLowNode =
-        ov::test::utils::deprecated::make_constant(constantType, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode =
-        ov::test::utils::deprecated::make_constant(constantType, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode =
-        ov::test::utils::deprecated::make_constant(constantType, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode =
-        ov::test::utils::deprecated::make_constant(constantType, constShapes, outputHighData, outputHighData.empty());
+namespace ov {
+namespace test {
+namespace utils {
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
+                                             const ov::element::Type& type,
+                                             std::size_t levels,
+                                             std::vector<size_t> constShapes,
+                                             const std::vector<float>& inputLowData,
+                                             const std::vector<float>& inputHighData,
+                                             const std::vector<float>& outputLowData,
+                                             const std::vector<float>& outputHighData) {
+    auto inputLowNode = deprecated::make_constant(type, constShapes, inputLowData, inputLowData.empty());
+    auto inputHighNode = deprecated::make_constant(type, constShapes, inputHighData, inputHighData.empty());
+    auto outputLowNode = deprecated::make_constant(type, constShapes, outputLowData, outputLowData.empty());
+    auto outputHighNode = deprecated::make_constant(type, constShapes, outputHighData, outputHighData.empty());
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,
@@ -36,15 +31,14 @@ std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                                          outputLowNode,
                                                          outputHighNode,
                                                          levels);
-
     return fq;
 }
 
-std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
-                                           const ov::element::Type& type,
-                                           std::size_t levels,
-                                           std::vector<size_t> constShapes,
-                                           const int32_t seed) {
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
+                                             const ov::element::Type& type,
+                                             std::size_t levels,
+                                             std::vector<size_t> constShapes,
+                                             const int32_t seed) {
     size_t constDataSize = ov::shape_size(constShapes);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
     inputLowData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
@@ -120,6 +114,6 @@ std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
 
     return fq;
 }
-
-}  // namespace builder
-}  // namespace ngraph
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
