@@ -131,6 +131,7 @@ using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
+using OVClassLoadNetworkTestWithThrow = OVClassBaseTestP;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
@@ -1313,6 +1314,14 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
         }
     }
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
+}
+
+//
+// LoadNetwork with null device & throw
+//
+TEST_P(OVClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device), ov::Exception);
 }
 
 //
