@@ -2,11 +2,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <common/primitive_desc_iface.hpp>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
+#include "common/primitive_desc_iface.hpp"
 #include "memory_desc/blocked_memory_desc.h"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/iml_type_mapper.h"
+
+#include <memory>
 #ifdef CPU_DEBUG_CAPS
 
 #include "debug_capabilities.h"
@@ -16,7 +17,6 @@
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
 #include "snippets/op/subgraph.hpp"
-#include <ie_ngraph_utils.hpp>
 
 namespace dnnl {
 namespace impl {
