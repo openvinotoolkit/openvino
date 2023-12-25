@@ -83,7 +83,7 @@ OutputVector batch_norm(const Node& node) {
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
     int training_mode{node.get_attribute_value<int>("training_mode", 0)};
-    if(training_mode == 1) {
+    if (training_mode == 1) {
         OPENVINO_THROW("Training mode of BatchNormalization is not supported.");
     }
     return {std::make_shared<default_opset::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
