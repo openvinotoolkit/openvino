@@ -364,12 +364,6 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
-      - name: Python API 1.0 Tests
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
-        shell: cmd
-        run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py
-
       - name: Python API 2.0 Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd
@@ -617,18 +611,6 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineUnitTests.xml
-
       - name: Common test utils tests
         shell: cmd
         run: |
@@ -655,12 +637,6 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
-
-      - name: GNA plugin unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test

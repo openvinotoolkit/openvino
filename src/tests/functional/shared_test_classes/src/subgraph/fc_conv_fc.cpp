@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/fc_conv_fc.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -69,7 +70,7 @@ void FcAfterConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -159,7 +160,7 @@ void FcBeforeConvTest::SetUp() {
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
@@ -236,7 +237,7 @@ void FcBetweenConvsTest::SetUp() {
 
     auto filter1Weights = ov::test::utils::generate_float_numbers(outputChannels * conv1InputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv1 = ngraph::builder::makeConvolution(reshape1,
+    auto conv1 = ov::test::utils::make_convolution(reshape1,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {kernelShape[0] > 1 ? stride : 1, stride},
@@ -259,7 +260,7 @@ void FcBetweenConvsTest::SetUp() {
 
     auto filter2Weights = ov::test::utils::generate_float_numbers(outputChannels * conv2InputShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv2 = ngraph::builder::makeConvolution(reshape3, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 },
+    auto conv2 = ov::test::utils::make_convolution(reshape3, ngPrc, { 1, 1 }, { 1, 1 }, { 0, 0 },
         { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filter2Weights);
     std::vector<size_t> outFormShapes2 = {1,  outputChannels * conv2InputShape[3]};
 
