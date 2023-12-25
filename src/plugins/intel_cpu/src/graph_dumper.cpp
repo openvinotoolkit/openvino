@@ -206,23 +206,24 @@ void serialize(const Graph &graph) {
     if (path.empty())
         return;
 
-    if (path == "cout")
+    if (path == "cout") {
         serializeToCout(graph);
-    else if (!path.compare(path.size() - 4, 4, ".xml"))
-        serializeToXML(graph, path);
-    else
+    } else if (!path.compare(path.size() - 4, 4, ".xml")) {
+        static int g_idx = 0;
+        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
+        serializeToXML(graph, xmlPath);
+    } else {
         OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
+    }
 }
 
 void serializeToXML(const Graph &graph, const std::string& path) {
     if (path.empty())
         return;
 
-    static int g_idx = 0;
-    std::string xmlPath = std::to_string(g_idx++) + "_" + path;
     std::string binPath;
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(xmlPath,
+    manager.register_pass<ov::pass::Serialize>(path,
                                                binPath,
                                                ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
