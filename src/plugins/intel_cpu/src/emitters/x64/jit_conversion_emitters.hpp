@@ -48,7 +48,7 @@ class jit_convert_truncation_emitter : public jit_convert_emitter {
 public:
     jit_convert_truncation_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n, ov::element::Type exec_prc = ov::element::f32);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -72,7 +72,7 @@ class jit_convert_saturation_emitter : public jit_convert_emitter {
 public:
     jit_convert_saturation_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n, ov::element::Type exec_prc = ov::element::f32);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 

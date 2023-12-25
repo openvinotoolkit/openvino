@@ -12,7 +12,7 @@
 #include <node.h>
 #include <set>
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 #include "openvino/runtime/threading/thread_local.hpp"
 
 #ifndef _WIN32
@@ -25,7 +25,7 @@ using namespace ov::threading;
 namespace ov {
 namespace intel_cpu {
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 class jit_emitter;
 extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler;
 #endif
@@ -48,7 +48,7 @@ public:
                 ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
         m_custom_emitter_segfault_detector = false;
 #endif
     }
@@ -68,7 +68,7 @@ public:
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void set_custom_segfault_detector(const bool is_enable) override {
         m_custom_emitter_segfault_detector = is_enable;
     }
@@ -157,7 +157,7 @@ protected:
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     bool m_custom_emitter_segfault_detector = false;
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);

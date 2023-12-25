@@ -192,7 +192,7 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t> &in_ve
     }
 }
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 void jit_convert_truncation_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
@@ -338,7 +338,7 @@ size_t jit_convert_saturation_emitter::aux_vecs_count() const {
     return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core? 1 : 0;
 }
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 void jit_convert_saturation_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";

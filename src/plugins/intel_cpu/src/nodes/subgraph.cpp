@@ -51,7 +51,7 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
-#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 std::mutex err_print_lock;
 #endif
 
@@ -398,7 +398,7 @@ void Snippet::prepareParams() {
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
         bool is_segfault_detector_on = false;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
         is_segfault_detector_on = !context->getConfig().debugCaps.snippets_segfault_detector.empty();
 #endif
         std::shared_ptr<SnippetExecutor> executor =
@@ -517,7 +517,7 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     }
 }
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 void Snippet::SnippetJitExecutor::segfault_detector() {
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
@@ -538,7 +538,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
-#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -552,7 +552,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
-#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -579,7 +579,7 @@ Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic)
 
 Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector) :
     SnippetExecutor(std::move(attrs), is_dynamic) {
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     enable_segfault_detector = segfault_detector;
 #endif
     numInput = snippetAttrs.inMemBlockedDims.size();

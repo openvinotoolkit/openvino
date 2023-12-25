@@ -14,7 +14,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
 #endif
 
@@ -213,7 +213,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
@@ -223,7 +223,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
     emitter_postamble();
 }
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 void jit_emitter::build_debug_info() const {
     internal_call_preamble();
 

@@ -47,7 +47,7 @@ public:
 
     virtual ~Emitter() = default;
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef SNIPPETS_DEBUG_CAPS
     virtual void set_custom_segfault_detector(const bool is_enable) {}
 #endif
 };

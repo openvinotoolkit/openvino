@@ -84,7 +84,7 @@ public:
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -126,7 +126,7 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -151,7 +151,7 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -215,7 +215,7 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -237,7 +237,7 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -269,7 +269,7 @@ public:
     MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -280,7 +280,7 @@ protected:
     size_t count = 0;
     size_t byte_offset = 0;
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     // MemoryEmitter is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
     // memory_track function is to record start subtensor address and current subtensor address and iteration.
     // If segfault happens, build_in segfault capabilty will give developers these info to understand what is wrong.
@@ -298,7 +298,7 @@ public:
                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -312,7 +312,7 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<snippets::op::Store> store_node = nullptr;
 #endif
 };
@@ -324,7 +324,7 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -338,7 +338,7 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<snippets::op::Load> load_node = nullptr;
 #endif
 };
@@ -350,7 +350,7 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -360,7 +360,7 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<snippets::op::BroadcastLoad> broadcast_load_node = nullptr;
 #endif
 };
@@ -372,7 +372,7 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -386,7 +386,7 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<snippets::op::Load> load_convert_node = nullptr;
 #endif
 };
@@ -398,7 +398,7 @@ public:
                         const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -412,7 +412,7 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<snippets::op::Store> store_convert_node = nullptr;
 #endif
 };
@@ -425,7 +425,7 @@ public:
 
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -455,7 +455,7 @@ private:
                                  size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<ov::intel_cpu::BrgemmCPU> brgemm_node_ptr = nullptr;
 #endif
 
@@ -483,7 +483,7 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}};
     }
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -502,7 +502,7 @@ private:
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     std::shared_ptr<ov::intel_cpu::BrgemmCopyB> brgemm_repack_node = nullptr;
 #endif
 

@@ -109,7 +109,7 @@ private:
             // Evaluates generated snippet using parallel backend
             void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
             void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
             inline void segfault_detector();
             bool enable_segfault_detector = false;
 #endif

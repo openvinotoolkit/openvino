@@ -54,7 +54,7 @@ size_t jit_dnnl_emitter::get_inputs_num() const { return 1; }
 
 void jit_dnnl_emitter::emit_code(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     if (m_custom_emitter_segfault_detector)
         build_debug_info();
 #endif
@@ -87,7 +87,7 @@ void jit_dnnl_emitter::emit_data() const {
     }
 }
 
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
 void jit_dnnl_emitter::print_debug_info() const {
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";

@@ -458,7 +458,7 @@ public:
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
@@ -607,7 +607,7 @@ public:
                        ov::element::Type execPrc = ov::element::f32): jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
     }
-#ifdef CPU_DEBUG_CAPS
+#ifdef SNIPPETS_DEBUG_CAPS
     void print_debug_info() const override;
 #endif
 
