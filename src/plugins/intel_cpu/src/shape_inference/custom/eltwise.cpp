@@ -4,12 +4,10 @@
 
 #include "eltwise.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
 
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes

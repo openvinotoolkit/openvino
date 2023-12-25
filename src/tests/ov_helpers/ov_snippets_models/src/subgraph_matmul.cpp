@@ -6,8 +6,9 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
-
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -59,7 +60,7 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     if (pos == 0) {
         in0 = std::make_shared<op::v1::Transpose>(in0, const_order);
     }
-    auto constant = ngraph::builder::makeConstant(ov::element::i8, const_shape.get_shape(), std::vector<int8_t>{}, true);
+    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i8, const_shape.get_shape(), std::vector<int8_t>{}, true);
     auto convert = std::make_shared<op::v0::Convert>(constant, ov::element::f32);
     auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);
@@ -100,7 +101,7 @@ std::shared_ptr<ov::Model> MatMulBiasQuantizedFunction::initOriginal() const {
                   std::vector<element::Type>{ element::f32 },
                   ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
                   ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-    auto fq2 = ngraph::builder::makeFakeQuantize(matmul, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+    auto fq2 = ov::test::utils::make_fake_quantize(matmul, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     auto bias = std::make_shared<op::v1::Add>(fq2, data2);
     return std::make_shared<ov::Model>(NodeVector{bias}, ParameterVector{data0, data1, data2});
 }
@@ -113,8 +114,8 @@ std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
                    std::vector<element::Type>{ element::f32 },
                    ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
                    ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-    auto fq0 = ngraph::builder::makeFakeQuantize(matmul0, ov::element::f32, 256, {1}, {0}, {0.820726}, {0}, {0.820726});
-    auto fq2 = ngraph::builder::makeFakeQuantize(data2, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+    auto fq0 = ov::test::utils::make_fake_quantize(matmul0, ov::element::f32, 256, {1}, {0}, {0.820726}, {0}, {0.820726});
+    auto fq2 = ov::test::utils::make_fake_quantize(data2, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
                                                             std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
@@ -123,7 +124,7 @@ std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
                    std::vector<element::Type>{ element::f32 },
                    ov::op::TemporaryReplaceOutputType(fq0, element::f32).get(),
                    ov::op::TemporaryReplaceOutputType(reshape, element::f32).get());
-     auto fq3 = ngraph::builder::makeFakeQuantize(matmul1, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+     auto fq3 = ov::test::utils::make_fake_quantize(matmul1, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     return std::make_shared<ov::Model>(NodeVector{fq3}, ParameterVector{data0, data1, data2});
 }
 std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
@@ -214,8 +215,8 @@ std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const
                    ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
                    ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
     auto softmax = std::make_shared<ov::op::v8::Softmax>(matmul0, -1);
-    auto fq0 = ngraph::builder::makeFakeQuantize(softmax, ov::element::f32, 256, {1}, {0}, {0.820726}, {0}, {0.820726});
-    auto fq2 = ngraph::builder::makeFakeQuantize(data2, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+    auto fq0 = ov::test::utils::make_fake_quantize(softmax, ov::element::f32, 256, {1}, {0}, {0.820726}, {0}, {0.820726});
+    auto fq2 = ov::test::utils::make_fake_quantize(data2, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
                                                             std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
@@ -224,7 +225,7 @@ std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const
                    std::vector<element::Type>{ element::f32 },
                    ov::op::TemporaryReplaceOutputType(fq0, element::f32).get(),
                    ov::op::TemporaryReplaceOutputType(reshape, element::f32).get());
-     auto fq3 = ngraph::builder::makeFakeQuantize(matmul1, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+     auto fq3 = ov::test::utils::make_fake_quantize(matmul1, ov::element::f32, 256, {1}, {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     return std::make_shared<ov::Model>(NodeVector{fq3}, ParameterVector{data0, data1, data2});
 }
 

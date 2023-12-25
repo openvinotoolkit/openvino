@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/transpose_conv_transpose_squeeze.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 std::string TransposeConvTest::getTestCaseName(const testing::TestParamInfo<TransposeConvTestParams>& obj) {
@@ -61,7 +63,7 @@ void TransposeConvTest::SetUp() {
     auto transpose1 = std::make_shared<ov::op::v1::Transpose>(reshape, input_order1);
 
     float weight_val = 0.02;
-    auto filter_weights_node = ngraph::builder::makeConstant<float>(ng_prc, {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
+    auto filter_weights_node = ov::test::utils::deprecated::make_constant<float>(ng_prc, {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
                                                                   { weight_val });
 
     auto conv = std::make_shared<ov::op::v1::Convolution>(transpose1, filter_weights_node, strides, std::vector<ptrdiff_t>{ 0, 0 },
