@@ -7,12 +7,10 @@
 #include <string>
 #include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <precision_utils.h>
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
