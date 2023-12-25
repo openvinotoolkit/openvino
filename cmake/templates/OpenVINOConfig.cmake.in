@@ -333,17 +333,6 @@ macro(_ov_find_itt)
     unset(_ENABLE_SYSTEM_ITTAPI)
 endmacro()
 
-macro(_ov_find_ade)
-    set(_OV_ENABLE_GAPI_PREPROCESSING "@ENABLE_GAPI_PREPROCESSING@")
-    # whether 'ade' is found via find_package
-    set(_ENABLE_SYSTEM_ADE "@ade_FOUND@")
-    if(_OV_ENABLE_GAPI_PREPROCESSING AND _ENABLE_SYSTEM_ADE)
-        _ov_find_dependency(ade @ade_VERSION@)
-    endif()
-    unset(_OV_ENABLE_GAPI_PREPROCESSING)
-    unset(_ENABLE_SYSTEM_ADE)
-endmacro()
-
 macro(_ov_find_intel_cpu_dependencies)
     set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
@@ -492,9 +481,6 @@ if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
 
     _ov_find_itt()
     _ov_find_pugixml()
-
-    # preprocessing dependencies
-    _ov_find_ade()
 
     # frontend dependencies
     _ov_find_protobuf_frontend_dependency()

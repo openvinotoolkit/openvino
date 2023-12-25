@@ -143,24 +143,19 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         }
 
         auto& devBlob = _deviceInputs[name];
-        const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
-        if (compoundBlobPassed && !preProcRequired) {
+        if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
         }
 
-        if (preProcRequired) {
-            addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
-        } else {
-            size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                                   ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
-                                   : 1;
-            if (!isInputDynamic && dataSize != inputSize) {
-                IE_THROW() << "Input tensor size is not equal network input size (" << dataSize << "!=" << inputSize
-                           << ").";
-            }
-            _inputs[name] = userBlob;
-            devBlob = userBlob;
+        size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                               ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
+                               : 1;
+        if (!isInputDynamic && dataSize != inputSize) {
+            IE_THROW() << "Input tensor size is not equal network input size (" << dataSize << "!=" << inputSize
+                       << ").";
         }
+        _inputs[name] = userBlob;
+        devBlob = userBlob;
         _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
@@ -369,24 +364,12 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         const auto input = findInputByNodeName(name);
         const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
-        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
-        } else {
-            data = _inputs[name];
-            const auto& dims = foundInput->getTensorDesc().getDims();
-            if (isInputDynamic)
-                checkBlob(data, name, true);
-            else
-                checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
-
-            auto& devBlob = _deviceInputs[name];
-            if (preProcessingRequired(foundInput, data, devBlob)) {
-                // if no devBlob, performs inplace
-                addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
-            }
-        }
+        data = _inputs[name];
+        const auto& dims = foundInput->getTensorDesc().getDims();
+        if (isInputDynamic)
+            checkBlob(data, name, true);
+        else
+            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     } else {
         const auto output = findOutputByNodeName(name);
         const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
@@ -438,16 +421,7 @@ void IInferRequestInternal::SetCallback(Callback callback) {
     _callback = std::move(callback);
 }
 
-void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {
-    for (auto& input : preprocessedBlobs) {
-        // If there is a pre-process entry for an input then it must be pre-processed
-        // using preconfigured resize algorithm.
-        auto it = _preProcData.find(input.first);
-        if (it != _preProcData.end()) {
-            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, -1);
-        }
-    }
-}
+void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {}
 
 bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name,
                                                          InputInfo::Ptr& foundInput,
@@ -567,56 +541,6 @@ void IInferRequestInternal::setPointerToSo(const std::shared_ptr<void>& so) {
 
 std::shared_ptr<void> IInferRequestInternal::getPointerToSo() const {
     return _so;
-}
-
-bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
-                                                  const Blob::Ptr& userBlob,
-                                                  const Blob::Ptr& deviceBlob) {
-    // pre-processing is required if:
-    // 1. resize algorithm is specified (resize required)
-    // 2. color format specified:
-    // 2.a. color format is not equal to network's expected (color conversion required)
-    // 2.b. network's layout != blob's layout (reorder required)
-    // 3. precision conversion is required
-
-    const auto& preProcessInfo = info->getPreProcess();
-    const auto inputColorFormat = preProcessInfo.getColorFormat();
-    // FIXME: support other network's input formats once the API is ready. Assuming input is in
-    // the BGR format by default
-    const auto networkColorFormat = ColorFormat::BGR;
-    const bool colorFormatSpecified = inputColorFormat != ColorFormat::RAW;
-
-    auto blob_layout = [](const Blob::Ptr& b) {
-        return b->getTensorDesc().getLayout();
-    };
-    auto blob_prec = [](const Blob::Ptr& b) {
-        return b->getTensorDesc().getPrecision();
-    };
-
-    auto dst_layout = deviceBlob ? blob_layout(deviceBlob) : info->getLayout();
-    auto dst_prec = deviceBlob ? blob_prec(deviceBlob) : info->getPrecision();
-
-    // FIXME: remove the first part to allow any needed conversion?
-    const bool need_layout_conv = (colorFormatSpecified || deviceBlob) && (blob_layout(userBlob) != dst_layout);
-
-    return preProcessInfo.getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE ||
-           (colorFormatSpecified && inputColorFormat != networkColorFormat) || need_layout_conv ||
-           (blob_prec(userBlob) != dst_prec);
-}
-
-void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
-                                                     const Blob::Ptr& from,
-                                                     const Blob::Ptr& to) {
-    auto ppDataIt = _preProcData.find(name);
-    if (ppDataIt == _preProcData.end()) {
-        ppDataIt = (_preProcData.emplace(name, CreatePreprocDataHelper())).first;
-    }
-
-    auto& preproc_ptr = ppDataIt->second;
-    preproc_ptr->isApplicable(from, to);
-    // Stores the given blob as ROI blob. It will be used to fill in network input
-    // during pre-processing
-    preproc_ptr->setRoiBlob(from);
 }
 
 void* IInferRequestInternal::GetUserData() noexcept {
