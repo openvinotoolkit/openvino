@@ -75,7 +75,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AssignVariableOp                                        | YES                           |                               |
 | AssignVariableXlaConcatND                               | NO                            |                               |
 | Atan                                                    | YES                           |                               |
-| Atan2                                                   | NO                            |                               |
+| Atan2                                                   | YES                           |                               |
 | Atanh                                                   | YES                           |                               |
 | AudioSpectrogram                                        | NO                            |                               |
 | AudioSummary                                            | NO                            |                               |
@@ -665,7 +665,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Mod                                                     | YES                           |                               |
 | ModelDataset                                            | NO                            |                               |
 | Mul                                                     | YES                           |                               |
-| MulNoNan                                                | NO                            |                               |
+| MulNoNan                                                | YES                           |                               |
 | MultiDeviceIterator                                     | NO                            |                               |
 | MultiDeviceIteratorFromStringHandle                     | NO                            |                               |
 | MultiDeviceIteratorGetNextFromShard                     | NO                            |                               |
@@ -1297,7 +1297,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorDataset                                           | NO                            |                               |
 | TensorListConcat                                        | NO                            |                               |
 | TensorListConcatLists                                   | NO                            |                               |
-| TensorListConcatV2                                      | NO                            |                               |
+| TensorListConcatV2                                      | YES                           |                               |
 | TensorListElementShape                                  | NO                            |                               |
 | TensorListFromTensor                                    | YES                           |                               |
 | TensorListGather                                        | NO                            |                               |
@@ -1363,7 +1363,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Unique                                                  | YES                           |                               |
 | UniqueDataset                                           | NO                            |                               |
 | UniqueV2                                                | NO                            |                               |
-| UniqueWithCounts                                        | NO                            |                               |
+| UniqueWithCounts                                        | YES                           |                               |
 | UniqueWithCountsV2                                      | NO                            |                               |
 | Unpack                                                  | YES                           |                               |
 | UnravelIndex                                            | YES                           |                               |
