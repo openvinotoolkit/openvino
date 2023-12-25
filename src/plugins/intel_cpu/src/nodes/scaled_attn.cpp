@@ -31,6 +31,7 @@
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
+#include "kernels/scaled_attn/brgemm_executor.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
@@ -205,6 +206,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
+
+    std::shared_ptr<brgemmExecutor> qk_gemm_ptr = nullptr;
 
     void prepare_prim(dnnl::stream strm,
                       PlainTensor& query,
