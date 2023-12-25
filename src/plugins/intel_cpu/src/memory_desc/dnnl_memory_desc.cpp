@@ -3,10 +3,10 @@
 //
 
 #include "dnnl_memory_desc.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 
 namespace ov {
 namespace intel_cpu {

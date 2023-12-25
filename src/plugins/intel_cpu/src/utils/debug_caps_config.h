@@ -4,11 +4,11 @@
 #pragma once
 #ifdef CPU_DEBUG_CAPS
 
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 #include <bitset>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 

@@ -9,7 +9,7 @@
 #include <vector>
 #include <openvino/core/type/element_type.hpp>
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -27,4 +27,4 @@ void attn_softmax(float* a,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

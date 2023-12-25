@@ -157,21 +157,21 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)

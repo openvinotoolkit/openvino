@@ -8,7 +8,7 @@
  */
 #pragma once
 
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 
 #include <string>
 

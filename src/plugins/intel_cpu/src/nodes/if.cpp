@@ -3,12 +3,8 @@
 //
 
 #include "if.h"
-
-#include <dnnl_extension_utils.h>
-#include "ie_ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "nodes/common/cpu_convert.h"
 
 #include <string>

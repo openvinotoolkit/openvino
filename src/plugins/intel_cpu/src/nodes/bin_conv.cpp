@@ -11,15 +11,15 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "openvino/core/parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
@@ -32,7 +32,7 @@
 # endif
 #endif
 
-using namespace InferenceEngine;
+
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;

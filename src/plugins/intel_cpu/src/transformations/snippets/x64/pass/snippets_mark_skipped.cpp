@@ -8,7 +8,7 @@
 #include "snippets/utils.hpp"
 
 #include <transformations/utils/utils.hpp>
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 #include <utils/cpu_utils.hpp>
 
 #include "itt.hpp"

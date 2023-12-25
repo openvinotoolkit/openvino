@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "extract_image_patches.h"
+#include "caseless.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset3.hpp"
+
+#include <cmath>
 #include <cstring>
 #include <string>
-#include <cmath>
-
-#include <openvino/opsets/opset3.hpp>
-#include "openvino/core/parallel.hpp"
-#include "extract_image_patches.h"
-#include <cpu/x64/jit_generator.hpp>
-#include "caseless.hpp"
-#include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-
 using details::CaselessEq;
 
 using namespace dnnl::impl::cpu;

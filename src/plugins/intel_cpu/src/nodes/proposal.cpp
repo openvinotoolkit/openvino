@@ -9,8 +9,6 @@
 #include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

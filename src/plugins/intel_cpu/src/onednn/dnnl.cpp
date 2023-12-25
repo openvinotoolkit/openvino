@@ -5,7 +5,7 @@
 #include "dnnl.h"
 #include <dnnl_debug.h>
 #include <cpu/platform.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include <cassert>
 #include <cstring>

@@ -9,7 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 namespace ov {
 namespace intel_cpu {

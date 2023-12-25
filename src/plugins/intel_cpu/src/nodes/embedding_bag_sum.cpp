@@ -5,13 +5,11 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "embedding_bag_sum.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "common/cpu_memcpy.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

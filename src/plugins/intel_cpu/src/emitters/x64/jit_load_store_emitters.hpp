@@ -5,7 +5,7 @@
 #pragma once
 
 #include "jit_emitter.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 #include "jit_bf16_emitters.hpp"
 
 namespace ov {

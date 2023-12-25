@@ -5,7 +5,7 @@
 #include "reshape_fc_fusion.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include <numeric>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"

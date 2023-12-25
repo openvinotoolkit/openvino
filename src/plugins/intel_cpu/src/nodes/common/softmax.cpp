@@ -5,9 +5,9 @@
 #include "softmax.h"
 
 #include "openvino/core/parallel.hpp"
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <onednn/dnnl.h>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "onednn/dnnl.h"
 #include "utils/bfloat16.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"
 
@@ -15,7 +15,6 @@
 #include <cassert>
 #include <vector>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

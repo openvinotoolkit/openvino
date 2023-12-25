@@ -7,7 +7,6 @@
 #include "perf_count.h"
 #include <vector>
 #include <utility>
-#include <ie_common.h>
 #include "cpu_types.h"
 #include "openvino/core/partial_shape.hpp"
 

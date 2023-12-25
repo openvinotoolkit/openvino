@@ -3,16 +3,16 @@
 //
 
 #include "rnn.h"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "utils/bfloat16.hpp"
 #include "input.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <memory>
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "shape_inference/shape_inference_ngraph.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
@@ -27,7 +27,7 @@
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

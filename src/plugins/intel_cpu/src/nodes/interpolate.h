@@ -14,8 +14,6 @@
 
 #define MAX_INPUT_INTERPOLATE 8
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -124,15 +122,15 @@ private:
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
         private:
-            void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                             InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
-            void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                     InterpolateLayoutType layout);
-            void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
+            void buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
                                 bool antialias);
-            void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
+            void buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
                                InterpolateLayoutType layout);
-            void buildTblPillow(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblPillow(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                 float cubicCoeff, InterpolateLayoutType layout);
 
             float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
@@ -224,7 +222,7 @@ private:
 
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
-    static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
+    static VectorDims getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
     static size_t getSpatialDimsNum(const Dim rank);
 

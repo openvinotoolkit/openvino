@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-
 #ifdef CPU_DEBUG_CAPS
 
 #include <string>
@@ -10,7 +9,7 @@
 #include <sstream>
 #include <chrono>
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_debug.h>
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/model.hpp"

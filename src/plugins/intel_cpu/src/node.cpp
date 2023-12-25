@@ -3,73 +3,68 @@
 //
 
 #include "node.h"
-#include "edge.h"
-#include "extension_mngr.h"
-#include "partitioned_mem_mgr.h"
-#include "itt.h"
 
 #include "caseless.hpp"
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <string>
-#include <limits>
-#include <cstdint>
-#include <unordered_map>
-
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "dnnl_debug.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "edge.h"
+#include "extension_mngr.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
+#include "nodes/depth_to_space.h"
 #include "nodes/eltwise.h"
-#include "nodes/matmul.h"
+#include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/if.h"
 #include "nodes/input.h"
+#include "nodes/interpolate.h"
 #include "nodes/lrn.h"
-#include "nodes/pooling.h"
-#include "nodes/reorder.h"
-#include "nodes/reshape.h"
-#include "nodes/softmax.h"
-#include "nodes/tile.h"
-#include "nodes/split.h"
-#include "nodes/pad.h"
-#include "nodes/transpose.h"
+#include "nodes/matmul.h"
 #include "nodes/memory.hpp"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
+#include "nodes/pad.h"
+#include "nodes/pooling.h"
 #include "nodes/reduce.h"
-#include "nodes/tensoriterator.h"
-#include "nodes/scatter_update.h"
-#include "nodes/interpolate.h"
-#include "nodes/depth_to_space.h"
-#include "nodes/space_to_depth.h"
-#include "nodes/strided_slice.h"
-#include "nodes/shuffle_channels.h"
 #include "nodes/reference.h"
-#include "nodes/fake_quantize.h"
-#include "dnnl_extension_utils.h"
-
-#include "nodes/common/cpu_memcpy.h"
-#include "utils/rt_info/memory_formats_attribute.hpp"
-#include <openvino/opsets/opset1.hpp>
-
-#include <dnnl_types.h>
-#include <dnnl_debug.h>
-#include <ie_ngraph_utils.hpp>
-#include "utils/general_utils.h"
+#include "nodes/reorder.h"
+#include "nodes/reshape.h"
+#include "nodes/scatter_update.h"
+#include "nodes/shuffle_channels.h"
+#include "nodes/softmax.h"
+#include "nodes/space_to_depth.h"
+#include "nodes/split.h"
+#include "nodes/strided_slice.h"
+#include "nodes/tensoriterator.h"
+#include "nodes/tile.h"
+#include "nodes/transpose.h"
+#include "openvino/opsets/opset1.hpp"
+#include "partitioned_mem_mgr.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/verbose.h"
-#include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
-
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -1252,7 +1247,7 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const SizeVector& dims) const {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) const {
     switch (dims.size()) {
     case 1:
         return dnnl::memory::format_tag::a;
@@ -1339,12 +1334,6 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     };
     Node *newNode = nullptr;
     std::string errorMessage;
-    {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
-        if (ol != nullptr && ol->created(context->getExtensionManager()))
-            newNode = ol.release();
-    }
-
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));

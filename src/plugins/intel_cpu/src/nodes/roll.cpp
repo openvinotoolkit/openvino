@@ -5,17 +5,16 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 #include "roll.h"
 #include "openvino/core/parallel.hpp"
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

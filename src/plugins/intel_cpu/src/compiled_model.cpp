@@ -20,7 +20,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
 #include <utility>
 

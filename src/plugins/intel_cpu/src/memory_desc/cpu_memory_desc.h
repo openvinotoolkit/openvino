@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
-
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"

@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <mutex>
-
-#include <onednn/dnnl.h>
 #include "openvino/op/detection_output.hpp"
-#include "openvino/core/parallel.hpp"
+
 #include "detection_output.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -833,7 +830,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
-        OPENVINO_THROW(errorPrefix, NOT_IMPLEMENTED);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix);
     }
 
     int dstDataSize = 0;
@@ -845,7 +842,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
-        OPENVINO_THROW(errorPrefix, OUT_OF_BOUNDS);
+        OPENVINO_THROW(errorPrefix, ": OUT_OF_BOUNDS");
     }
     memset(dstData, 0, dstDataSize);
 

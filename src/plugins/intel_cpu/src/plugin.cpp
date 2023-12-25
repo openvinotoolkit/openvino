@@ -27,7 +27,7 @@
 # include <sys/mman.h>
 #endif
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_ie_scheduler.hpp"

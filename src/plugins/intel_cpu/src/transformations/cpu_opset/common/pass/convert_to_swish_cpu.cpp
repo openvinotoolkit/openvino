@@ -4,7 +4,7 @@
 
 #include "convert_to_swish_cpu.hpp"
 
-#include <openvino/opsets/opset4.hpp>
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"

@@ -7,7 +7,7 @@
 #include "cpu_memory.h"
 #include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include "nodes/common/dnnl_executor.h"
 
 namespace ov {

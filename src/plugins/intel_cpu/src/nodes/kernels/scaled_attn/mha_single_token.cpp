@@ -19,7 +19,7 @@
 #include "common.hpp"
 #include "softmax_kernel.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -292,4 +292,4 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

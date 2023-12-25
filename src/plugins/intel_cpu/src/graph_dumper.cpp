@@ -5,19 +5,15 @@
 #include "graph_dumper.h"
 
 #include "utils/debug_capabilities.h"
-#include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
-#include "ie_common.h"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include <dnnl_debug.h>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/serialize.hpp>
 
 #include <vector>
 #include <string>
 #include <memory>
 #include <map>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -33,9 +29,6 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     if (node->getType() == Type::Input && node->isConstant()) {
         // We need to separate Input and Const layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
-    } else if (node->getType() == Type::Generic) {
-        // Path to print actual name for extension layers
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
     } else {
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
     }

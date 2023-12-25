@@ -3,13 +3,11 @@
 //
 
 #include <string>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/parallel.hpp"
 #include "range.h"
-#include <utils/general_utils.h>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-
-using namespace InferenceEngine;
+#include "utils/general_utils.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -39,15 +37,15 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    SizeVector start_dims = op->get_input_shape(RANGE_START);
+    auto start_dims = op->get_input_shape(RANGE_START);
     if (ov::shape_size(start_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has start scalar with more than 1 value");
 
-    SizeVector limit_dims = op->get_input_shape(RANGE_LIMIT);
+    auto limit_dims = op->get_input_shape(RANGE_LIMIT);
     if (ov::shape_size(limit_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has limit scalar with more than 1 value");
 
-    SizeVector delta_dims = op->get_input_shape(RANGE_DELTA);
+    auto delta_dims = op->get_input_shape(RANGE_DELTA);
     if (ov::shape_size(delta_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has delta scalar with more than 1 value");
 
@@ -133,7 +131,7 @@ size_t Range::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) 
 }
 
 template <typename data_t>
-InferenceEngine::StatusCode Range::rangeKernel() {
+Range::StatusCode Range::rangeKernel() {
     data_t start = 0, delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {

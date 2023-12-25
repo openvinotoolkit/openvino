@@ -5,7 +5,6 @@
 #pragma once
 
 #include <openvino/core/rt_info.hpp>
-#include <ie_ngraph_utils.hpp>
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/expression.hpp"

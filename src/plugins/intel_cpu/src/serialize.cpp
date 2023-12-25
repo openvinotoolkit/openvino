@@ -8,8 +8,6 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 

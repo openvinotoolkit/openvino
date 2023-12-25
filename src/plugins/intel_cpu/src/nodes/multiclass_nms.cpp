@@ -9,7 +9,6 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
-#include <ie_ngraph_utils.hpp>
 #include <queue>
 #include <string>
 #include <utility>
@@ -17,9 +16,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace ov {
 namespace intel_cpu {
@@ -439,9 +438,9 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
 void MultiClassNms::nmsWithEta(const float* boxes,
                                 const float* scores,
                                 const int* roisnum,
-                                const SizeVector& boxesStrides,
-                                const SizeVector& scoresStrides,
-                                const SizeVector& roisnumStrides,
+                                const VectorDims& boxesStrides,
+                                const VectorDims& scoresStrides,
+                                const VectorDims& roisnumStrides,
                                 const bool shared) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
@@ -524,10 +523,10 @@ void MultiClassNms::nmsWithEta(const float* boxes,
 const float* MultiClassNms::slice_class(const int batch_idx,
                                         const int class_idx,
                                         const float* dataPtr,
-                                        const SizeVector& dataStrides,
+                                        const VectorDims& dataStrides,
                                         const bool is_boxes,
                                         const int* roisnum,
-                                        const SizeVector& roisnumStrides,
+                                        const VectorDims& roisnumStrides,
                                         const bool shared) {
     if (shared) {
         if (is_boxes)
@@ -551,9 +550,9 @@ const float* MultiClassNms::slice_class(const int batch_idx,
 void MultiClassNms::nmsWithoutEta(const float* boxes,
                                 const float* scores,
                                 const int* roisnum,
-                                const SizeVector& boxesStrides,
-                                const SizeVector& scoresStrides,
-                                const SizeVector& roisnumStrides,
+                                const VectorDims& boxesStrides,
+                                const VectorDims& scoresStrides,
+                                const VectorDims& roisnumStrides,
                                 const bool shared) {
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         /*

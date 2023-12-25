@@ -24,7 +24,7 @@
 #include <ov_ops/nms_static_shape_ie.hpp>
 #include <ov_ops/multiclass_nms_ie_internal.hpp>
 
-#include <snippets/op/subgraph.hpp>
+#include "snippets/op/subgraph.hpp"
 
 #include <mutex>
 

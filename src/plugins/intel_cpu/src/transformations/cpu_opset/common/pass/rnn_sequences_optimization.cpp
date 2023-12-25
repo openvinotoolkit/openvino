@@ -4,7 +4,7 @@
 
 #include "rnn_sequences_optimization.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"

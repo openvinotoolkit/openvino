@@ -5,14 +5,14 @@
 
 #include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset11.hpp>
+#include "openvino/opsets/opset11.hpp"
 #include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>

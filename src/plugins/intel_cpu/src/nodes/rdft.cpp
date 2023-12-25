@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 #include "rdft.h"
 #include "openvino/core/parallel.hpp"
@@ -21,12 +21,10 @@
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;

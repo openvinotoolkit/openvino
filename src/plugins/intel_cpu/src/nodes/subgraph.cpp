@@ -1,45 +1,38 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "subgraph.h"
 
-#include "openvino/core/parallel.hpp"
-
-#include <vector>
-#include <algorithm>
-#include <array>
-
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/core/rt_info.hpp"
-#include <ie_ngraph_utils.hpp>
-
-#include <snippets/op/subgraph.hpp>
-#include <snippets/lowered/pass/optimize_domain.hpp>
-#include "snippets/pass/matmul_to_brgemm.hpp"
-#include "utils/cpu_utils.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "dnnl_extension_utils.h"
 #include "emitters/x64/cpu_generator.hpp"
-#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
-#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
-#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
-#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
-#include "transformations/snippets/x64/pass/remove_converts.hpp"
-#include "transformations/snippets/x64/pass/enforce_precision.hpp"
-#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
-#include "transformations/snippets/x64/shape_inference.hpp"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "shape_inference/custom/subgraph.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/hash.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
-#include "shape_inference/custom/subgraph.hpp"
-#include <common/primitive_hashing_utils.hpp>
-#include "snippets/pass/hash.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
+#include "transformations/snippets/x64/shape_inference.hpp"
+#include "utils/cpu_utils.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
+#include <algorithm>
+#include <array>
+#include <vector>
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

@@ -234,7 +234,6 @@ Type TypeFromName(const std::string& type) {
 std::string NameFromType(const Type type) {
 #define CASE(_alg) case Type::_alg: return #_alg;
     switch (type) {
-        CASE(Generic);
         CASE(Reorder);
         CASE(Input);
         CASE(Output);

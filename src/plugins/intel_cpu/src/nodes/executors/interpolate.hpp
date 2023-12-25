@@ -12,8 +12,6 @@
 
 #define MAX_INPUT_INTERPOLATE 8
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -68,10 +66,10 @@ struct InterpolateAttrs {
     bool hasPad = false;
 };
 
-inline SizeVector getPaddedInputShape(const VectorDims &srcDims,
+inline VectorDims getPaddedInputShape(const VectorDims &srcDims,
                                 const std::vector<int> &padBegin,
                                 const std::vector<int> &padEnd) {
-    SizeVector paddedShape;
+    VectorDims paddedShape;
     int dataRank = srcDims.size();
     for (int i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
@@ -99,9 +97,9 @@ inline size_t getSpatialDimsNum(const Dim rank) {
 }
 
 // w/hw/ncw/nchw/ncdhw to ncdhw
-inline SizeVector to5Dim(SizeVector casesDim) {
+inline VectorDims to5Dim(VectorDims casesDim) {
     size_t caseSize = casesDim.size();
-    SizeVector dim5(5, 1lu);
+    VectorDims dim5(5, 1lu);
     dim5[4] = casesDim[caseSize - 1];
     if (caseSize > 1) {
         dim5[3] = casesDim[caseSize - 2];
@@ -147,13 +145,13 @@ public:
     const uint8_t* padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
 
 private:
-    void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+    void buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                     InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
-    void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+    void buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                             InterpolateLayoutType layout);
-    void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
+    void buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
                         bool antialias);
-    void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
+    void buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
                        InterpolateLayoutType layout);
 
     float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;

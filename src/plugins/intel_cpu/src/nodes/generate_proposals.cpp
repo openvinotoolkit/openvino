@@ -18,14 +18,12 @@
 #include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-
-using namespace InferenceEngine;
 
 struct Indexer4d {
     int dim3_;

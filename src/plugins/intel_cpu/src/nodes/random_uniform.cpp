@@ -4,8 +4,7 @@
 
 #include "random_uniform.hpp"
 
-#include "ie_parallel.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 

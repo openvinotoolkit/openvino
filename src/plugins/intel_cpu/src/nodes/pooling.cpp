@@ -11,13 +11,13 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include <utils/general_utils.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/node_config.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 
 // to access and change C pooling primitive desc internal padding field
 #include <common/primitive_desc_iface.hpp>
@@ -29,7 +29,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

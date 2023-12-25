@@ -23,7 +23,7 @@
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include "openvino/core/node.hpp"
-#include <nodes/common/blocked_desc_creator.h>
+#include "nodes/common/blocked_desc_creator.h"
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "config.h"
@@ -633,7 +633,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const InferenceEngine::SizeVector& dims) const;
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions

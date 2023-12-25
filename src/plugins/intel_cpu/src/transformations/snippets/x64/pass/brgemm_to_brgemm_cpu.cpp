@@ -15,7 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include "cpu_shape.h"
 #include "utils/general_utils.h"

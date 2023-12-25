@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>

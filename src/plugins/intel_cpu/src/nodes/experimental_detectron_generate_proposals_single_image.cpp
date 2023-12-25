@@ -19,8 +19,6 @@
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

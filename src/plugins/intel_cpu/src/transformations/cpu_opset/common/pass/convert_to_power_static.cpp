@@ -4,8 +4,8 @@
 
 #include "convert_to_power_static.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include <openvino/opsets/opset6.hpp>
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <node.h>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <cassert>
 
 #include <cpu/ref_eltwise.hpp>

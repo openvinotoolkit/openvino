@@ -3,19 +3,19 @@
 //
 
 #include "scatter_update.h"
+
+#include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "openvino/core/parallel.hpp"
-#include <algorithm>
-#include "common/cpu_memcpy.h"
-
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -132,7 +132,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
                 }
 
                 size_t tupleRank = indicesRank - 1;
-                SizeVector expectUpdateShape(tupleRank + srcRank - k, 0);
+                VectorDims expectUpdateShape(tupleRank + srcRank - k, 0);
                 int updateAxisIter = 0;
                 for (size_t ri = 0; ri < tupleRank; ri++) {
                     expectUpdateShape[updateAxisIter] = indicesDim[ri];
@@ -311,11 +311,11 @@ void ScatterUpdate::execute(dnnl::stream strm) {
         });
 
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
-            SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-            SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
+            VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+            VectorDims updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
             size_t indicesRank = indicesDim.size();
             size_t updateRank = updateDim.size();
-            SizeVector expectUpdateShape(srcRank + indicesRank - 1, 0);
+            VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
             int axisIter = 0;
             for (size_t rs = 0; rs < srcRank; rs++) {
                 if (rs != static_cast<size_t>(axis)) {
@@ -459,7 +459,7 @@ void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j;
         size_t i, dst_idx = 0, start = 0, end = 0;
-        SizeVector tensorItr(updateRank, 0);
+        VectorDims tensorItr(updateRank, 0);
         splitter(updateBlockND[0], nthr, ithr, start, end);
         for (j = updateRank - 1, i = start; j >= 0; j--) {
             tensorItr[j] = i % updateDim[j];

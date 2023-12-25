@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 
 namespace ov {
 namespace intel_cpu {
