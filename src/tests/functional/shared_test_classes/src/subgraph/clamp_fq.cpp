@@ -4,6 +4,7 @@
 
 #include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/clamp_fq.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -65,7 +66,7 @@ namespace SubgraphTestsDefinitions {
 
         auto clamp = std::make_shared<ov::op::v0::Clamp>(params[0], clamp_min_max[0], clamp_min_max[1]);
 
-        auto FQNode = ngraph::builder::makeFakeQuantize(clamp, ngraph::element::f32, levels[0], constShape[0],
+        auto FQNode = ov::test::utils::make_fake_quantize(clamp, ngraph::element::f32, levels[0], constShape[0],
                                                              { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
 

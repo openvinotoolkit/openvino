@@ -7,6 +7,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -40,7 +41,7 @@ std::shared_ptr<ov::Model> SqueezeFunction::getOriginal(
 
     const auto fakeQuantize = fakeQuantizeOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 

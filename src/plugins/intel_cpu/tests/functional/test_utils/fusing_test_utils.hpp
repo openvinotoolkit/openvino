@@ -6,6 +6,7 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "ov_models/builders.hpp"
@@ -280,28 +281,28 @@ const auto fusingScaleShiftAndFakeQuantizePerChannel = fusingSpecificParams{ std
                 auto localPrc = cfg.input->get_element_type();
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
                 // auto newShape = ov::Shape(cfg.inputNode->get_output_partial_shape(0).size(), 1);
-                return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
 
 const auto fusingFakeQuantizePerTensor = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 auto localPrc = cfg.input->get_element_type();
                 ov::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
-                return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"} };
 
 const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 auto localPrc = cfg.input->get_element_type();
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
-                return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
 
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 auto localPrc = cfg.input->get_element_type();
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
-                return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"},
             {[](postNodeConfig& cfg){
                 return utils::make_activation(cfg.input, cfg.type, utils::Relu);
@@ -315,7 +316,7 @@ const auto fusingFQPerChannelSigmoidFQPerChannel = fusingSpecificParams{std::mak
                 OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ov::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg){
             return utils::make_activation(cfg.input, cfg.type, utils::Sigmoid);
@@ -327,7 +328,7 @@ const auto fusingFQPerChannelSigmoidFQPerChannel = fusingSpecificParams{std::mak
                 OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ov::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize", "Sigmoid", "FakeQuantize"}};
 
 const auto fusingFQPerChannelSigmoidFQPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -338,7 +339,7 @@ const auto fusingFQPerChannelSigmoidFQPerTensor = fusingSpecificParams{std::make
                 OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ov::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg){
             return utils::make_activation(cfg.input, cfg.type, utils::Sigmoid);
@@ -349,14 +350,14 @@ const auto fusingFQPerChannelSigmoidFQPerTensor = fusingSpecificParams{std::make
             if (shape.size() == 1)
                 OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ov::Shape newShape(shape.size(), 1);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize", "Sigmoid", "FakeQuantize"}};
 
 const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg) {
                 auto localPrc = cfg.input->get_element_type();
                 auto newShape = ov::Shape(cfg.input->get_output_partial_shape(0).size(), 1);
-                return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerTensor)"},
             {[](postNodeConfig& cfg){
                 return utils::make_activation(cfg.input, cfg.type, utils::Relu);
@@ -383,7 +384,7 @@ const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(
         {[](postNodeConfig& cfg) {
             auto localPrc = cfg.input->get_element_type();
             auto newShape = ov::Shape(cfg.input->get_output_partial_shape(0).size(), 1);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerTensor)"}}), {"Add", "Elu", "FakeQuantize"}};
 
 const auto fusingMultiplyPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{

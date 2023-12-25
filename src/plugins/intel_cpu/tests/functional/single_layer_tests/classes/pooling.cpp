@@ -5,6 +5,7 @@
 #include "gtest/gtest.h"
 #include "pooling.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace CPUTestUtils;
 
@@ -98,7 +99,7 @@ void PoolingLayerCPUTest::SetUp() {
     std::shared_ptr<ov::Node> poolInput = params[0];
     if (isInt8) {
         ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
-        poolInput = ngraph::builder::makeFakeQuantize(poolInput, inPrc, 256, newShape);
+        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
     }
 
     std::shared_ptr<ov::Node> pooling;

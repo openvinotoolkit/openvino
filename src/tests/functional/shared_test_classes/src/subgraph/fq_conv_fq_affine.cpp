@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/fq_conv_fq_affine.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -78,7 +79,7 @@ void FqConvFqAffineTest::SetUp() {
     const int seed = 0;
     std::mt19937 gen(seed);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], std::vector<size_t>{},
+    auto inputFQNode = ov::test::utils::make_fake_quantize(params[0], ngraph::element::f32, levels[0], std::vector<size_t>{},
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
     auto inputFQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(inputFQNode);
 

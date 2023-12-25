@@ -16,6 +16,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -141,7 +142,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
 
     const auto fqOnWeights = fakeQuantizeOnWeights.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights, ov::element::f32, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
@@ -170,7 +171,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fqOnData = fakeQuantizeOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
@@ -183,7 +184,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
 
     const auto fqOnWeights = fakeQuantizeOnWeights.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights, precision, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
@@ -287,7 +288,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
         (weights->get_output_element_type(0).is_real() ?
             convertedWeights :
             std::dynamic_pointer_cast<ov::Node>(weights)) :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             convertedWeights->output(0),
             netPrecision,
             fakeQuantizeOnWeights.quantizationLevel,
@@ -336,7 +337,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::get(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const std::shared_ptr<ov::opset1::FakeQuantize> fqOnData = ov::as_type_ptr<ov::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    const std::shared_ptr<ov::opset1::FakeQuantize> fqOnData = ov::as_type_ptr<ov::opset1::FakeQuantize>(ov::test::utils::make_fake_quantize(
         input,
         precision,
         fakeQuantizeOnData.quantizationLevel,
@@ -363,7 +364,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::get(
 
     const std::shared_ptr<ov::Node> parentOnWeights = fakeQuantizeOnWeights.empty() ?
         weights :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights, precision, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);

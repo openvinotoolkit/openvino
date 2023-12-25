@@ -11,7 +11,7 @@
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> SplitFunction::getOriginal(
     const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fq = fakeQuantize.empty() ? nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input,
             originalFunctionPrecision,
             fakeQuantize.quantizationLevel,

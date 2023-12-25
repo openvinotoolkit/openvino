@@ -10,6 +10,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -593,7 +594,7 @@ std::shared_ptr<ov::Model> MHAFQAfterMatMulFunction::initOriginal() const {
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
-    auto fq0 = ngraph::builder::makeFakeQuantize(matMul0, ov::element::f32, 256, {1},
+    auto fq0 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto add = std::make_shared<ov::op::v1::Add>(fq0, addParam);
     const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
@@ -601,7 +602,7 @@ std::shared_ptr<ov::Model> MHAFQAfterMatMulFunction::initOriginal() const {
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(reshape1, transpose2, transA, transB);
-    auto fq1 = ngraph::builder::makeFakeQuantize(matMul1, ov::element::f32, 256, {1},
+    auto fq1 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose3Const);
 
@@ -632,28 +633,28 @@ std::shared_ptr<ov::Model> MHAINT8MatMulFunction::initOriginal() const {
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1])};
     auto reshape1Const = ov::test::utils::deprecated::make_constant(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
 
-    auto fq0 = ngraph::builder::makeFakeQuantize(transpose0Param, ov::element::f32, 256, {1},
+    auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
-    auto fq1 = ngraph::builder::makeFakeQuantize(transpose1Param, ov::element::f32, 256, {1},
+    auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
-    auto fq2 = ngraph::builder::makeFakeQuantize(transpose2Param, ov::element::f32, 256, {1},
+    auto fq2 = ov::test::utils::make_fake_quantize(transpose2Param, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     float transA = false;
     float transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fq0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
-    auto fq3 = ngraph::builder::makeFakeQuantize(matMul0, ov::element::f32, 256, {1},
+    auto fq3 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto add = std::make_shared<ov::op::v1::Add>(fq3, addParam);
     const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
-    auto fq4 = ngraph::builder::makeFakeQuantize(reshape1, ov::element::f32, 256, {1},
+    auto fq4 = ov::test::utils::make_fake_quantize(reshape1, ov::element::f32, 256, {1},
                                                  {0}, {0.820726}, {0}, {0.820726});
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose2Const);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(fq4, transpose2, transA, transB);
-    auto fq5 = ngraph::builder::makeFakeQuantize(matMul1, ov::element::f32, 256, {1},
+    auto fq5 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
                                                  {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq5, transpose3Const);
 
@@ -688,9 +689,9 @@ std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(reshape1, transpose1Const);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(reshape2, transpose2Const);
 
-    auto fq0 = ngraph::builder::makeFakeQuantize(transpose0Param, ov::element::f32, 256, {1},
+    auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
                                                  {-12.5187311}, {12.4209289}, {-12.5187311}, {12.4209289});
-    auto fq1 = ngraph::builder::makeFakeQuantize(transpose1, ov::element::f32, 256, {1},
+    auto fq1 = ov::test::utils::make_fake_quantize(transpose1, ov::element::f32, 256, {1},
                                                  {-1.43326699}, {1.42206954}, {-1.43326699}, {1.42206954});
 
     const auto reshape0 = std::make_shared<ov::op::v1::Reshape>(fq0, reshape0Const, true);
@@ -701,7 +702,7 @@ std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
     const auto softMax = std::make_shared<ov::opset8::Softmax>(add, -1);
 
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
-    auto fq2 = ngraph::builder::makeFakeQuantize(matMul1, ov::element::f32, 256, {1},
+    auto fq2 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
                                                  {-1.81826221}, {1.804057}, {-1.81826221}, {1.804057});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose3Const);
     const auto reshape3 = std::make_shared<ov::op::v1::Reshape>(transpose3, reshape3Const, true);
@@ -722,11 +723,11 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     auto transpose2Const = ov::test::utils::deprecated::make_constant(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::test::utils::deprecated::make_constant(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    const auto fq0 = ngraph::builder::makeFakeQuantize(transpose0Param, ov::element::f32, 256, {1},
+    const auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
                                                        {-5.217694}, {6.661877}, {-5.217694}, {6.661877});
-    const auto fq1 = ngraph::builder::makeFakeQuantize(transpose1Param, ov::element::f32, 256, {1},
+    const auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1},
                                                        {-6.40245}, {6.45286}, {-6.40245}, {6.45286});
-    const auto fq_add = ngraph::builder::makeFakeQuantize(addParam, ov::element::f32, 256, {1},
+    const auto fq_add = ov::test::utils::make_fake_quantize(addParam, ov::element::f32, 256, {1},
                                                           {-1000}, {0}, {-1000}, {0});
 
     float transA = false;
@@ -739,15 +740,15 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     const auto mul_deq_const = ov::test::utils::deprecated::make_constant(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00098425});
     const auto mul_deq = std::make_shared<ov::opset1::Multiply>(convert, mul_deq_const);
     const auto mul = std::make_shared<ov::opset1::Multiply>(transpose1, mul_deq);
-    auto fq1_1 = ngraph::builder::makeFakeQuantize(mul, ov::element::f32, 256, {1},
+    auto fq1_1 = ov::test::utils::make_fake_quantize(mul, ov::element::f32, 256, {1},
                                                    {-0.8003067}, {0.8066083}, {-0.8003067}, {0.8066083});
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, fq1_1, transA, transB);
-    auto fq2 = ngraph::builder::makeFakeQuantize(matMul0, ov::element::f32, 256, {1},
+    auto fq2 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
                                                    {-14.50351}, {17.65645}, {-14.50351}, {17.65645});
     const auto add = std::make_shared<ov::opset1::Add>(fq2, fq_add);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, 3);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2, transA, transB);
-    auto fq3 = ngraph::builder::makeFakeQuantize(matMul1, ov::element::f32, 256, {1},
+    auto fq3 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
                                                  {-1.895786}, {2.0028071}, {-1.895786}, {2.0028071});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq3, transpose3Const);
 

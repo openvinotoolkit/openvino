@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -47,7 +48,7 @@ protected:
 
         const auto mm = std::make_shared<ov::op::v0::MatMul>(mmParams[0], mmConst, false, false);
         auto sum = ov::test::utils::make_eltwise(constShift, mm, ov::test::utils::EltwiseTypes::ADD);
-        auto fq = ngraph::builder::makeFakeQuantize(sum, ov::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
+        auto fq = ov::test::utils::make_fake_quantize(sum, ov::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
 
         ov::ParameterVector inputParams = {mmParams[0]};
         function = makeNgraphFunction(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");

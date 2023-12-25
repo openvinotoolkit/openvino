@@ -15,6 +15,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
@@ -73,7 +74,7 @@ void OutputLayersConcat::SetUp() {
     const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize1 = ov::test::utils::make_fake_quantize(
         input1->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f }, { 0.f }, { 255.f });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
@@ -83,7 +84,7 @@ void OutputLayersConcat::SetUp() {
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize2 = ov::test::utils::make_fake_quantize(
         input2->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f });
     fakeQuantize2->set_friendly_name("fakeQuantize2");
@@ -98,7 +99,7 @@ void OutputLayersConcat::SetUp() {
         ngraph::Shape{ inputShape1[1ul] + inputShape2[1ul], inputShape1[1ul] + inputShape2[1ul], 1ul, 1ul },
         std::vector<float>((inputShape1[1ul] + inputShape2[1ul]) * (inputShape1[1ul] + inputShape2[1ul]), 1ul));
     weights->set_friendly_name("weights");
-    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
         weights, ngPrecision, 256ul, { 1ul },
         { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k });
     fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");

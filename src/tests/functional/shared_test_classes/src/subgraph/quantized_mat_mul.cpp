@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -86,7 +87,8 @@ void QuantMatMulTest::SetUp() {
             outputLowData[i] = outputRange.first;
             outputHighData[i] = outputRange.second;
         }
-        return ngraph::builder::makeFakeQuantize(in, element_type, quantLevels, dataFqConstShapes, inputLowData, inputHighData, outputLowData, outputHighData);
+        return ov::test::utils::make_fake_quantize(
+            in, element_type, quantLevels, dataFqConstShapes, inputLowData, inputHighData, outputLowData, outputHighData);
     };
 
     auto dataFq0 = makeFakeQuantizeNode(quantLevels0, inputRange0, outputRange0, quantGranularity0, params[0], inputShape0, fqPrec0);
