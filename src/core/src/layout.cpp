@@ -638,6 +638,7 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 }
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
+    std::lock_guard<std::mutex> lock{*m_mutex.get()};
     std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);
     value = Layout(layout_str);
