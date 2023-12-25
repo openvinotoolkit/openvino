@@ -13,6 +13,7 @@
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -114,7 +115,7 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
     }
 
     const std::shared_ptr<ov::Node> input2 = secondInputIsConstant ?
-        makeConstant(element::f32, Shape{}, std::vector<float>{0.5f}, false) :
+        ov::test::utils::deprecated::make_constant(element::f32, Shape{}, std::vector<float>{0.5f}, false) :
         std::make_shared<ov::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :
