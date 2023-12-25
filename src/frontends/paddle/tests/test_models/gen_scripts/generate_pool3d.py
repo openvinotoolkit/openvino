@@ -312,6 +312,12 @@ def main():
             "return_mask": False,
         }
         adaptive_pool3d(pooling_type + "AdaptivePool3D_test3", data_NCDHW, paddle_attrs)
+        paddle_attrs = {
+            "pool_size": 1,  # global pooling case
+            "pool_type": pooling_type,
+            "return_mask": True,
+        }
+        adaptive_pool3d(pooling_type + "AdaptivePool3D_test4", data_NCDHW, paddle_attrs)
 
 
 if __name__ == "__main__":
