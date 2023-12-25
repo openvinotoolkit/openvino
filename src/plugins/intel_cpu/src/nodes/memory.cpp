@@ -3,8 +3,8 @@
 //
 
 #include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
@@ -16,7 +16,6 @@
 #include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

@@ -5,7 +5,7 @@
 
 #include "jit_emitter.hpp"
 #include "jit_perf_count_chrono_emitters.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

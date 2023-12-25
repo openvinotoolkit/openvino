@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/subgraph/multi_crops_to_concat.hpp"
-#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
