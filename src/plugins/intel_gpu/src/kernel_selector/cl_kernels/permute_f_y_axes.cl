@@ -26,8 +26,11 @@ KERNEL (permute_f_y_axes)(
     )
 {
     const int f_idx = get_global_id(2);
-    const int b_idx = get_global_id(1);;
+    const int b_idx = get_global_id(1);
     const int y_idx = get_global_id(0);
+    
+    if (b_idx >= INPUT0_BATCH_NUM || f_idx >= INPUT0_FEATURE_NUM || y_idx >= INPUT0_SIZE_Y)
+        return;
 
     for (int x_idx = 0; x_idx < J_TIMES * VEC_SIZE; x_idx+=VEC_SIZE) {
         IN_VEC_TYPE resv = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
