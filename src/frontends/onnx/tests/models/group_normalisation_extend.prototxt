@@ -19,7 +19,7 @@ graph {
     attribute{
         name: "training_mode"
         type: INT
-        i: 1
+        i: 0
     }
     attribute {
       name: "num_groups"
