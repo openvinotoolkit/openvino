@@ -62,6 +62,7 @@ OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
 OP_CONVERTER(translate_div_no_nan_op);
+OP_CONVERTER(translate_div_op);
 OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
