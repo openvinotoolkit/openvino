@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 
 #include "reshape_inst.h"
 
@@ -1039,6 +1040,54 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
 
     for (size_t i = 0; i < expected_res.size(); i++) {
         ASSERT_EQ(expected_res[i], output_ptr[i]);
+    }
+}
+
+TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_activation_fusion) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{3, 3, 2, 2, 1, 1}, data_types::f32, format::bfwzyx});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx }));
+    topology.add(reorder("input_reorder", input_info("input"), format::bfwzyx, data_types::f16));
+    topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
+    topology.add(reduce("reduced_shape", input_info("shape_of_input"), reduce_mode::prod, {0}, true));
+    topology.add(reshape("reshape", input_info("input_reorder"), input_info("reduced_shape"), false, ov::PartialShape::dynamic(1)));
+    topology.add(activation("activation", input_info("reshape"), activation_func::pow, {2.0f, 0.0f}));
+    topology.add(reorder("output_reorder", input_info("activation"), format::bfyx, data_types::f32));
+
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output_reorder");
+
+    auto output = outputs.at("output_reorder").get_memory();
+
+    ASSERT_TRUE(network.get_primitive("reshape")->can_be_optimized());
+
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_TRUE(are_equal(input_data[i] * input_data[i], output_ptr[i]));
     }
 }
 
