@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 namespace proposalTypes {
 
@@ -51,10 +48,9 @@ using proposalSpecificParams = std::tuple<
     ratio_type,
     scale_type>;
 
-using proposalLayerTestCPUParams = std::tuple<
-        std::vector<InputShape>,              // Input shapes
-        proposalSpecificParams,               // Node attributes
-        Precision>;                           // Network precision
+using proposalLayerTestCPUParams = std::tuple<std::vector<InputShape>,  // Input shapes
+                                              proposalSpecificParams,   // Node attributes
+                                              ov::element::Type>;       // Network precision
 
 class ProposalLayerCPUTest : public testing::WithParamInterface<proposalLayerTestCPUParams>,
                              public SubgraphBaseTest, public CPUTestsBase {
@@ -62,7 +58,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestCPUParams> obj) {
         std::vector<InputShape> inputShapes;
         proposalSpecificParams proposalParams;
-        Precision netPrecision;
+        ov::element::Type netPrecision;
         std::tie(inputShapes, proposalParams, netPrecision) = obj.param;
 
         base_size_type base_size;
@@ -103,7 +99,7 @@ public:
         result << "framework=" << framework << "_";
         result << "ratio=" << ov::test::utils::vec2str(ratio) << "_";
         result << "scale=" << ov::test::utils::vec2str(scale) << "_";
-        result << "netPRC=" << netPrecision.name();
+        result << "netPRC=" << netPrecision.to_string();
         return result.str();
     }
 
@@ -113,7 +109,7 @@ protected:
 
         std::vector<InputShape> inputShapes;
         proposalSpecificParams proposalParams;
-        Precision netPrecision;
+        ov::element::Type netPrecision;
         std::tie(inputShapes, proposalParams, netPrecision) = this->GetParam();
 
         base_size_type base_size;
@@ -135,16 +131,15 @@ protected:
                  framework, min_size, nms_thresh, normalize,
                  post_nms_topn, pre_nms_topn, ratio, scale) = proposalParams;
 
-        selectedType = std::string("ref_any_") + netPrecision.name();
+        selectedType = std::string("ref_any_") + netPrecision.to_string();
         init_input_shapes(inputShapes);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params;
         for (auto&& shape : {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
         }
 
-        ngraph::op::ProposalAttrs attrs;
+        ov::op::v0::Proposal::Attributes attrs;
         attrs.base_size = base_size;
         attrs.pre_nms_topn = pre_nms_topn;
         attrs.post_nms_topn = post_nms_topn;
@@ -161,14 +156,14 @@ protected:
         attrs.framework = framework;
         attrs.infer_probs = true;
 
-        auto proposal = std::make_shared<opset4::Proposal>(params[0], params[1], params[2], attrs);
+        auto proposal = std::make_shared<ov::op::v4::Proposal>(params[0], params[1], params[2], attrs);
 
-        ngraph::ResultVector results{
-                std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
-                std::make_shared<ngraph::opset1::Result>(proposal->output(1))
+        ov::ResultVector results{
+                std::make_shared<ov::op::v0::Result>(proposal->output(0)),
+                std::make_shared<ov::op::v0::Result>(proposal->output(1))
         };
 
-        function = std::make_shared<ngraph::Function>(results, params, "Proposal");
+        function = std::make_shared<ov::Model>(results, params, "Proposal");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -185,7 +180,11 @@ protected:
                 dataPtr[2] = 1.0f;
                 if (tensor.get_size() == 4) dataPtr[3] = 1.0f;
             } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -199,8 +198,8 @@ TEST_P(ProposalLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<Precision> netPrecision = {
-        Precision::FP32
+const std::vector<ov::element::Type> netPrecision = {
+        ov::element::f32
 };
 
 std::vector<std::vector<ov::Shape>> staticInputShapesCase1 = {
@@ -338,4 +337,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Dynamic_Test_Case2, ProposalLayerCPUTest
                          ProposalLayerCPUTest::getTestCaseName);
 
 }  // namespace
-}  // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

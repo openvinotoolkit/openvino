@@ -118,15 +118,18 @@ bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& output = outputs[0];
     output.set_shape(output_shape);
     using namespace ov::element;
-    return IfTypeOf<i32, i64>::apply<one_hot::Evaluate>(indices.get_element_type(),
-                                                        indices,
-                                                        indices_shape,
-                                                        static_cast<char*>(output.data()),
-                                                        output.get_element_type().size(),
-                                                        output.get_shape()[axis],
-                                                        on_value,
-                                                        off_value,
-                                                        axis);
+    return IF_TYPE_OF(v1_OneHot_evaluate,
+                      OV_PP_ET_LIST(i32, i64),
+                      one_hot::Evaluate,
+                      indices.get_element_type(),
+                      indices,
+                      indices_shape,
+                      static_cast<char*>(output.data()),
+                      output.get_element_type().size(),
+                      output.get_shape()[axis],
+                      on_value,
+                      off_value,
+                      axis);
 }
 
 bool OneHot::has_evaluate() const {

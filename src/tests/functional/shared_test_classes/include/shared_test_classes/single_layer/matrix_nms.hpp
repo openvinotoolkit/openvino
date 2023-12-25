@@ -29,13 +29,13 @@ using ThresholdParams = std::tuple<float,   // minimum score to consider box for
 
 using NmsParams = std::tuple<std::vector<InputShape>,                            // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
-                             ngraph::op::v8::MatrixNms::SortResultType,          // Order of output elements
+                             ov::op::v8::MatrixNms::SortResultType,          // Order of output elements
                              ngraph::element::Type,                              // Output type
                              TopKParams,                                         // Maximum number of boxes topk params
                              ThresholdParams,                                    // Thresholds: score_threshold, gaussian_sigma, post_threshold
                              int,                                                // Background class id
                              bool,                                               // If boxes are normalized
-                             ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
+                             ov::op::v8::MatrixNms::DecayFunction,           // Decay function
                              bool,                                               // make output shape static
                              std::string>;                                       // Device name
 
@@ -51,7 +51,7 @@ protected:
 
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
-    ngraph::op::v8::MatrixNms::Attributes m_attrs;
+    ov::op::v8::MatrixNms::Attributes m_attrs;
     bool m_outStaticShape;
 };
 

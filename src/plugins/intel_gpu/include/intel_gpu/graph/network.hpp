@@ -84,12 +84,7 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
-
     ~network();
-
-    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,
@@ -282,7 +277,7 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout);
+    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type);
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;

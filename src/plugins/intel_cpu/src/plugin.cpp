@@ -59,9 +59,10 @@ static std::string getDeviceFullName() {
 #else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
-        char *ch = reinterpret_cast<char*>(&regs[0]);
+        char* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
-            brand_string += ch[j];
+            if (ch[j] != '\0')
+                brand_string += ch[j];
     }
 #else
 # error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
@@ -136,7 +137,7 @@ std::mutex Engine::SchedulerGuard::mutex;
 std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
-#if IE_THREAD == IE_THREAD_SEQ
+#if OV_THREAD == OV_THREAD_SEQ
     // To save state for ACL cores in single-thread mode
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 #else
@@ -157,7 +158,8 @@ Engine::SchedulerGuard::~SchedulerGuard() {
     // To save the state of scheduler after ACLScheduler has been executed
     // TODO: find out the cause of the state
     std::lock_guard<std::mutex> lock{this->dest_mutex};
-    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+    if (!arm_compute::Scheduler::is_available(arm_compute::Scheduler::Type::CUSTOM))
+        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 }
 #endif
 
@@ -173,6 +175,8 @@ Engine::Engine() :
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
+    auto& ov_version = ov::get_openvino_version();
+    m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
 
 Engine::~Engine() {
@@ -274,8 +278,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         const auto& perf_hint = config.find(ov::hint::performance_mode.name());
         /* performance hints set for network has higher pririty than engine ones.
          * This applies for all the configuration parameters */
-        const auto perf_hint_name =
-            (perf_hint != config.end()) ? perf_hint->second.as<std::string>() : ov::util::to_string(engConfig.hintPerfMode);
+        const auto& perf_hint_name = (perf_hint != config.end()) ? perf_hint->second.as<std::string>()
+                                                                 : ov::util::to_string(engConfig.hintPerfMode);
         return perf_hint_name;
     };
 
@@ -329,6 +333,8 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 
     if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
         get_num_streams(streams, model, config);
+    } else {
+        config.streamExecutorConfig.set_config_zero_stream();
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -529,7 +535,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
                                                                            ov::element::Type_t::f16,
                                                                            ov::element::Type_t::f32,
                                                                            ov::element::Type_t::f64,
-                                                                           ov::element::Type_t::boolean};
+                                                                           ov::element::Type_t::boolean,
+                                                                           ov::element::Type_t::string};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
@@ -685,6 +692,26 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
+    } else if (name == ov::internal::compiled_model_runtime_properties.name()) {
+        auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
+        return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
+            std::move(model_runtime_properties.as<std::string>()));
+    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+        ov::Any res = true;
+        auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
+        if (it == options.end()) {
+            res = false;
+        } else {
+            ov::AnyMap input_map = it->second.as<ov::AnyMap>();
+            for (auto& item : m_compiled_model_runtime_properties) {
+                auto it = input_map.find(item.first);
+                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                    res = false;
+                    break;
+                }
+            }
+        }
+        return res;
     }
     return get_ro_property(name, options);
 }
@@ -735,7 +762,9 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     } else if (ov::internal::supported_properties.name() == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
@@ -789,11 +818,13 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
-        return decltype(ov::supported_properties)::value_type(supportedProperties);
+        return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -810,7 +841,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         capabilities.push_back(ov::device::capability::INT8);
         capabilities.push_back(ov::device::capability::BIN);
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
-        return decltype(ov::device::capabilities)::value_type(capabilities);
+        return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
         return decltype(ov::range_for_async_infer_requests)::value_type(range);
@@ -819,7 +850,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
-        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
     } else if (name == ov::intel_cpu::denormals_optimization) {
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {

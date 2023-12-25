@@ -49,7 +49,7 @@ protected:
                                                  ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
                                                  false);
 
-        auto add = std::make_shared<ngraph::opset9::Add>(params[0], add_const);
+        auto add = std::make_shared<ov::op::v1::Add>(params[0], add_const);
         auto res = std::make_shared<ngraph::op::Result>(add);
         auto function = std::make_shared<ngraph::Function>(res, params, "Add");
         return function;

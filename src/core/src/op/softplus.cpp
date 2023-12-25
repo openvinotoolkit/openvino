@@ -57,10 +57,13 @@ bool SoftPlus::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<softplus::Evaluate>(inputs[0].get_element_type(),
-                                                               inputs[0],
-                                                               outputs[0],
-                                                               count);
+    return IF_TYPE_OF(v4_SoftPlus_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32),
+                      softplus::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      count);
 }
 
 bool SoftPlus::has_evaluate() const {

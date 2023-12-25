@@ -316,6 +316,12 @@ public:
     std::vector<VariableState> query_state();
 
     /**
+     * @brief Resets all internal variable states for relevant infer request to a value specified as
+     * default for the corresponding `ReadValue` node
+     */
+    void reset_state();
+
+    /**
      * @brief Returns a compiled model that creates this inference request.
      * @return Compiled model object.
      */

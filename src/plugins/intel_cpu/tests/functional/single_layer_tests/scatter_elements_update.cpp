@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
-
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 using ScatterElementsUpdateShapes = std::vector<InputShape>;
 using IndicesValues = std::vector<std::int64_t>;
 
@@ -21,13 +17,14 @@ struct ScatterElementsUpdateLayerParams {
     IndicesValues indicesValues;
 };
 
-using scatterUpdateParams = std::tuple<
-    ScatterElementsUpdateLayerParams,
-    std::int64_t,       // axis
-    ElementType,        // input precision
-    ElementType>;       // indices precision
+using scatterUpdateParams = std::tuple<ScatterElementsUpdateLayerParams,
+                                       std::int64_t,  // axis
+                                       ElementType,   // input precision
+                                       ElementType>;  // indices precision
 
-class ScatterElementsUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpdateParams>, public SubgraphBaseTest, public CPUTestsBase {
+class ScatterElementsUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpdateParams>,
+                                          public SubgraphBaseTest,
+                                          public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<scatterUpdateParams> obj) {
         ScatterElementsUpdateLayerParams scatterParams;
@@ -41,7 +38,7 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -51,8 +48,8 @@ public:
             }
             result << ")_";
         }
-        result << "_indices_values=" << ov::test::utils::vec2str(indicesVals)
-               << "axis=" << axis << "_idx_precision=" << idxPrecision;
+        result << "_indices_values=" << ov::test::utils::vec2str(indicesVals) << "axis=" << axis
+               << "_idx_precision=" << idxPrecision;
         return result.str();
     }
 
@@ -66,7 +63,7 @@ protected:
             const auto& targetShape = targetInputStaticShapes[i];
             ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::Tensor{ inputPrecision, targetShape };
+                tensor = ov::Tensor{inputPrecision, targetShape};
                 const auto indicesVals = std::get<0>(this->GetParam()).indicesValues;
                 if (inputPrecision == ElementType::i32) {
                     auto data = tensor.data<std::int32_t>();
@@ -83,12 +80,16 @@ protected:
                 }
             } else {
                 if (inputPrecision.is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, 10, 0, 1000);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape);
                 }
             }
-            inputs.insert({ funcInput.get_node_shared_ptr(), tensor });
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
@@ -106,7 +107,7 @@ protected:
         selectedType = makeSelectedTypeStr("unknown", inputPrecision);
 
         ov::ParameterVector dataParams;
-        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[2] }) {
+        for (auto&& shape : {inputDynamicShapes[0], inputDynamicShapes[2]}) {
             dataParams.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
         auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
@@ -114,10 +115,11 @@ protected:
         indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto axisNode = ngraph::opset3::Constant::create(idxPrecision, {}, { axis });
-        auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
+        auto axisNode = ov::op::v0::Constant::create(idxPrecision, {}, {axis});
+        auto scatter =
+            std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
+        ov::ParameterVector allParams{dataParams[0], indicesParam, dataParams[1]};
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterElementsUpdateLayerCPUTest");
     }
 };
@@ -127,7 +129,7 @@ TEST_P(ScatterElementsUpdateLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "ScatterUpdate");
 }
 
-const std::vector<std::int64_t> axes = { -3, -2, -1, 0, 1, 2 };
+const std::vector<std::int64_t> axes = {-3, -2, -1, 0, 1, 2};
 
 const std::vector<ScatterElementsUpdateLayerParams> scatterParams = {
     ScatterElementsUpdateLayerParams{
@@ -167,11 +169,12 @@ const std::vector<ElementType> constantPrecisions = {
     ElementType::i64,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ScatterElementsUpdateLayerCPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterParams),
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterElementsUpdateLayerCPUTest::getTestCaseName);
-} // namespace CPULayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
+                         ScatterElementsUpdateLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterParams),
+                                            ::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterElementsUpdateLayerCPUTest::getTestCaseName);
+}  // namespace test
+}  // namespace ov

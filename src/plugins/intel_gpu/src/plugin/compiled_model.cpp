@@ -68,7 +68,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(model->is_dynamic() ? model : nullptr)
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
@@ -80,7 +79,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
@@ -92,7 +91,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(nullptr)
     , m_model_name("")
     , m_loaded_from_cache(true) {
     {
@@ -168,10 +166,9 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
         }
     }
 
-    auto pos = ib.tellg();
+    auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, n);
+        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
 }
@@ -190,14 +187,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
+    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+        return;
+
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
     cldnn::BinaryOutputBuffer ob(model);
 
-    bool is_dynamic = get_graph(0)->get_network()->is_dynamic();
-
-    ob << is_dynamic;
     // Inputs
     {
         const auto& params = inputs();
@@ -237,12 +234,7 @@ void CompiledModel::export_model(std::ostream& model) const {
         }
     }
 
-    if (is_dynamic) {
-        ov::pass::StreamSerialize serializer(model, {}, ov::pass::Serialize::Version::UNSPECIFIED);
-        serializer.run_on_model(m_model);
-    } else {
-        get_graph(0)->export_model(ob);
-    }
+    get_graph(0)->export_model(ob);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -274,6 +266,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},

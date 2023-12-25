@@ -39,12 +39,12 @@ void Mvn1LayerTest::SetUp() {
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(param[0], acrossChanels, normalizeVariance, eps));
+    auto mvn = std::dynamic_pointer_cast<ov::op::v0::MVN>(ngraph::builder::makeMVN(param[0], acrossChanels, normalizeVariance, eps));
     if (!axes.empty()) {
-        mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(param[0], axes, normalizeVariance, eps));
+        mvn = std::dynamic_pointer_cast<ov::op::v0::MVN>(ngraph::builder::makeMVN(param[0], axes, normalizeVariance, eps));
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN1");
 }
 
@@ -87,7 +87,7 @@ void Mvn6LayerTest::SetUp() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto mvn = ngraph::builder::makeMVN6(param[0], axesNode, normalizeVariance, eps, epsMode);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");
 }
 

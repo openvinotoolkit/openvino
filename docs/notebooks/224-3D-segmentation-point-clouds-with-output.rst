@@ -23,14 +23,12 @@ effective, showing strong performance on par or even better than state
 of the art.
 
 **Table of contents:**
----
 
-- `Imports <#imports>`__
 
+-  `Imports <#imports>`__
 -  `Prepare the Model <#prepare-the-model>`__
 -  `Data Processing Module <#data-processing-module>`__
--  `Visualize the original 3D
-   data <#visualize-the-original-d-data>`__
+-  `Visualize the original 3D data <#visualize-the-original-d-data>`__
 -  `Run inference <#run-inference>`__
 
    -  `Select inference device <#select-inference-device>`__
@@ -46,8 +44,10 @@ of the art.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -66,8 +66,10 @@ Imports
     
     from notebook_utils import download_file
 
-Prepare the Model 
------------------------------------------------------------
+Prepare the Model
+-----------------
+
+
 
 Download the pre-trained PointNet ONNX model. This pre-trained model is
 provided by `axinc-ai <https://github.com/axinc-ai>`__, and you can
@@ -109,8 +111,10 @@ API, see this
         model = core.read_model(model=ir_model_xml)
         
 
-Data Processing Module 
-----------------------------------------------------------------
+Data Processing Module
+----------------------
+
+
 
 .. code:: ipython3
 
@@ -164,8 +168,10 @@ Data Processing Module
     
         return ax
 
-Visualize the original 3D data 
-------------------------------------------------------------------------
+Visualize the original 3D data
+------------------------------
+
+
 
 The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
@@ -197,12 +203,20 @@ chair for example.
     data/chair.pts:   0%|          | 0.00/69.2k [00:00<?, ?B/s]
 
 
+.. parsed-literal::
 
-.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_11_1.png
+    /tmp/ipykernel_2480804/2347079344.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+      ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label='chair')
 
 
-Run inference 
--------------------------------------------------------
+
+.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_11_2.png
+
+
+Run inference
+-------------
+
+
 
 Run inference and visualize the results of 3D segmentation. - The input
 data is a point cloud with ``1 batch size``\ ，\ ``3 axis value`` (x, y,
@@ -230,8 +244,10 @@ each input point.
     output shape: [1,?,4]
 
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -288,6 +304,12 @@ select device from dropdown list for running inference using OpenVINO
     plt.show()
 
 
+.. parsed-literal::
 
-.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_16_0.png
+    /tmp/ipykernel_2480804/68687822.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+      ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
+
+
+
+.. image:: 224-3D-segmentation-point-clouds-with-output_files/224-3D-segmentation-point-clouds-with-output_16_1.png
 

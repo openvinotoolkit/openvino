@@ -2,66 +2,55 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include "ov_models/utils/ov_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "shared_test_classes/base/utils/compare_results.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
-namespace GPULayerTestsDefinitions {
-
+namespace {
+using ov::test::InputShape;
 /*
 *   Generate TensorIterator with LSTMCell
-*   @param ngPrc precision of model
+*   @param model_type precision of model
 *   @param initShape initial shape {N, L(sequence length), I}
 *   @param N batch size
 *   @param I input size
 *   @param H hidden layer
 */
-static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, ov::PartialShape initShape,
+static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t model_type, ov::PartialShape initShape,
                                                         size_t N, size_t I, size_t H, size_t sequence_axis,
-                                                        ngraph::op::RecurrentSequenceDirection seq_direction) {
-    auto SENT = std::make_shared<ov::op::v0::Parameter>(ngPRC, initShape);
+                                                        ov::op::RecurrentSequenceDirection seq_direction) {
+    auto SENT = std::make_shared<ov::op::v0::Parameter>(model_type, initShape);
     SENT->set_friendly_name("SENT");
 
     // initial_hidden_state
-    auto H_init = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
+    auto H_init = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
     H_init->set_friendly_name("H_init");
     // initial_cell_state
-    auto C_init = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
+    auto C_init = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
     C_init->set_friendly_name("C_init");
 
-    auto H_t = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
+    auto H_t = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
     H_t->set_friendly_name("H_t");
-    auto C_t = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
+    auto C_t = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
     C_t->set_friendly_name("C_t");
 
     // Body
     // input data
-    auto X = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, I});
+    auto X = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, I});
     X->set_friendly_name("X");
 
     // the weights for matrix multiplication, gate order: fico
     std::vector<uint64_t> dataW(4 * H * I, 0);
-    auto W_body = std::make_shared<ov::op::v0::Constant>(ngPRC, ov::Shape{4 * H, I}, dataW);
+    auto W_body = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{4 * H, I}, dataW);
     W_body->set_friendly_name("W_body");
 
     // the recurrence weights for matrix multiplication, gate order: fico
     std::vector<uint64_t> dataR(4 * H * H, 0);
-    auto R_body = std::make_shared<ov::op::v0::Constant>(ngPRC, ov::Shape{4 * H, H}, dataR);
+    auto R_body = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{4 * H, H}, dataR);
     R_body->set_friendly_name("R_body");
 
     std::vector<uint64_t> inShape = {N, H};
@@ -100,9 +89,9 @@ static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, 
     tensor_iterator->set_merged_input(C_t, C_init, C_o);
 
     // Set PortMap
-    if (seq_direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+    if (seq_direction == ov::op::RecurrentSequenceDirection::FORWARD) {
         tensor_iterator->set_sliced_input(X, SENT, 0, 1, 1, -1, sequence_axis);
-    } else if (seq_direction == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+    } else if (seq_direction == ov::op::RecurrentSequenceDirection::REVERSE) {
         tensor_iterator->set_sliced_input(X, SENT, -1, -1, 1, 0, sequence_axis);
     } else {
         OPENVINO_THROW("Bidirectional case is not supported.");
@@ -115,25 +104,25 @@ static std::shared_ptr<ov::Model> makeTIwithLSTMcell(ov::element::Type_t ngPRC, 
 
     auto results =
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(out0), std::make_shared<ov::op::v0::Result>(out1)};
-    auto fn_ptr = std::make_shared<ov::Model>(results, ov::ParameterVector{SENT, H_init, C_init});
-    fn_ptr->set_friendly_name("TIwithLSTMcell");
-    return fn_ptr;
+    auto model = std::make_shared<ov::Model>(results, ov::ParameterVector{SENT, H_init, C_init});
+    model->set_friendly_name("TIwithLSTMcell");
+    return model;
 }
 
 /*
 *   Generate LSTMSequence
-*   @param ngPrc precision of model
+*   @param model_type precision of model
 *   @param initShape initial shape {N, L(sequence length), I}
 *   @param N batch size
 *   @param I input size
 *   @param H hidden layer
 */
-static std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t ngPRC, ov::PartialShape initShape,
+static std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t model_type, ov::PartialShape initShape,
                                                         size_t N, size_t I, size_t H, size_t sequence_axis,
-                                                        ngraph::op::RecurrentSequenceDirection seq_direction) {
-    auto X = std::make_shared<ov::op::v0::Parameter>(ngPRC, initShape);
-    auto Y = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
-    auto Z = std::make_shared<ov::op::v0::Parameter>(ngPRC, ov::Shape{N, 1, H});
+                                                        ov::op::RecurrentSequenceDirection seq_direction) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(model_type, initShape);
+    auto Y = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
+    auto Z = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
     auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(X);
     auto indices = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
     auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
@@ -142,9 +131,9 @@ static std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t ngPRC, ov
     auto w_val = std::vector<float>(4 * H * I, 0);
     auto r_val = std::vector<float>(4 * H * H, 0);
     auto b_val = std::vector<float>(4 * H, 0);
-    auto W = ov::op::v0::Constant::create(ngPRC, ov::Shape{N, 4 * H, I}, w_val);
-    auto R = ov::op::v0::Constant::create(ngPRC, ov::Shape{N, 4 * H, H}, r_val);
-    auto B = ov::op::v0::Constant::create(ngPRC, ov::Shape{N, 4 * H}, b_val);
+    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, I}, w_val);
+    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, H}, r_val);
+    auto B = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H}, b_val);
 
     auto rnn_sequence = std::make_shared<ov::op::v5::LSTMSequence>(X,
                                                                 Y,
@@ -176,33 +165,29 @@ using DynamicTensorIteratorParams = typename std::tuple<
         LSTMType,                               // LSTM type (LSTMCell, LSTMSequence)
         InputShape,                             // input shapes (N[batch], L[seq_length], I[input_size])
         int32_t,                                // hidden size
-        ngraph::op::RecurrentSequenceDirection, // sequence direction
+        ov::op::RecurrentSequenceDirection,     // sequence direction
         std::string,                            // device name
-        InferenceEngine::Precision,             // precision
-        ov::AnyMap                              // configuration
-        >;
+        ov::element::Type>;                     // type
 
 /**
  * Test case with Dynamic SHAPE version of loop operation.
  * Total iteration count is dynamic.
  */
 class DynamicTensorIteratorTest : public testing::WithParamInterface<DynamicTensorIteratorParams>,
-                            virtual public SubgraphBaseTest {
+                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicTensorIteratorParams> &obj) {
         LSTMType type;
         InputShape data_shapes;
         int32_t hidden_size;
-        ngraph::op::RecurrentSequenceDirection seq_direction;
+        ov::op::RecurrentSequenceDirection seq_direction;
         std::string target_device;
-        InferenceEngine::Precision data_precision;
-        ov::Any configuration;
+        ov::element::Type model_type;
         std::tie(type, data_shapes,
                     hidden_size,
                     seq_direction,
                     target_device,
-                    data_precision,
-                    configuration) = obj.param;
+                    model_type) = obj.param;
         std::ostringstream result;
         result << "TestType=" << (type == LSTMType::LSTMCell? "LSTMCell" : "LSTMSequence") << "_";
         result << "IS=(";
@@ -211,15 +196,15 @@ public:
         result << ")_";
         result << "hidden_size=" << hidden_size << "_";
         result << "direction=" << seq_direction << "_";
-        result << "netPRC=" << data_precision << "_";
+        result << "netPRC=" << model_type << "_";
         result << "targetDevice=" << target_device << "_";
         return result.str();
     }
 
 private:
     InputShape data_shapes;
-    ngraph::op::RecurrentSequenceDirection seq_direction;
-    InferenceEngine::Precision data_prc;
+    ov::op::RecurrentSequenceDirection seq_direction;
+    ov::element::Type model_type;
     size_t hidden_size;
     size_t batch_size;
     size_t input_size;
@@ -227,19 +212,11 @@ private:
 
 protected:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        ov::AnyMap configuration_new;
         std::tie(type, data_shapes,
                     hidden_size,
                     seq_direction,
                     targetDevice,
-                    data_prc,
-                    configuration_new) = GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
-        if (targetDevice == ov::test::utils::DEVICE_GPU) {
-            configuration = configuration_new;
-        }
-
+                    model_type) = GetParam();
 
         size_t sequence_axis = 1;
         auto init_shape = data_shapes.first;
@@ -247,12 +224,12 @@ protected:
         batch_size = static_cast<size_t>(init_shape[0].get_length());
         input_size = static_cast<size_t>(init_shape[init_shape.size()-1].get_length());
         if (type == LSTMType::LSTMCell)
-            function = makeTIwithLSTMcell(ngPrc, init_shape, batch_size, input_size, hidden_size, sequence_axis, seq_direction);
+            function = makeTIwithLSTMcell(model_type, init_shape, batch_size, input_size, hidden_size, sequence_axis, seq_direction);
         else
-            function = makeLSTMSequence(ngPrc, init_shape, batch_size, input_size, hidden_size, sequence_axis, seq_direction);
+            function = makeLSTMSequence(model_type, init_shape, batch_size, input_size, hidden_size, sequence_axis, seq_direction);
     }
 
-     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         ov::Shape default_shape{batch_size, 1, hidden_size};
         auto inputMap = ov::test::utils::getInputMap();
@@ -283,8 +260,7 @@ protected:
 };
 
 
-TEST_P(DynamicTensorIteratorTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(DynamicTensorIteratorTest, Inference) {
     run();
 }
 
@@ -300,17 +276,13 @@ std::vector<int32_t> hidden_sizes = {
     128
 };
 
-ov::AnyMap net_configuration = {
-    {GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}
+std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
 };
 
-std::vector<InferenceEngine::Precision> net_precision = {
-    InferenceEngine::Precision::FP32,
-};
-
-std::vector<ngraph::op::RecurrentSequenceDirection> reccurent_sequence_direction = {
-    ngraph::op::RecurrentSequenceDirection::FORWARD,
-    ngraph::op::RecurrentSequenceDirection::REVERSE,
+std::vector<ov::op::RecurrentSequenceDirection> reccurent_sequence_direction = {
+    ov::op::RecurrentSequenceDirection::FORWARD,
+    ov::op::RecurrentSequenceDirection::REVERSE,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMCell, DynamicTensorIteratorTest,
@@ -320,8 +292,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMCell, DynamicTensorIter
                         /* hidden_size */ testing::ValuesIn(hidden_sizes),
                         /* direction */ testing::ValuesIn(reccurent_sequence_direction),
                         /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
-                        /* data_prc */ testing::ValuesIn(net_precision),
-                        /* configuration */ testing::Values<ov::AnyMap>(net_configuration)),
+                        /* model_type */ testing::ValuesIn(model_types)),
                         DynamicTensorIteratorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMSequence, DynamicTensorIteratorTest,
@@ -331,7 +302,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicTensorIterator_LSTMSequence, DynamicTensor
                         /* hidden_size */ testing::ValuesIn(hidden_sizes),
                         /* direction */ testing::ValuesIn(reccurent_sequence_direction),
                         /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
-                        /* data_prc */ testing::ValuesIn(net_precision),
-                        /* configuration */ testing::Values<ov::AnyMap>(net_configuration)),
+                        /* model_type */ testing::ValuesIn(model_types)),
                         DynamicTensorIteratorTest::getTestCaseName);
-} // namespace GPULayerTestsDefinitions
+} // namespace

@@ -64,6 +64,7 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         return;
     // cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
+        in_info_is_matched = true;
         if (m_manager.match(it.first, cloned_node)) {
             // std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
             //        " with " << it.first->get_friendly_name() << std::endl;

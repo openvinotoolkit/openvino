@@ -6,7 +6,6 @@
 #include "snippets/mha.hpp"
 #include "subgraph_mha.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
@@ -39,8 +38,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto &item : additionalConfig) {
-            if (item.second == InferenceEngine::PluginConfigParams::YES)
-                result << "_" << item.first << "=" << item.second;
+            result << "_" << item.first << "=" << item.second;
         }
     }
     return result.str();
@@ -58,9 +56,8 @@ void MHA::SetUp() {
     function = subgraph_model->getOriginal();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 
     setInferenceType(prc);
@@ -75,15 +72,18 @@ void MHA::compile_model() {
     SubgraphBaseTest::compile_model();
 }
 
-void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MHA::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& model_inputs = function->inputs();
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
+        ov::test::utils::InputGenerateData in_data;
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
-        int start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
-        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, start_from, 256);
+        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+        in_data.range = 2;
+        in_data.resolution = 256;
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -92,7 +92,7 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() {
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul);
 }
 
-void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto model_inputs = function->inputs();
     for (auto& model_input : model_inputs) {
@@ -101,10 +101,19 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
         ov::Tensor tensor;
         int seed = 0;
         if (name.find("less") != std::string::npos) {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -2;
+            in_data.range = 5 + seed;
+            in_data.resolution = 10;
+            in_data.seed = seed;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
             seed++;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 256;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         }
         inputs.insert({node_input, tensor});
     }
