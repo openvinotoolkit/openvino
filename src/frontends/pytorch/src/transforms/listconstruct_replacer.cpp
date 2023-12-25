@@ -5,6 +5,7 @@
 #include "listconstruct_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -44,11 +45,14 @@ ListConstructReplacer::ListConstructReplacer() {
     auto roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list, pattern::any_input()});
     auto broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});
     auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list});
-    // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) decomposition
+    // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) old decomposition
     //  shape_of + broadcast + equal + select
     auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list});
     auto equal_op = pattern::wrap_type<v1::Equal>({list, pattern::any_input()});
     auto select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list});
+    // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) new decomposition
+    auto abs_op = pattern::wrap_type<v0::Abs>({list});
+    auto expand_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), abs_op});
     // replace list construct for aten::repeat(tensor,  prim::ListConstruct(shapes)))
     // shape_of + broadcast + tile
     auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
@@ -70,6 +74,7 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      shape_of_op,
                                                                      equal_op,
                                                                      select_op,
+                                                                     expand_op,
                                                                      tile_op,
                                                                      transpose_op,
                                                                      vsplit_op,
