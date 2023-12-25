@@ -18,8 +18,13 @@ namespace lowered {
  * @brief Describes the runtime-dependent (shape-dependent) information using Runtime Config
  */
 class RuntimeConfigurator {
+    class LoopInitializer;
+    class FirstLoopInitializer;
+    class MainLoopInitializer;
+    class LastLoopInitializer;
+
 public:
-    RuntimeConfigurator() = default;
+    RuntimeConfigurator();
 
     /**
      * @brief Initialize config using LinearIR state
@@ -68,86 +73,10 @@ private:
      */
     static void offset_calculation(const lowered::PortDescriptorPtr& desc, size_t data_size, bool is_input, size_t rank, std::vector<size_t>& offsets);
     /**
-     * @brief Initialize the first iteration loop descriptor
-     * @param loop_info loop information of the corresponding loop
-     * @param loop_id id of the target Loop
-     * @param first_iter_loop_desc ref of the first iter loop descriptor which should be inited
-     */
-    void init_first_iter_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
-                                         RuntimeConfig::LoopDescriptor& first_iter_loop_desc);
-    /**
-     * @brief Initialize the vector loop descriptor
-     * @param loop_info loop information of the corresponding loop
-     * @param loop_id id of the target Loop
-     * @param vector_loop_desc ref of the vector loop descriptor which should be inited
-     */
-    void init_vector_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
-                                     RuntimeConfig::LoopDescriptor& vector_loop_desc);
-    /**
-     * @brief Initialize the tail loop descriptor
-     * @param loop_info loop information of the corresponding loop
-     * @param loop_id id of the target Loop
-     * @param tail_loop_desc ref of the tail loop descriptor which should be inited
-     */
-    void init_tail_loop_descriptor(const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
-                                   RuntimeConfig::LoopDescriptor& tail_loop_desc);
-    /**
-     * @brief Initialize the inner tail splited loops
-     * @param loop_manager LoopManager of needed LinearIR
-     * @param outer_splited_loop_info loop information of the outer splited loop
-     * @param outer_splited_tail_loop_desc tail descriptor of the outer splited loop
-     * @param outer_loop_id ID of the outer splited loop
-     */
-    void init_inner_splited_tail_loop_descriptors(const LinearIR::LoopManagerPtr& loop_manager,
-                                                  const LinearIR::LoopManager::LoopInfoPtr& outer_splited_loop_info,
-                                                  const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
-                                                  size_t outer_loop_id);
-    /**
-     * @brief Initialize ptr increments and finalization offsets from LoopPorts.
-     *        If there is previous Loop iteration (another Loop body before),
-     *        moves shifts frm the previous to the current and zeros them in the previous body.
-     * @param desc target Loop Descriptor
-     * @param loop_ports ports of the target Loop taht contains ptr increments and finalization offsets
-     * @param skip_evaluation true if work amount is zero and data shifts should be inited by zero
-     * @param is_there_prev_iter true if there is executed loop iterations before
-     * @param prev_iter_desc iterator to the descriptor of the previos loop body
-     */
-    void init_data_ptr_shifts(RuntimeConfig::LoopDescriptor& desc,
-                              const LinearIR::LoopManager::LoopInfoPtr& loop_info,
-                              bool skip_evaluation, bool is_there_prev_iter,
-                              const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc);
-    /**
      * @brief Initialize input and output of LinearIR descriptors and data sizes.
      * @param linear_ir target linear ir
      */
     void init_io_info(const LinearIR& linear_ir);
-
-    /**
-     * @brief Check if first iter is needed
-     * @param loop_info loop information of the corresponding loop
-     * @return True if needed otherwise returns False
-     */
-    inline static bool is_first_iter_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-        return loop_info->get_first_iter_handler() != nullptr && (loop_info->get_work_amount() >= loop_info->get_increment() || loop_info->is_dynamic());
-    }
-    /**
-     * @brief Check if vector loop is needed
-     * @param loop_info loop information of the corresponding loop
-     * @return True if needed otherwise returns False
-     */
-    inline static bool is_vector_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-        return (is_first_iter_loop_needed(loop_info) ? loop_info->get_work_amount() >= 2 * loop_info->get_increment()
-                                                     : loop_info->get_work_amount() >= loop_info->get_increment()) ||
-                loop_info->is_dynamic();
-    }
-    /**
-     * @brief Check if tail loop is needed
-     * @param loop_info loop information of the corresponding loop
-     * @return True if needed otherwise returns False
-     */
-    inline static bool is_tail_loop_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-        return (loop_info->get_work_amount() % loop_info->get_increment() != 0) || (loop_info->is_dynamic() && loop_info->get_increment() > 1);
-    }
 
     size_t m_io_num = 0;
     size_t m_in_num = 0;
@@ -155,8 +84,90 @@ private:
     std::vector<PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
 
+    std::map<RuntimeConfig::LoopDescriptor::Type, std::shared_ptr<RuntimeConfigurator::LoopInitializer>> m_desc_initializers;
     RuntimeConfig m_config;
     bool m_inited = false;
+};
+
+
+class RuntimeConfigurator::LoopInitializer {
+public:
+    LoopInitializer(bool& inited) : m_inited(inited) {}
+
+    /**
+     * @brief Check if specific loop is needed
+     * @param loop_info loop information of the corresponding loop
+     * @return True if needed otherwise returns False
+     */
+    virtual bool is_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) = 0;
+
+    virtual void init_descriptor(const LinearIR::LoopManagerPtr& loop_manager,
+                                 const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                                 RuntimeConfig::LoopDescriptor& desc, RuntimeConfig& config) = 0;
+
+protected:
+    /**
+     * @brief Initialize ptr increments and finalization offsets from LoopPorts.
+     *        If there is previous Loop iteration (another Loop body before),
+     *        moves shifts frm the previous to the current and zeros them in the previous body.
+     * @param loop_ports ports of the target Loop taht contains ptr increments and finalization offsets
+     * @param skip_evaluation true if work amount is zero and data shifts should be inited by zero
+     * @param is_there_prev_iter true if there is executed loop iterations before
+     * @param prev_iter_desc iterator to the descriptor of the previos loop body
+     * @param desc target Loop Descriptor
+     */
+    void init_data_ptr_shifts(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+                              bool skip_evaluation, bool is_there_prev_iter,
+                              const RuntimeConfig::LoopDescriptorList::iterator& prev_iter_desc,
+                              RuntimeConfig::LoopDescriptor& desc);
+
+    bool& m_inited;
+};
+
+class RuntimeConfigurator::FirstLoopInitializer : public RuntimeConfigurator::LoopInitializer {
+public:
+    FirstLoopInitializer(bool& inited) : LoopInitializer(inited) {}
+
+    bool is_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) override;
+
+    void init_descriptor(const LinearIR::LoopManagerPtr& loop_manager,
+                         const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                         RuntimeConfig::LoopDescriptor& desc, RuntimeConfig& config) override;
+};
+
+class RuntimeConfigurator::MainLoopInitializer : public RuntimeConfigurator::LoopInitializer {
+public:
+    MainLoopInitializer(bool& inited) : LoopInitializer(inited) {}
+
+    bool is_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) override;
+
+    void init_descriptor(const LinearIR::LoopManagerPtr& loop_manager,
+                         const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                         RuntimeConfig::LoopDescriptor& desc, RuntimeConfig& config) override;
+};
+
+class RuntimeConfigurator::LastLoopInitializer : public RuntimeConfigurator::LoopInitializer {
+public:
+    LastLoopInitializer(bool& inited) : LoopInitializer(inited) {}
+
+    bool is_needed(const LinearIR::LoopManager::LoopInfoPtr& loop_info) override;
+
+    void init_descriptor(const LinearIR::LoopManagerPtr& loop_manager,
+                         const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id,
+                         RuntimeConfig::LoopDescriptor& desc, RuntimeConfig& config) override;
+
+private:
+    /**
+     * @brief Initialize the inner tail splited loops
+     * @param loop_manager LoopManager of needed LinearIR
+     * @param outer_splited_loop_info loop information of the outer splited loop
+     * @param outer_splited_tail_loop_desc tail descriptor of the outer splited loop
+     * @param outer_loop_id ID of the outer splited loop
+     */
+    void init_inner_splited_descriptors(const LinearIR::LoopManagerPtr& loop_manager,
+                                        const LinearIR::LoopManager::LoopInfoPtr& outer_splited_loop_info,
+                                        const RuntimeConfig::LoopDescriptor& outer_splited_tail_loop_desc,
+                                        size_t outer_loop_id, RuntimeConfig& config);
 };
 
 } // namespace lowered
