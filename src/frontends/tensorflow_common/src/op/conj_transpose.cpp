@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/convert.hpp"
