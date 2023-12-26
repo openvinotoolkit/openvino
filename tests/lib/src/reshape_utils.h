@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include <openvino/openvino.hpp>
 
 
@@ -48,7 +47,7 @@ void fillTensorsWithSpecifiedShape(ov::InferRequest& infer_request, std::vector<
 
 
 /**
- * @brief Fill InferenceEngine tensor with random values. The model shape is set separately.
+ * @brief Fill OpenVINO tensor with random values. The model shape is set separately.
  */
 template<typename T>
 ov::Tensor fillTensorRandomDynamic(ov::Output<const ov::Node> &input, ov::Shape shape) {

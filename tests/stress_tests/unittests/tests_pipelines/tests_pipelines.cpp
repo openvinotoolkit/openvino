@@ -6,11 +6,6 @@
 
 #include <string>
 
-#include <inference_engine.hpp>
-
-
-using namespace InferenceEngine;
-
 void test_load_unload_plugin(const std::string &model, const std::string &target_device, const int &n,
                              const int &api_version) {
     log_info("Load/unload plugin for device: " << target_device << " for " << n << " times");
