@@ -24,7 +24,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryStateParams>& obj);
     void SetUp() override;
     void TearDown() override;
-    static std::shared_ptr<ngraph::Function> get_network();
+    static std::shared_ptr<ov::Model> get_network();
 
 protected:
     std::shared_ptr<ov::Model> net;
