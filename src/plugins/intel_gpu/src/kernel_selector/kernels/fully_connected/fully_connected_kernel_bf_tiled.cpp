@@ -196,6 +196,10 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (params.engineInfo.deviceType != dev_type::integrated_gpu)
             return false;
 
+        const auto required_slm_size = tparams.tile_ofm * simd * tparams.tile_ifm * simd * 2; // 2 bytes per value (FP16 data type)
+        if (params.engineInfo.maxLocalMemSize < required_slm_size)
+            return false;
+
         return true;
     }
 
