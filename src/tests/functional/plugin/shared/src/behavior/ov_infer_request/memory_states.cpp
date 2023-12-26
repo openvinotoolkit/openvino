@@ -9,8 +9,8 @@
 
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/sigmoid.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sigmoid.hpp"
 
 namespace ov {
 namespace test {
