@@ -8,7 +8,6 @@
 #include <sstream>
 
 #include "exceptions.hpp"
-#include "ngraph/file_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
