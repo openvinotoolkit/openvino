@@ -513,11 +513,6 @@ TEST(smoke_Basic, ConvSumConstTest) {
 
     auto core = ov::Core();
 
-    // Reshape model
-    // std::map<size_t, ov::PartialShape> newInpShape{
-    //     {static_cast<size_t>(0), ov::PartialShape{1, static_cast<int>(inpChannel), {6, 12}, {6, 12}}}};
-    // model->reshape(newInpShape);
-
     auto compiled_model = core.compile_model(model, "CPU");
     auto reqest = compiled_model.create_infer_request();
 
