@@ -16,7 +16,7 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
+// #include <ngraph/log.hpp>
 #include <set>
 
 #include "ngraph/pass/pass.hpp"
