@@ -4,7 +4,7 @@
 
 #include "jit_snippets_emitters.hpp"
 
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
@@ -14,7 +14,6 @@
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
 
-using namespace InferenceEngine;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

@@ -13,17 +13,17 @@
 #include <vector>
 #include <memory>
 #include "common/cpu_memcpy.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "fake_quantize.h"
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <dnnl_extension_utils.h>
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "dnnl_extension_utils.h"
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "shape_inference/custom/matmul.hpp"
 using namespace dnnl;
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

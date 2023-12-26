@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "jit_emitter.hpp"
 
 namespace ov {

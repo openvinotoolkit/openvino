@@ -11,7 +11,6 @@
 
 #include <gtest/gtest.h>
 
-#include <inference_engine.hpp>
 #include <openvino/runtime/core.hpp>
 
 
