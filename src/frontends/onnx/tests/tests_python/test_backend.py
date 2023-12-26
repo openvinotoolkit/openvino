@@ -97,7 +97,8 @@ def expect_fail(test_case_path, xfail):  # type: (str) -> None
         xfail(getattr(module, test_name))
     else:
         logging.getLogger().warning(
-            "Could not mark test as XFAIL, not found: %s", test_case_path,
+            "Could not mark test as XFAIL, not found: %s",
+            test_case_path,
         )
 
 
@@ -780,27 +781,32 @@ tests_expected_to_fail = [
     ),
 ]
 
-if platform.system() == 'Darwin':
-    tests_expected_to_fail.extend([
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_mish_expanded_cpu"
-        ),
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"
-        ),
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_div_uint8_cpu"
-        )]
-    )
-
-if platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+if platform.system() == "Darwin":
     tests_expected_to_fail.extend(
         [
-            (xfail_issue_122775, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"),
-            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu")
+            (skip_issue_58676, "OnnxBackendNodeModelTest.test_mish_expanded_cpu"),
+            (
+                skip_issue_58676,
+                "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu",
+            ),
+            (skip_issue_58676, "OnnxBackendNodeModelTest.test_div_uint8_cpu"),
+        ]
+    )
+
+if platform.system() == "Linux" and platform.machine() in [
+    "arm",
+    "armv7l",
+    "aarch64",
+    "arm64",
+    "ARM64",
+]:
+    tests_expected_to_fail.extend(
+        [
+            (
+                xfail_issue_122775,
+                "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu",
+            ),
+            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu"),
         ]
     )
 
