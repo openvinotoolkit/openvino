@@ -10,15 +10,8 @@
 #include <streambuf>
 #include <string>
 
-#include "details/ie_exception.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
-
-#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType)  \
-    catch (const InferenceEngine::ExceptionType& ex) { \
-        dup_last_err_msg(ex.what());                   \
-        return ov_status_e::StatusCode;                \
-    }
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType& ex) {             \
@@ -26,25 +19,12 @@
         return ov_status_e::StatusCode;               \
     }
 
-#define CATCH_OV_EXCEPTIONS                                   \
-    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
-    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
-    CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
-    CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
-    CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
-    CATCH_IE_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
-    CATCH_IE_EXCEPTION(NOT_FOUND, NotFound)                   \
-    CATCH_IE_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
-    CATCH_IE_EXCEPTION(UNEXPECTED, Unexpected)                \
-    CATCH_IE_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
-    CATCH_IE_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
-    CATCH_IE_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
-    CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
-    CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
-    CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (...) {                                             \
-        dup_last_err_msg("An unknown exception occurred");    \
-        return ov_status_e::UNKNOW_EXCEPTION;                 \
+#define CATCH_OV_EXCEPTIONS                                \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)    \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)           \
+    catch (...) {                                          \
+        dup_last_err_msg("An unknown exception occurred"); \
+        return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \

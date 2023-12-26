@@ -393,18 +393,16 @@ TEST_F(ov_core_test, ov_core_set_and_get_property_no_device) {
 TEST_P(ov_core_test, ov_core_set_and_get_property_bool_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
+    char* ret = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     const char* key = ov_property_key_enable_profiling;
-    const char* enable = "TEST";
-    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
-
-    char* ret = nullptr;
-    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
-    EXPECT_STRNE(enable, ret);
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     ov_free(ret);
 
+    const char* enable = "TEST";
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
     ov_core_free(core);
 }
 
