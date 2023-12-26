@@ -44,7 +44,6 @@
 #include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 
