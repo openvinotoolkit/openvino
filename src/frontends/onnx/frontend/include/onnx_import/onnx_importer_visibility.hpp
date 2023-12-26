@@ -12,7 +12,6 @@
 #    endif
 #endif
 
-
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_IMPORTER_API
 #else

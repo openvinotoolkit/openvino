@@ -4,7 +4,6 @@
 
 #include "ngraph/distributed.hpp"
 
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 
