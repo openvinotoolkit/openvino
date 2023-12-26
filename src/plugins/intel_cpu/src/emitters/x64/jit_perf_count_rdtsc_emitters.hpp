@@ -1,11 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #pragma once
 
 #include "jit_emitter.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
 namespace ov {
@@ -35,3 +36,4 @@ private:
 
 }   // namespace intel_cpu
 }   // namespace ov
+#endif // SNIPPETS_DEBUG_CAPS

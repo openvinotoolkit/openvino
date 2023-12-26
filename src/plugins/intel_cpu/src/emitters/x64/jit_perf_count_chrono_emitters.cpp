@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #include "jit_emitter.hpp"
 #include "jit_perf_count_chrono_emitters.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "cpu/x64/jit_generator.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -71,3 +72,4 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t> &in_
 
 }   // namespace intel_cpu
 }   // namespace ov
+#endif // SNIPPETS_DEBUG_CAPS

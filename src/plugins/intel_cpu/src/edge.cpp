@@ -76,7 +76,12 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             }
         }
     } else {
-        result.push_back(this->getChild());
+        auto childNode = this->getChild();
+        if (Type::ShapeOf == childNode->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return;
+        }
+        result.push_back(childNode);
     }
 }
 
@@ -453,6 +458,7 @@ void Edge::init() {
         changeStatus(Status::NeedAllocation);
     } else {
         if (Type::Input == edgePtr->getParent()->getType() &&
+            Type::MemoryInput != getParent()->getType() &&
             edgePtr->getParent()->isConstant() &&
             !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
@@ -554,7 +560,8 @@ NodePtr Edge::modifiedInPlace() const {
         auto& outConfs = childSPD->getConfig().outConfs;
         for (size_t i = 0; i < outConfs.size(); ++i) {
             const auto& conf = outConfs[i];
-            if (childPort < 0 || conf.inPlace() != childPort) {
+            if (childPort < 0 || conf.inPlace() != childPort ||
+                Type::MemoryInput == childNode->getType()) { //exception type, it doesn't modify memory
                 continue;
             }
             if (childNode->isExecutable()) {
