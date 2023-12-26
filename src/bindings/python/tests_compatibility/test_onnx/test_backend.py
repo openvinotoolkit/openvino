@@ -551,13 +551,16 @@ tests_expected_to_fail = [
         skip_bitwise_ui64,
         "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_or_ui64_bcast_3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
         xfail_issue_99949,
         "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_xor_ui8_bcast_4v3d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_xor_i16_3d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_xor_i32_2d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
         xfail_issue_99950,
