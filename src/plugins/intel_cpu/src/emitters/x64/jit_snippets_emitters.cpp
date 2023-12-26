@@ -10,6 +10,8 @@
 #include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
 
 using namespace InferenceEngine;
@@ -197,25 +199,23 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     gpr_map_pool.second.push_back(reg_indexes_idx);
     gpr_map_pool.second.push_back(reg_const_params_idx);
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, kernel->get_friendly_name()));
+#endif
 }
 
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        build_debug_info();
+    if (segfault_detector_emitter != nullptr) {
+        segfault_detector_emitter->emit_code(in, out);
+    }
 #endif
     emit_impl(in, out);
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void KernelEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs << " num_unique_buffers:" << num_unique_buffers
-        << " reg_indexes_idx:" << reg_indexes_idx << " reg_const_params_idx:" << reg_const_params_idx << "\n";
-}
-#endif
 
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out) const {
@@ -357,20 +357,9 @@ LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void LoopBeginEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where evaluate_once:" << evaluate_once << " work_amount:" << work_amount << "\n";
-}
-#endif
-
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-#ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        build_debug_info();
-#endif
     emit_impl(in, out);
 }
 
@@ -417,21 +406,9 @@ LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const Expression
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void LoopEndEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs
-        << " wa_increment:" << wa_increment << " work_amount:" << work_amount << " evaluate_once:" << evaluate_once << "\n";
-}
-#endif
-
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-#ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        build_debug_info();
-#endif
     emit_impl(in, out);
 }
 
@@ -526,13 +503,6 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void BroadcastMoveEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where byte_size:" << byte_size << "\n";
-}
-#endif
-
 ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
@@ -574,55 +544,11 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void ScalarEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where value:" << value << "\n";
-}
-#endif
-
 MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     src_prc = n->get_input_element_type(0);
     dst_prc = n->get_output_element_type(0);
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void MemoryEmitter::memory_track(size_t gpr_idx_for_mem_address) const {
-    h->push(h->r15);
-    h->push(h->r14);
-    Xbyak::Label label_set_address_current;
-    Xbyak::Label label_set_address_end;
-    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
-    h->cmp(h->qword[h->r15], 0);
-    h->jne(label_set_address_current);
-    h->mov(h->r14, reinterpret_cast<size_t>(&byte_offset));
-    h->mov(h->r14, h->qword[h->r14]);
-    h->add(h->r14, Xbyak::Reg64(gpr_idx_for_mem_address));
-    h->mov(h->qword[h->r15], h->r14);
-    h->jmp(label_set_address_end);
-    h->L(label_set_address_current);
-    {
-        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
-        h->mov(h->r14, reinterpret_cast<size_t>(&byte_offset));
-        h->mov(h->r14, h->qword[h->r14]);
-        h->add(h->r14, Xbyak::Reg64(gpr_idx_for_mem_address));
-        h->mov(h->qword[h->r15], h->r14);
-    }
-    h->L(label_set_address_end);
-    // iteration++, 1 means first access
-    h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
-    h->add(h->qword[h->r15], 0x01);
-    h->pop(h->r14);
-    h->pop(h->r15);
-}
-
-void MemoryEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    std::cerr << "src precision:" << src_prc << ", dst precision:" << dst_prc << ", load/store element number:" << count << std::endl;
-    std::cerr << "start_address:" << start_address << ", current_address:" << current_address << ", iteration:" << iteration << "\n";
-}
-#endif
 
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
@@ -634,7 +560,9 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     OPENVINO_ASSERT(store, "Node in expression is not snippets::op::Store in constructor of StoreEmitter!");
 #ifdef SNIPPETS_DEBUG_CAPS
-    store_node = store;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, true, store->get_friendly_name()));
 #endif
     count = store->get_count();
     byte_offset = store->get_offset();
@@ -645,8 +573,8 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
 void StoreEmitter::emit_impl(const std::vector<size_t>& in,
                              const std::vector<size_t>& out) const {
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        memory_track(out[0]);
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -670,13 +598,6 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void StoreEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << store_node->get_friendly_name() << std::endl;
-    MemoryEmitter::print_debug_info();
-}
-#endif
-
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
@@ -686,7 +607,9 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     OPENVINO_ASSERT(load, "Node in expression is not snippets::op::Load in constructor of LoadEmitter!");
 #ifdef SNIPPETS_DEBUG_CAPS
-    load_node = load;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, load->get_friendly_name()));
 #endif
     count = load->get_count();
     byte_offset = load->get_offset();
@@ -697,8 +620,8 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
 void LoadEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& out) const {
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        memory_track(in[0]);
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -722,13 +645,6 @@ void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void LoadEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << load_node->get_friendly_name() << std::endl;
-    MemoryEmitter::print_debug_info();
-}
-#endif
-
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
@@ -737,10 +653,12 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
                        " and ",
                        dst_prc.get_type_name());
 
-    auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
+    const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     OPENVINO_ASSERT(broadcast_load, "Node in expression is not snippets::op::BroadcastLoad in constructor of BroadcastLoadEmitter!");
 #ifdef SNIPPETS_DEBUG_CAPS
-    broadcast_load_node = broadcast_load;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, broadcast_load->get_friendly_name()));
 #endif
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -749,8 +667,8 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
 void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out) const {
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        memory_track(in[0]);
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -780,22 +698,16 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void BroadcastLoadEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << broadcast_load_node->get_friendly_name() << std::endl;
-    MemoryEmitter::print_debug_info();
-}
-#endif
-
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
-    auto load_convert = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
-    OPENVINO_ASSERT(load_convert, "Node in expression can not dynamic cast to snippets::op::Load in constructor of LoadConvertEmitter!");
+    const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
+    count = load->get_count();
+    byte_offset = load->get_offset();
 #ifdef SNIPPETS_DEBUG_CAPS
-    load_convert_node = load_convert;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, load->get_friendly_name()));
 #endif
-    count = load_convert->get_count();
-    byte_offset = load_convert->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
 }
@@ -803,8 +715,8 @@ LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const Ex
 void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        memory_track(in[0]);
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -828,22 +740,16 @@ void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void LoadConvertEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << load_convert_node->get_friendly_name() << std::endl;
-    MemoryEmitter::print_debug_info();
-}
-#endif
-
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
-    auto store_convert = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
-    OPENVINO_ASSERT(store_convert, "Node in expression can not dynamic cast to snippets::op::Store in constructor of StoreConvertEmitter!");
+    const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
+    count = store->get_count();
+    byte_offset = store->get_offset();
 #ifdef SNIPPETS_DEBUG_CAPS
-    store_convert_node = store_convert;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, true, store->get_friendly_name()));
 #endif
-    count = store_convert->get_count();
-    byte_offset = store_convert->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
 
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
@@ -856,8 +762,8 @@ StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        memory_track(out[0]);
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
 #endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -880,14 +786,6 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void StoreConvertEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << store_convert_node->get_friendly_name() << std::endl;
-    MemoryEmitter::print_debug_info();
-}
-#endif
-
 
 size_t BrgemmEmitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
     // Input shape is original, so we need to correctly read this data by order
@@ -918,11 +816,12 @@ size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::ve
 
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    auto brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OPENVINO_ASSERT(brgemm_node, "Node in expression is not ov::intel_cpu::BrgemmCPU in constructor of BrgemmEmitter!");
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 #ifdef SNIPPETS_DEBUG_CAPS
-    brgemm_node_ptr = brgemm_node;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, brgemm_node->get_friendly_name()));
 #endif
 
     std::vector<size_t> leading_dimensions;
@@ -1051,6 +950,10 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& out) const {
     validate_arguments(in, out);
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
@@ -1188,27 +1091,16 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
     (*brg_kernel)(&brgemm_p);
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void BrgemmEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << brgemm_node_ptr->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where m_brgCtx.M:" << m_brgCtx.M << " m_brgCtx.K:" << m_brgCtx.K << " m_brgCtx.N:" << m_brgCtx.N
-        << " m_brgCtx.LDA:" << m_brgCtx.LDA << " m_brgCtx.LDB:" << m_brgCtx.LDB << " m_brgCtx.LDC:" << m_brgCtx.LDC
-        << " m_brgCtx.dt_in0:" << m_brgCtx.dt_in0 << " m_brgCtx.dt_in1:" << m_brgCtx.dt_in1 << " m_brgCtx.palette:" << m_brgCtx.palette
-        << " m_brgCtx.is_with_amx:" << m_brgCtx.is_with_amx << " m_brgCtx.is_with_comp:" << m_brgCtx.is_with_comp << " m_brgCtx.beta:" << m_brgCtx.beta
-        << " m_load_offset_a:" << m_load_offset_a << " m_load_offset_b:" << m_load_offset_b << " m_load_offset_scratch:" << m_load_offset_scratch
-        << " m_store_offset_c:" << m_store_offset_c
-        << " m_with_scratch:" << m_with_scratch << " m_with_comp:" << m_with_comp << "\n";
-}
-#endif
-
 BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
-    OPENVINO_ASSERT(brgemm_repack, "Node in expression is not ov::intel_cpu::BrgemmCopyB in constructor of BrgemmEmitter!");
+    const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
+    if (!brgemm_repack)
+        OPENVINO_THROW("BrgemmCopyBEmitters expects BrgemmCopyB node");
 #ifdef SNIPPETS_DEBUG_CAPS
-    brgemm_repack_node = brgemm_repack;
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, brgemm_repack->get_friendly_name()));
 #endif
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
@@ -1287,6 +1179,10 @@ void BrgemmCopyBEmitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_mat
 
 void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 src(static_cast<int>(in[0]));
         Xbyak::Reg64 dst(static_cast<int>(out[0]));
@@ -1399,18 +1295,6 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 
     (*kernel)(&ctx);
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void BrgemmCopyBEmitter::print_debug_info() const {
-    std::cerr << "Node name:" << brgemm_repack_node->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where m_LDB:" << m_LDB << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
-        << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
-        << " m_brgemm_prc_in0:" << m_brgemm_prc_in0 << " m_brgemm_prc_in1:" << m_brgemm_prc_in1
-        << " m_brgemmVNNIFactor:" << m_brgemmVNNIFactor << " m_with_comp:" << m_with_comp
-        << " m_in_offset:" << m_in_offset << " m_out_offset:" << m_out_offset << " m_comp_offset:" << m_comp_offset << "\n";
-}
-#endif
 
 HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {

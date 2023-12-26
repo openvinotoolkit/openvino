@@ -46,10 +46,6 @@ public:
     virtual void emit_data() const {}
 
     virtual ~Emitter() = default;
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    virtual void set_custom_segfault_detector(const bool is_enable) {}
-#endif
 };
 
 } // namespace snippets

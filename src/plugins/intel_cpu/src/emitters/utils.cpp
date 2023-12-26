@@ -211,5 +211,79 @@ void RegPrinter::print_reg(jit_generator &h, REG_T reg, const char *name) {
     postamble(h);
 }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string get_type_name(const jit_emitter* emitter);
+std::string get_type_name(const jit_emitter* emitter) {
+    std::string name = typeid(*emitter).name();
+#ifndef _WIN32
+    int status;
+    std::unique_ptr<char, void (*)(void*)> demangled_name(
+            abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+            std::free);
+    name = demangled_name.get();
+#endif
+    return name;
+}
+
+void print_segfault_detector_result(jit_uni_segfault_detector_emitter* detector_emitter) {
+    auto print_memory_emitter_info = [&](MemoryEmitter *memory_emitter) {
+        std::cerr << "detailed emitter info is, src precision:" << memory_emitter->src_prc << ", dst precision:" << memory_emitter->dst_prc
+            << ", load/store element number:" << memory_emitter->count
+            << ", byte offset" << memory_emitter->byte_offset << std::endl;
+        // more memory address info tracked in detector_emitter.
+        std::cerr << "start_address:" << detector_emitter->start_address
+            << ", current_address:" << detector_emitter->current_address
+            << ", iteration:" << detector_emitter->iteration << "\n";
+    };
+    auto print_brgemm_emitter_info = [&](BrgemmEmitter* brgemm_emitter) {
+        std::cerr << "detailed emitter info is, m_brgCtx.M:" << brgemm_emitter->m_brgCtx.M
+            << " m_brgCtx.K:" << brgemm_emitter->m_brgCtx.K
+            << " m_brgCtx.N:" << brgemm_emitter->m_brgCtx.N
+            << " m_brgCtx.LDA:" << brgemm_emitter->m_brgCtx.LDA
+            << " m_brgCtx.LDB:" << brgemm_emitter->m_brgCtx.LDB
+            << " m_brgCtx.LDC:" << brgemm_emitter->m_brgCtx.LDC
+            << " m_brgCtx.dt_in0:" << brgemm_emitter->m_brgCtx.dt_in0
+            << " m_brgCtx.dt_in1:" << brgemm_emitter->m_brgCtx.dt_in1
+            << " m_brgCtx.palette:" << brgemm_emitter->m_brgCtx.palette
+            << " m_brgCtx.is_with_amx:" << brgemm_emitter->m_brgCtx.is_with_amx
+            << " m_brgCtx.is_with_comp:" << brgemm_emitter->m_brgCtx.is_with_comp
+            << " m_brgCtx.beta:" << brgemm_emitter->m_brgCtx.beta
+            << " m_load_offset_a:" << brgemm_emitter->m_load_offset_a
+            << " m_load_offset_b:" << brgemm_emitter->m_load_offset_b
+            << " m_load_offset_scratch:" << brgemm_emitter->m_load_offset_scratch
+            << " m_store_offset_c:" << brgemm_emitter->m_store_offset_c
+            << " m_with_scratch:" << brgemm_emitter->m_with_scratch
+            << " m_with_comp:" << brgemm_emitter->m_with_comp << "\n";
+    };
+    auto print_brgemm_copy_emitter_info = [&](BrgemmCopyBEmitter* brgemm_copy_emitter) {
+        std::cerr << "detailed emitter info is, m_LDB:" << brgemm_copy_emitter->m_LDB
+            << " m_K:" << brgemm_copy_emitter->m_K
+            << " m_K_blk:" << brgemm_copy_emitter->m_K_blk
+            << " m_K_tail:" << brgemm_copy_emitter->m_K_tail
+            << " m_N:" << brgemm_copy_emitter->m_N
+            << " m_N_blk:" << brgemm_copy_emitter->m_N_blk
+            << " m_N_tail:" << brgemm_copy_emitter->m_N_tail
+            << " m_brgemm_prc_in0:" << brgemm_copy_emitter->m_brgemm_prc_in0
+            << " m_brgemm_prc_in1:" << brgemm_copy_emitter->m_brgemm_prc_in1
+            << " m_brgemmVNNIFactor:" << brgemm_copy_emitter->m_brgemmVNNIFactor
+            << " m_with_comp:" << brgemm_copy_emitter->m_with_comp
+            << " m_in_offset:" << brgemm_copy_emitter->m_in_offset
+            << " m_out_offset:" << brgemm_copy_emitter->m_out_offset
+            << " m_comp_offset:" << brgemm_copy_emitter->m_comp_offset << "\n";
+    };
+    std::cerr << "Node name:" << detector_emitter->m_target_node_name << std::endl;
+    auto target_emitter = detector_emitter->m_target_emitter;
+    std::cerr << "Emitter type name:" << get_type_name(target_emitter) << std::endl;
+    if (auto *memory_emitter = dynamic_cast<MemoryEmitter *>(target_emitter)) {
+        print_memory_emitter_info(memory_emitter);
+    } else if (auto *brgemm_emitter = dynamic_cast<BrgemmEmitter *>(target_emitter)) {
+        print_brgemm_emitter_info(brgemm_emitter);
+    } else if (auto *brgemm_copy_emitter = dynamic_cast<BrgemmCopyBEmitter *>(target_emitter)) {
+        print_brgemm_copy_emitter_info(brgemm_copy_emitter);
+    }
+}
+
+#endif
+
 }   // namespace intel_cpu
 }   // namespace ov

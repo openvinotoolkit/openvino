@@ -192,13 +192,6 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t> &in_ve
     }
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
-void jit_convert_truncation_emitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
-}
-#endif
-
 jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *host, cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
@@ -337,13 +330,6 @@ size_t jit_convert_saturation_emitter::aux_vecs_count() const {
     // 1 register is for dword2int8 unsigned
     return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core? 1 : 0;
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void jit_convert_saturation_emitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
-}
-#endif
 
 }   // namespace intel_cpu
 }   // namespace ov

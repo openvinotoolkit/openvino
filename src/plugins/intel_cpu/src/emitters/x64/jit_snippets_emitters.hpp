@@ -14,13 +14,13 @@
 #include "jit_load_store_emitters.hpp"
 
 #include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 // Matmul support:
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
+
+#include "jit_segfault_detector_emitter.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -84,9 +84,6 @@ public:
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out) const;
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     using jit_emitter::emit_code;
@@ -115,6 +112,9 @@ private:
 
     const size_t reg_indexes_idx;
     const size_t reg_const_params_idx;
+#ifdef SNIPPETS_DEBUG_CAPS
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
+#endif
 };
 
 class LoopBeginEmitter : public jit_emitter {
@@ -126,9 +126,6 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     using jit_emitter::emit_code;
@@ -151,9 +148,6 @@ public:
                    const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     using jit_emitter::emit_code;
@@ -215,9 +209,6 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -237,9 +228,6 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 protected:
     size_t aux_gprs_count() const override {return 1;}
@@ -270,7 +258,7 @@ public:
                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
 #ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
+    friend void print_segfault_detector_result(jit_uni_segfault_detector_emitter* detector_emitter);
 #endif
 
 protected:
@@ -281,13 +269,7 @@ protected:
     size_t byte_offset = 0;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    // MemoryEmitter is to move data between memory and registers. Typically it's performed many times to operate the whole subtensor.
-    // memory_track function is to record start subtensor address and current subtensor address and iteration.
-    // If segfault happens, build_in segfault capabilty will give developers these info to understand what is wrong.
-    mutable size_t start_address = 0;
-    mutable size_t current_address = 0;
-    mutable size_t iteration = 0;
-    void memory_track(size_t gpr_idx_for_mem_address) const;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
 #endif
 };
 
@@ -298,9 +280,6 @@ public:
                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -312,9 +291,6 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<snippets::op::Store> store_node = nullptr;
-#endif
 };
 
 class LoadEmitter : public MemoryEmitter {
@@ -324,9 +300,6 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -338,9 +311,6 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<snippets::op::Load> load_node = nullptr;
-#endif
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {
@@ -350,9 +320,6 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -360,9 +327,6 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<snippets::op::BroadcastLoad> broadcast_load_node = nullptr;
-#endif
 };
 
 class LoadConvertEmitter : public MemoryEmitter {
@@ -372,9 +336,6 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -386,9 +347,6 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<snippets::op::Load> load_convert_node = nullptr;
-#endif
 };
 
 class StoreConvertEmitter : public MemoryEmitter {
@@ -398,9 +356,6 @@ public:
                         const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-#ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
-#endif
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -412,9 +367,6 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<snippets::op::Store> store_convert_node = nullptr;
-#endif
 };
 
 class BrgemmEmitter : public jit_emitter {
@@ -426,7 +378,7 @@ public:
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 #ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
+    friend void print_segfault_detector_result(jit_uni_segfault_detector_emitter* detector_emitter);
 #endif
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -456,7 +408,7 @@ private:
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<ov::intel_cpu::BrgemmCPU> brgemm_node_ptr = nullptr;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
 #endif
 
     brgemmCtx m_brgCtx;
@@ -484,7 +436,7 @@ public:
         return {{element::i8}, {element::bf16}};
     }
 #ifdef SNIPPETS_DEBUG_CAPS
-    void print_debug_info() const override;
+    friend void print_segfault_detector_result(jit_uni_segfault_detector_emitter* detector_emitter);
 #endif
 
 private:
@@ -503,7 +455,7 @@ private:
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::shared_ptr<ov::intel_cpu::BrgemmCopyB> brgemm_repack_node = nullptr;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
 #endif
 
     ov::element::Type m_brgemm_prc_in0, m_brgemm_prc_in1;

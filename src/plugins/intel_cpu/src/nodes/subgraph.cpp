@@ -38,7 +38,11 @@
 #include "snippets/pass/hash.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 #include <signal.h>
+std::mutex err_print_lock;
+#endif
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -50,10 +54,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-std::mutex err_print_lock;
-#endif
 
 struct SnippetKey {
     Snippet::SnippetAttrs attrs;
@@ -522,8 +522,8 @@ void Snippet::SnippetJitExecutor::segfault_detector() {
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto err_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
-                err_emitter->print_debug_info();
+            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler1->local())
+                print_segfault_detector_result(segfault_detector_emitter);
             auto tid = parallel_get_thread_num();
             OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
         };

@@ -10,25 +10,11 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
 #include <node.h>
+
 #include <set>
-
-#ifdef SNIPPETS_DEBUG_CAPS
-#include "openvino/runtime/threading/thread_local.hpp"
-
-#ifndef _WIN32
-#include <cxxabi.h>
-#endif
-
-using namespace ov::threading;
-#endif
 
 namespace ov {
 namespace intel_cpu {
-
-#ifdef SNIPPETS_DEBUG_CAPS
-class jit_emitter;
-extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler;
-#endif
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -48,9 +34,6 @@ public:
                 ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
-#ifdef SNIPPETS_DEBUG_CAPS
-        m_custom_emitter_segfault_detector = false;
-#endif
     }
 
     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -67,15 +50,6 @@ public:
      * Empty collection means the emitter supports any input precisions.
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    void set_custom_segfault_detector(const bool is_enable) override {
-        m_custom_emitter_segfault_detector = is_enable;
-    }
-    virtual void print_debug_info() const {
-        std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    }
-#endif
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -157,23 +131,6 @@ protected:
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
-#ifdef SNIPPETS_DEBUG_CAPS
-    bool m_custom_emitter_segfault_detector = false;
-    void build_debug_info() const;
-    static void set_local_handler(jit_emitter* emitter_address);
-
-    std::string get_type_name(const jit_emitter* emitter) const {
-        std::string name = typeid(*emitter).name();
-#ifndef _WIN32
-        int status;
-        std::unique_ptr<char, void (*)(void*)> demangled_name(
-                abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                std::free);
-        name = demangled_name.get();
-#endif
-        return name;
-    }
-#endif
 
     void internal_call_preamble() const;
     void internal_call_postamble() const;

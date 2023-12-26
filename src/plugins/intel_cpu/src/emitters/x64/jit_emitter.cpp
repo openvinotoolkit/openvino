@@ -6,17 +6,12 @@
 #include <vector>
 #include "utils/general_utils.h"
 
-using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
-using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
-
-#ifdef SNIPPETS_DEBUG_CAPS
-std::shared_ptr<ThreadLocal<jit_emitter*>> g_custom_segfault_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
-#endif
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
@@ -213,34 +208,10 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-#ifdef SNIPPETS_DEBUG_CAPS
-    if (m_custom_emitter_segfault_detector)
-        build_debug_info();
-#endif
-
     emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
 }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-void jit_emitter::build_debug_info() const {
-    internal_call_preamble();
-
-    const auto &set_local_handler_overload = static_cast<void (*)(jit_emitter*)>(set_local_handler);
-    h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
-    h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
-    internal_call_rsp_align();
-    h->call(h->rax);
-    internal_call_rsp_restore();
-
-    internal_call_postamble();
-}
-
-void jit_emitter::set_local_handler(jit_emitter* emitter_address) {
-    g_custom_segfault_handler->local() = emitter_address;
-}
-#endif
 
 void jit_emitter::internal_call_preamble() const {
     // gprs

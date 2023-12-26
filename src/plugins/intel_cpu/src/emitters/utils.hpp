@@ -5,6 +5,13 @@
 #pragma once
 
 #include <cpu/x64/jit_generator.hpp>
+#include "x64/jit_emitter.hpp"
+#include "x64/jit_snippets_emitters.hpp"
+#include "x64/jit_segfault_detector_emitter.hpp"
+
+#ifndef _WIN32
+#include <cxxabi.h>
+#endif
 
 namespace ov {
 namespace intel_cpu {

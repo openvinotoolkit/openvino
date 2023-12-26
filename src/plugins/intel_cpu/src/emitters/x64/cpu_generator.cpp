@@ -243,7 +243,8 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
     bool need = std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
-    need = need || target->custom_segfault_detector ||
+    const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
+    need = need || (cpu_target_machine && cpu_target_machine->custom_segfault_detector) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||

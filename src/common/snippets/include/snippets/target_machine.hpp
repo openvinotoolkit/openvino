@@ -50,6 +50,7 @@ public:
      */
     virtual size_t get_lanes() const = 0;
 
+
     /**
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
@@ -63,10 +64,6 @@ public:
      */
     bool has(const ov::DiscreteTypeInfo& type) const;
     virtual ~TargetMachine() = default;
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    bool custom_segfault_detector = false;
-#endif
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
