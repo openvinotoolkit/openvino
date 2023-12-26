@@ -4,7 +4,7 @@
 
 #include "behavior/ov_infer_request/memory_states.hpp"
 
-#include <common_test_utils/test_constants.hpp>
+#include "common_test_utils/test_constants.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ov_models/builders.hpp"
