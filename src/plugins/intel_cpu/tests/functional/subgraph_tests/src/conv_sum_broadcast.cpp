@@ -3,7 +3,9 @@
 //
 
 #include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "internal_properties.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -110,7 +112,7 @@ public:
         auto conv = makeConv(inputParams);
 
         if (bias) {
-            auto biasNode = ngraph::builder::makeConstant<float>(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}), {}, true);
+            auto biasNode = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}), {}, true);
             conv = std::make_shared<ov::op::v1::Add>(conv, biasNode);
         }
 
@@ -219,7 +221,7 @@ public:
         auto inpShape = inputParams.front()->get_partial_shape();
         Shape filterShape = {_convOutChannels, static_cast<size_t>(inpShape[1].get_length())};
         filterShape.insert(filterShape.end(), _kernel.begin(), _kernel.end());
-        auto filterWeightsNode = ngraph::builder::makeConstant<int8_t>(ov::element::i8, filterShape, {}, true);
+        auto filterWeightsNode = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, filterShape, {}, true);
 
         auto conv = convolutionNodeRelaxed->copy_with_new_inputs({inputParams.front(), filterWeightsNode});
 
@@ -233,10 +235,10 @@ public:
         //additionalFusedOps.push_back("Relu");
 
         auto fqShape = ov::Shape(lastNode->get_output_partial_shape(0).size(), 1);
-        lastNode = ngraph::builder::makeFakeQuantize(lastNode, ov::element::f32, 256, fqShape);
+        lastNode = ov::test::utils::make_fake_quantize(lastNode, ov::element::f32, 256, fqShape);
         additionalFusedOps.push_back("FakeQuantize");
 
-        auto secondTerm = ngraph::builder::makeFakeQuantize(inputParams[1], ov::element::f32, 256, fqShape);
+        auto secondTerm = ov::test::utils::make_fake_quantize(inputParams[1], ov::element::f32, 256, fqShape);
 
         auto sum = std::make_shared<ov::op::v1::Add>(lastNode, secondTerm);
         additionalFusedOps.push_back("Add");
@@ -283,45 +285,45 @@ namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerChannel)"},
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ov::op::v1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerChannel)"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
 
 const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -331,12 +333,12 @@ const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesM
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"Sigmoid", "FakeQuantize", "FakeQuantize"} };
 
 const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -346,7 +348,7 @@ const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
 
 

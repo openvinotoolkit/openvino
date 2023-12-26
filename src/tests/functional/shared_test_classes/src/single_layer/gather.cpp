@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/gather.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace LayerTestsDefinitions {
 
 void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
@@ -83,7 +85,7 @@ void Gather7LayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
+    auto indicesNode = ov::test::utils::deprecated::make_constant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
     auto axisNode = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
     auto gather = std::make_shared<ov::op::v7::Gather>(functionParams[0], indicesNode, axisNode, batchIdx);
@@ -124,7 +126,7 @@ void Gather8LayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
+    auto indicesNode = ov::test::utils::deprecated::make_constant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1,
                                                           -static_cast<int>(inputShape[axis < 0 ? axis + inputShape.size() : axis]));
     auto axisNode = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
@@ -218,7 +220,7 @@ void Gather8withIndicesDataLayerTest::SetUp() {
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector functionParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, indicesData);
+    auto indicesNode = ov::test::utils::deprecated::make_constant<int>(ngraph::element::i64, indicesShape, indicesData);
     auto axisNode = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
     auto gather = std::make_shared<ov::op::v8::Gather>(functionParams[0], indicesNode, axisNode, batchIdx);
     ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(gather) };
