@@ -53,7 +53,6 @@
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/descriptor/tensor.hpp"
-#include "ngraph/dimension.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
