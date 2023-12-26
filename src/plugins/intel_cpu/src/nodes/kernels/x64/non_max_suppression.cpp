@@ -5,7 +5,6 @@
 #include "non_max_suppression.hpp"
 #include "utils/general_utils.h"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
 
 #define GET_OFF(field) offsetof(NmsCallArgs, field)

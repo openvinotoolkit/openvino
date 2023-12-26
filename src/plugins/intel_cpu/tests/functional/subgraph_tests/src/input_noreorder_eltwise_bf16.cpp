@@ -31,7 +31,7 @@ protected:
         auto tensor = ov::test::utils::create_and_fill_tensor(netPrecision, inputShape);
         auto secondaryInput = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto eltwise = ov::test::utils::makeEltwise(input[0], secondaryInput, eltwiseType);
+        auto eltwise = ov::test::utils::make_eltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
     }

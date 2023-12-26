@@ -3,7 +3,9 @@
 //
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/subgraph/multiple_concat.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -43,13 +45,13 @@ void MultipleConcatTest::SetUp() {
 
     ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-    auto const_1 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
+    auto const_1 = ov::test::utils::deprecated::make_constant(ngPrc, constant_dims, concat_1_vals);
     auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_1, input_parameter[0]}, 1);
 
-    auto const_2 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
+    auto const_2 = ov::test::utils::deprecated::make_constant(ngPrc, constant_dims, concat_1_vals);
     auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_1, const_2}, 1);
 
-    auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto act = ov::test::utils::make_activation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     function = std::make_shared<ngraph::Function>(act, input_parameter, "multiple_concat");
 }

@@ -171,6 +171,30 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     ASSERT_NO_THROW(inf_req.infer());
 }
 
+TEST(TensorTest, smoke_canSetTensorForDynamicOutput) {
+    auto core = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+
+    auto function = p.build();
+    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    function->reshape(shapes);
+    auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = exec_net.create_infer_request();
+
+    ov::Tensor t1(ov::element::i8, {1, 4, 20, 20});
+    auto out_tensor = inf_req.get_output_tensor();
+    ov::Tensor t2(out_tensor.get_element_type(), out_tensor.get_shape());
+    ASSERT_EQ(t2.get_byte_size(), 0);
+    // Check set_shape call for pre-allocated input/output tensors
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.set_output_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+    ASSERT_NE(t2.get_byte_size(), 0);
+}
+
 TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
     auto ov = ov::Core();
     using namespace ov::preprocess;

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "cpu_blocked_memory_desc.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include <common/memory_desc.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 
