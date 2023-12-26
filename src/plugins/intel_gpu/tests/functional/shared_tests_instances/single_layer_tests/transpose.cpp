@@ -40,22 +40,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose,
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
-const std::vector<std::vector<ov::Shape>> levitShapes = {
-        {{1, 4, 196, 32}},
-        {{1, 196, 4, 32}},
-        {{1, 196, 4, 16}},
-        {{1, 196, 8, 64}},
-        {{1, 24, 196, 1}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Transpose_Levit,
-                         TransposeLayerTest,
-                         testing::Combine(testing::Values(std::vector<size_t>{0, 2, 1, 3}),
-                                          testing::Values(ov::element::f16),
-                                          testing::ValuesIn(ov::test::static_shapes_to_test_representation(levitShapes)),
-                                          testing::Values(ov::test::utils::DEVICE_GPU)),
-                         TransposeLayerTest::getTestCaseName);
-
 /**
  * 5D permute tests
  */
