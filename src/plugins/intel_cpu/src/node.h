@@ -556,8 +556,8 @@ public:
                                        NameFromType(getType()));
         return false;
     }
-    const bool isAccuracyAware() const {
-        return accuracyAware;
+    const bool KeepOriginalPrecision() const {
+        return keepOriginalPrecision;
     }
 
 protected:
@@ -587,7 +587,7 @@ protected:
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
-    bool accuracyAware = false;
+    bool keepOriginalPrecision  = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 

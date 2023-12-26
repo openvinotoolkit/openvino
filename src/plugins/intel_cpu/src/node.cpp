@@ -186,7 +186,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
     if (ov::fp16_compression_is_disabled(op))
-        accuracyAware = true;
+        keepOriginalPrecision = true;
 }
 
 Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
