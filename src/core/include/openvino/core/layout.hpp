@@ -216,9 +216,6 @@ public:
     std::string to_string() const override;
 
     Layout value;
-
-private:
-    std::shared_ptr<std::mutex> m_mutex = std::make_shared<std::mutex>();
 };
 
 }  // namespace ov
