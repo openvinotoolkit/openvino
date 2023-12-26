@@ -1,16 +1,8 @@
-<<<<<<< HEAD
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
-#include "helper_ops/complex_type_mark.hpp"
-=======
 // Copyright (C) 2018-2023 Intel Corporation  
 // SPDX-License-Identifier: Apache-2.0  
 //  
 
 #include "helper_ops/complex_type_mark.hpp"  
->>>>>>> 1e69f125ea ("""Test the conjugate transpose layer.""")
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
