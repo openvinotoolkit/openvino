@@ -78,6 +78,26 @@ public:
     void run() override;
 };
 
+using compileModelCacheRuntimePropertiesParams = std::tuple<std::string,  // device name
+                                                            ov::AnyMap    // device configuration
+                                                            >;
+class CompileModelCacheRuntimePropertiesTestBase
+    : public testing::WithParamInterface<compileModelCacheRuntimePropertiesParams>,
+      virtual public SubgraphBaseTest,
+      virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+    std::string m_compiled_model_runtime_properties;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileModelCacheRuntimePropertiesParams> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
+};
+
 using compileModelLoadFromMemoryParams = std::tuple<std::string,  // device name
                                                     ov::AnyMap    // device configuration
 >;

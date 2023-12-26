@@ -63,6 +63,12 @@ namespace {
                         CompileModelLoadFromFileTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
+                             CompileModelCacheRuntimePropertiesTestBase,
+                             ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                ::testing::ValuesIn(GPULoadFromFileConfigs)),
+                             CompileModelCacheRuntimePropertiesTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                              CompileModelLoadFromMemoryTestBase,
                              ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                                 ::testing::ValuesIn(GPULoadFromFileConfigs)),
