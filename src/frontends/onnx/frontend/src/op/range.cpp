@@ -14,9 +14,12 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector range(const Node& node) {
-    Output<ngraph::Node> start{node.get_ng_inputs().at(0)};
-    Output<ngraph::Node> stop{node.get_ng_inputs().at(1)};
-    Output<ngraph::Node> step{node.get_ng_inputs().at(2)};
+    const auto inputs = node.get_ng_inputs();
+    CHECK_VALID_NODE(node, inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
+
+    Output<ngraph::Node> start{inputs[0]};
+    Output<ngraph::Node> stop{inputs[1]};
+    Output<ngraph::Node> step{inputs[2]};
 
     auto axes = std::make_shared<default_opset::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
 
