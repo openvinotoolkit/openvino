@@ -55,8 +55,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -271,6 +269,8 @@ void Graph::InitNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
+        if (node->getConstantType() == Node::ConstantType::Unknown)
+            node->updateConstantType();
     }
 }
 
@@ -1495,6 +1495,9 @@ void Graph::DropNode(const NodePtr &node) {
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
+            if (child->getConstantType() != Node::ConstantType::Unknown) {
+                child->updateConstantType();
+            }
         }
     }
 }
@@ -1645,6 +1648,7 @@ void Graph::AddNodes(const std::vector<NodePtr>& new_nodes, bool initNode) {
     for (auto& node : new_nodes) {
         graphNodes.push_back(node);
     }
+    node->updateConstantType();
 }
 
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {

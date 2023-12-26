@@ -19,13 +19,7 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "openvino/frontend/manager.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
-#ifdef ENABLE_IR_V7_READER
-#    include "legacy/ie_ir_version.hpp"
-#endif
 #include "itt.hpp"
-#include "legacy/ie_reader.hpp"
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -33,185 +27,14 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
-
-#ifdef ENABLE_IR_V7_READER
-
-/**
- * @brief This class is a wrapper for reader interfaces
- */
-class Reader : public IReader {
-#    ifdef OPENVINO_STATIC_LIBRARY
-    using ReaderPtr = std::shared_ptr<IReader>;
-#    else
-    using ReaderPtr = ov::SoPtr<IReader>;
-#    endif
-    ReaderPtr ptr;
-
-public:
-    using Ptr = std::shared_ptr<Reader>;
-
-    explicit Reader(const std::string& location) {
-#    ifdef OPENVINO_STATIC_LIBRARY
-        // call library creator directly, since we are in the same application
-        InferenceEngine::CreateReader(ptr);
-        OPENVINO_ASSERT(ptr != nullptr, "Failed to create static version of IR v7 reader");
-#    else
-        ov::util::FilePath libraryPath = ov::util::to_file_path(FileUtils::makePluginLibraryName({}, location));
-        ov::util::FilePath readersLibraryPath = FileUtils::makePath(getInferenceEngineLibraryPath(), libraryPath);
-
-        if (FileUtils::fileExist(readersLibraryPath)) {
-            libraryPath = readersLibraryPath;
-        }
-
-        auto so = ov::util::load_shared_object(libraryPath.c_str());
-        std::shared_ptr<IReader> plugin_impl;
-        using createFunc = void(std::shared_ptr<IReader>&);
-        reinterpret_cast<createFunc*>(ov::util::get_symbol(so, "CreateReader"))(plugin_impl);
-        ptr = {plugin_impl, so};
-#    endif  // OPENVINO_STATIC_LIBRARY
-    }
-
-    bool supportModel(std::istream& model) const override {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Reader::supportModel");
-        return ptr->supportModel(model);
-    }
-
-    CNNNetwork read(std::istream& model, const std::vector<IExtensionPtr>& exts) const override {
-        return ptr->read(model, exts);
-    }
-
-    CNNNetwork read(std::istream& model,
-                    const Blob::CPtr& weights,
-                    const std::vector<IExtensionPtr>& exts) const override {
-        return ptr->read(model, weights, exts);
-    }
-
-    std::vector<std::string> getDataFileExtensions() const override {
-        return ptr->getDataFileExtensions();
-    }
-};
-
-namespace {
-
-Reader::Ptr reader_irv7 = nullptr;
-
-void registerReaders() {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "registerReaders");
-    static bool initialized = false;
-    static std::mutex readerMutex;
-    std::lock_guard<std::mutex> lock(readerMutex);
-    if (initialized)
-        return;
-
-    initialized = true;
-
-    // try to load IR reader v7 if library exists
-    try {
-        reader_irv7 =
-            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(OV_BUILD_POSTFIX));
-    } catch (const std::runtime_error&) {
-        // runtime error is thrown in case of library cannot be loaded
-    }
-}
-
-void assertIfIRv7LikeModel(std::istream& modelStream) {
-    auto irVersion = details::get_ir_version(modelStream);
-    bool isIRv7 = irVersion > 1 && irVersion <= 7;
-
-    if (!isIRv7 || reader_irv7)
-        return;
-
-    IE_THROW() << "The support of IR v" << irVersion
-               << " has been removed from the product. "
-                  "Please, convert the original model using the Model Optimizer which comes with this "
-                  "version of the OpenVINO to generate supported IR version.";
-}
-
-CNNNetwork load_ir_v7_network(const std::string& modelPath,
-                              const std::string& binPath,
-                              const std::vector<IExtensionPtr>& exts) {
-    // Fix unicode name
-#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
-#    else
-    std::string model_path = modelPath;
-#    endif
-
-    if (ov::util::directory_exists(modelPath)) {
-        return {};
-    }
-
-    // Try to open model file
-    std::ifstream modelStream(model_path.c_str(), std::ios::binary);
-    if (!modelStream.is_open())
-        IE_THROW() << "Model file " << modelPath << " cannot be opened!";
-
-    assertIfIRv7LikeModel(modelStream);
-
-    // Check that reader supports the model
-    if (reader_irv7 && reader_irv7->supportModel(modelStream)) {
-        // Find weights
-        std::string bPath = binPath;
-        if (bPath.empty()) {
-            auto pathWoExt = modelPath;
-            auto pos = modelPath.rfind('.');
-            if (pos != std::string::npos)
-                pathWoExt = modelPath.substr(0, pos);
-            for (const auto& ext : reader_irv7->getDataFileExtensions()) {
-                bPath = pathWoExt + "." + ext;
-                if (!FileUtils::fileExist(bPath)) {
-                    bPath.clear();
-                } else {
-                    break;
-                }
-            }
-        }
-        if (!bPath.empty()) {
-            // Open weights file
-#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
-#    else
-            std::string weights_path = bPath;
-#    endif
-            std::ifstream binStream;
-            binStream.open(weights_path.c_str(), std::ios::binary);
-            if (!binStream.is_open())
-                IE_THROW() << "Weights file " << bPath << " cannot be opened!";
-
-            binStream.seekg(0, std::ios::end);
-            size_t fileSize = binStream.tellg();
-            binStream.seekg(0, std::ios::beg);
-
-            Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {fileSize}, C});
-
-            {
-                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ReadNetworkWeights");
-                weights->allocate();
-                binStream.read(weights->buffer(), fileSize);
-                binStream.close();
-            }
-
-            // read model with weights
-            auto network = reader_irv7->read(modelStream, weights, exts);
-            modelStream.close();
-            return network;
-        }
-        // read model without weights
-        return reader_irv7->read(modelStream, exts);
-    }
-
-    return {};
-}
-
-}  // namespace
-
-#endif  // ENABLE_IR_V7_READER
 
 namespace {
 
@@ -297,20 +120,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 bool is_new_api,
                                 bool enable_mmap) {
     auto exts = ov::legacy_convert::convert_extension(ov_exts);
-#ifdef ENABLE_IR_V7_READER
-    // IR v7 obsolete code
-    {
-        // Register readers if it is needed
-        registerReaders();
-        auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
-            return cnnnetwork;
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-#endif  // ENABLE_IR_V7_READER
 
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -365,21 +174,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
     auto exts = ov::legacy_convert::convert_extension(ov_exts);
-
-#ifdef ENABLE_IR_V7_READER
-    // IR v7 obsolete code
-    {
-        // Register readers if it is needed
-        registerReaders();
-        assertIfIRv7LikeModel(modelStream);
-
-        if (reader_irv7 && reader_irv7->supportModel(modelStream)) {
-            if (weights)
-                return reader_irv7->read(modelStream, weights, exts);
-            return reader_irv7->read(modelStream, exts);
-        }
-    }
-#endif  // ENABLE_IR_V7_READER
 
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;

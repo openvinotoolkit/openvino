@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cum_sum.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "utils/bfloat16.hpp"
+
 #include <string>
 #include <vector>
-
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include "openvino/core/parallel.hpp"
-#include <ie_ngraph_utils.hpp>
-#include "cum_sum.h"
-#include "utils/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -133,7 +130,7 @@ void CumSum::exec() {
 
 template <bool reverse, bool exclusive, typename dataType>
 void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
-    SizeVector iterationRange(numOfDims - 1);
+    VectorDims iterationRange(numOfDims - 1);
     size_t j = 0;
     const auto &shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
@@ -144,7 +141,7 @@ void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &s
     size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), size_t(1), std::multiplies<size_t>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        SizeVector counters(numOfDims - 1, 0);
+        VectorDims counters(numOfDims - 1, 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
 
         parallelItInit(start, counters, iterationRange);
