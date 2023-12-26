@@ -1549,15 +1549,22 @@ MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it
         // Real input shape = {1, 160, 1, 1}
         // Update shape to {1, 160, {1, 256}, {1, 256}}
         auto shape = getOutputShapeAtPort(0);
-        auto minDims = shape.getMinDims();
-        auto maxDims = shape.getMaxDims();
-        for (size_t i = 0; i < maxDims.size(); i++) {
-            if (maxDims[i] > minDims[i]) {
-                if (minDims[i] > 1)
-                    minDims[i] = 1;
+        auto realShape = getInputShapeAtPort(getParentEdges().size() - 1);
+        Shape finalShape = shape;
+        if (shape.getRank() == realShape.getRank()) {
+            auto realDims = realShape.getDims();
+            auto minDims = shape.getMinDims();
+            auto maxDims = shape.getMaxDims();
+            for (size_t i = 0; i < maxDims.size(); i++) {
+                if ((maxDims[i] > minDims[i]) && realDims[i] == 1) {
+                    if (minDims[i] > 1)
+                        minDims[i] = 1;
+                }
             }
+            finalShape = Shape(minDims, maxDims);
         }
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), Shape(minDims, maxDims));
+
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), finalShape);
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
 }

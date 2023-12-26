@@ -466,6 +466,75 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Strided, ConvSumInPlaceStrided
                                  ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
+inline ov::Tensor initInput(ov::Shape inShape, float** inpBuf) {
+    *inpBuf = new float(shape_size(inShape));
+    EXPECT_NE(*inpBuf, nullptr);
+    return ov::Tensor(ov::element::f32, inShape, *inpBuf);
+}
+
+inline void releaseBuf(float* pBuf) {
+    if (pBuf) {
+        delete[] pBuf;
+    }
+}
+
+TEST(smoke_Basic, ConvSumConstTest) {
+    size_t inpChannel = 8;
+    size_t outpChannel = 8;
+    auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32,
+                                                       ov::PartialShape{-1, static_cast<int>(inpChannel), {6, 12}, {6, 12}});
+    in1->set_friendly_name("in1");
+    auto in2 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, outpChannel});
+    in2->set_friendly_name("in2");
+    auto newShape = ngraph::builder::makeConstant<int>(ov::element::Type_t::i32,
+                                                       ov::Shape{4},
+                                                       {1, static_cast<int>(outpChannel), 1, 1},
+                                                       false);
+
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(in2, newShape, false);
+
+    auto conv = ov::test::utils::make_convolution(in1,
+                                                  ov::element::f32,
+                                                  ov::Shape{3, 3},
+                                                  ov::Shape{1, 1},
+                                                  {1, 1},
+                                                  {1, 1},
+                                                  ov::Shape{1, 1},
+                                                  ov::op::PadType::EXPLICIT,
+                                                  outpChannel);
+
+    auto biasNode =
+        ngraph::builder::makeConstant<float>(ov::element::Type_t::f32, ov::Shape({1, outpChannel, 1, 1}), {}, true);
+    conv = std::make_shared<ov::op::v1::Add>(conv, biasNode);
+    conv = std::make_shared<ov::op::v1::Add>(conv, reshape);
+
+    auto result = std::make_shared<ov::op::v0::Result>(conv->output(0));
+    auto model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{in1, in2}, "ConvSumConst");
+
+    auto core = ov::Core();
+
+    // Reshape model
+    // std::map<size_t, ov::PartialShape> newInpShape{
+    //     {static_cast<size_t>(0), ov::PartialShape{1, static_cast<int>(inpChannel), {6, 12}, {6, 12}}}};
+    // model->reshape(newInpShape);
+
+    auto compiled_model = core.compile_model(model, "CPU");
+    auto reqest = compiled_model.create_infer_request();
+
+    float* inpBuf1 = nullptr;
+    float* inpBuf2 = nullptr;
+    ov::Tensor inpTensor1 = initInput(ov::Shape{1, inpChannel, 6, 6}, &inpBuf1);
+    ov::Tensor inpTensor2 = initInput(ov::Shape{1, outpChannel}, &inpBuf2);
+
+    reqest.set_input_tensor(0, inpTensor1);
+    reqest.set_input_tensor(1, inpTensor2);
+
+    ASSERT_NO_THROW(reqest.infer());
+
+    releaseBuf(inpBuf1);
+    releaseBuf(inpBuf2);
+}
+
 } // namespace
 }  // namespace test
 }  // namespace ov
