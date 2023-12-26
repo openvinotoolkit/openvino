@@ -60,7 +60,7 @@ protected:
             nets.push_back(CNNNetwork(fn_ptr));
         }
 
-        auto ie = InferenceEngine::Core();
+        auto ie = BehaviorTestsUtils::createIECoreWithTemplate();
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
