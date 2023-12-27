@@ -1274,11 +1274,11 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
 void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName) {
-    auto config = configMap;
-    if (config.empty()) {
+    if (configMap.empty()) {
         return;
     }
-
+    auto config = configMap;
+    
     ov::DeviceIDParser parser(deviceName);
     std::string clearDeviceName = parser.get_device_name();
 
@@ -1299,6 +1299,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             auto cache_it = config.find(ov::cache_dir.name());
             if (cache_it != config.end()) {
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
+                config.erase(cache_it);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
             // apply and remove core properties
@@ -1313,6 +1314,10 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             if (it != config.end()) {
                 config.erase(it);
             }
+        }
+
+        if (config.empty()) {
+            return;
         }
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
