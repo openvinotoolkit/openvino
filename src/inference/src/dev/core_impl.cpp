@@ -1274,10 +1274,11 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
 void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName) {
-    if (configMap.empty()) {
+    auto config = configMap;
+    if (config.empty()) {
         return;
     }
-    auto config = configMap;
+    
     ov::DeviceIDParser parser(deviceName);
     std::string clearDeviceName = parser.get_device_name();
 
