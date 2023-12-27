@@ -6197,3 +6197,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_with_spatial_scale) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor) {
+    auto model = convert_model("bitwise_xor.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {4, 7, 6, 1, 0});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
+    auto model = convert_model("bitwise_xor_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 0, 1});
+
+    test_case.run();
+}
