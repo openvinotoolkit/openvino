@@ -283,8 +283,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
                                  ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(8),     // FQ on input + MHA + Transpose on output + 4 Reshapes + Deq Mul
-                                 ::testing::Values(3),     // FQ on input + MHA + Deq Mul
+                                 ::testing::Values(9),     // FQx2 on inputs + MHA + Transpose on output + 4 Reshapes + Deq Mul
+                                 ::testing::Values(4),     // FQx2 on inputs + MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
