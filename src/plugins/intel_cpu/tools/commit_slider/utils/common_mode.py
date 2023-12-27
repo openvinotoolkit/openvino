@@ -85,16 +85,33 @@ class Mode(ABC):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
-    def prepareRun(self, list, cfg):
-        self.normalizeCfg(cfg)
-        cfg["serviceConfig"] = {}
+    def initialDegradationCheck(self, list, cfg):
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
                 i1=0, i2=len(list) - 1))
-        self.commitList = list
+
+    def prepareRun(self, list, cfg):
+        self.normalizeCfg(cfg)
+        cfg["serviceConfig"] = {}
+        # check prerun-cashed commits
+        canReduce, newList = util.getReducedInterval(list, cfg)
+        if canReduce:
+            if (self.traversal.isComparative() and
+                self.mode.checkIfListBordersDiffer(newList, cfg) or
+                not self.traversal.isComparative()):
+                self.commonLogger.info(
+                    "Initial interval reduced to cashed {c1}..{c2}".format(
+                        c1=newList[0], c2=newList[-1])
+                )
+                list = newList
+        else:
+            self.initialDegradationCheck(list, cfg)
+        return list
 
     def normalizeCfg(self, cfg):
+        if not self.traversal.isComparative():
+            cfg["checkIfBordersDiffer"] = False
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
@@ -134,7 +151,7 @@ class Mode(ABC):
                 csvwriter.writerows(rows)
 
     def run(self, list, cfg) -> int:
-        self.prepareRun(list, cfg)
+        list = self.prepareRun(list, cfg)
         for i, item in enumerate(list):
             list[i] = item.replace('"', "")
         self.traversal.wrappedBypass(
@@ -169,6 +186,11 @@ class Mode(ABC):
         class CommitState(Enum):
             BREAK = 1
             SKIPPED = 2
+            IGNORED = 3
+
+        class CommitSource(Enum):
+            BUILDED = 1
+            CASHED = 2
 
         class PathCommit:
             def __init__(self, cHash, state):
@@ -195,12 +217,18 @@ class Mode(ABC):
                 if be.errType == util.BuildError.BuildErrType.TO_SKIP:
                     self.skipCommit(be.commit, curList, cfg)
                     self.wrappedBypass(curList, list, cfg)
+                if be.errType == util.BuildError.BuildErrType.TO_IGNORE:
+                    self.ignoreCommit(be.commit, curList, cfg)
+                    self.wrappedBypass(curList, list, cfg)
                 elif be.errType == util.BuildError.BuildErrType.TO_REBUILD:
                     cfg["extendBuildCommand"] = True
                     self.wrappedBypass(curList, list, cfg)
                 else:
-                    # exception must be reported to user
-                    pass
+                    raise util.BuildError(
+                        message = "error occured during handling",
+                        errType = util.BuildError.BuildErrType.WRONG_STATE,
+                        commit=be.commit
+                        )
 
 
         def skipCommit(self, commit, curList, cfg):
@@ -216,21 +244,52 @@ class Mode(ABC):
             self.mode.commitPath.accept(self, pc)
 
 
+        def ignoreCommit(self, commit, curList, cfg):
+            curList.remove(commit)
+            pc = Mode.CommitPath.PathCommit(
+                commit,
+                Mode.CommitPath.CommitState.IGNORED
+            )
+            self.mode.commonLogger.info(
+                "Ignored commit {}".format(commit)
+            )
+            self.mode.setOutputInfo(pc)
+            self.mode.commitPath.accept(self, pc)
+
+
         def visit(self, cPath, commitToReport):
             cPath.append(commitToReport)
 
 
         def prepBypass(self, curList, list, cfg):
-            skipInterval = cfg["noCleanInterval"]
+            if (cfg["cachedPathConfig"]["enabled"] and
+                cfg["cachedPathConfig"]["scheme"] == "optional"):
+                # try to reduce interval by cashed borders
+                canReduce, newList = util.getReducedInterval(curList, cfg)
+                if canReduce:
+                    if (self.traversal.isComparative() and
+                        self.mode.checkIfListBordersDiffer(newList, cfg) or
+                        not self.traversal.isComparative()):
+                        self.mode.commonLogger.info(
+                            "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
+                                c1=curList[0], c2=curList[-1],
+                                c1_=newList[0], c2_=newList[-1])
+                        )
+                        curList = newList
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
-            cfg["serviceConfig"]["skipCleanInterval"] = i2 - i1 < skipInterval
             self.mode.commonLogger.info(
                 "Check interval {i1}..{i2}".format(i1=i1, i2=i2)
             )
             self.mode.commonLogger.info(
                 "Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2])
             )
+            return curList
+
+        def isComparative(self):
+            # redefine for uncommon traversal
+            return True
+
 
         def __init__(self, mode) -> None:
             self.mode = mode
@@ -240,7 +299,7 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
@@ -273,7 +332,7 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
@@ -306,7 +365,7 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
-            self.prepBypass(curList, list, cfg)
+            curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
@@ -344,3 +403,16 @@ class Mode(ABC):
                 self.wrappedBypass(
                     curList[mid :], list, cfg
                 )
+
+    class BruteForce(Traversal):
+        def __init__(self, mode) -> None:
+            super().__init__(mode)
+
+        def bypass(self, curList, list, cfg) -> int:
+            for commit in list:
+                self.mode.commonLogger.info(
+                    "Handle commit {}".format(commit))
+                self.mode.getPseudoMetric(commit, cfg)
+
+        def isComparative(self):
+            return False

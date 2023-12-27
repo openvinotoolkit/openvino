@@ -8,6 +8,26 @@ import shutil
 from utils.common_mode import Mode
 
 
+class NopMode(Mode):
+    # helpful with mode-ignorant traversal (brute force)
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, commit)
+        self.commonLogger.info("New commit: {commit}".format(
+            commit=commit)
+        )
+        handleCommit(commit, cfg)
+        checkOut = fetchAppOutput(cfg, commit)
+        commitLogger.info(checkOut)
+        return
+
+
 class CheckOutputMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
@@ -86,6 +106,7 @@ class BenchmarkAppPerformanceMode(Mode):
             ).group(1)
             self.setCommitCash(sampleCommit, float(foundThroughput))
         self.sampleThroughput = float(foundThroughput)
+        return list
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
@@ -147,6 +168,15 @@ class CompareBlobsMode(Mode):
         super().__init__(cfg)
         self.createCash()
         self.maxDiff = 0
+
+    def prepareRun(self, list, cfg):
+        # we need to exclude initial prerun-cash handling, as it may
+        # lead to ignoring multiple degradations
+        self.normalizeCfg(cfg)
+        cfg["serviceConfig"] = {}
+        # no check of prerun-cashed commits
+        self.initialDegradationCheck(list, cfg)
+        return list
 
     def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
