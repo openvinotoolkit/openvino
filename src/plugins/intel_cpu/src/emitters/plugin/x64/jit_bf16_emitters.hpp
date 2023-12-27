@@ -28,7 +28,7 @@ private:
         } else if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
         } else {
-            assert(!"unsupported isa");
+            OPENVINO_THROW("Unsupported ISA");
         }
     }
 
