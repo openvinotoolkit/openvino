@@ -11,24 +11,24 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 
 #include <openvino/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
