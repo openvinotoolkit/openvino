@@ -1278,7 +1278,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
     if (config.empty()) {
         return;
     }
-    
+
     ov::DeviceIDParser parser(deviceName);
     std::string clearDeviceName = parser.get_device_name();
 
