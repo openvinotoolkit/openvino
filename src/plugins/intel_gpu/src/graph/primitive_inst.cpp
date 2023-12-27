@@ -508,7 +508,9 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0] && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0]
+        && (_impl_params->input_layouts[0].count() != 0 // check if layout is zero dimension before using dep_memory()
+            && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0)))) {
         _outputs[0] = nullptr;
         max_output_layout_size = 0;
     }
@@ -930,8 +932,19 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_shape = _impl_params->get_input_layout(1).get_shape();
     auto idx_rank = idx_shape.size();
 
-    if (idx_rank > 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_shape.size() << std::endl;
+    // If all input layout count is zero, then it can be optimized because all input will be skipped for empty output.
+    if (_impl_params->get_input_layout(0).count() == 0 && _impl_params->get_input_layout(1).count() == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Gather axis : " << axis << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+        set_can_be_optimized(true);
+        return;
+    }
+
+    if (idx_rank != 1) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
         return;
     }
 
