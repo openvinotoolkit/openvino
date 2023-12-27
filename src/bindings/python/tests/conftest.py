@@ -11,7 +11,6 @@ def pytest_configure(config):
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
     config.addinivalue_line("markers", "skip_on_gpu: Skip test on GPU")
-    config.addinivalue_line("markers", "skip_on_gna: Skip test on GNA")
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
     config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")

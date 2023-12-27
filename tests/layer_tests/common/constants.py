@@ -13,6 +13,6 @@ else:
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
-# supported_devices : CPU, GPU, GNA
+# supported_devices : CPU, GPU
 test_device = os.environ.get('TEST_DEVICE', 'CPU;GPU').split(';')
 test_precision = os.environ.get('TEST_PRECISION', 'FP32;FP16').split(';')

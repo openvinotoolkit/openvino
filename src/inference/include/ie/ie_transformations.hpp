@@ -30,7 +30,7 @@ namespace InferenceEngine {
  * processes all back edges that describe a connection between Result and Parameter
  * of the TensorIterator/Loop bodies,and inserts ReadValue and Assign layers at the
  * input and output corresponding to this back edge.
- * Supported platforms: CPU, GNA.
+ * Supported platform: CPU.
  *
  * The example below describes the changes made by the transformation
  *  [] - TensorIterator body

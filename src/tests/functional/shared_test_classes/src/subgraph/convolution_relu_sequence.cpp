@@ -59,15 +59,6 @@ void ConvolutionReluSequenceTest::SetUp() {
         const auto biasesRange = 0.05f;
         std::vector<float> filter_weights;
         std::vector<float> biases;
-        if (targetDevice == ov::test::utils::DEVICE_GNA) {
-            auto filter_size = std::accumulate(std::begin(single.kernelSize), std::end(single.kernelSize), 1, std::multiplies<size_t>());
-            filter_weights = ov::test::utils::generate_float_numbers(single.numOutChannels * inputChannels * filter_size,
-                -filtersRange, filtersRange);
-            if (addBiases) {
-                biases = ov::test::utils::generate_float_numbers(single.numOutChannels,
-                    -biasesRange, biasesRange);
-            }
-        }
 
         std::shared_ptr<ngraph::Node> conv =
             std::dynamic_pointer_cast<ngraph::Node>(

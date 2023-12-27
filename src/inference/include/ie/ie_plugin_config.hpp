@@ -534,6 +534,3 @@ IE_SUPPRESS_DEPRECATED_END
 #include "gpu/gpu_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "multi-device/multi_device_config.hpp"
-
-// remove in 2022.1 major release
-#include "gna/gna_config.hpp"
