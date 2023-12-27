@@ -134,6 +134,8 @@ public:
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
 
+    bool is_dynamic() const;
+
     /* ------ Helpers for work with LinearIR ----- */
     /**
      * @brief Creates new Expression from `new_node` with inputs `inputs`,

@@ -182,6 +182,16 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     return result;
 }
 
+bool LinearIR::is_dynamic() const {
+    for (const auto& ioe : m_io_expressions) {
+        if (ioe->get_type() == IOExpression::io_type::INPUT && utils::is_dynamic_vdims(ioe->get_output_port_descriptor(0)->get_shape()))
+            return true;
+        if (ioe->get_type() == IOExpression::io_type::OUTPUT && utils::is_dynamic_vdims(ioe->get_input_port_descriptor(0)->get_shape()))
+            return true;
+    }
+    return false;
+}
+
 void LinearIR::debug_print(bool tds_as_pointers) const {
     auto print_rinfo = [](const RegInfo& rinfo) {
         std::cerr << " : {";

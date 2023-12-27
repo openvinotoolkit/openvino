@@ -16,18 +16,7 @@ namespace pass {
 
 using LoopPort = LinearIR::LoopManager::LoopPort;
 
-namespace {
-std::vector<size_t> get_outer_loop_ids(const ExpressionPtr& expr, size_t loop_id) {
-    const auto loop_ids = expr->get_loop_ids();
-    const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), loop_id);
-    OPENVINO_ASSERT(it != loop_ids.cend(), "Loop ID hasn't been found");
-    return std::vector<size_t>(loop_ids.cbegin(), it);
-}
-}  // namespace
-
-InsertLoops::InsertLoops() : Pass() {}
-
-void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop) {
+void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info(loop_id);
     auto loop_entries = loop_info->get_entry_points();
     auto loop_exits = loop_info->get_exit_points();
@@ -58,18 +47,37 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     init_params(loop_entries);
     init_params(loop_exits);
 
-    const auto outer_loop_ids = get_outer_loop_ids(*loop_bounds.first, loop_id);
+    // Should be inited by LoopInfo
+    const auto is_dynamic_loop = false;
 
-    const auto& loop_begin = std::make_shared<op::LoopBegin>();
+    const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_begin_pos, loop_id);
+
+    const auto& loop_begin = make_loop_begin(is_dynamic_loop);
     const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
 
-    const auto& loop_end = std::make_shared<op::LoopEnd>(
-            loop_begin->output(0), work_amount, work_amount_increment, is_incremented, ptr_increments,
+    const auto& loop_end = make_loop_end(
+            is_dynamic_loop, loop_begin->output(0), work_amount, work_amount_increment, is_incremented, ptr_increments,
             finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
-    loop_end->has_outer_loop = has_outer_loop;
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
+}
+
+std::shared_ptr<op::LoopBegin> InsertLoops::make_loop_begin(bool is_dynamic) {
+    if (is_dynamic)
+        return std::make_shared<op::LoopBeginDynamic>();
+    return std::make_shared<op::LoopBeginStatic>();
+}
+
+std::shared_ptr<op::LoopEnd> InsertLoops::make_loop_end(bool is_dynamic, const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
+                                                        std::vector<bool> is_incremented, std::vector<int64_t> ptr_increments,
+                                                        std::vector<int64_t> finalization_offsets, std::vector<int64_t> element_type_sizes,
+                                                        size_t input_num, size_t output_num, size_t id) {
+    if (is_dynamic)
+        return std::make_shared<op::LoopEndDynamic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments, finalization_offsets,
+                                                    element_type_sizes, input_num, output_num, id);
+    return std::make_shared<op::LoopEndStatic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments, finalization_offsets,
+                                               element_type_sizes, input_num, output_num, id);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir) {
@@ -94,8 +102,7 @@ bool InsertLoops::run(LinearIR& linear_ir) {
         for (size_t i = 0; i < loop_depth; ++i) {
             const auto loop_id = expr_loops[i];
             if (inserted_loops.count(loop_id) == 0) {
-                const bool has_outer_loop = i > 0 && inserted_loops.find(expr_loops[i - 1]) != inserted_loops.end();
-                insertion(linear_ir, loop_manager, loop_id, has_outer_loop);
+                insertion(linear_ir, loop_manager, loop_id);
                 inserted_loops.insert(loop_id);  // save Loop ID
             }
         }
