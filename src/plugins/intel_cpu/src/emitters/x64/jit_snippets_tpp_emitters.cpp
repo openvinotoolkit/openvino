@@ -11,8 +11,6 @@
 #include "transformations/snippets/tpp/op/brgemm.hpp"
 #include "libxsmm.h"
 #include "transformations/snippets/tpp/op/eltwise.hpp"
-// Note: for reference implementations
-#include <cmath>
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -539,28 +537,9 @@ ReduceTppEmitter::ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                    const ov::snippets::lowered::ExpressionPtr& expr)  :
                                    UnaryEltwiseTppEmitter(h, isa, expr) {
     m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_REDUCE_ROWS;
+    // No need to set ldo for reduce, it is always assumed = 1 inside the kernel
+    // m_shape.ldo = 1;
 }
-
-
-ReferenceUnaryEltwiseTppEmitter::ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                                                const ov::snippets::lowered::ExpressionPtr& expr) :
-                                                                UnaryEltwiseTppEmitter(h, isa, expr) {
- ref_executor = static_cast<float(*)(float)>(&std::exp);
-}
-
-const uintptr_t ReferenceUnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(this);
-}
-
-void ReferenceUnaryEltwiseTppEmitter::execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void *in0, void *out0) {
-    assert(ref_emitter);
-    // Note: we can instantiate template with different precision combinations here, if we need to
-    // Note: if switch(precision) is too expensive here, we can do it in the constructor and save the selected impl in function ptr
-    ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
-}
-
-
 
 }  // namespace intel_cpu
 }  // namespace ov

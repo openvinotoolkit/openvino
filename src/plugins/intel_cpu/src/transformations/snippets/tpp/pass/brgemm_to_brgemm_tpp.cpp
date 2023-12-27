@@ -86,6 +86,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
                                                      offset_a, offset_b, offset_c,
                                                      brgemm_in0_desc->get_layout(), brgemm_in1_desc->get_layout(), brgemm_out_desc->get_layout());
         }
+        OPENVINO_ASSERT(brgemm_tpp, "DEBUG ASSERT: FAILED TO CREATE BrgemmTPP in the BrgemmToBrgemmTPP pass");
         // Set blocking params
         // Ticket: 113745
         // TODO: extend block size selection heuristics

@@ -143,19 +143,34 @@ public:
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr);
 };
+
 class ReferenceUnaryEltwiseTppEmitter : public UnaryEltwiseTppEmitter {
 public:
+    // Note: can create template to suppport different executor signatures
+    typedef std::function<float(float)> executor_function;
     ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                    const ov::snippets::lowered::ExpressionPtr& expr);
-    static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_executor, void *in0, void *out0);
-    const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
-    const uintptr_t get_compiled_kernel_ptr() const override;
+                                    const ov::snippets::lowered::ExpressionPtr& expr,
+                                    executor_function executor) :
+                                    UnaryEltwiseTppEmitter(h, isa, expr), executor(std::move(executor)) {
+    }
+    static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void *in0, void *out0) {
+        assert(ref_emitter);
+        // Note: we can instantiate template with different precision combinations here, if we need to
+        // Note: if switch(precision) is too expensive here, we can do it in the constructor and save the selected impl in function ptr
+        ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
+    }
+    const uintptr_t get_execute_function_ptr() const override {
+        return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel);
+    }
+    const uintptr_t get_compiled_kernel_ptr() const override {
+        return reinterpret_cast<const uintptr_t>(this);
+    }
 
 private:
     size_t in0_type_size{0};
     size_t out0_type_size{0};
-    std::function<float(float)> ref_executor{nullptr};
+    executor_function executor{nullptr};
 
     template<class Tin, class Tout,
              typename std::enable_if<!std::is_same<Tin, Tout>::value || !std::is_same<Tin, float>::value, bool>::type = true>
@@ -164,7 +179,7 @@ private:
                 auto in0_row = in0;
                 auto out0_row = out0;
                 for (int m = 0; m < m_shape.m; m++)
-                    out0_row[m] = static_cast<Tout>(ref_executor(static_cast<float>(in0_row[m])));
+                    out0_row[m] = static_cast<Tout>(executor(static_cast<float>(in0_row[m])));
                 in0 += m_shape.ldi;
                 out0 += m_shape.ldo;
         }
@@ -174,14 +189,12 @@ private:
                 auto in0_row = in0;
                 auto out0_row = out0;
                 for (int m = 0; m < m_shape.m; m++)
-                    out0_row[m] = ref_executor(in0_row[m]);
+                    out0_row[m] = executor(in0_row[m]);
                 in0 += m_shape.ldi;
                 out0 += m_shape.ldo;
         }
     }
 };
-
-
 
 
 }   // namespace intel_cpu

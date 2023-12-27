@@ -34,11 +34,14 @@
 #include "transformations/snippets/tpp/op/reduce.hpp"
 #include "transformations/snippets/tpp/op/modifiers.hpp"
 
+// Note: for reference implementations
+#include <cmath>
+
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type) { \
+#define CREATE_SNIPPETS_EMITTER(e_type, ...) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-        return std::make_shared<e_type>(h.get(), isa, expr); \
+        return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__); \
     }, \
     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
@@ -191,7 +194,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::tpp::op::Divide::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
 
     // jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] =
+            CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, static_cast<float(*)(float)>(std::exp));
 
     jitters[intel_cpu::tpp::op::Relu::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
@@ -265,6 +269,7 @@ snippets::Generator::opRegType intel_cpu::CPUGenerator::get_specific_op_reg_type
     else
        return undefined;
 }
+
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     return std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e) ||

@@ -25,7 +25,9 @@ using namespace snippets::lowered;
 template<typename T>
 void set_port_desc(const T& port) {
     const auto& shape = port.get_shape();
-    const std::vector<size_t> subtensor{32, 64};
+    std::vector<size_t> subtensor{32, 64};
+    for (int i = 1; i <= std::min(subtensor.size(), shape.size()); i++)
+        subtensor[subtensor.size() - i] = std::min(subtensor[subtensor.size() - i], shape[shape.size() - i]);
     PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor));
 }
 template<typename T, typename... Args>
@@ -56,8 +58,6 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         }
 
         const auto& tpp_eltwise = op::TPPNodeFactory::create(node);
-        if (!tpp_eltwise)
-            std::cerr << "\n";
         OPENVINO_ASSERT(tpp_eltwise, "Failed to create TPP node");
 
         ngraph::replace_node(node, tpp_eltwise);

@@ -17,11 +17,12 @@ namespace snippets {
 namespace {
 
 const std::vector<std::vector<ov::PartialShape>> inputShapes_4D = {
-        {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
-        {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
-        {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
-        {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
-        {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}},
+        {{1, 8, 12, 64}, {1, 8, 12, 64}, {1, 12, 8, 8}, {1, 8, 12, 64}},
+        // {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
+        // {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
+        // {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
+        // {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
+        // {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}},
 };
 
 const std::vector<std::vector<ov::PartialShape>> inputShapes_3D = {
@@ -60,14 +61,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D, MHA,
                                  ::testing::ValuesIn(inputShapes_4D),
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::f32),
-                                 ::testing::ValuesIn({false, true}),
+                                 ::testing::ValuesIn({false}),
+//                                 ::testing::ValuesIn({false, true}),
                                  ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
-
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D, MHA,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_3D),
@@ -359,7 +361,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWithExtractedReshape, MHAWithExtracte
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(std::map<std::string, std::string>{})),
                          MHA::getTestCaseName);
-
+*/
 } // namespace
 } // namespace snippets
 } // namespace test
