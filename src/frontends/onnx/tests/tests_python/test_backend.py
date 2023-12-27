@@ -85,6 +85,7 @@ from tests import (
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
+    skip_issue_124587,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -777,6 +778,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+    ),
+    (
+        skip_issue_124587,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
     ),
 ]
 
