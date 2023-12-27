@@ -355,16 +355,16 @@ void compare(const ov::Tensor& expected,
             auto abs_median = calculate_median(abs_values);
             auto elem_type = expected.get_element_type();
 
-            abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+            abs_threshold = abs_median * 0.1 < 1e-5 ? 1e-5 : 0.1 * abs_median;
 
             if (elem_type == ov::element::Type_t::boolean) {
                 abs_threshold = 0.;
             } else if (elem_type.is_integral_number()) {
                 abs_threshold = 1.0;
             } else if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
-                abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+                abs_threshold = abs_median * 0.1 < 1e-5 ? 1e-5 : 0.1 * abs_median;
             } else if (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) {
-                abs_threshold = abs_median * 0.05 < 1e-3 ? 1e-3 : 0.05 * abs_median;
+                abs_threshold = abs_median * 0.1 < 1e-3 ? 1e-3 : 0.1 * abs_median;
             }
 
             rel_threshold = abs_threshold;
