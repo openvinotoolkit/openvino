@@ -3,38 +3,48 @@
 
 import pytest
 import numpy as np
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 # Testing operation ConjugateTranspose
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/ConjugateTranspose
 
 
-class TestConjugateTranspose(CommonTFLayerTest):
+class TestComplexConjugateTranspose(CommonTFLayerTest):
     
     def _prepare_input(self, inputs_info):
         
-        assert 'x' in inputs_info
-        input_shape = inputs_info['x']
+        rng = np.random.default_rng()
+        assert 'real_part' in inputs_info
+        real_part_shape = inputs_info['real_part']
+        assert 'imag_part' in inputs_info
+        imag_part_shape = inputs_info['imag_part']
+        
         inputs_data = {}
-        inputs_data['x'] = np.random.default_rng().random(input_shape).astype(np.complex64)
+        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
+        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
+        
         return inputs_data
     
-    def create_conjugate_transpose_net(self, shape, perm):
+    def create_complex_conjugate_transpose_net(self, input_shape, perm):
         """
             TensorFlow net                                 IR net
 
             Placeholder->ConjugateTranspose    =>       Placeholder->Transpose->Conjugate->Transpose
         """
 
-        import tensorflow as tf
-
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_input = tf.compat.v1.placeholder(tf.complex64, shape, "Input")
+            real_part = tf.compat.v1.placeholder(np.float32, input_shape, 'real_part')
+            imag_part = tf.compat.v1.placeholder(np.float32, input_shape, 'imag_part')
+            
+            complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
-            tf.raw_ops.ConjugateTranspose(x=tf_input, perm=perm, name = "Operation")
+            conj_tranpose = tf.raw_ops.ConjugateTranspose(x=complex_input, perm=perm, name = "Operation")
+            real = tf.raw_ops.Real(input=conj_tranpose)
+            img = tf.raw_ops.Imag(input=conj_tranpose)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -43,6 +53,57 @@ class TestConjugateTranspose(CommonTFLayerTest):
 
         return tf_net, ref_net
     
+    
+    test_data = [
+        (dict(shape=[1, 2], perm=[1, 0])),
+        (dict(shape=[1, 2, 3], perm=[2, 1, 0])),
+        (dict(shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
+        (dict(shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
+    ]
+    
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir,
+                                 use_new_frontend, use_old_api):
+        self._test(*self.create_complex_conjugate_transpose_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+
+
+class TestConjugateTranspose(CommonTFLayerTest):
+    
+    def _prepare_input(self, inputs_info):
+        
+        assert 'x' in inputs_info
+        input_shape = inputs_info['x']
+        
+        inputs_data = {}
+        inputs_data['x'] = np.random.default_rng().random(input_shape).astype(np.float32)
+        
+        return inputs_data
+    
+    def create_conjugate_transpose_net(self, input_shape, perm):
+        """
+            TensorFlow net                                 IR net
+
+            Placeholder->ConjugateTranspose    =>       Placeholder->Transpose->Conjugate->Transpose
+        """
+
+        tf.compat.v1.reset_default_graph()
+
+        # Create the graph and model
+        with tf.compat.v1.Session() as sess:
+            input = tf.compat.v1.placeholder(np.float32, input_shape, 'input')
+
+            tf.raw_ops.ConjugateTranspose(x=input, perm=perm, name = "Operation")
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        ref_net = None
+
+        return tf_net, ref_net
     
     test_data = [
         (dict(shape=[1, 2], perm=[1, 0])),
