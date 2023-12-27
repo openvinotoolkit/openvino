@@ -21,7 +21,7 @@ from tf_hub_tests.utils import type_map, load_graph, get_input_signature, get_ou
 
 class TestTFHubConvertModel(TestConvertModel):
     def setup_class(self):
-        self.repo_dir = tempfile.TemporaryDirectory()
+        self.model_dir = tempfile.TemporaryDirectory()
 
     def load_model(self, model_name, model_link):
         if 'storage.openvinotoolkit.org' in model_link:
@@ -31,7 +31,9 @@ class TestTFHubConvertModel(TestConvertModel):
             if model_file_name.endswith('.tar.gz'):
                 # unzip archive and try to find the frozen model
                 subprocess.check_call(["tar", "-xvzf", model_file_name], cwd=self.model_dir.name)
-                model_file_name = os.path.join(model_file_name[:-7], 'frozen_inference_graph.pb')
+                model_file_name = os.path.join(self.model_dir.name, model_file_name[:-7], 'frozen_inference_graph.pb')
+            else:
+                model_file_name = os.path.join(self.model_dir.name, model_file_name)
             if model_file_name.endswith('.pb'):
                 graph = load_graph(model_file_name)
                 return graph
@@ -59,12 +61,12 @@ class TestTFHubConvertModel(TestConvertModel):
         for input_name, input_info in input_signature:
             input_shape = []
             try:
-                if input_info['shape'].as_list() == [None, None, None, 3] and input_info['dtype'] == tf.float32:
+                if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
                     # image classification case, let us imitate an image
                     # that helps to avoid compute output size issue
                     input_shape = [1, 200, 200, 3]
                 else:
-                    for dim in input_info['shape'].as_list():
+                    for dim in input_info.shape.as_list():
                         if dim is None:
                             input_shape.append(1)
                         else:
@@ -72,11 +74,11 @@ class TestTFHubConvertModel(TestConvertModel):
             except ValueError:
                 # unknown rank case
                 pass
-            if input_info['dtype'] == tf.resource:
+            if input_info.dtype == tf.resource:
                 # skip inputs corresponding to variables
                 continue
-            assert input_info['dtype'] in type_map, "Unsupported input type: {}".format(input_info['dtype'])
-            inputs_info.append((input_name, input_shape, type_map[input_info['dtype']]))
+            assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
+            inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
         return inputs_info
 
@@ -84,7 +86,7 @@ class TestTFHubConvertModel(TestConvertModel):
         if type(model_obj) is tf_v1.Graph:
             # infer tf.Graph object
             feed_dict = {}
-            for input_name, input_value in inputs.items:
+            for input_name, input_value in inputs.items():
                 input_tensor = model_obj.get_tensor_by_name(input_name)
                 feed_dict[input_tensor] = input_value
 

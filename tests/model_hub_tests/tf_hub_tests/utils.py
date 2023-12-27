@@ -50,7 +50,7 @@ def get_input_signature(graph: tf_v1.Graph):
             op_name = op.name + ':0'
             op_shape = tf.TensorShape(op.node_def.attr['shape'].shape)
             op_type = tf.dtypes.DType(op.node_def.attr['dtype'].type)
-            input_signature.append((op_name, {'shape': op_shape, 'dtype': op_type}))
+            input_signature.append((op_name, tf.TensorSpec(op_shape, op_type)))
     return input_signature
 
 

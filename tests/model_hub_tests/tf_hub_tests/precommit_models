@@ -21,4 +21,4 @@ esrgan-tf2,https://www.kaggle.com/models/kaggle/esrgan-tf2/frameworks/tensorFlow
 film,https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1
 planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v2/frameworks/tensorFlow1/variations/planet-vision-classifier-planet-v2/versions/1
 # TF1 models in .pb format
-ssd_mobilenet_v1_coco,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_2018_01_28.tar.gz
+i3d-rgb,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/i3d-rgb-tf/rgb.frozen.pb
