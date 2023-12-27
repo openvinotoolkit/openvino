@@ -358,12 +358,15 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
+        OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
+        const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
+
+        // Note: we do not mark loops that need only single iteration here.
+//        if (subtensor_value == PortDescriptor::ServiceDimensions::FULL_DIM || subtensor_value == work_amount) {
         if (subtensor_value == PortDescriptor::ServiceDimensions::FULL_DIM) {
             continue;
         }
 
-        OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
-        const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
         const auto increment = subtensor_value;
         const auto id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_entry_points, loop_exit_points);
         const auto loop_info = get_loop_info(id);
