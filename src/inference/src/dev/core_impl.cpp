@@ -1315,29 +1315,27 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             }
         }
 
-        if (config.empty()) {
-            return;
-        }
-
-        auto base_desc = pluginRegistry.find(clearDeviceName);
-        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-            PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
-            pluginRegistry[deviceName] = desc;
-        }
-
-        // set config for plugins in registry
-        bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
-            if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
-                }
-                configIsSet = true;
+        if (!config.empty()) {
+            auto base_desc = pluginRegistry.find(clearDeviceName);
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+                PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+                pluginRegistry[deviceName] = desc;
             }
-        }
 
-        if (!configIsSet && !deviceName.empty()) {
-            OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            // set config for plugins in registry
+            bool configIsSet = false;
+            for (auto& desc : pluginRegistry) {
+                if (deviceName.empty() || deviceName == desc.first) {
+                    for (auto&& conf : config) {
+                        desc.second.defaultConfig[conf.first] = conf.second;
+                    }
+                    configIsSet = true;
+                }
+            }
+
+            if (!configIsSet && !deviceName.empty()) {
+                OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            }
         }
 
         // set config for already created plugins
