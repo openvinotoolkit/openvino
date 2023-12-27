@@ -25,8 +25,8 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
-#include <emitters/aarch64/jit_emitter.hpp>
-#include <emitters/aarch64/jit_eltwise_emitters.hpp>
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "nodes/kernels/jit_eltwise_call_args_ptrs.hpp"
 
 namespace ov {
