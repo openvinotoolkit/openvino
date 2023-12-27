@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "openvino/pass/graph_rewrite.hpp"
@@ -83,20 +84,24 @@ public:
                      ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {},
                      bool keep_precision_sensitive_in_fp32 = false,
-                     bool convert_input_output_precision = true)
+                     bool convert_input_output_precision = true,
+                     bool store_original_precision_as_rt_attribute = false)
         : m_precisions(precisions_map{{from, to}}),
-          m_additional_type_to_fuse_map(additional_type_to_fuse_map),
+          m_additional_type_to_fuse_map(std::move(additional_type_to_fuse_map)),
           m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32),
-          m_convert_input_output_precision(convert_input_output_precision) {}
+          m_convert_input_output_precision(convert_input_output_precision),
+          m_store_original_precision_as_rt_attribute(store_original_precision_as_rt_attribute) {}
 
     ConvertPrecision(const precisions_map& precisions,
                      const type_to_fuse_map& additional_type_to_fuse_map = {},
                      bool keep_precision_sensitive_in_fp32 = false,
-                     bool convert_input_output_precision = true)
+                     bool convert_input_output_precision = true,
+                     bool store_original_precision_as_rt_attribute = false)
         : m_precisions(precisions),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map),
           m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32),
-          m_convert_input_output_precision(convert_input_output_precision) {}
+          m_convert_input_output_precision(convert_input_output_precision),
+          m_store_original_precision_as_rt_attribute(store_original_precision_as_rt_attribute) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
@@ -105,4 +110,5 @@ private:
     type_to_fuse_map m_additional_type_to_fuse_map;
     bool m_keep_precision_sensitive_in_fp32;
     bool m_convert_input_output_precision;
+    bool m_store_original_precision_as_rt_attribute;
 };

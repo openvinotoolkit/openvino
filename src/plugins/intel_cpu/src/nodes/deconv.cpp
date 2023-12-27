@@ -4,15 +4,15 @@
 
 #include "deconv.h"
 
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <nodes/common/cpu_memcpy.h>
 
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "shape_inference/shape_inference_ngraph.hpp"
 
 #include "eltwise.h"
 #include "fake_quantize.h"
@@ -35,7 +35,6 @@
 #include <vector>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -233,7 +232,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
     attr = std::make_shared<dnnl::primitive_attr>();
 }
 
-InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::SizeVector dims) {
+MemoryPtr Deconvolution::createWeiBlobAsIO(const VectorDims& dims) {
     auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
     if (!constNode)
         OPENVINO_THROW("Cannot cast const input node for node ", getName(), ".");
@@ -244,7 +243,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     auto const blbSize = blb->getSize();
 
     // WA: In int8 case, we are processing weights using internal blob.
-    InferenceEngine::SizeVector dimsForBlockedDesc{dims};
+    VectorDims dimsForBlockedDesc{dims};
     std::swap(dimsForBlockedDesc[withGroups + 0], dimsForBlockedDesc[withGroups + 1]);
 
     VectorDims orderForBlockedDesc;
@@ -256,18 +255,15 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     for (size_t i = 2 + withGroups; i < dimsForBlockedDesc.size(); i++)
         orderForBlockedDesc.push_back(i);
 
-    BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
-    InferenceEngine::TensorDesc tensorDesc(
-        InferenceEngine::details::convertPrecision(DnnlExtensionUtils::DataTypeToElementType(blb->getDataType())),
-        dims,
-        blkDesc);
-
-    Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(tensorDesc);
-    internalBlob->allocate();
-    char *data = internalBlob->buffer();
-    if (data == nullptr)
-        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
-    size_t intBuffSize = internalBlob->byteSize();
+    auto desc = CpuBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToElementType(blb->getDataType()),
+                                     Shape(dims),
+                                     dimsForBlockedDesc,
+                                     orderForBlockedDesc);
+    MemoryPtr mem_ptr = std::make_shared<Memory>(getEngine(), desc);
+    if (!mem_ptr->isAllocated())
+        OPENVINO_THROW("NotAllocated: Internal tensor was not allocated for node ", getName(), ".");
+    char* data = static_cast<char*>(mem_ptr->getData());
+    size_t intBuffSize = mem_ptr->getSize();
 
     size_t offset = blbSize;
     if (intBuffSize < offset) {
@@ -275,7 +271,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     }
     cpu_memcpy_s(data, intBuffSize, blb->getData(), blbSize);
 
-    return internalBlob;
+    return mem_ptr;
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -846,8 +842,7 @@ void Deconvolution::createPrimitive() {
         if (found) {
             prepareMemory({DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc(0))});
         } else {
-            prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
-                        MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
+            prepareMemory({internalBlobs.front()->getDescWithType<DnnlMemoryDesc>()});
         }
     }
 

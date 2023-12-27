@@ -1,23 +1,19 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/opsets/opset13.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
-#include <openvino/opsets/opset13.hpp>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
-
-#include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace ov::test;
-using namespace ngraph;
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 using ConcatSDPTestParams = std::tuple<ElementType,
                                        std::vector<InputShape>,
@@ -28,7 +24,8 @@ using ConcatSDPTestParams = std::tuple<ElementType,
  *                                |
  *       Parameter    ReadValue   |    ReadValue  Parameter
  *           \           /        |       \          /
- *            \         /         |        \        /
+ *         Gather       /               Gather      /
+ *             \       /          |         \      /
  *               Concat           |          Concat
  *                / \             |            / \
  *               /   \            |           /   \
@@ -102,11 +99,16 @@ public:
             pastk_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastk);
             pastv_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastv);
         }
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, 2);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, 2);
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
+        beam_idx->set_friendly_name("beam_idx");
+        inputParams.push_back(beam_idx);
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, 2);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
         sdp->set_friendly_name("mha");
-        auto add = std::make_shared<op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto add = std::make_shared<ov::op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");
@@ -118,7 +120,7 @@ public:
             results.push_back(std::make_shared<ov::op::v0::Result>(pastv_shapeof));
         }
         SinkVector sinks{pastk_assign, pastv_assign};
-        function = std::make_shared<Function>(results, sinks, inputParams, "ConcatSDP");
+        function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         functionRefs = function->clone();
@@ -145,7 +147,16 @@ public:
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
-            if (param->get_element_type() == element::f32) {
+            if (param->get_element_type() == element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size;
+                }
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
@@ -155,11 +166,12 @@ public:
                 inputs.insert({param, t});
             }
         };
-        // q, k, v
+        // q, k, v, pastkv
         create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
         create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
         create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
         create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
     }
     void prepare() {
         compile_model();
@@ -198,6 +210,7 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -207,12 +220,19 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
 
 namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
-    // dynamic batch
+    // greedy search
     {
         // B, H, L1, S
         {{1, 8, -1, 64}, {{1, 8, 10, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 20, 64}, {1, 8, 1, 64}}},
         // B, H, L0, S
         {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 10, 64}, {1, 8, 11, 64}, {1, 8, 12, 64}, {1, 8, 32, 64}}},
+    },
+    // beam search
+    {
+        // B, H, L1, S
+        {{-1, 8, -1, 64}, {{4, 8, 10, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}}},
+        // B, H, L0, S
+        {{-1, 8, -1, 64}, {{4, 8, 0, 64}, {4, 8, 10, 64}, {4, 8, 11, 64}, {4, 8, 12, 64}, {4, 8, 13, 64}}},
     },
 };
 
@@ -224,4 +244,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

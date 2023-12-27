@@ -24,7 +24,7 @@
 #include <ov_ops/nms_static_shape_ie.hpp>
 #include <ov_ops/multiclass_nms_ie_internal.hpp>
 
-#include <snippets/op/subgraph.hpp>
+#include "snippets/op/subgraph.hpp"
 
 #include <mutex>
 
@@ -140,7 +140,6 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(Brgemm, ov::snippets::op)
-        NGRAPH_OP(Buffer, ov::snippets::op)
         NGRAPH_OP(BroadcastLoad, ov::snippets::op)
         NGRAPH_OP(BroadcastMove, ov::snippets::op)
         NGRAPH_OP(ConvertSaturation, ov::snippets::op)
@@ -149,10 +148,12 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(HorizonMax, ov::snippets::op)
         NGRAPH_OP(HorizonSum, ov::snippets::op)
         NGRAPH_OP(Kernel, ov::snippets::op)
+        NGRAPH_OP(IntermediateMemoryBuffer, ov::snippets::op)
         NGRAPH_OP(Load, ov::snippets::op)
         NGRAPH_OP(LoadReshape, ov::snippets::op)
         NGRAPH_OP(LoopBegin, ov::snippets::op)
         NGRAPH_OP(LoopEnd, ov::snippets::op)
+        NGRAPH_OP(NewMemoryBuffer, ov::snippets::op)
         NGRAPH_OP(Nop, ov::snippets::op)
         NGRAPH_OP(PowerStatic, ov::snippets::op)
         NGRAPH_OP(Scalar, ov::snippets::op)
@@ -160,16 +161,20 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
         NGRAPH_OP(RankNormalization, ov::snippets::op)
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP(PerfCountBegin, ov::snippets::op)
         NGRAPH_OP(PerfCountEnd, ov::snippets::op)
+#endif
         NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
         NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
+#ifdef SNIPPETS_DEBUG_CAPS
         NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
         NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
+#endif
 #undef NGRAPH_OP
 
         return opset;

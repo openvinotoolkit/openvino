@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/batch_norm.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace LayerTestsDefinitions {
 std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj) {
     InferenceEngine::Precision netPrecision;
@@ -42,9 +44,9 @@ void BatchNormLayerTest::SetUp() {
     size_t C = inputShapes.at(1);
     bool random = true;
     std::vector<float> values(C);
-    auto gamma = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
-    auto beta = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
-    auto mean = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+    auto gamma = ov::test::utils::deprecated::make_constant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+    auto beta = ov::test::utils::deprecated::make_constant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
+    auto mean = ov::test::utils::deprecated::make_constant(ngPrc, ov::Shape{C}, values, random, 1.f, 0.f);
 
     // Fill the vector for variance with positive values
     std::default_random_engine gen;
@@ -52,7 +54,7 @@ void BatchNormLayerTest::SetUp() {
     std::generate(values.begin(), values.end(), [&dis, &gen]() {
         return dis(gen);
     });
-    auto variance = ngraph::builder::makeConstant(ngPrc, ov::Shape{C}, values, !random);
+    auto variance = ov::test::utils::deprecated::make_constant(ngPrc, ov::Shape{C}, values, !random);
     auto batchNorm = std::make_shared<ov::op::v5::BatchNormInference>(params[0], gamma, beta, mean, variance, epsilon);
 
     ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(batchNorm)};

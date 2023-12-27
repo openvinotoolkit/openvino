@@ -4,6 +4,8 @@
 
 if(CPACK_GENERATOR STREQUAL "DEB")
     include("${OpenVINO_SOURCE_DIR}/cmake/packaging/debian.cmake")
+elseif(CPACK_GENERATOR STREQUAL "NPM")
+    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/npm.cmake")
 elseif(CPACK_GENERATOR STREQUAL "RPM")
     include("${OpenVINO_SOURCE_DIR}/cmake/packaging/rpm.cmake")
 elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN|VCPKG)$")

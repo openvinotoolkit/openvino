@@ -6,16 +6,17 @@
 #include <vector>
 
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset6.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "openvino/op/util/variable.hpp"
-#include <openvino/op/util/assign_base.hpp>
+#include "openvino/op/util/assign_base.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/assign_and_read_value.hpp"
 #include "low_precision/network_helper.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -92,7 +93,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
             FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     const auto add = std::make_shared<ov::opset1::Add>(lastNode, input);
     const auto FQAfterAdd = fakeQuantize.empty() ? nullptr :
-                              ngraph::builder::makeFakeQuantize(
+                              ov::test::utils::make_fake_quantize(
                                       add,
                                       precision,
                                       fakeQuantize.quantizationLevel,

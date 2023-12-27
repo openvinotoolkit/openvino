@@ -34,7 +34,6 @@
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
-#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
@@ -68,14 +67,6 @@ void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator)
 
 void Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
-}
-
-void Subgraph::set_min_jit_work_amount(const size_t jit_work_amount) {
-    config.m_min_jit_work_amount = jit_work_amount;
-}
-
-void Subgraph::set_min_parallel_work_amount(const size_t parallel_work_amount) {
-    config.m_min_parallel_work_amount = parallel_work_amount;
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
@@ -348,15 +339,18 @@ VectorDims Subgraph::infer_master_shape() {
 }
 
 std::shared_ptr<lowered::LinearIR>
-Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+                                    const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops ||
-        (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.m_save_expressions = lowering_config.m_save_expressions || (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
+#endif
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
-    lowering_config.m_min_parallel_work_amount = config.m_min_parallel_work_amount;
-    lowering_config.m_min_kernel_work_amount = config.m_min_jit_work_amount;
+    lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
+    lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
@@ -429,12 +423,19 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
+    // We have to call MarkLoops before backend markup passes
+    // because these passes can update subtensor but not insert Loop (e.g. when loop increment is equal to the corresponding dim)
+    // If MarkLoops is called on such LIR, it inserts Eltwise-like loops which might not reflect backend expectations
+    // It should be fixed by ticket 113666
+    lowered::pass::PassPipeline markup_pipeline;
+    markup_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
+    markup_pipeline.run(linear_ir);
+
     // Ticket: 113666
     // TODO: Make pass pipeline with backend passes more flexible
     backend_passes_pre_common.run(linear_ir);
 
     lowered::pass::PassPipeline common_pipeline;
-    common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
     common_pipeline.register_pass<lowered::pass::FuseLoops>();
     common_pipeline.register_pass<lowered::pass::SplitLoops>();
@@ -458,7 +459,6 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     final_pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
     final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();
-    final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
 }
 
@@ -468,10 +468,11 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const std::vector<snippets::pass::Manager::PositionedPass>& data_flow_backend_passes,
                                       const lowered::pass::PassPipeline& backend_passes_pre_common,
                                       const lowered::pass::PassPipeline& backend_passes_post_common,
+                                      size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
-    convert_body_to_linear_ir(factory);
+    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
     return generate_from_linear_ir(backend_passes_pre_common, backend_passes_post_common, compile_params);
 }
 
@@ -489,10 +490,12 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+#ifdef SNIPPETS_DEBUG_CAPS
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
         lowered::pass::InsertPerfCount perf_count_pass;
         perf_count_pass.run(linear_ir);
     }
+#endif
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();
@@ -526,16 +529,6 @@ void Subgraph::print() const {
         }
         remark(13) << std::endl;
     }
-}
-
-
-void Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(body_ptr());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
 }
 
 } // namespace op

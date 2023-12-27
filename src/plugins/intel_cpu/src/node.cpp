@@ -3,74 +3,68 @@
 //
 
 #include "node.h"
-#include "edge.h"
-#include "extension_mngr.h"
-#include "partitioned_mem_mgr.h"
-#include "itt.h"
 
 #include "caseless.hpp"
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <string>
-#include <limits>
-#include <cstdint>
-#include <unordered_map>
-
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "dnnl_debug.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "edge.h"
+#include "extension_mngr.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
+#include "nodes/depth_to_space.h"
 #include "nodes/eltwise.h"
-#include "nodes/matmul.h"
+#include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
-#include "nodes/generic.h"
 #include "nodes/if.h"
 #include "nodes/input.h"
+#include "nodes/interpolate.h"
 #include "nodes/lrn.h"
-#include "nodes/pooling.h"
-#include "nodes/reorder.h"
-#include "nodes/reshape.h"
-#include "nodes/softmax.h"
-#include "nodes/tile.h"
-#include "nodes/split.h"
-#include "nodes/pad.h"
-#include "nodes/transpose.h"
+#include "nodes/matmul.h"
 #include "nodes/memory.hpp"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
+#include "nodes/pad.h"
+#include "nodes/pooling.h"
 #include "nodes/reduce.h"
-#include "nodes/tensoriterator.h"
-#include "nodes/scatter_update.h"
-#include "nodes/interpolate.h"
-#include "nodes/depth_to_space.h"
-#include "nodes/space_to_depth.h"
-#include "nodes/strided_slice.h"
-#include "nodes/shuffle_channels.h"
 #include "nodes/reference.h"
-#include "nodes/fake_quantize.h"
-#include "dnnl_extension_utils.h"
-
-#include "nodes/common/cpu_memcpy.h"
-#include "utils/rt_info/memory_formats_attribute.hpp"
-#include <openvino/opsets/opset1.hpp>
-
-#include <dnnl_types.h>
-#include <dnnl_debug.h>
-#include <ie_ngraph_utils.hpp>
-#include "utils/general_utils.h"
+#include "nodes/reorder.h"
+#include "nodes/reshape.h"
+#include "nodes/scatter_update.h"
+#include "nodes/shuffle_channels.h"
+#include "nodes/softmax.h"
+#include "nodes/space_to_depth.h"
+#include "nodes/split.h"
+#include "nodes/strided_slice.h"
+#include "nodes/tensoriterator.h"
+#include "nodes/tile.h"
+#include "nodes/transpose.h"
+#include "openvino/opsets/opset1.hpp"
+#include "partitioned_mem_mgr.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/verbose.h"
-#include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
-
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -855,13 +849,11 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
                        internalBlobs.size());
     }
 
-    const auto &internalBlob = internalBlobs[indx];
+    const auto& internalBlob = internalBlobs[indx];
 
-    auto create = [&] () {
-        // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-        auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
-
-        Memory memory{engine, newDesc, internalBlob->buffer()};
+    auto create = [&]() {
+        auto newDesc = internalBlob->getDescPtr();
+        Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
@@ -872,12 +864,13 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
         const auto& format = intDesc->serializeFormat();
-        const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                internalBlob->buffer(), internalBlob->byteSize());
+        const uint64_t data_hash =
+            weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
+                                            internalBlob->getSize());
 
         const std::string string_hash = name + "_" + std::to_string(indx)
                                         + "_" + format
-                                        + "_" + std::to_string(internalBlob->byteSize())
+                                        + "_" + std::to_string(internalBlob->getSize())
                                         + "_" + std::to_string(data_hash);
 
         ptr = *weightCache->findOrCreate(string_hash, create);
@@ -979,48 +972,32 @@ bool Node::isInPlace() const {
     return inplace == InPlaceType::InPlace;
 }
 
-bool Node::isConstant() {
-    if (constant == ConstantType::Unknown) {
-        std::vector<NodePtr> checkNodes;
-        for (size_t i = 0; i < getChildEdges().size(); i++) {
-            checkNodes.push_back(getChildEdgeAt(i)->getChild());
-        }
-        while (constant != ConstantType::NoConst && !checkNodes.empty()) {
-            constant = checkNodes.front()->checkConstant(LOOK_DOWN, checkNodes);
-            checkNodes.erase(checkNodes.begin());
-        }
-        if (constant != ConstantType::Const) {
-            constant = ConstantType::Unknown;
-            checkNodes.clear();
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                checkNodes.push_back(getParentEdgeAt(i)->getParent());
-            }
-            while (constant != ConstantType::NoConst && !checkNodes.empty()) {
-                constant = checkNodes.front()->checkConstant(LOOK_UP, checkNodes);
-                checkNodes.erase(checkNodes.begin());
-            }
-        }
-        if (constant == ConstantType::Unknown)
-            constant = ConstantType::NoConst;
-    }
-    return constant == ConstantType::Const;
+Node::ConstantType Node::getConstantType() const {
+    return constant;
 }
 
-Node::ConstantType Node::checkConstant(LOOK look, std::vector<NodePtr>& checkNodes) {
-    if (constant == ConstantType::Unknown) {
-        if (look == LOOK_DOWN) {
-            for (size_t i = 0; i < getChildEdges().size(); i++) {
-                if (std::find(checkNodes.begin(), checkNodes.end(), getChildEdgeAt(i)->getChild()) == checkNodes.end())
-                    checkNodes.push_back(getChildEdgeAt(i)->getChild());
-            }
-        } else {
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                if (std::find(checkNodes.begin(), checkNodes.end(), getParentEdgeAt(i)->getParent()) == checkNodes.end())
-                    checkNodes.push_back(getParentEdgeAt(i)->getParent());
-            }
+bool Node::isConstant() {
+    if (getConstantType() == ConstantType::Unknown)
+        updateConstantType();
+    return getConstantType() == ConstantType::Const;
+}
+
+void Node::updateConstantType() {
+    if (constant != ConstantType::StrictNoConst) {
+        bool isConst = true;
+        for (const auto& parentEdge : getParentEdges()) {
+            isConst &= parentEdge.lock()->getParent()->isConstant();
+        }
+        constant = isConst ? ConstantType::Const : ConstantType::NoConst;
+    }
+
+    for (const auto& childEdge : getChildEdges()) {
+        const auto childNode = childEdge.lock()->getChild();
+        const auto childConstType = childNode->getConstantType();
+        if (!one_of(childConstType, ConstantType::Unknown, ConstantType::StrictNoConst, constant)) {
+            childNode->updateConstantType();
         }
     }
-    return constant;
 }
 
 void Node::addOriginalLayer(const std::string& layerName) {
@@ -1254,24 +1231,22 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) const {
     switch (dims.size()) {
-        case 0:
-            return InferenceEngine::Layout::SCALAR;
-        case 1:
-            return InferenceEngine::Layout::C;
-        case 2:
-            return InferenceEngine::Layout::NC;
-        case 3:
-            return InferenceEngine::Layout::CHW;
-        case 4:
-            return InferenceEngine::Layout::OIHW;
-        case 5:
-            return isGrouped ? InferenceEngine::Layout::GOIHW : InferenceEngine::Layout::OIDHW;
-        case 6:
-            return isGrouped ? InferenceEngine::Layout::GOIDHW : InferenceEngine::Layout::BLOCKED;
-        default:
-            return InferenceEngine::Layout::BLOCKED;
+    case 1:
+        return dnnl::memory::format_tag::a;
+    case 2:
+        return dnnl::memory::format_tag::ab;
+    case 3:
+        return dnnl::memory::format_tag::abc;
+    case 4:
+        return dnnl::memory::format_tag::abcd;
+    case 5:
+        return dnnl::memory::format_tag::abcde;
+    case 6:
+        return dnnl::memory::format_tag::abcdef;
+    default:
+        OPENVINO_THROW("getWeightsFormatTagByDims doesn't support dims.size() = ", dims.size());
     }
 }
 
@@ -1343,12 +1318,6 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     };
     Node *newNode = nullptr;
     std::string errorMessage;
-    {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
-        if (ol != nullptr && ol->created(context->getExtensionManager()))
-            newNode = ol.release();
-    }
-
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));

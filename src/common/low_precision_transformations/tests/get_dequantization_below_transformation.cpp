@@ -24,8 +24,8 @@ using namespace ov::pass;
 
 class GetDequantizationBelowTestValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    ngraph:: builder::subgraph::DequantizationOperations dequantization;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {

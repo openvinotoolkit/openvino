@@ -37,13 +37,6 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
-def test_deprecation():
-    with pytest.warns(DeprecationWarning) as w:
-        _ = hints.PerformanceMode.UNDEFINED
-    assert issubclass(w[0].category, DeprecationWarning)
-    assert "PerformanceMode.UNDEFINED is deprecated and will be removed" in str(w[0].message)
-
-
 ###
 # Enum-like values
 ###
@@ -71,7 +64,6 @@ def test_deprecation():
         (
             hints.PerformanceMode,
             (
-                (hints.PerformanceMode.UNDEFINED, "PerformanceMode.UNDEFINED", -1),
                 (hints.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (hints.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
                 (hints.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
@@ -253,7 +245,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.performance_mode,
             "PERFORMANCE_HINT",
-            ((hints.PerformanceMode.UNDEFINED, hints.PerformanceMode.UNDEFINED),),
+            ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
         ),
         (
             hints.enable_cpu_pinning,

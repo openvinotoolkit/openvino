@@ -106,6 +106,7 @@ public:
                                 const std::vector<pass::Manager::PositionedPass>& data_flow_passes = {},
                                 const lowered::pass::PassPipeline& control_flow_passes_pre_common = {},
                                 const lowered::pass::PassPipeline& control_flow_passes_post_common = {},
+                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
                                 const void* compile_params = nullptr);
 
@@ -119,12 +120,9 @@ public:
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
     void set_virtual_port_count(size_t count);
-    void set_min_jit_work_amount(size_t jit_work_amount);
-    void set_min_parallel_work_amount(size_t parallel_work_amount);
 
     void print() const;
 
-    void serialize() const;
     VectorDims infer_master_shape();
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
@@ -144,7 +142,8 @@ public:
                                    const std::vector<ov::element::Type>& output_precisions = {},
                                    const std::vector<snippets::pass::Manager::PositionedPass>& = {});
     std::shared_ptr<lowered::LinearIR>
-    convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+    convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                              const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
     std::shared_ptr<Subgraph> clone() const;
 
 private:
@@ -177,12 +176,6 @@ private:
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
-        // Minimal advised work amount for parallel execution.
-        // Set by a backend, typically equals to the number of threads available on the machine.
-        size_t m_min_parallel_work_amount = 8;
-        // Minimal advised work amount every JIT kernel should process during one execution call
-        // Set by a backend, should be large enough to compensate for the kernel call overheads
-        size_t m_min_jit_work_amount = 256;
     } config;
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

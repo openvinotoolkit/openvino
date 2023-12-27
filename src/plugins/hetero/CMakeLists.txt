@@ -50,9 +50,7 @@ if(ENABLE_TESTS)
 
         target_compile_definitions(${OBJ_NAME}
             PRIVATE
-                USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
-                $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-                $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
+                USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API)
     endif()
 
     add_subdirectory(tests)

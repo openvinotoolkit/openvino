@@ -11,12 +11,9 @@ ov_deprecated_no_errors()
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
-    TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
-    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
-    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${TEST_MODEL_ZOO}/onnx/unit_test.manifest"
-    SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
+)
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
@@ -68,7 +65,6 @@ set(MULTI_TEST_SRC
     onnx_import_rnn.in.cpp
     onnx_import_signal.in.cpp
     onnx_import_quant.in.cpp
-    onnx_test_utils.in.cpp
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
@@ -83,6 +79,7 @@ set(SRC
     onnx_importer_test.cpp
     onnx_tensor_names.cpp
     onnx_test_util.cpp
+    onnx_utils.cpp
     onnx_transformations.cpp
     op_extension.cpp
     telemetry.cpp
@@ -142,8 +139,13 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(ov_onnx_frontend_tests PRIVATE gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend openvino_onnx_common func_test_utils)
+target_link_libraries(ov_onnx_frontend_tests PRIVATE
+    gtest_main_manifest
+    frontend_shared_test_classes
+    openvino::runtime::dev
+    openvino_onnx_frontend
+    openvino_onnx_common
+    func_test_utils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.

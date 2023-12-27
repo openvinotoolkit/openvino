@@ -8,6 +8,7 @@
 #include "mock_common.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -60,7 +61,7 @@ public:
 
     void SetUp() override {
         std::tie(m_properties, m_throw_exception) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::test::utils::make_multi_single_conv();
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());

@@ -141,9 +141,6 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 }
 
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
-    if (model->get_parameters().empty()) {
-        return;
-    }
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&

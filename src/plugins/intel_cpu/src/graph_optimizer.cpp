@@ -5,34 +5,31 @@
 #include "graph_optimizer.h"
 
 #include "dnnl_extension_utils.h"
-#include "nodes/reshape.h"
-#include "nodes/pooling.h"
-#include "nodes/eltwise.h"
-#include "nodes/concat.h"
-#include "nodes/convert.h"
-#include "nodes/reorder.h"
-#include "nodes/conv.h"
-#include "nodes/deconv.h"
-#include "nodes/fullyconnected.h"
 #include "nodes/bin_conv.h"
-#include "nodes/fake_quantize.h"
-#include "nodes/mvn.h"
-#include "nodes/transpose.h"
-#include "nodes/interpolate.h"
-#include "nodes/reduce.h"
-#include "nodes/input.h"
-#include "nodes/rnn.h"
-#include "nodes/memory.hpp"
 #include "nodes/common/cpu_convert.h"
-
+#include "nodes/concat.h"
+#include "nodes/conv.h"
+#include "nodes/convert.h"
+#include "nodes/deconv.h"
+#include "nodes/eltwise.h"
+#include "nodes/fake_quantize.h"
+#include "nodes/fullyconnected.h"
+#include "nodes/input.h"
+#include "nodes/interpolate.h"
+#include "nodes/memory.hpp"
+#include "nodes/mvn.h"
+#include "nodes/pooling.h"
+#include "nodes/reduce.h"
+#include "nodes/reorder.h"
+#include "nodes/reshape.h"
+#include "nodes/rnn.h"
+#include "nodes/scaled_attn.h"
+#include "nodes/transpose.h"
 #include "onednn/dnnl.h"
-
-#include "utils/general_utils.h"
+#include "openvino/opsets/opset1.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
-
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
+#include "utils/general_utils.h"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -43,7 +40,7 @@
 #  define _WINSOCK2API_
 #endif
 #endif
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include <string>
 #include <list>
@@ -55,7 +52,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 using namespace ov::intel_cpu::node;
 
 namespace ov {
@@ -101,10 +97,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
     FuseDeconvolutionAndSimpleOperation(graph);
-    graph.RemoveDroppedNodes();
-
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseBroadcastAndEltwise");
-    FuseBroadcastAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseClampAndFakeQuantize");
@@ -2162,36 +2154,6 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
     }
 }
 
-void GraphOptimizer::FuseBroadcastAndEltwise(Graph &graph) {
-    auto& graphNodes = graph.GetNodes();
-
-    for (auto &graphNode : graphNodes) {
-        if (graphNode->getType() != Type::Generic
-                || graphNode->getTypeStr() != "Broadcast"
-                || graphNode->getChildEdges().size() != 1lu
-                || graphNode->getChildEdgeAt(0)->getChild()->getType() != Type::Eltwise)
-            continue;
-
-        NodePtr& broadcastNode = graphNode;
-        NodePtr eltwiseNode = broadcastNode->getChildEdgeAt(0)->getChild();
-        eltwiseNode->inputShapes[broadcastNode->getChildEdgeAt(0)->getOutputNum()]
-                = broadcastNode->getInputShapeAtPort(0);
-
-        auto& edges = graph.GetEdges();
-        for (size_t i = 1lu; i < broadcastNode->getParentEdges().size(); i++) {
-            auto constParent = broadcastNode->getParentEdgesAtPort(i)[0]->getParent();
-            for (auto it = edges.begin(); it != edges.end(); it++) {
-                if ((*it) == constParent->getChildEdgeAt(0)) {
-                    edges.erase(it);
-                    constParent->remove();
-                    break;
-                }
-            }
-        }
-        graph.DropNode(broadcastNode);
-    }
-}
-
 void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -2837,6 +2799,20 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
         }
 
+        //search for SDPA
+        std::shared_ptr<ScaledDotProductAttention> sdpa;
+        for (auto&& edge : node->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            if (Type::ScaledDotProductAttention == child->getType()) {
+                sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
+                if (sdpa) {
+                    break;
+                } else {
+                    OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
+                }
+            }
+        }
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -2845,7 +2821,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             memInputNode->getOriginalOutputPrecisionAtPort(0),
             graph.getGraphContext(),
             input_shape,
-            input_prc);
+            input_prc,
+            sdpa);
 
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdge = memInputNode->getParentEdgeAt(0);
@@ -2862,12 +2839,28 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             graph.RemoveEdge(edge);
         }
 
-        //link with memory output
+        //create a stub memory output
         auto& memOutput = memInputNode->getOutputNode();
-        memInputSdpa->registerOutputNode(&memOutput);
+
+        auto memOutputStub = std::make_shared<MemoryOutputStub>(
+            memOutput.getId(),
+            memOutput.getName(),
+            memOutput.getTypeStr(),
+            memOutput.getInputShapeAtPort(0),
+            memOutput.getOriginalInputPrecisionAtPort(0),
+            graph.getGraphContext());
+
+        auto memOutputEdge = memOutput.getParentEdgeAt(0);
+        auto newEdge =
+            std::make_shared<Edge>(sdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
+        memOutputStub->addEdge(newEdge);
+        graph.GetEdges().push_back(newEdge);
+        graph.RemoveEdge(memOutputEdge);
+
+        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.GetNodes().push_back(memInputSdpa);
-        graph.DropNode(memInputNode);
+        graph.GetNodes().push_back(memOutputStub);
     }
 }
 

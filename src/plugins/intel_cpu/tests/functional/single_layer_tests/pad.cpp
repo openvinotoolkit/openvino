@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/pad.hpp>
-#include "test_utils/cpu_test_utils.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/pad.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/op/pad.hpp>
+#include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 using PadLayerCPUTestParamSet = std::tuple<
         InputShape,                                     // Input shape
-        ngraph::helpers::InputLayerType,                // Secondary input types
+        ov::test::utils::InputLayerType,                // Secondary input types
         ElementType,                                    // Input element type
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
@@ -30,7 +29,7 @@ class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamS
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
         InputShape shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::test::utils::InputLayerType secondaryInputType;
         ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ov::op::PadMode padMode;
@@ -67,7 +66,10 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 1;
+                in_data.range = 10;
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 if (funcInput.get_node()->get_friendly_name() == "pad_value")
                     tensor = ov::Tensor{funcInput.get_element_type(), ov::Shape{}, &padValue};
@@ -79,7 +81,7 @@ protected:
     }
     void SetUp() override {
         InputShape shapes;
-        ngraph::helpers::InputLayerType secondaryInputType;
+        ov::test::utils::InputLayerType secondaryInputType;
         ov::op::PadMode padMode;
         ElementType dataType;
         CPUSpecificParams cpuParams;
@@ -99,7 +101,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
         }
         std::shared_ptr<ov::Node> pad;
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (secondaryInputType == ov::test::utils::InputLayerType::PARAMETER) {
             ov::Shape inShape = {padsBegin.size()};
 
             auto beginNode = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inShape);
@@ -155,13 +157,13 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::test::utils::InputLayerType> inputLayerTypes = {
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER
 };
 
-const std::vector<ngraph::helpers::InputLayerType> inputLayerTypesBlocked = {
-    ngraph::helpers::InputLayerType::CONSTANT,
+const std::vector<ov::test::utils::InputLayerType> inputLayerTypesBlocked = {
+    ov::test::utils::InputLayerType::CONSTANT,
 };
 
 const std::vector<float> argPadValue = {0.f, 2.5f};
@@ -747,5 +749,6 @@ INSTANTIATE_TEST_SUITE_P(
 /* *======================* *=====================* *======================* */
 
 } // namespace
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov
 

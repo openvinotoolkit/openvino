@@ -5,9 +5,10 @@
 #include "ov_lpt_models/transpose_after_mat_mul.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -24,9 +25,9 @@ namespace subgraph {
         input2->set_friendly_name("input2");
 
         const float k = 50.f;
-        const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
+        const auto fakeQuantize1 = ov::test::utils::make_fake_quantize(input1, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
         input2->set_friendly_name("fakeQuantize1");
-        const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
+        const auto fakeQuantize2 = ov::test::utils::make_fake_quantize(input2, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
         input2->set_friendly_name("fakeQuantize2");
         const auto matMul = std::make_shared<ov::opset1::MatMul>(fakeQuantize1, fakeQuantize2, false, false);
         input2->set_friendly_name("matMul");

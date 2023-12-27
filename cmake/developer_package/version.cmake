@@ -82,33 +82,19 @@ macro(ov_parse_ci_build_number repo_root)
             return()
         endif()
 
-        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/src/inference/include/ie/ie_version.hpp")
-        if(NOT EXISTS ${ie_version_hpp})
-            message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
-        endif()
-
         set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/src/core/include/openvino/core/version.hpp")
         if(NOT EXISTS ${ov_version_hpp})
             message(FATAL_ERROR "File openvino/core/version.hpp with OPENVINO_VERSION definitions is not found")
         endif()
 
-        file(STRINGS "${ie_version_hpp}" IE_VERSION_PARTS REGEX "#define IE_VERSION_[A-Z]+[ ]+" )
         file(STRINGS "${ov_version_hpp}" OV_VERSION_PARTS REGEX "#define OPENVINO_VERSION_[A-Z]+[ ]+" )
 
         foreach(suffix MAJOR MINOR PATCH)
-            set(ie_version_name "IE_VERSION_${suffix}")
             set(ov_version_name "OpenVINO_VERSION_${suffix}")
             set(ov_version_name_hpp "OPENVINO_VERSION_${suffix}")
 
-            string(REGEX REPLACE ".+${ie_version_name}[ ]+([0-9]+).*" "\\1"
-                    ${ie_version_name}_HPP "${IE_VERSION_PARTS}")
             string(REGEX REPLACE ".+${ov_version_name_hpp}[ ]+([0-9]+).*" "\\1"
                     ${ov_version_name}_HPP "${OV_VERSION_PARTS}")
-
-            if(NOT ${ie_version_name}_HPP EQUAL ${ov_version_name}_HPP)
-                message(FATAL_ERROR "${ov_version_name} (${${ov_version_name}_HPP})"
-                                    " and ${ie_version_name} (${${ie_version_name}_HPP}) are not equal")
-            endif()
         endforeach()
 
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
@@ -164,28 +150,6 @@ macro(ov_parse_ci_build_number repo_root)
     else()
         unset(the_whole_version_is_defined_by_ci)
     endif()
-endmacro()
-
-macro (addVersionDefines FILE)
-    message(WARNING "'addVersionDefines' is deprecated. Please, use 'ov_add_version_defines'")
-
-    set(__version_file ${FILE})
-    if(NOT IS_ABSOLUTE ${__version_file})
-        set(__version_file "${CMAKE_CURRENT_SOURCE_DIR}/${__version_file}")
-    endif()
-    if(NOT EXISTS ${__version_file})
-        message(FATAL_ERROR "${FILE} does not exists in current source directory")
-    endif()
-    foreach (VAR ${ARGN})
-        if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
-            set_property(
-                SOURCE ${__version_file}
-                APPEND
-                PROPERTY COMPILE_DEFINITIONS
-                ${VAR}="${${VAR}}")
-        endif()
-    endforeach()
-    unset(__version_file)
 endmacro()
 
 macro (ov_add_version_defines FILE TARGET)
