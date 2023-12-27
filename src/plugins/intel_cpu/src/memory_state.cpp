@@ -12,8 +12,6 @@
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_convert.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
