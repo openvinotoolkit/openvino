@@ -27,10 +27,10 @@
 
 #ifndef OPENVINO_ARCH_ARM64
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include "emitters/x64/jit_emitter.hpp"
-#include "emitters/x64/jit_eltwise_emitters.hpp"
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #endif
 
 #include <selective_build.h>
