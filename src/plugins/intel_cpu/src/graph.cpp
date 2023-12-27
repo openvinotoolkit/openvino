@@ -1647,8 +1647,8 @@ void Graph::AddNodes(const std::vector<NodePtr>& new_nodes, bool initNode) {
     }
     for (auto& node : new_nodes) {
         graphNodes.push_back(node);
+        node->updateConstantType();
     }
-    node->updateConstantType();
 }
 
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
