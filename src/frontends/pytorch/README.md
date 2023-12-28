@@ -135,6 +135,118 @@ To test the entire suite of the PyTorch operation set support, run the following
 python -m pytest layer_tests/pytorch_tests
 ```
 
+### Investigation of accuracy issues
+
+Accuracy issues can be caused by incorrect graph returned by `torch.jit.trace`
+that do not generalize to other inputs or shapes. Such issues can be solved by
+using `torch.jit.script` for obtaining full graph or only script part of the
+graph and trace other parts. More about how to do it is described in
+[pytorch documentation](https://pytorch.org/docs/stable/jit.html#mixing-tracing-and-scripting).
+
+Other reasons for accuracy problems can be caused by the incorrect conversion
+of specific operations. To identify such operation it is usually helpful to
+obtain the original `TorchScript` graph. That can be done using tracing,
+scripting or by manually creating `TorchScriptPythonDecoder`.
+
+```python
+import torch
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+model = SomeModel()
+model.eval()
+example = <...>  # use the valid model inputs
+
+# get traced model graph
+traced_model = torch.jit.trace(model, example)
+print(traced_model.inlined_graph)
+
+# get scripted model graph
+scripted_model = torch.jit.script(model)
+print(scripted_model.inlined_graph)
+
+# get graph directly from TorchScriptPythonDecoder
+decoder = TorchScriptPythonDecoder(model, example_input=example)
+print(decoder.graph_element)
+```
+
+How to understand which operation causes problems? Lets consider the following model.
+
+```python
+import torch
+
+class example_model(torch.nn.Module):
+    def some_work(self, x):
+        return torch.randn_like(x)
+    
+    def forward(self, x):
+        y = x * x
+        z = self.some_work(x)
+        res = x + y + z
+        return res
+```
+
+It has the following inlined graph:
+
+```
+graph(%self : __torch__.example_model,
+      %x : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu)):
+  %y : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::mul(%x, %x) # /home/user/example.py:9:0
+  %3 : NoneType = prim::Constant()
+  %4 : NoneType = prim::Constant()
+  %5 : NoneType = prim::Constant()
+  %6 : bool = prim::Constant[value=0]() # /home/user/example.py:6:0
+  %7 : NoneType = prim::Constant()
+  %z : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::randn_like(%x, %3, %4, %5, %6, %7) # /home/user/example.py:6:0
+  %9 : int = prim::Constant[value=1]() # /home/user/example.py:11:0
+  %10 : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::add(%x, %y, %9) # /home/user/example.py:11:0
+  %11 : int = prim::Constant[value=1]() # /home/user/example.py:11:0
+  %12 : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::add(%10, %z, %11) # /home/user/example.py:11:0
+  return (%12)
+```
+This model has random operation to demonstrate accuracy issues, by nature it
+can't generate same results between OpenVINO and PyTorch, because random
+numbers are generated differently. To demonstrate this, lets run the following
+code:
+```
+import openvino as ov
+import numpy as np
+
+example = (torch.randn(1, 3, 100, 100),)
+model = example_model()
+ov_model = ov.convert_model(model, example_input=example)
+core = ov.Core()
+compiled = core.compile_model(ov_model, "CPU")
+
+pt_res = model(*example)
+ov_res = compiled(example)
+np.testing.assert_allclose(pt_res.detach().numpy(), ov_res[0])
+```
+It produce the following output:
+```
+AssertionError: 
+Not equal to tolerance rtol=1e-07, atol=0
+
+Mismatched elements: 30000 / 30000 (100%)
+Max absolute difference: 5.46548
+Max relative difference: 10992.667
+ x: array([[[[-0.82274 ,  0.490486, -0.685879, ...,  0.438866,  0.24843 ,
+           0.812158],
+         [ 4.328736, -0.17589 ,  0.275108, ...,  4.552745, -0.744023,...
+ y: array([[[[ 3.352949, -0.627091,  1.049008, ...,  0.03871 , -0.978001,
+          -0.063791],
+         [ 2.590967,  1.057626,  3.620144, ...,  4.315144,  0.247716,...
+```
+Issue in your model can be caused by random operation, but it can also be a
+different issue. One possible way to find such operation in the model is to
+create additional outputs from the graph. We can do it by changing `forward`
+function to return `y` and `z` value. That will allow us to see that `y` is
+returned with good accuracy and `z` has accuracy issues, we can see in inlined
+graph that `z` is produced by line 6 of our code:
+```
+  %z : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::randn_like(%x, %3, %4, %5, %6, %7) # /home/user/example.py:6:0
+```
+and we will see `torch.randn_like` function call on that line.
+
 ## See Also
  * [OpenVINO README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
