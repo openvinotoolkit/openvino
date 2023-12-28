@@ -318,70 +318,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul_4D,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_3D, MHAWOTranspose,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose_3D),
-                                 ::testing::ValuesIn(precision_f32(3)),
-                                 ::testing::Values(ov::element::bf16),
-                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
-                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(CPUTestUtils::cpuBF16PluginConfig)),
-                         MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAINT8MatMul, MHAINT8MatMul,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>(inputShapes_4D.begin(), inputShapes_4D.begin() + 2)),
-                                 ::testing::Values(std::vector<element::Type>{}),
-                                 ::testing::Values(ov::element::f32),
-                                 ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(6),     // FQx3 on inputs + MHA + Transpose on output + Deq Mul
-                                 ::testing::Values(5),     // FQx3 on inputs + MHA + Deq Mul
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
-                         MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
-                         ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 128, 768}, {1, 128, 768}, {1, 1, 1, 128}, {1, 128, 768}}),
-                                 ::testing::Values(std::vector<element::Type>{}),
-                                 ::testing::Values(ov::element::f32),
-                                 ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(9),     // FQx2 on inputs + MHA + Transpose on output + 4 Reshapes + Deq Mul
-                                 ::testing::Values(4),     // FQx2 on inputs + MHA + Deq Mul
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
-                         MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul_4D, MHAFQAfterMatMul,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapes_4D),
-                                 ::testing::Values(std::vector<element::Type>{}),
-                                 ::testing::Values(ov::element::f32),
-                                 ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(3),     // MHA + Transpose on output + Deq Mul
-                                 ::testing::Values(2),     // MHA + Deq Mul
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
-                         MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQ, MHAFQ,
-                         ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 64, 12, 64}, {1, 64, 12, 64}, {1, 1, 1, 64}, {1, 64, 12, 64}}),
-                                 ::testing::Values(std::vector<element::Type>{}),
-                                 ::testing::Values(ov::element::f32),
-                                 ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(MHA::default_thread_count),
-                                 ::testing::Values(7),     // Transposex2 + Subgraphsx5
-                                 ::testing::Values(5),     // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
-                         MHA::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAFQ,
+    MHAFQ,
+    ::testing::Combine(::testing::Values(std::vector<ov::PartialShape>{{1, 64, 12, 64},
+                                                                       {1, 64, 12, 64},
+                                                                       {1, 1, 1, 64},
+                                                                       {1, 64, 12, 64}}),
+                       ::testing::Values(std::vector<element::Type>{}),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(false),  // The graph doesn't contain Multiply
+                       ::testing::Values(MHA::default_thread_count),
+                       ::testing::Values(7),  // Transposex2 + Subgraphsx5
+                       ::testing::Values(5),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    MHA::getTestCaseName);
 
 const std::vector<std::vector<ov::PartialShape>> inputShapesTransposedB = {
     {{1, 12, 12, 64}, {1, 12, 48, 64}, {1, 12, 48, 64}}};
