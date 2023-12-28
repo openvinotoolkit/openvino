@@ -125,9 +125,6 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             case i8:
                 val_i = tensor_proto.int_val()[i];
                 break;
-            case bf16:
-                val_i = bfloat16::from_bits(tensor_proto.half_val()[i]);
-                break;
             case u32:
                 val_i = tensor_proto.uint32_val()[i];
                 break;
@@ -292,10 +289,6 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             val_size = tensor_proto.int_val_size();
             extract_compressed_tensor_content<int32_t, int8_t>(tensor_proto, val_size, &res);
             break;
-        case bf16:
-            val_size = tensor_proto.half_val_size();
-            extract_compressed_tensor_content<int32_t, bfloat16>(tensor_proto, val_size, &res);
-            break;
         case u32:
             val_size = tensor_proto.uint32_val_size();
             extract_compressed_tensor_content<uint32_t>(tensor_proto, val_size, &res);
@@ -314,7 +307,7 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             break;
         case f16:
             val_size = tensor_proto.half_val_size();
-            extract_compressed_tensor_content<int32_t, float16>(tensor_proto, val_size, &res);
+            extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
             break;
         default:
             FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());

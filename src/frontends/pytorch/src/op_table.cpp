@@ -126,6 +126,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
+OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -197,6 +198,7 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
+OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
@@ -447,6 +449,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::mul_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
@@ -536,6 +539,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::t_", op::inplace_op<op::translate_t>},
+        {"aten::take_along_dim", op::translate_take_along_dim},
         {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},

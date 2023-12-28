@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/convolution_relu_sequence.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -58,19 +59,10 @@ void ConvolutionReluSequenceTest::SetUp() {
         const auto biasesRange = 0.05f;
         std::vector<float> filter_weights;
         std::vector<float> biases;
-        if (targetDevice == ov::test::utils::DEVICE_GNA) {
-            auto filter_size = std::accumulate(std::begin(single.kernelSize), std::end(single.kernelSize), 1, std::multiplies<size_t>());
-            filter_weights = ov::test::utils::generate_float_numbers(single.numOutChannels * inputChannels * filter_size,
-                -filtersRange, filtersRange);
-            if (addBiases) {
-                biases = ov::test::utils::generate_float_numbers(single.numOutChannels,
-                    -biasesRange, biasesRange);
-            }
-        }
 
         std::shared_ptr<ngraph::Node> conv =
             std::dynamic_pointer_cast<ngraph::Node>(
-                ngraph::builder::makeConvolution(
+                ov::test::utils::make_convolution(
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ov::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));

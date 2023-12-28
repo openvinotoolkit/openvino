@@ -6,7 +6,9 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "intel_gpu/op/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -14,10 +16,19 @@
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
+namespace op {
+namespace internal {
+using GatherCompressed = ov::intel_gpu::op::GatherCompressed;
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ov {
 namespace intel_gpu {
 
 template <typename T>
-void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false) {
+void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false,
+                        bool weights_compressed = false) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -120,15 +131,47 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         auto cropPrim = cldnn::crop(layerName, reordered_inputs[0], outTensor, offsetTensor);
         p.add_primitive(*op, cropPrim);
     } else {
-        auto gatherPrim = cldnn::gather(layerName,
-                                        reordered_inputs[0],
-                                        reordered_inputs[1],
-                                        axis,
-                                        input_rank,
-                                        out_shape,
-                                        batch_dim,
-                                        support_neg_ind);
-        p.add_primitive(*op, gatherPrim);
+        if (!weights_compressed) {
+            auto gatherPrim = cldnn::gather(layerName,
+                                            reordered_inputs[0],
+                                            reordered_inputs[1],
+                                            axis,
+                                            input_rank,
+                                            out_shape,
+                                            batch_dim,
+                                            support_neg_ind);
+            p.add_primitive(*op, gatherPrim);
+        } else {
+            float zp_value = 0.0f;
+            bool has_scalar_zp = false;
+            if (op->get_input_size() == 5) {
+                std::shared_ptr<ov::op::v0::Constant> zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
+                if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
+                    has_scalar_zp = true;
+                    zp_value = zp_const->cast_vector<float>()[0];
+                }
+            }
+
+            std::shared_ptr<ov::intel_gpu::op::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::intel_gpu::op::GatherCompressed>(op);
+
+            auto gatherPrim = cldnn::gather(layerName,
+                                            reordered_inputs[0],
+                                            reordered_inputs[1],
+                                            axis,
+                                            reordered_inputs[3],
+                                            has_scalar_zp ? cldnn::input_info() : reordered_inputs[4],
+                                            op_compressed->get_output_type(),
+                                            input_rank,
+                                            out_shape,
+                                            batch_dim,
+                                            support_neg_ind);
+
+            if (has_scalar_zp) {
+                gatherPrim.decompression_zero_point_scalar = zp_value;
+            }
+
+            p.add_primitive(*op, gatherPrim);
+        }
     }
 
     // Add reorder and reshape for scalar indice
@@ -173,6 +216,13 @@ static void CreateGatherOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::
 }
 
 REGISTER_FACTORY_IMPL(v8, Gather);
+
+static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatherCompressed>& op) {
+    validate_inputs_count(op, {4, 5});
+    CreateGatherOpBase<ov::op::internal::GatherCompressed>(p, op, op->get_batch_dims(), true, true);
+}
+
+REGISTER_FACTORY_IMPL(internal, GatherCompressed);
 
 }  // namespace intel_gpu
 }  // namespace ov

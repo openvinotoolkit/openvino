@@ -66,6 +66,10 @@ struct input_info {
         }
     };
 
+    bool is_valid() const {
+        return pid.compare("") != 0;
+    }
+
     void save(BinaryOutputBuffer& ob) const {
         ob << pid;
         ob << idx;

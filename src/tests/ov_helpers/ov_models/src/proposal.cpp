@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
@@ -47,7 +48,7 @@ std::shared_ptr<Node> makeProposal(const ov::Output<Node>& class_probs,
     attrs.framework = framework;
     attrs.infer_probs = true;
 
-    auto image_shape = makeConstant(ov::element::Type_t::f32, {3}, image_info);
+    auto image_shape = ov::test::utils::deprecated::make_constant(ov::element::Type_t::f32, {3}, image_info);
 
     return std::make_shared<ov::op::v4::Proposal>(class_probs, class_logits, image_shape, attrs);
 }

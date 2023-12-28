@@ -667,7 +667,7 @@ public:
      * @brief Returns devices available for inference.
      * Core objects go over all registered plugins and ask about available devices.
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }.
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }.
      * If there is more than one device of a specific type, they are enumerated with the .# suffix.
      * Such enumerated device can later be used as a device name in all Core methods like Core::compile_model,
      * Core::query_model, Core::set_property and so on.

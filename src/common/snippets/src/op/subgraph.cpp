@@ -69,14 +69,6 @@ void Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
 }
 
-void Subgraph::set_min_jit_work_amount(const size_t jit_work_amount) {
-    config.m_min_jit_work_amount = jit_work_amount;
-}
-
-void Subgraph::set_min_parallel_work_amount(const size_t parallel_work_amount) {
-    config.m_min_parallel_work_amount = parallel_work_amount;
-}
-
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
     return ov::is_type<ov::op::v1::Transpose>(op) ||
            ov::is_type<ov::op::v1::Softmax>(op) ||
@@ -347,15 +339,18 @@ VectorDims Subgraph::infer_master_shape() {
 }
 
 std::shared_ptr<lowered::LinearIR>
-Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+                                    const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops ||
-        (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.m_save_expressions = lowering_config.m_save_expressions || (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
+#endif
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
-    lowering_config.m_min_parallel_work_amount = config.m_min_parallel_work_amount;
-    lowering_config.m_min_kernel_work_amount = config.m_min_jit_work_amount;
+    lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
+    lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
@@ -473,10 +468,11 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const std::vector<snippets::pass::Manager::PositionedPass>& data_flow_backend_passes,
                                       const lowered::pass::PassPipeline& backend_passes_pre_common,
                                       const lowered::pass::PassPipeline& backend_passes_post_common,
+                                      size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
-    convert_body_to_linear_ir(factory);
+    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
     return generate_from_linear_ir(backend_passes_pre_common, backend_passes_post_common, compile_params);
 }
 
@@ -494,10 +490,12 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+#ifdef SNIPPETS_DEBUG_CAPS
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
         lowered::pass::InsertPerfCount perf_count_pass;
         perf_count_pass.run(linear_ir);
     }
+#endif
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();

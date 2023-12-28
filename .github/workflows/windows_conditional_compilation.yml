@@ -4,24 +4,11 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
-  # pull_request:
-  #   paths-ignore:
-  #     - '**/docs/**'
-  #     - 'docs/**'
-  #     - '**/**.md'
-  #     - '**.md'
-  #     - '**/layer_tests_summary/**'
-  #     - '**/conformance/**'
+  pull_request:
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -32,7 +19,31 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
     timeout-minutes: 180
     defaults:
       run:
@@ -51,6 +62,8 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # TODO: specify version of compiler here
       SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_itt_Release
+    if: "!needs.smart_ci.outputs.skip_workflow"
+
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -103,6 +116,9 @@ jobs:
           # For running TensorFlow Lite frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+
           # Disabled because of CVS-95904
           # For running Paddle frontend unit tests
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
@@ -114,6 +130,9 @@ jobs:
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       - name: CMake configure - CC COLLECT
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
@@ -121,7 +140,6 @@ jobs:
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
-            -DENABLE_INTEL_GNA=OFF `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
@@ -203,7 +221,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
@@ -227,7 +245,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    needs: Build
+    needs: [Build, Smart_CI]
     defaults:
       run:
         shell: pwsh
@@ -241,6 +259,8 @@ jobs:
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_cc_Release
+    if: "!needs.smart_ci.outputs.skip_workflow"
+
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -285,7 +305,6 @@ jobs:
             -DSELECTIVE_BUILD=ON `
             -DENABLE_TEMPLATE=OFF `
             -DENABLE_INTEL_GPU=OFF `
-            -DENABLE_INTEL_GNA=OFF `
             -DENABLE_OV_TF_FRONTEND=OFF `
             -DENABLE_OV_TF_LITE_FRONTEND=OFF `
             -DENABLE_OV_PADDLE_FRONTEND=OFF `
@@ -316,7 +335,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: 70
     defaults:
       run:
@@ -327,6 +346,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\tests_install\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\tests_install\\test_cache.lst"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
       - name: Download OpenVINO tests package
@@ -385,3 +405,17 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
           if-no-files-found: 'error'
+
+  Overall_Status:
+    name: ci/gha_overall_status_windows_cc
+    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

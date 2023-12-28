@@ -29,6 +29,9 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/bitwise_and.hpp"
+#include "op/bitwise_or.hpp"
+#include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
@@ -104,6 +107,7 @@
 #include "op/matmul_integer.hpp"
 #include "op/max.hpp"
 #include "op/max_pool.hpp"
+#include "op/max_roi_pool.hpp"
 #include "op/mean.hpp"
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
@@ -351,6 +355,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
+    REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
@@ -430,6 +437,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
     REGISTER_OPERATOR("MaxPool", 8, max_pool);
+    REGISTER_OPERATOR("MaxRoiPool", 1, max_roi_pool);
     REGISTER_OPERATOR("Max", 1, max);
     REGISTER_OPERATOR("Max", 8, max);
     REGISTER_OPERATOR("Mean", 1, mean);
