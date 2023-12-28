@@ -110,6 +110,7 @@ jobs:
             --parallel \
             --skip_tests \
             --compile_no_warning_as_error \
+            --allow_running_as_root \
             --build_dir ${ONNX_RUNTIME_BUILD_DIR}
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
