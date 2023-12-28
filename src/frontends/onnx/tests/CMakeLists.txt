@@ -45,9 +45,8 @@ endif()
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `frontends/tests/onnx` directory
-# 3) Include "util/test_control.hpp" in your cpp file
-# 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
+# 3) Include "util/test_control.hpp" and "onnx_utils.hpp" in your cpp file
+# 4) add the line `static string s_manifest = onnx_backend_manifest("${MANIFEST}");` to your cpp file
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
