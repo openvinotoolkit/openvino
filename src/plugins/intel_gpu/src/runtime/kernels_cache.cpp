@@ -265,7 +265,19 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 dump_file << "*/\n";
             }
 
-            program.createKernels(&kernels);
+            GPU_DEBUG_INFO << "!! creating kernels " << std::endl;
+            if (program.createKernels(&kernels) != CL_SUCCESS) {
+                throw std::runtime_error("Failed to create program kernels");
+            }
+
+            for (size_t i = 0 ; i < kernels.size(); ++i) {
+                if (kernels[i].get() == nullptr) {
+                    std::ostringstream ss;
+                    ss << "Error creating program kernels - status is CL_SUCCESS, but kernel " << i << " is invalid;"
+                       << " batch_id=" << batch.batch_id << ", bucket_id=" << batch.bucket_id;
+                    throw std::runtime_error(ss.str());
+                }
+            }
 
             if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache

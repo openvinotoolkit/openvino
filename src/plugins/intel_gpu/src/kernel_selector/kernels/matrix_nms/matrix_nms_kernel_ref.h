@@ -61,7 +61,7 @@ public:
 protected:
     JitConstants GetJitConstants(const matrix_nms_params& params) const;
     bool Validate(const Params& p, const optional_params& o) const override;
-    void SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx) const;
+    void SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx, bool huge_number_of_classes) const;
 };
 
 }  // namespace kernel_selector

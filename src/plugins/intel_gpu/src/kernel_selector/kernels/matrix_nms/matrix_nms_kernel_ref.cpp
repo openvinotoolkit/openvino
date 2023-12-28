@@ -84,6 +84,8 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
 
     int max_boxes_per_class, max_boxes_per_batch;
     std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);
+    const int HUGE_NUMBER_OF_CLASSES_THRESHOLD = 10000;
+    const auto huge_number_of_classes = max_boxes_per_class >= HUGE_NUMBER_OF_CLASSES_THRESHOLD;
 
     const size_t box_info_num = batches_num * classes_num * max_boxes_per_class;
 
@@ -92,6 +94,13 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
 
     kernel_data.internalBufferSizes.push_back(box_info_buffer_size);
     kernel_data.internalBufferSizes.push_back(sel_boxes_num_buffer_size);
+
+    if (huge_number_of_classes) {
+        const size_t sorted_score_indices_size = batches_num * classes_num * sizeof(int);
+        kernel_data.internalBufferSizes.push_back(sorted_score_indices_size);
+        const size_t iou_max_size = batches_num * max_boxes_per_class * sizeof(float);
+        kernel_data.internalBufferSizes.push_back(iou_max_size);
+    }
     kernel_data.internalBufferDataType = Datatype::F32;
 
     for (size_t i{}; i < kernels_num; ++i) {
@@ -101,6 +110,9 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
 
         jit_constants.AddConstant(MakeJitConstant("MAX_BOXES_PER_CLASS", max_boxes_per_class));
         jit_constants.AddConstant(MakeJitConstant("MAX_BOXES_PER_BATCH", max_boxes_per_batch));
+        if (huge_number_of_classes) {
+            jit_constants.AddConstant(MakeJitConstant("HUGE_NUMBER_OF_CLASSES", 1));
+        }
         auto jit = CreateJit(kernelName, jit_constants, entry_point);
 
         DispatchData dispatch_data = SetDefault(new_params, i);
@@ -110,7 +122,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
         kernel.params.workGroups.local = dispatch_data.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
 
-        SetKernelArguments(new_params, kernel, i);
+        SetKernelArguments(new_params, kernel, i, huge_number_of_classes);
     }
 
     return {kernel_data};
@@ -165,13 +177,17 @@ JitConstants MatrixNmsKernelRef::GetJitConstants(const matrix_nms_params& params
     return jit;
 }
 
-void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx) const {
+void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx, bool huge_number_of_classes) const {
     switch (idx) {
     case 0:
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        if (huge_number_of_classes) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+        }
         break;
 
     case 1:

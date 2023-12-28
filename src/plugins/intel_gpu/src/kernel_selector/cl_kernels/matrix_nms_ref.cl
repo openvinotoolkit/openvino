@@ -166,14 +166,27 @@ KERNEL(matrix_nms_ref_stage_0)
 (const __global INPUT0_TYPE* input_boxes,
  const __global INPUT1_TYPE* input_scores,
  __global uchar* buffer0,
- __global int* selected_boxes_num) {
+ __global int* selected_boxes_num
+#ifdef HUGE_NUMBER_OF_CLASSES
+ , __global int* sorted_score_indices_buffer
+ , __global INPUT1_TYPE* iou_max_buffer
+#endif
+ ) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
 
     if (classId == BACKGROUND_CLASS)
         return;
 
+    #ifdef HUGE_NUMBER_OF_CLASSES
+    int* sorted_score_indices = sorted_score_indices_buffer + NUM_BOXES * batchId;
+    INPUT1_TYPE* iou_max = iou_max_buffer + MAX_BOXES_PER_CLASS * batchId;
+    #else
+    const size_t sorted_score_indices_batch_offset = 0;
+    const size_t iou_max_batch_offset = 0;
+
     int sorted_score_indices[NUM_BOXES];
+    #endif
 
     for (int i = 0; i < NUM_BOXES; ++i)
         sorted_score_indices[i] = i;
@@ -189,9 +202,11 @@ KERNEL(matrix_nms_ref_stage_0)
 
     valid_boxes_num = min(valid_boxes_num, MAX_BOXES_PER_CLASS);
 
+    #ifndef HUGE_NUMBER_OF_CLASSES
     const int matrix_size = MAX_BOXES_PER_CLASS < 3 ? 1 : (MAX_BOXES_PER_CLASS * (MAX_BOXES_PER_CLASS - 1)) >> 1;
     INPUT1_TYPE iou_matrix[matrix_size];
     INPUT1_TYPE iou_max[MAX_BOXES_PER_CLASS];
+    #endif
 
     iou_max[0] = INPUT1_VAL_ZERO;
     for (int i = 1; i < valid_boxes_num; ++i) {
@@ -202,7 +217,10 @@ KERNEL(matrix_nms_ref_stage_0)
             const INPUT1_TYPE iou = FUNC_CALL(intersectionOverUnion)(box_i, box_j);
 
             max_iou = max(iou, max_iou);
+
+            #ifndef HUGE_NUMBER_OF_CLASSES
             iou_matrix[i * (i - 1) / 2 + j] = iou;
+            #endif
         }
         iou_max[i] = max_iou;
     }
@@ -222,9 +240,18 @@ KERNEL(matrix_nms_ref_stage_0)
     }
 
     for (int i = 1; i < valid_boxes_num; ++i) {
+        #ifdef HUGE_NUMBER_OF_CLASSES
+        const COORD_TYPE_4 box_i = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[i]);
+        #endif
         INPUT1_TYPE min_decay = INPUT1_VAL_ONE;
         for (int j = 0; j < i; ++j) {
+            #ifdef HUGE_NUMBER_OF_CLASSES
+            const COORD_TYPE_4 box_j = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[j]);
+            const INPUT1_TYPE iou = FUNC_CALL(intersectionOverUnion)(box_i, box_j);
+            #else
             INPUT1_TYPE iou = iou_matrix[i * (i - 1) / 2 + j];
+            #endif
+
             INPUT1_TYPE decay =
                 DECAY_FUNC == 0 ? FUNC_CALL(decay_gaussian)(iou, iou_max[j]) : FUNC_CALL(decay_linear)(iou, iou_max[j]);
             min_decay = min(min_decay, decay);
