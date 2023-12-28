@@ -4365,7 +4365,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float16_3x4) {
     auto model = convert_model("constant_sparse_tensor_float16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4429,7 +4429,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_bfloat16_3x4) {
     auto model = convert_model("constant_sparse_tensor_bfloat16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4495,7 +4495,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     // clang-format off
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+    test_case.add_input<ov::float16>(Shape{1, 1, 4, 4},
             {   0,  1,  2,  3,
                 4,  5,  6,  7,
                 8,  9,  10, 11,
@@ -4504,7 +4504,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
             [[[[0.25, 0.5, 0.25],
                [0.5,  1.0, 0.5],
                [0.25, 0.5, 0.25]]]] */
-    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+    test_case.add_expected_output<ov::float16>(Shape{1, 1, 2, 2},
             {   20, 24,
                 36, 40  });
     // clang-format on
@@ -5651,7 +5651,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<uint32_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1, 2, 3, 4});
 
@@ -5663,7 +5663,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
 
@@ -5700,8 +5700,8 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
     auto test_case = ov::test::TestCase(model, s_device);
 
     test_case.add_input<int8_t>(Shape{1, 1, 2, 2}, std::vector<int8_t>{-127, -2, 3, 4});
-    test_case.add_input<ngraph::float16>(Shape{4}, {1, 2, 3, 4});
-    test_case.add_expected_output<ngraph::float16>(std::vector<ngraph::float16>{-127.0, -2.0, 3.0, 4.0});
+    test_case.add_input<ov::float16>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<ov::float16>(std::vector<ov::float16>{-127.0, -2.0, 3.0, 4.0});
 
     test_case.run();
 }

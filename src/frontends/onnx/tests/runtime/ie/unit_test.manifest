@@ -1,12 +1,12 @@
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine all plugins excludes
+#       OpenVINO all plugins excludes
 #
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 #
-#       nGraph ONNX C++ Importer unit tests
+#       OpenVINO ONNX C++ FrontEnd unit tests
 #
 #-------------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_logsoftmax_0D
 
-# nGraph function's output number 0 was not found in the CNNNetwork built from it.
+# Model's output number 0 was not found in the ov::Model.
 onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
@@ -167,7 +167,7 @@ IE_CPU.onnx_roi_align_f32
 
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine CPU plugin excludes
+#       OpenVINO CPU plugin excludes
 #
 #-------------------------------------------------------------------------------
 
@@ -175,7 +175,7 @@ IE_CPU.onnx_roi_align_f32
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 
-# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# OpenVINO Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
 # Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
@@ -193,7 +193,7 @@ IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
-# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+# OpenVINO test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.onnx_constant_sparse_tensor_float16_3x4
 IE_CPU.onnx_float16_tensor_as_int32
 
@@ -210,7 +210,7 @@ onnx_model_mm_nms_rotated
 
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine GPU plugin excludes
+#       OpenVINO GPU plugin excludes
 #
 #-------------------------------------------------------------------------------
 
