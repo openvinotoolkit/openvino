@@ -11,12 +11,9 @@ ov_deprecated_no_errors()
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
-    TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
-    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
-    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${TEST_MODEL_ZOO}/onnx/unit_test.manifest"
-    SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
+)
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 

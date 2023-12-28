@@ -46,7 +46,7 @@ void jit_dnnl_emitter::set_injector() {
         eltwise_injector_avx512_core = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx512_core>>(
                 h, kind, alpha, beta, 1.f);
     } else {
-        assert(!"unsupported isa");
+        OPENVINO_THROW("Unsupported ISA");
     }
 }
 
@@ -67,7 +67,7 @@ void jit_dnnl_emitter::emit_code(const std::vector<size_t> &in_vec_idxs, const s
             h->uni_vmovups(Zmm(out_vec_idxs[0]), Zmm(in_vec_idxs[0]));
         eltwise_injector_avx512_core->compute_vector(out_vec_idxs[0]);
     } else {
-        assert(!"unsupported isa");
+        OPENVINO_THROW("Unsupported ISA");
     }
 }
 
@@ -79,7 +79,7 @@ void jit_dnnl_emitter::emit_data() const {
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core->prepare_table();
     } else {
-        assert(!"unsupported isa");
+        OPENVINO_THROW("Unsupported ISA");
     }
 }
 
