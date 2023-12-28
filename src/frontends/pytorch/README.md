@@ -169,7 +169,10 @@ decoder = TorchScriptPythonDecoder(model, example_input=example)
 print(decoder.graph_element)
 ```
 
-How to understand which operation causes problems? Lets consider the following model.
+Also frequent reason for accuracy issues can be incorrect inputs provided to
+model which is sensitive to input data. So it is recommended to provide real
+image (audio, text) from dataset for accuracy validation. How to understand
+which operation causes problems? Lets consider the following model:
 
 ```python
 import torch
@@ -203,10 +206,14 @@ graph(%self : __torch__.example_model,
   %12 : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::add(%10, %z, %11) # /home/user/example.py:11:0
   return (%12)
 ```
+
 This model has random operation to demonstrate accuracy issues, by nature it
 can't generate same results between OpenVINO and PyTorch, because random
-numbers are generated differently. To demonstrate this, lets run the following
-code:
+numbers are generated differently. To compare the numbers obtained in `FP32`
+inference scenario it is recommended to use `1e-4` as absolute threshold and
+relative threshold. But if `FP16` is used or model is quantized the threshold
+can be increased. To check our model, lets run the following code:
+
 ```
 import openvino as ov
 import numpy as np
@@ -219,33 +226,56 @@ compiled = core.compile_model(ov_model, "CPU")
 
 pt_res = model(*example)
 ov_res = compiled(example)
-np.testing.assert_allclose(pt_res.detach().numpy(), ov_res[0])
+np.testing.assert_allclose(pt_res.detach().numpy(), ov_res[0], atol=1e-4, rtol=1e-4)
 ```
+
 It produce the following output:
+
 ```
 AssertionError: 
-Not equal to tolerance rtol=1e-07, atol=0
+Not equal to tolerance rtol=0.0001, atol=0.0001
 
-Mismatched elements: 30000 / 30000 (100%)
-Max absolute difference: 5.46548
-Max relative difference: 10992.667
- x: array([[[[-0.82274 ,  0.490486, -0.685879, ...,  0.438866,  0.24843 ,
-           0.812158],
-         [ 4.328736, -0.17589 ,  0.275108, ...,  4.552745, -0.744023,...
- y: array([[[[ 3.352949, -0.627091,  1.049008, ...,  0.03871 , -0.978001,
-          -0.063791],
-         [ 2.590967,  1.057626,  3.620144, ...,  4.315144,  0.247716,...
+Mismatched elements: 29996 / 30000 (100%)
+Max absolute difference: 6.0375447
+Max relative difference: 16586.805
+ x: array([[[[ 1.124452e+00,  6.839355e-01, -1.321532e+00, ...,
+          -4.090581e-01,  1.400993e+00,  2.823834e+00],
+         [-8.246053e-01,  2.376951e-01,  2.846813e+00, ...,...
+ y: array([[[[-3.556393e+00,  6.779741e-01,  6.177414e-01, ...,
+          -1.879819e+00, -3.007278e-01,  3.827740e+00],
+         [-1.255121e+00,  8.543051e-01,  3.162248e+00, ...,...
 ```
+
 Issue in your model can be caused by random operation, but it can also be a
 different issue. One possible way to find such operation in the model is to
 create additional outputs from the graph. We can do it by changing `forward`
 function to return `y` and `z` value. That will allow us to see that `y` is
 returned with good accuracy and `z` has accuracy issues, we can see in inlined
 graph that `z` is produced by line 6 of our code:
+
 ```
   %z : Float(1, 3, 100, 100, strides=[30000, 10000, 100, 1], requires_grad=0, device=cpu) = aten::randn_like(%x, %3, %4, %5, %6, %7) # /home/user/example.py:6:0
 ```
+
 and we will see `torch.randn_like` function call on that line.
+
+#### Possible problems in existing operation translators
+
+Some operations can be translated incorrectly. For example PyTorch allow to
+pass different data types in the operation while OpenVINO usually requires same
+types for all inputs of the operation (more information about what types
+OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2023.2/openvino_docs_operations_specifications.html)).
+PyTorch has set rules for types alignment, to solve this issue PyTorch Frontend
+has `align_eltwise_input_types` helper function which aligns types of two
+inputs. If this function is not used when needed or if it used incorrectly that
+can result in incorrectly converted operation.
+
+Other common problems are mutated outputs. PyTorch operations can modify input
+tensors, which is not directly supported by OpenVINO, to workaround this problem
+`NodeContext` has special function `mutate_input` it create new tensor with same
+name as input tensor. However if `mutate_input` was omitted in translation
+function, unchanged tensor will be returned after operation execution, so it is
+very important to pay attention to this.
 
 ## See Also
  * [OpenVINO README](../../../README.md)
