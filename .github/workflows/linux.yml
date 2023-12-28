@@ -180,17 +180,20 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: CMake configure - OpenVINO JS API
+        working-directory: ${{ env.OPENVINO_REPO }}
         run: |
-          cmake \
-            -DCPACK_GENERATOR=NPM \
-            -DENABLE_SYSTEM_TBB=OFF \
-            -UTBB* \
-            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/js/node/bin \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
+          mkdir build && cd build && cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/js/node/bin ..
+#          cmake \
+#            -DCPACK_GENERATOR=NPM \
+#            -DENABLE_SYSTEM_TBB=OFF \
+#            -UTBB* \
+#            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/js/node/bin \
+#            -S ${OPENVINO_REPO} \
+#            -B ${BUILD_DIR}
 
       - name: Cmake build - OpenVINO JS API
-        working-directory: ${{ env.BUILD_DIR }}
+#        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: ${{ env.OPENVINO_REPO }}/build
         run: |
           make --jobs=$(nproc --all) install
           ls -la ${INSTALL_DIR}
