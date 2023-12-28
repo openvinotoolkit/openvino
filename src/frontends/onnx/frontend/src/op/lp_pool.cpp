@@ -11,9 +11,9 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
-#include "ngraph/builder/norm.hpp"
-#include "ngraph/builder/split.hpp"
 #include "ngraph/util.hpp"
+#include "ov_models/ov_builders/norm.hpp"
+#include "ov_models/ov_builders/split.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -36,13 +36,13 @@ OutputVector global_lp_pool(const Node& node) {
 
     CHECK_VALID_NODE(node, p_norm >= 0, "Only positive (including zero) values are supported for 'p' attribute.");
 
-    OutputVector slices = ngraph::builder::opset1::split(data, channels_count, channel_axis);
+    OutputVector slices = ov::op::util::split(data, channels_count, channel_axis);
 
     for (auto& slice : slices) {
         // all dimensions except spatial/feature
         const auto reduction_axes = common::get_monotonic_range_along_node_rank(data, 2);
 
-        slice = ngraph::builder::opset1::lp_norm(slice, reduction_axes, static_cast<std::size_t>(p_norm));
+        slice = ov::op::util::lp_norm(slice, reduction_axes, static_cast<std::size_t>(p_norm));
 
         // output shape is all ones except N channel
         Shape output_shape(data_shape.rank().get_length(), 1);

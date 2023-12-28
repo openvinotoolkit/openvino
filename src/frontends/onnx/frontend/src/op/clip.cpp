@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 

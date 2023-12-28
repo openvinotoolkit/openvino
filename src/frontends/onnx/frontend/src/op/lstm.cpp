@@ -13,8 +13,6 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/add.hpp"
@@ -25,6 +23,8 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
+#include "ov_models/ov_builders/split.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -55,7 +55,7 @@ struct LSTMNgInputMap {
         // Packed input sequences.
         // ONNX Shape: [seq_length, batch_size, input_size]
         // OpenVino Shape: [batch_size, seq_length, input_size]
-        m_input_map[LSTMInput::LSTM_INPUT_X] = builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
+        m_input_map[LSTMInput::LSTM_INPUT_X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
 
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
@@ -101,7 +101,7 @@ struct LSTMNgInputMap {
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3))) {
             auto bias = ng_inputs.at(3);
-            auto split_bias = builder::opset1::split(bias, 2, 1);
+            auto split_bias = ov::op::util::split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
@@ -132,7 +132,7 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
         } else {
             auto init_h_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -145,7 +145,7 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = ov::op::util::reorder_axes(ng_inputs.at(6), {1, 0, 2});
         } else {
             auto init_c_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -258,9 +258,9 @@ OutputVector lstm(const Node& node) {
     const auto Y_h = lstm_sequence->output(1);
     const auto Y_c = lstm_sequence->output(2);
 
-    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
-            builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
-            builder::opset1::reorder_axes(Y_c, {1, 0, 2})};
+    return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}),
+            ov::op::util::reorder_axes(Y_h, {1, 0, 2}),
+            ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
 }  // namespace set_1
 

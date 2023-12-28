@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/builder/reshape.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -10,7 +10,6 @@
 #include <numeric>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/reshape.hpp"
@@ -79,7 +78,7 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
         return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
     }
 
-    return builder::opset1::reshape(node, Shape{});
+    return ov::op::util::reshape(node, Shape{});
 }
 
 Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,

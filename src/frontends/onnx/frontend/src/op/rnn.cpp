@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/reshape.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/recurrent.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -50,7 +50,7 @@ OutputVector rnn(const Node& node) {
     const auto Y = rnn_sequence->output(0);
     const auto Y_h = rnn_sequence->output(1);
 
-    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}), builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
+    return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
 }  // namespace set_1
 }  // namespace op

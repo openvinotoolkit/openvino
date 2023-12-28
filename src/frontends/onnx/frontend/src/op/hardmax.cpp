@@ -5,10 +5,10 @@
 #include "op/hardmax.hpp"
 
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/validation_util.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -29,7 +29,7 @@ OutputVector hardmax(const Node& node) {
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
-    const auto coerced_tensor = ngraph::builder::opset1::flatten(input, static_cast<int>(axis));
+    const auto coerced_tensor = ov::op::util::flatten(input, static_cast<int>(axis));
 
     const auto coerced_tensor_shape = std::make_shared<default_opset::ShapeOf>(coerced_tensor);
     Output<ngraph::Node> row_size =

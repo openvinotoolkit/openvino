@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/builder/split.hpp"
+#include "op/split.hpp"
 
 #include <vector>
 
 #include "default_opset.hpp"
-#include "op/split.hpp"
+#include "ov_models/ov_builders/split.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -20,10 +20,10 @@ OutputVector split(const Node& node) {
 
     if (node.has_attribute("split")) {
         const auto splits = node.get_attribute_value<std::vector<int64_t>>("split");
-        return ngraph::builder::opset1::split(input, splits, axis);
+        return ov::op::util::split(input, splits, axis);
     } else {
         const auto outputs_number = node.get_output_names().size();
-        return ngraph::builder::opset1::split(input, outputs_number, axis);
+        return ov::op::util::split(input, outputs_number, axis);
     }
 }
 
@@ -36,7 +36,7 @@ OutputVector split(const Node& node) {
 
     if (inputs.size() < 2) {
         const auto outputs_number = node.get_output_names().size();
-        return ngraph::builder::opset1::split(inputs.at(0), outputs_number, axis);
+        return ov::op::util::split(inputs.at(0), outputs_number, axis);
     } else {
         const auto axis_node = default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
         return {std::make_shared<default_opset::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
