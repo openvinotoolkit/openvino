@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -39,10 +39,9 @@ protected:
                                                      paddingType,
                                                      numOutChannels);
         }
-        const auto sharedNode = ngraph::builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
-        const auto postOpCandidate = ov::test::utils::makeEltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
-
-        const auto secondConsumpt = ov::test::utils::makeEltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
+        const auto sharedNode = ov::test::utils::deprecated::make_constant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
+        const auto postOpCandidate = ov::test::utils::make_eltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
+        const auto secondConsumpt = ov::test::utils::make_eltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
 
         NodeVector results{postOpCandidate, secondConsumpt};
         function = std::make_shared<ov::Model>(results, inputParams, "NotFusedConvSimpleOp");

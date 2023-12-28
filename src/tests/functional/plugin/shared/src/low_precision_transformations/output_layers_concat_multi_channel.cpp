@@ -15,6 +15,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
@@ -85,7 +86,7 @@ void OutputLayersConcatMultiChannel::SetUp() {
     const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1->output(0), ngPrecision, 256ul, { 1ul });
+    const auto fakeQuantize1 = ov::test::utils::make_fake_quantize(input1->output(0), ngPrecision, 256ul, { 1ul });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     ASSERT_EQ(4ul, inputShape1.size()) << "unexpected input layout";
@@ -93,7 +94,7 @@ void OutputLayersConcatMultiChannel::SetUp() {
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2->output(0), ngPrecision, 256ul, { 1ul });
+    const auto fakeQuantize2 = ov::test::utils::make_fake_quantize(input2->output(0), ngPrecision, 256ul, { 1ul });
     fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const std::shared_ptr<ov::op::v0::Concat> concat = std::make_shared<ov::op::v0::Concat>(

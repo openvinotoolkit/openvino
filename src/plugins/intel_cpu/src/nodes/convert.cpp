@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dnnl_extension_utils.h>
 #include "convert.h"
+
 #include "common/blocked_desc_creator.h"
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <utils/ngraph_utils.hpp>
-#include <shape_inference/shape_inference_pass_through.hpp>
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

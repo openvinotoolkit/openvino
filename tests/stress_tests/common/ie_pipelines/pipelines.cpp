@@ -9,7 +9,6 @@
 #include <iostream>
 #include <string>
 
-#include <inference_engine.hpp>
 #include <openvino/openvino.hpp>
 
 

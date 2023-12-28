@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/fake_quantize.hpp"
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+
 namespace LayerTestsDefinitions {
 
 
@@ -80,9 +82,9 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(params[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ov::test::utils::make_fake_quantize(params[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
-        fakeQNode = ngraph::builder::makeFakeQuantize(
+        fakeQNode = ov::test::utils::make_fake_quantize(
             params[0],
             ngPrc,
             levels,
