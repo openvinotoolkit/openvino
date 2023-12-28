@@ -1058,8 +1058,27 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
         do_runtime_in_place_kv_cache();
+        bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            can_skip_execution = true;
+        }
+
+        if (_node->is_in_shape_of_subgraph()) {
+            bool subgraph_input_changed = false;
+            for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
+                if (dependant_shape_of_insts[i]->shape_changed()) {
+                    subgraph_input_changed = true;
+                    break;
+                }
+            }
+            if (!subgraph_input_changed) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                can_skip_execution = true;
+            }
+        }
+
+        if (can_skip_execution) {
             auto ev = get_network().get_stream().create_user_event(true);
             update_shape_done_by_other = false; // reset
             return ev;
@@ -1264,7 +1283,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
-    if (allocate_memory && node.is_dynamic() && (!network.get_engine().check_allocatable(output_layout, allocation_type::usm_host))) {
+    auto& engine = network.get_engine();
+    if (allocate_memory && node.is_dynamic() && (!engine.check_allocatable(output_layout, engine.get_lockable_preferred_memory_allocation_type(false)))) {
         allocate_memory = false;
     }
     _mem_allocated = allocate_memory;
