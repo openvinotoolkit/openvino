@@ -17,6 +17,8 @@ class TestDiv(CommonTFLayerTest):
         # generate x and y
         inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         inputs_data['y'] = np.random.randint(1, 10, y_shape)*np.random.choice([-1,1], y_shape)
+        print("input x: \n{}".format(inputs_data['x']))
+        print("input y: \n{}".format(inputs_data['y']))
         return inputs_data
 
     def create_div_net(self, input_shape, input_type):
