@@ -21,7 +21,6 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
@@ -33,7 +32,7 @@ using namespace ov::frontend::onnx::tests;
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
-// ONNX LSTM tests (implemented by nGraph LSTMCell and LSTMSequence)
+// ONNX LSTM tests (implemented by OpenVINO LSTMCell and LSTMSequence)
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const) {
     auto model = convert_model("lstm_fwd_default_const.onnx");
 

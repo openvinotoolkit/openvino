@@ -14,7 +14,6 @@
 
 #include <fstream>
 #include <input_model.hpp>
-#include <onnx_import/onnx.hpp>
 #include <onnx_import/onnx_utils.hpp>
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
@@ -31,6 +30,7 @@
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -195,6 +195,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
+namespace {
+const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
+const ngraph::onnx_import::LegacyConversionExtension::Ptr get_legacy_conversion_extension() {
+    return legacy_conversion_extension;
+}
+}  // namespace
+
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_extensions.telemetry = telemetry;
@@ -212,7 +219,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
         m_other_extensions.push_back(legacy_ext);
         std::call_once(has_legacy_extension, [this] {
-            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+            m_extensions.conversions.push_back(get_legacy_conversion_extension());
         });
     }
 }
