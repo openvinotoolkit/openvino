@@ -5,8 +5,6 @@
 #include "op/org.openvinotoolkit/group_norm.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
-#include "ngraph/builder/split.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
