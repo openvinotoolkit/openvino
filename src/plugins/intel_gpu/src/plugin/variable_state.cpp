@@ -54,17 +54,9 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 }
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
-    const bool blocking = true;
-    auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(state._ptr);
     m_layout.set_partial_shape(state->get_shape());
     update_device_buffer();
-    if (remote_ptr != nullptr) {
-        auto user_memory = remote_ptr->get_memory();
-        m_memory->copy_from(m_context->get_engine().get_service_stream(), *user_memory, blocking);
-    } else {
-        auto data = state->data();
-        m_memory->copy_from(m_context->get_engine().get_service_stream(), data, blocking);
-    }
+    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream());
     set();
 }
 
