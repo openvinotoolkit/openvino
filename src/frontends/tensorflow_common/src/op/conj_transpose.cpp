@@ -46,7 +46,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node){
 
 		OutputVector concat_inputs;
         concat_inputs.push_back(perm);
-        concat_inputs.push_back(make_shared<v0::ShapeOf>(perm, perm.get_element_type()));
+        concat_inputs.push_back(make_shared<v3::ShapeOf>(perm, perm.get_element_type()));
 
         auto concat = make_shared<v0::Concat>(concat_inputs, 0);
 		auto conj_transpose = make_shared<v1::Transpose>(conj_tensor, concat);
