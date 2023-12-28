@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -95,13 +95,13 @@ protected:
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
             inp2 =
-                ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ngraph::builder::makeConstant<float>(netPrecision,
+                ov::test::utils::deprecated::make_constant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ov::test::utils::deprecated::make_constant<float>(netPrecision,
                                                         {inputShape.second.front().at(1)},
                                                         {},
                                                         true,
                                                         maxBeamIndex);
-            inp4 = ngraph::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            inp4 = ov::test::utils::deprecated::make_constant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }

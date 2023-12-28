@@ -12,36 +12,33 @@ Model Preparation
    :maxdepth: 1
    :hidden:
 
+   Convert to OpenVINO Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>
    Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>
    Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>
-   Convert from PyTorch <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>
-   Convert from TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>
-   Convert from ONNX <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>
-   Convert from TensorFlow_Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>
-   Convert from PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>
-   Supported_Model_Formats
+   PyVision preprocessing <pytorch_vision>
 
 
-You can obtain a model in one of :doc:`supported formats <Supported_Model_Formats>`
+You can obtain a model in one of supported formats, **PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle**,
 in many ways. The easiest one is to download it from an online database,
 such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__,
 and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and run inference directly from the source format. Conversion
-  will still be performed but it will happen automatically and "under the hood." 
+* Skip model conversion and `run inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__ directly from the **TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle** source format. Conversion
+  will still be performed but it will happen automatically and "under the hood". 
   This option, while convenient, offers lower performance and stability, as well as
   fewer optimization options.
 
-* Explicitly convert the model to :doc:`OpenVINO IR <openvino_ir>`.
+* Explicitly :doc:`convert the model to OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`.
   This approach offers the best possible results and is the recommended one,
-  especially for for production-ready solutions. Explicit conversion can be done in two ways:
+  especially for production-ready solutions. Consider storing your model in this format to minimize first-inference latency, 
+  perform model optimizations, and save space on your drive, in some cases. Explicit conversion can be done in two ways:
 
-  * the Python API functions (``openvino.convert_model`` and ``openvino.save_model``) 
-  * the ``ovc`` command line tool. 
-
-  Once saved as :doc:`OpenVINO IR <openvino_ir>` (a set of ``.xml`` and ``.bin`` files), 
+  * the `Python API functions <#convert-a-model-with-python-convert-model>`__ (``openvino.convert_model`` and ``openvino.save_model``) 
+  * the `ovc <#convert-a-model-in-cli-ovc>`__  command line tool. 
+  
+  Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>` (a set of ``.xml`` and ``.bin`` files), 
   the model may be deployed with maximum performance. Because it is already optimized
-  for OpenVINO inference, it can be read, compiled, and inferred with no additional delay. 
+  for `OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__, it can be read, compiled, and inferred with no additional delay. 
 
 .. note::
    
@@ -51,13 +48,37 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
    with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
    For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
+   For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only conversion option. 
+
+   TensorFlow may present additional considerations :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
+
+Model States
+##############################################
+
+There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled (``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
+
+| **Saved on disk**
+|    A model in this state consists of one or more files that fully represent the neural network. A model can be stored in different ways. For example:
+|       OpenVINO IR: pair of .xml and .bin files
+|       ONNX: .onnx file
+|       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
+|       TensorFlow Lite: .tflite file
+|       PaddlePaddle: .pdmodel file
+
+| **Loaded but not compiled**
+|    A model object (``ov.Model``) is created in memory either by parsing a file or converting an existing framework object. Inference cannot be done with this object yet as it is not attached to any specific device, but it allows customization such as reshaping its input, applying quantization or even adding preprocessing steps before compiling the model.
+
+| **Loaded and compiled**
+|   This state is achieved when one or more devices are specified for a model object to run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling inference.
+
+For more information on each function, see the :doc:`OpenVINO workflow <openvino_workflow>` page.
 
 Convert a Model with Python: ``convert_model``
 ##############################################
 
 The Model conversion API in Python uses the ``openvino.convert_model`` function,
 turning a given model into the `openvino.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__
-object and loading it to memory. Now it can be: saved to a drive with `openvino.save_model``
+object and loading it to memory. Now it can be: saved to a drive with ``openvino.save_model``
 or further :doc:`optimized with NNCF <openvino_docs_model_optimization_guide>`
 prior to saving.
 
@@ -233,21 +254,18 @@ Convert a Model in CLI: ``ovc``
 
 ``ovc`` is a command-line model converter, combining the ``openvino.convert_model``
 and ``openvino.save_model`` functionalities, providing the exact same results, if the same set of 
-parameters is used for saving into OpenVINO IR. It converts files from one of the 
-:doc:`supported model formats <Supported_Model_Formats>` to :doc:`OpenVINO IR <openvino_ir>`, which can then be read, compiled,
+parameters is used for saving into OpenVINO IR. It converts files from one of the to :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`, which can then be read, compiled,
 and run by the final inference application.
 
 .. note::
    PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
-
-
 
 Additional Resources
 ####################
 
 The following articles describe in detail how to obtain and prepare your model depending on the source model type:
 
-* :doc:`Convert different model formats to the ov.Model format <Supported_Model_Formats>`.
+* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`.
 * :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
 
 To achieve the best model inference performance and more compact OpenVINO IR representation follow:

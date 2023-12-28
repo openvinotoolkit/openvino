@@ -6,7 +6,6 @@
 
 #include "memory_desc/dnnl_memory_desc.h"
 
-
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
  *

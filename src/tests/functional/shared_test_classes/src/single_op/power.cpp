@@ -48,7 +48,7 @@ void PowerLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto power_const = std::make_shared<ov::op::v0::Constant>(model_type, ngraph::Shape{1}, power);
+    auto power_const = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{1}, power);
     auto pow = std::make_shared<ov::op::v1::Power>(param, power_const);
 
     function = std::make_shared<ov::Model>(pow, ov::ParameterVector{param}, "power");

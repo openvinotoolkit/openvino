@@ -195,14 +195,14 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: Upload openvino package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -225,13 +225,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -282,7 +282,7 @@ jobs:
           WORKSPACE: ${{ env.INSTALL_DIR }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-samples
@@ -307,13 +307,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -363,12 +363,6 @@ jobs:
 
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
-
-      - name: Python API 1.0 Tests
-        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
-        shell: cmd
-        run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py
 
       - name: Python API 2.0 Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
@@ -502,7 +496,7 @@ jobs:
         run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
@@ -523,13 +517,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -617,18 +611,6 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineUnitTests.xml
-
       - name: Common test utils tests
         shell: cmd
         run: |
@@ -655,12 +637,6 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
-
-      - name: GNA plugin unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).GNA.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
@@ -723,7 +699,7 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
@@ -747,13 +723,13 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -808,7 +784,7 @@ jobs:
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

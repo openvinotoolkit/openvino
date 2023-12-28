@@ -61,25 +61,25 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 .. showcase::
    :title: 272-paint-by-example
-   :img: https://camo.githubusercontent.com/79d83ce8fc6813a503f372bacb7dc709c79d9560060df3dc92196b9849cc33a9/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f3130333232363538302f3233363935343931382d66333634623232372d323933632d346637382d613962662d3964636562636231303334612e706e67
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
 
    Paint by Example using Stable Diffusion and OpenVINO.
 
 .. showcase::
    :title: 271-sdxl-turbo
-   :img: _images/271-sdxl-turbo-with-output_30_1.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/271-sdxl-turbo/271-sdxl-turbo.png
 
    Single step image generation using SDXL-turbo and OpenVINO.
 
 .. showcase::
    :title: 270-sound-generation-audioldm2
-   :img: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/c93a0f86-d9cf-4bd1-93b9-e27532170d75
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/270-sound-generation-audioldm2/270-sound-generation-audioldm2.png
    
    Sound Generation with AudioLDM2 and OpenVINO.
 
 .. showcase::
    :title: 269-film-slowmo
-   :img: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/269-film-slowmo/269-film-slowmo.gif
 
    Frame interpolation using FILM and OpenVINO.
 
@@ -91,19 +91,19 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 .. showcase::
    :title: 265-wuerstchen-image-generation
-   :img: https://user-images.githubusercontent.com/76161256/277724498-6917c558-d74c-4cc9-b81a-679ce0a299ee.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/265-wuerstchen-image-generation/265-wuerstchen-image-generation.png
 
    Image generation with Würstchen and OpenVINO.
 
 .. showcase::
    :title: 264-qrcode-monster
-   :img: https://user-images.githubusercontent.com/76463150/278011447-1a5978c6-e7a0-4824-9318-a3d8f4912c47.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/264-qrcode-monster/264-qrcode-monster.png
 
    Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
 
 .. showcase::
    :title: 263-latent-consistency-models-image-generation
-   :img: https://user-images.githubusercontent.com/29454499/277367065-13a8f622-8ea7-4d12-b3f8-241d4499305e.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/263-latent-consistency-models-image-generation/263-latent-consistency-models-image-generation.png
 
    Image generation with Latent Consistency Model and OpenVINO.
 
