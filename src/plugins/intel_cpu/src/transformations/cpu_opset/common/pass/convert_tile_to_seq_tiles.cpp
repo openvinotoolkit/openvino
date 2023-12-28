@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/core/rt_info.hpp"

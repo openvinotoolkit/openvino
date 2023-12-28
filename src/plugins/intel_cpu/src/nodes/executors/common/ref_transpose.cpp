@@ -6,12 +6,10 @@
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
-static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
         indexes[j] = start % dims[j];
         start = start / dims[j];
@@ -19,7 +17,7 @@ static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector&
     return start;
 }
 
-static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
         if (indexes[j] < dims[j])
@@ -30,9 +28,9 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
 }
 
 void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb) {
-    SizeVector dst_dims = jcp.dst_block_dims;
-    const SizeVector dst_strides = jcp.dst_strides;
-    const SizeVector src_strides = jcp.src_strides;
+    VectorDims dst_dims = jcp.dst_block_dims;
+    const VectorDims dst_strides = jcp.dst_strides;
+    const VectorDims src_strides = jcp.src_strides;
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
@@ -41,7 +39,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* ds
 
     size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
 
-    auto get_idx = [ndims, data_size](const SizeVector& indexes, const SizeVector& strides) {
+    auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
         for (size_t i = 0; i < ndims; ++i)
             idx += indexes[i] * strides[i];
@@ -50,7 +48,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* ds
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        SizeVector indexes(ndims, 0);
+        VectorDims indexes(ndims, 0);
         splitter(work_amount, nthr, ithr, start, end);
 
         parallel_init(start, ndims, dst_dims, indexes);
