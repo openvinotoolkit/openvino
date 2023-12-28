@@ -305,6 +305,20 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     core_configuration(this);
+
+    ov::element::Type hint = ov::element::f32;
+    for (auto& param : function->get_parameters()) {
+        if (param->get_output_element_type(0) == ov::element::f16) {
+            hint = ov::element::f16;
+            break;
+        }
+    }
+
+    if (hint == ov::element::f32) {
+        convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
+        convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+    }
+
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();

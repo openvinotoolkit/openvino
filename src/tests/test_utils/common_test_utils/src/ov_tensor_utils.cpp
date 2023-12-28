@@ -265,24 +265,25 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(const ov::element::Type 
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
 inline double less(double a, double b) {
-    return a < b;
+    return std::fabs(a - b) > eps && a < b;
 }
 
 inline double less_or_equal(double a, double b) {
-    bool res = true;
-    if (std::isnan(a) || std::isnan(b)) {
-        res = false;
-    } else if (std::isinf(b) && b > 0) {
-        // b is grater than any number or eq the +Inf
-        res = true;
-    } else if (std::isinf(a) && a > 0) {
-        res = false;
-    } else {
-        res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
-    }
-    double eq_midle_res = std::fabs(b - a);
-    bool eq_res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps));
-    return res;
+    return ((b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a <= b);
+    // bool res = true;
+    // if (std::isnan(a) || std::isnan(b)) {
+    //     res = false;
+    // } else if (std::isinf(b) && b > 0) {
+    //     // b is grater than any number or eq the +Inf
+    //     res = true;
+    // } else if (std::isinf(a) && a > 0) {
+    //     res = false;
+    // } else {
+    //     res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
+    // }
+    // double eq_midle_res = std::fabs(b - a);
+    // bool eq_res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps));
+    // return res;
 }
 
 struct Error {
@@ -364,7 +365,7 @@ void compare(const ov::Tensor& expected,
             } else if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
                 abs_threshold = abs_median * 0.1 < 1e-5 ? 1e-5 : 0.1 * abs_median;
             } else if (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) {
-                abs_threshold = abs_median * 0.1 < 1e-3 ? 1e-3 : 0.1 * abs_median;
+                abs_threshold = abs_median * 0.05 < 1e-3 ? 1e-3 : 0.05 * abs_median;
             }
 
             rel_threshold = abs_threshold;
