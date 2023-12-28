@@ -44,8 +44,10 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
     // It may cause replacement of Constant by Parameter in such operations
     // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
     ov::pass::Manager manager;
-    // leave handling of consts with compression/decompression to hardware according to its capability
-    manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
+    // leave handling of const precision to hardware according to its capability
+    // especially for LLM with compressed weights
+    // it's not recommend to do common constant folding, which will easily leads to OOM, or potential performance issues
+    manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
     ov::SupportedOpsMap query_model_result;
