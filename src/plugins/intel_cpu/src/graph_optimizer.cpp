@@ -1709,6 +1709,16 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
+        auto checkInputCompatibility = [](NodePtr sumNode) {
+            auto shape1 = sumNode->getInputShapeAtPort(0);
+            auto shape2 = sumNode->getInputShapeAtPort(1);
+            return shape1.isCompatible(shape2.getDims());
+        };
+
+        if (!checkInputCompatibility(sum)) {
+            continue;
+        }
+
         auto lastNode = sum;
 
         bool fuse_allowed = mergedConv->getChildEdges().size() == 1;
