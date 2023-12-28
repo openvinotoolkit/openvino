@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "execution_graph_tests/fp16_compress_disable.hpp"
+#include "execution_graph_tests/disable_lowering_precision.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ExecutionGraphTests;
@@ -12,13 +12,13 @@ using namespace InferenceEngine;
 
 namespace {
 
-const std::vector<ExecGraphDisableFP16CompressSpecificParams> InferPrecisionFP16DisableTestCommonParams = {
+const std::vector<ExecGraphDisableLowingPrecisionSpecificParams> InferPrecisionFP16DisableTestCommonParams = {
     {true,  "CPU"},
     {false, "CPU"},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphDisableFP16Compress,
+INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphDisableLoweringPrecision,
                                 ::testing::ValuesIn(InferPrecisionFP16DisableTestCommonParams),
-                        ExecGraphDisableFP16Compress::getTestCaseName);
+                        ExecGraphDisableLoweringPrecision::getTestCaseName);
 
 }  // namespace

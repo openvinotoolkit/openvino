@@ -14,15 +14,15 @@
 
 namespace ExecutionGraphTests {
 
-using ExecGraphDisableFP16CompressSpecificParams = std::tuple<
-    bool,
+using ExecGraphDisableLowingPrecisionSpecificParams = std::tuple<
+    bool,                               //Disable lowering precision on device
     std::string                         // Target Device
 >;
 
-class ExecGraphDisableFP16Compress : public testing::WithParamInterface<ExecGraphDisableFP16CompressSpecificParams>,
+class ExecGraphDisableLoweringPrecision : public testing::WithParamInterface<ExecGraphDisableLowingPrecisionSpecificParams>,
                                  public ov::test::TestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ExecGraphDisableFP16CompressSpecificParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ExecGraphDisableLowingPrecisionSpecificParams> obj);
     std::string targetDevice;
 
 protected:
@@ -30,9 +30,8 @@ protected:
     void TearDown() override;
     void create_model();
     void checkInferPrecision();
-    bool matmulFP16Disabled;
+    bool disableLoweringPrecision;
     std::shared_ptr<ov::Model> funcPtr = nullptr;
-    std::string enforcedPrecision;
 };
 
 }  // namespace ExecutionGraphTests

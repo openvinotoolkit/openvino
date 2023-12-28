@@ -17,29 +17,29 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "execution_graph_tests/fp16_compress_disable.hpp"
+#include "execution_graph_tests/disable_lowering_precision.hpp"
 #include "ie/ie_plugin_config.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDisableFP16Compress::getTestCaseName(testing::TestParamInfo<ExecGraphDisableFP16CompressSpecificParams> obj) {
+std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLowingPrecisionSpecificParams> obj) {
     std::ostringstream result;
-    bool matmulFP16Disabled;
+    bool disableLoweringPrecision;
     std::string targetDevice;
-    std::tie(matmulFP16Disabled, targetDevice) = obj.param;
-    result << "matmul_BF16_Disabled=" << matmulFP16Disabled << "_";
+    std::tie(disableLoweringPrecision, targetDevice) = obj.param;
+    result << "matmul_disable_lowingprecision=" << disableLoweringPrecision << "_";
     result << "device=" << targetDevice;
     return result.str();
 }
 
-void ExecGraphDisableFP16Compress::SetUp() {
-    std::tie(matmulFP16Disabled, targetDevice) =  this->GetParam();
+void ExecGraphDisableLoweringPrecision::SetUp() {
+    std::tie(disableLoweringPrecision, targetDevice) =  this->GetParam();
     create_model();
 }
 
-void ExecGraphDisableFP16Compress::TearDown() {
+void ExecGraphDisableLoweringPrecision::TearDown() {
 }
 
 /*  test model:
@@ -56,27 +56,29 @@ void ExecGraphDisableFP16Compress::TearDown() {
       ---------
 */
 
-void ExecGraphDisableFP16Compress::create_model() {
+void ExecGraphDisableLoweringPrecision::create_model() {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 16});
-    auto weightConst = ngraph::builder::makeConstant(ov::element::f16, ov::Shape{16, 16}, std::vector<float>{0.0f}, true);
+    auto weiShape = ov::Shape{16, 16};
+    auto weightConst = ov::op::v0::Constant::create(ov::element::i64, weiShape, std::vector<int64_t>(ov::shape_size(weiShape), 1));
     auto weightConvert = std::make_shared<ov::op::v0::Convert>(weightConst, ov::element::f32);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(A, weightConvert);
     matmul->set_friendly_name("Matmul0");
-    if (matmulFP16Disabled)
+    if (disableLoweringPrecision)
         ov::disable_fp16_compression(matmul);
     funcPtr = std::make_shared<ov::Model>(matmul->outputs(), ov::ParameterVector{A}, "testModel");
 }
 
-void ExecGraphDisableFP16Compress::checkInferPrecision() {
+void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     ov::CompiledModel compiledModel;
+    std::string loweringPrecision;
     auto core = ov::test::utils::PluginCache::get().core();
     if (targetDevice == "CPU") {
         compiledModel = core->compile_model(funcPtr, targetDevice,
                                 {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}});
-        enforcedPrecision = "bf16";
+        loweringPrecision = "bf16";
     } else {
         compiledModel = core->compile_model(funcPtr, targetDevice);
-        enforcedPrecision = "f16";
+        loweringPrecision = "f16";
     }
     const auto runtime_model = compiledModel.get_runtime_model();
     ASSERT_NE(nullptr, runtime_model);
@@ -92,13 +94,13 @@ void ExecGraphDisableFP16Compress::checkInferPrecision() {
         }
     }
     OPENVINO_ASSERT(!matmulPrecision.empty());
-    if (matmulFP16Disabled)
+    if (disableLoweringPrecision)
         ASSERT_EQ(matmulPrecision, "f32");
     else
-        ASSERT_EQ(matmulPrecision, enforcedPrecision);
+        ASSERT_EQ(matmulPrecision, loweringPrecision);
 }
 
-TEST_P(ExecGraphDisableFP16Compress, CheckRuntimePrecision) {
+TEST_P(ExecGraphDisableLoweringPrecision, CheckRuntimePrecision) {
     // Only run tests on CPU with avx512_core ISA
     if (targetDevice == "CPU" && !ov::with_cpu_x86_avx512_core())
         GTEST_SKIP();
