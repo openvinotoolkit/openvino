@@ -8,7 +8,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/concat.hpp"

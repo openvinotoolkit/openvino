@@ -136,7 +136,7 @@ public:
     const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
 
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
-    bool requires_new_shape_infer(const ov::Node& op) const;
+    bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const;
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }

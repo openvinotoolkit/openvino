@@ -115,6 +115,28 @@ Optimum-Intel API also provides out-of-the-box model optimization through weight
 
 Weight compression is applied by default to models larger than one billion parameters and is also available for CLI interface as the ``--int8`` option.
 
+.. note::
+
+   8-bit weight compression is enabled by default for models larger than 1 billion parameters.
+
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression, which is supported by OpenVINO. It can be applied to Optimum objects as follows:
+
+.. code-block:: python
+
+    from nncf import compress_weights, CompressWeightsMode
+
+    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False)
+    model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
+
+
+The optimized model can be saved as usual with a call to ``save_pretrained()``. For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
+
+.. note::
+
+   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
+   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
+
+
 Below are some examples of using Optimum-Intel for model conversion and inference:
 
 * `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-optimum-demo.ipynb>`__

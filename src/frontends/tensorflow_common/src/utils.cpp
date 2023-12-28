@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace ov;
@@ -242,14 +243,37 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
     return {conv};
 }
 
-void default_op_checks(const frontend::NodeContext& node, size_t min_input_size, const vector<string>& supported_ops) {
+void default_op_checks(const frontend::NodeContext& node,
+                       size_t min_input_size,
+                       const vector<string>& supported_ops,
+                       bool supported_complex) {
     auto op_type = node.get_op_type();
-    TENSORFLOW_OP_VALIDATION(node,
-                             find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
-                             op_type + " is not supported for conversion.");
-    TENSORFLOW_OP_VALIDATION(node,
-                             node.get_input_size() >= min_input_size,
-                             op_type + " must have at least " + to_string(min_input_size) + " inputs.");
+
+    // we can skip these checks if translator wrapper can be used for multiple operations
+    // check only if supported_ops is defined
+    if (supported_ops.size() > 0) {
+        TENSORFLOW_OP_VALIDATION(node,
+                                 find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                                 op_type + " is not supported for conversion.");
+        TENSORFLOW_OP_VALIDATION(node,
+                                 node.get_input_size() >= min_input_size,
+                                 op_type + " must have at least " + to_string(min_input_size) + " inputs.");
+    }
+
+    // check if it supports complex type in case complex type input
+    bool has_input_complex_type = false;
+    auto input_size = static_cast<int>(node.get_input_size());
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        auto node_input = node.get_input(input_ind);
+        if (as_type_ptr<ComplexTypeMark>(node_input.get_node_shared_ptr())) {
+            has_input_complex_type = true;
+            break;
+        }
+    }
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        !has_input_complex_type || supported_complex,
+        "[TensorFlow Frontend] internal error: translator for " + op_type + " does not support input complex type");
 }
 
 bool is_conditional_edge(const string& input_tensor_name) {
@@ -356,6 +380,24 @@ Output<Node> get_data_slice(const Output<Node>& data, const int64_t& start, cons
     return make_shared<Slice>(data, start_const, stop_const, step_const)->output(0);
 }
 
+Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Node>& shape2) {
+    // compute a number of shape elements to append for broadcasting
+    auto size0 = make_shared<ShapeOf>(shape1);
+    auto size1 = make_shared<ShapeOf>(shape2);
+    auto max_size = make_shared<Maximum>(size0, size1);
+    auto diff1 = make_shared<Subtract>(max_size, size0);
+    auto diff2 = make_shared<Subtract>(max_size, size1);
+
+    // pad the shortest shape value with minus ones
+    // to take dynamic shapes into account
+    auto const_zero = create_same_type_const<int64_t>(diff1, std::vector<int64_t>{0}, Shape{1});
+    auto const_one = create_same_type_const_scalar<int64_t>(shape1, 1);
+    auto padded_s0 = make_shared<Pad>(shape1, diff1, const_zero, const_one, ov::op::PadMode::CONSTANT);
+    auto padded_s1 = make_shared<Pad>(shape2, diff2, const_zero, const_one, ov::op::PadMode::CONSTANT);
+
+    auto broadcasted_shape = make_shared<Maximum>(padded_s0, padded_s1);
+    return broadcasted_shape->output(0);
+}
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

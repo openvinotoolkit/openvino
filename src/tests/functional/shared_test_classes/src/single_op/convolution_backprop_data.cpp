@@ -10,7 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/convolution.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 
 namespace ov {
 namespace test {
@@ -70,16 +70,14 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
-    std::shared_ptr<ov::op::v1::ConvolutionBackpropData> convBackpropData;
+    std::shared_ptr<ov::Node> convBackpropData;
     if (!output_shape.empty()) {
         auto outShape = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape);
-        convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
-        ngraph::builder::makeConvolutionBackpropData(params[0]->output(0), outShape, model_type, kernel, stride, pad_begin,
-                                                     pad_end, dilation, pad_type, convOutChannels));
+        convBackpropData = ov::test::utils::make_convolution_backprop_data(
+            params[0]->output(0), outShape, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, convOutChannels);
     } else {
-        convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
-            ngraph::builder::makeConvolutionBackpropData(params[0]->output(0), model_type, kernel, stride, pad_begin,
-                                                         pad_end, dilation, pad_type, convOutChannels, false, out_padding));
+        convBackpropData = ov::test::utils::make_convolution_backprop_data(
+            params[0]->output(0), model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, convOutChannels, false, out_padding);
     }
     function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convBackpropData), params, "convolutionBackpropData");
 }

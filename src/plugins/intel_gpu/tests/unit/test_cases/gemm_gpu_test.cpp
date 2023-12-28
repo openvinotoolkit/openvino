@@ -175,7 +175,7 @@ class GemmGPUTestRandom : public GemmGPUTest {
 
     void generated_inputs() {
         for (size_t i = 0; i < shapes.size(); ++i) {
-            size_t size = ngraph::shape_size(shapes[i]);
+            size_t size = ov::shape_size(shapes[i]);
             input_data[i] = rg.generate_random_1d<float>(size, -1, 1, 10);
         }
     }
@@ -189,7 +189,7 @@ class GemmGPUTestRandom : public GemmGPUTest {
         input1_shape = (*input_it)->get_output_layout().get_shape();
         layout output_layout = prog_nodes[0]->get_output_layout();
         output_shape = output_layout.get_shape();
-        out_data.resize(ngraph::shape_size(output_shape));
+        out_data.resize(ov::shape_size(output_shape));
         calculate_output_data();
     }
 

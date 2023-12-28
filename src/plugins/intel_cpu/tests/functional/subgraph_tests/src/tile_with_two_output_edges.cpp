@@ -17,9 +17,10 @@ protected:
 
         auto ngPrc = element::f32;
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 3, 12, 9})};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
-        auto tile = ngraph::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});
+        std::vector<int64_t> repeats = {1, 2, 1, 1};
+        auto repeatsNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{repeats.size()}, repeats);
+        auto tile = std::make_shared<ov::op::v0::Tile>(inputParams[0], repeatsNode);
 
         const auto const1 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);
         const auto const2 = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, 6, 1, 1}, std::vector<float>{}, true);

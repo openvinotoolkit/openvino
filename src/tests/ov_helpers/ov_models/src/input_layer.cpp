@@ -29,19 +29,5 @@ std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
     }
     return input;
 }
-
-std::shared_ptr<ov::Node> makeDynamicInputLayer(const element::Type& type,
-                                                ov::test::utils::InputLayerType inputType,
-                                                const PartialShape& shape) {
-    if (shape.is_static()) {
-        return makeInputLayer(type, inputType, shape.get_shape());
-    }
-
-    if (inputType == ov::test::utils::InputLayerType::PARAMETER) {
-        return std::make_shared<ov::op::v0::Parameter>(type, shape);
-    }
-
-    throw std::runtime_error("Could not make input layer. Unsupported inputType for dynamic shape");
-}
 }  // namespace builder
 }  // namespace ngraph

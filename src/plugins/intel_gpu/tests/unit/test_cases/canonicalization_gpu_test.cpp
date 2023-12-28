@@ -71,7 +71,7 @@ TEST(canonicalization, shape_of) {
 
         cldnn::topology topology;
         topology.add(input_layout("input", in_layout));
-        topology.add(shape_of("shape_of", input_info("input"), 3, data_types::i32));
+        topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
         canonicalization_test(topology, "shape_of", std::get<1>(shapes), std::get<2>(shapes));
     }

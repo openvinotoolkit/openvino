@@ -72,7 +72,7 @@ Running
 
 .. code-block:: sh
 
-   python throughput_benchmark.py <path_to_model>
+   python throughput_benchmark.py <path_to_model> <device_name>(default: CPU)
 
 
 To run the sample, you need to specify a model:

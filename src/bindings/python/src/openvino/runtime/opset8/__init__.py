@@ -114,7 +114,7 @@ from openvino.runtime.opset1.ops import psroi_pooling
 from openvino.runtime.opset4.ops import proposal
 from openvino.runtime.opset1.ops import range
 from openvino.runtime.opset8.ops import random_uniform
-from openvino.runtime.opset3.ops import read_value
+from openvino.runtime.opset6.ops import read_value
 from openvino.runtime.opset4.ops import reduce_l1
 from openvino.runtime.opset4.ops import reduce_l2
 from openvino.runtime.opset1.ops import reduce_logical_and

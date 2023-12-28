@@ -70,7 +70,7 @@ Running
 
 .. code-block:: sh
 
-   sync_benchmark <path_to_model>
+   sync_benchmark <path_to_model> <device_name>(default: CPU)
 
 
 To run the sample, you need to specify a model:

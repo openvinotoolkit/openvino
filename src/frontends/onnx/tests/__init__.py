@@ -45,7 +45,6 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
-xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
@@ -148,7 +147,6 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
 
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
-xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
 

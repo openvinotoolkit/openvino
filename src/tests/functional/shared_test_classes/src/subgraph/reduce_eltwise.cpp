@@ -34,8 +34,6 @@ void ReduceEltwiseTest::SetUp() {
     std::tie(inputShape, axes, opType, keepDims, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -54,7 +52,7 @@ void ReduceEltwiseTest::SetUp() {
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                              std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    auto reduce = std::make_shared<ngraph::opset3::ReduceSum>(paramOuts[0], reductionAxesNode, keepDims);
+    auto reduce = std::make_shared<ngraph::opset3::ReduceSum>(params[0], reductionAxesNode, keepDims);
 
     std::vector<size_t> constShape(reduce.get()->get_output_partial_shape(0).rank().get_length(), 1);
     ASSERT_GT(constShape.size(), 2);

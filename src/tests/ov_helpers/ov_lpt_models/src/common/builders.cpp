@@ -285,7 +285,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             fqOnData.inputLowValues,
             fqOnData.inputLowValues.empty());
         if (fqOnData.addConverts) {
-            inputLowNode = ngraph::builder::makeConversion(inputLowNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
+            inputLowNode = std::make_shared<ov::op::v0::Convert>(inputLowNode, ov::element::f32);
         }
 
         inputHighNode = ngraph::builder::makeConstant(
@@ -296,7 +296,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             fqOnData.inputHighValues,
             fqOnData.inputHighValues.empty());
         if (fqOnData.addConverts) {
-            inputHighNode = ngraph::builder::makeConversion(inputHighNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
+            inputHighNode = std::make_shared<ov::op::v0::Convert>(inputHighNode, ov::element::f32);
         }
     }
 
@@ -308,7 +308,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputLowValues,
         fqOnData.outputLowValues.empty());
     if (fqOnData.addConverts) {
-        outputLowNode = ngraph::builder::makeConversion(outputLowNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
+        outputLowNode = std::make_shared<ov::op::v0::Convert>(outputLowNode, ov::element::f32);
     }
 
     auto outputHighNode = ngraph::builder::makeConstant(
@@ -319,7 +319,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues,
         fqOnData.outputHighValues.empty());
     if (fqOnData.addConverts) {
-        outputHighNode = ngraph::builder::makeConversion(outputHighNode, ov::element::f32, ov::test::utils::ConversionTypes::CONVERT);
+        outputHighNode = std::make_shared<ov::op::v0::Convert>(outputHighNode, ov::element::f32);
     }
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);

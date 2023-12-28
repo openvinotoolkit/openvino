@@ -30,7 +30,7 @@ public:
           m_strides{},
           m_strides_once{},
           m_ptr{ptr} {
-        OPENVINO_ASSERT(m_ptr != nullptr);
+        OPENVINO_ASSERT(shape_size(shape) == 0 || m_ptr != nullptr);
         OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
     }
 

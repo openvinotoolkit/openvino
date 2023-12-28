@@ -198,9 +198,24 @@ protected:
                 OPENVINO_ASSERT(false, "Not allowed other rank");
             }
         }
-        return ngraph::builder::makePooling(in, params.stride, params.pad_begin,
-                                            params.pad_end, params.kernel_size, params.rounding_type,
-                                            params.pad_type, params.exclued_pad, params.pooling_type);
+        if (ov::test::utils::PoolingTypes::MAX == params.pooling_type) {
+            return std::make_shared<ov::op::v1::MaxPool>(in,
+                                                         params.stride,
+                                                         params.pad_begin,
+                                                         params.pad_end,
+                                                         params.kernel_size,
+                                                         params.rounding_type,
+                                                         params.pad_type);
+        } else {
+            return std::make_shared<ov::op::v1::AvgPool>(in,
+                                                         params.stride,
+                                                         params.pad_begin,
+                                                         params.pad_end,
+                                                         params.kernel_size,
+                                                         params.exclued_pad,
+                                                         params.rounding_type,
+                                                         params.pad_type);
+        }
     }
 };
 

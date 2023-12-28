@@ -38,11 +38,12 @@ void Mvn1LayerTest::SetUp() {
     std::tie(inputShapes, inputPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(param[0], acrossChanels, normalizeVariance, eps));
     if (!axes.empty()) {
-        mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps));
+        mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(param[0], axes, normalizeVariance, eps));
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN1");
 }
@@ -82,9 +83,10 @@ void Mvn6LayerTest::SetUp() {
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
-    auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto mvn = ngraph::builder::makeMVN6(param[0], axesNode, normalizeVariance, eps, epsMode);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");
 }

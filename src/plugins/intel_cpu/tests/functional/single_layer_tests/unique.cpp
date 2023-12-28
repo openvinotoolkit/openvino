@@ -99,13 +99,12 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrecision, shape));
         }
         params[0]->set_friendly_name("data");
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> uniqueNode;
         if (flattened) {
-            uniqueNode = std::make_shared<ov::op::v10::Unique>(paramOuts[0], sorted);
+            uniqueNode = std::make_shared<ov::op::v10::Unique>(params[0], sorted);
         } else {
             axis = std::get<1>(flatOrAxis);
-            uniqueNode = std::make_shared<ov::op::v10::Unique>(paramOuts[0],
+            uniqueNode = std::make_shared<ov::op::v10::Unique>(params[0],
                                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {axis}),
                                                                sorted);
         }

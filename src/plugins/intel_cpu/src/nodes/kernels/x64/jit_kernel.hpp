@@ -5,7 +5,6 @@
 #pragma once
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_load_store_emitters.hpp"
-#include <ie/ie_precision.hpp>
 #include <common/nstl.hpp>
 #include <type_traits>
 #include <functional>
@@ -564,7 +563,7 @@ private:
 };
 
 template<typename T>
-InferenceEngine::Precision type2precision();
+ov::element::Type type2precision();
 
 dnnl::impl::cpu::x64::cpu_isa_t get_current_isa();
 

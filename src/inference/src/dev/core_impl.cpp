@@ -657,11 +657,11 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     ov::AnyMap empty_map;
                     auto cacheConfig = coreConfig.get_cache_config_for_device(plugin, empty_map);
                     if (cacheConfig._cacheManager) {
-                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        desc.defaultConfig[ov::cache_dir.name()] = cacheConfig._cacheDir;
                     }
-                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                } else if (desc.defaultConfig.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
+                    desc.defaultConfig.erase(ov::cache_dir.name());
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
@@ -1016,6 +1016,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     // so, we need to report them as supported
     std::vector<std::string> supported_config_keys = core_level_properties;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
         const auto supported_keys =
@@ -1025,6 +1026,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         }
     } catch (ov::Exception&) {
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
@@ -1077,8 +1079,15 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
             return model;  // BATCH device is already configured via the config
+
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
+        if (deviceName.find("(") == std::string::npos) {
+            auto supported_properties = ICore::get_property(deviceNameWithoutBatch, ov::supported_properties, {});
+            if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
+                supported_properties.end())
+                return model;
+        }
         // when user sets the BATCH device explicitly, we may check the dims less strictly
         // as the result is being checked by the user
         strictly_check_dims = false;
@@ -1093,7 +1102,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         // check whether the Auto-Batching is disabled explicitly
         const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
         if (batch_mode != config.end()) {
-            const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
+            const auto disabled = !batch_mode->second.as<bool>();
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
             // proxy plugin should also keep the config
@@ -1110,20 +1119,22 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         if (is_proxy_device(parsed._deviceName))
             return model;
         deviceNameWithoutBatch = deviceName;
-        std::vector<std::string> metrics = get_plugin(parsed._deviceName)
-                                               .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                               .as<std::vector<std::string>>();
-        auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
+        auto metrics = get_plugin(parsed._deviceName)
+                           .get_property(ov::supported_properties.name(), parsed._config)
+                           .as<std::vector<ov::PropertyName>>();
+        auto it = std::find(metrics.begin(), metrics.end(), ov::optimal_batch_size.name());
         if (metrics.end() == it)
             return model;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bTputInPlg =
-            GetConfig(parsed._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        bool bTputInLoadCfg = (mode != config.end() && mode->second.as<std::string>() == CONFIG_VALUE(THROUGHPUT));
-        const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
-        bool bExclReqsEnabled = (excl != config.end() && excl->second.as<std::string>() == CONFIG_VALUE(YES));
+        bool bTputInPlg = get_plugin(parsed._deviceName)
+                              .get_property(ov::hint::performance_mode.name(), parsed._config)
+                              .as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
+        const auto& mode = config.find(ov::hint::performance_mode.name());
+        bool bTputInLoadCfg = (mode != config.end() &&
+                               mode->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT);
+        const auto& excl = config.find(ov::exclusive_async_requests.name());
+        bool bExclReqsEnabled = (excl != config.end() && excl->second.as<bool>() == true);
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
             return model;
     }
@@ -1137,7 +1148,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         break;
     case ov::details::NetworkBatchAbility::WITH_HETERO:
         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-        config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
+        config.insert(ov::device::properties("BATCH", ov::device::priorities(batchConfig)));
         break;
     }
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
@@ -1285,7 +1296,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             coreConfig.set_and_update(config);
         } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+            auto cache_it = config.find(ov::cache_dir.name());
             if (cache_it != config.end()) {
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
             }
@@ -1344,11 +1355,11 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                     ov::AnyMap empty_map;
                     auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
                     if (cacheConfig._cacheManager) {
-                        configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
                     }
-                } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                } else if (configCopy.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    configCopy.erase(CONFIG_KEY(CACHE_DIR));
+                    configCopy.erase(ov::cache_dir.name());
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
@@ -1546,7 +1557,7 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
 }
 
 void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
-    auto it = config.find(CONFIG_KEY(CACHE_DIR));
+    auto it = config.find(ov::cache_dir.name());
     if (it != config.end()) {
         std::lock_guard<std::mutex> lock(_cacheConfigMutex);
         // fill global cache config
@@ -1560,7 +1571,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
 
     it = config.find(ov::force_tbb_terminate.name());
     if (it != config.end()) {
-        auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
+        auto flag = it->second.as<bool>();
         ov::threading::executor_manager()->set_property({{it->first, flag}});
         config.erase(it);
     }

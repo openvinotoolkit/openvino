@@ -5,14 +5,11 @@
 #include <gtest/gtest.h>
 
 #include "test_utils/properties_test.hpp"
-#include <common_test_utils/test_assertions.hpp>
-#include "ie_system_conf.h"
-#include "ov_models/subgraph_builders.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace {
 
@@ -137,6 +134,27 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     ASSERT_EQ(streams, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
+    ov::Core ie;
+    int32_t streams = 0;
+    int32_t value = -1;
+
+    ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config;
+    config[ov::num_streams.name()] = streams;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+
+#if defined(OPENVINO_ARCH_ARM) || \
+    defined(OPENVINO_ARCH_ARM64)  // Will be removed after multiple streams is supported on ARM
+    streams = 1;
+#endif
+
+    ASSERT_EQ(streams, value);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompressionRate) {
     ov::Core core;
 
@@ -144,7 +162,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompression
     ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
 }
 
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableInCoreAndModel) {
     ov::Core ie;

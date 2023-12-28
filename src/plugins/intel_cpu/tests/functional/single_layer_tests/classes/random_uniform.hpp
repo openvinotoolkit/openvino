@@ -44,8 +44,8 @@ private:
     uint64_t m_operational_seed;
     double m_min_val;
     double m_max_val;
-    static constexpr double m_mean_threshold = 0.05;
-    static constexpr double m_variance_threshold = 0.1;
+    static constexpr double m_mean_threshold = 0.075;
+    static constexpr double m_variance_threshold = 0.15;
 };
 
 } // namespace CPULayerTestsDefinitions

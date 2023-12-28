@@ -113,10 +113,14 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
         auto atype = attrs[0].type();
-        if (atype != ::tensorflow::DT_STRING) {
-            return get_ov_type(attrs[0].type());
-        } else {
+        if (atype == ::tensorflow::DT_STRING) {
             return ov::Any("DT_STRING");
+        } else if (atype == ::tensorflow::DT_COMPLEX64) {
+            return ov::Any("DT_COMPLEX64");
+        } else if (atype == ::tensorflow::DT_COMPLEX128) {
+            return ov::Any("DT_COMPLEX128");
+        } else {
+            return get_ov_type(atype);
         }
     }
 

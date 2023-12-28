@@ -81,22 +81,20 @@ protected:
         init_input_shapes(inputShapes);
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
-        auto deconvOp = ngraph::builder::makeConvolutionBackpropData(paramOuts[0], netType, {2, 2, 2}, {2, 2, 2}, {0, 0, 0},
+        auto deconvOp = ngraph::builder::makeConvolutionBackpropData(params[0], netType, {2, 2, 2}, {2, 2, 2}, {0, 0, 0},
                                                                   {0, 0, 0}, {1, 1, 1}, ov::op::PadType::EXPLICIT, 16);
         deconvOp->set_friendly_name("deconv");
 
         std::vector<int> reduce_axes = {5};
         auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
                                  std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
-        auto reduceOp = ngraph::builder::makeReduce(paramOuts[1], reduceAxesNode, false, ngraph::helpers::ReductionType::Max);
+        auto reduceOp = ngraph::builder::makeReduce(params[1], reduceAxesNode, false, ngraph::helpers::ReductionType::Max);
         reduceOp->set_friendly_name("reduce");
 
-        auto concatOp = ngraph::builder::makeConcat({deconvOp, reduceOp}, 1);
+        auto concatOp = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{deconvOp, reduceOp}, 1);
         concatOp->set_friendly_name("concat");
 
         std::vector<int> transpose_order = {0, 1, 2, 4, 3};

@@ -83,7 +83,7 @@ void ConvertCPULayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
     }
-    auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
+    auto conversion = std::make_shared<ov::op::v0::Convert>(params.front(), targetPrc);
 
     function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");
 }

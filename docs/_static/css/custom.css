@@ -573,13 +573,17 @@ div.highlight {
     grid-template-columns: 1fr;
 }
 
+.modal-content-grid p {
+    font-size: 0.6rem; 
+}
+
 .modal-content-grid-container .column {
   min-width: 100px;
 }
 
 .modal-content-grid-container label {
     margin-bottom: 0;
-    padding-right: 4px;
+    padding-right: 6px;
 }
 
 .modal-content-grid-container input {
@@ -618,6 +622,13 @@ div.highlight {
     color: #00000098;
     font-size: 0.8rem;
     margin-bottom: 0rem;
+}
+
+.ul {
+    display: flex;
+    flex-direction: row !important;
+    margin: 0px;
+    padding: 0px 0px 0px 10px;
 }
 
 .benchmark-graph-results-header {

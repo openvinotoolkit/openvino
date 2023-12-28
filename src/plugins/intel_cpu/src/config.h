@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
+#include <openvino/runtime/threading/istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
-#include <ie/ie_common.h>
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
@@ -62,7 +61,7 @@ struct Config {
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
-    InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
+    ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
@@ -88,7 +87,8 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
+
     void updateProperties();
 
     std::map<std::string, std::string> _config;

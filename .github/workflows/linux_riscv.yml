@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   Build:
-    timeout-minutes: 30
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -71,8 +71,11 @@ jobs:
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
-            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 

@@ -157,7 +157,7 @@ std::vector<MultinomialParams> generateMultinomialParams() {
 }
 
 std::vector<MultinomialParams> generateMultinomialParams() {
-    std::vector<std::vector<MultinomialParams>> combo_params{generateMultinomialParams<ov::element::f32>()};
+    std::vector<std::vector<MultinomialParams>> combo_params{generateMultinomialParams<ov::element::f64>()};
     std::vector<MultinomialParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));

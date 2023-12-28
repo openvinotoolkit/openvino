@@ -6,6 +6,7 @@
 #include "ie_common.h"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -24,11 +25,13 @@ protected:
 
         std::vector<size_t> inputShape {2, 4, 4, 1};
         auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
-        auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
+
+        auto tensor = ov::test::utils::create_and_fill_tensor(ngPrc, inputShape);
+        auto secondaryInput = std::make_shared<ov::op::v0::Constant>(tensor);
+
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");

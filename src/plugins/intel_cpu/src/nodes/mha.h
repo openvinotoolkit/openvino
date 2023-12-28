@@ -19,8 +19,8 @@ namespace intel_cpu {
 namespace node {
 
 struct jit_mul_add_softmax_compile_params {
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     size_t work_amount;
     bool with_mul_scales;
     bool is_mul_first;
@@ -57,8 +57,8 @@ struct jit_uni_mul_add_softmax_kernel {
 };
 
 struct jit_convert_reorder_compile_params {
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     size_t inner_work_amount;
     bool with_scales;
     bool broadcast_scales;
@@ -90,8 +90,8 @@ struct jit_uni_convert_reorder_kernel {
 };
 
 struct jit_convert_transpose_compile_params {
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     size_t inner_work_amount;
     size_t outter_work_amount;
     bool with_scales;
@@ -127,14 +127,14 @@ struct jit_uni_convert_transpose_kernel {
 
 class MHA : public Node {
 public:
-    MHA(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -167,10 +167,10 @@ private:
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
 
-    std::vector<InferenceEngine::Precision> inputPrecisions;
-    InferenceEngine::Precision outputPrecision;
-    InferenceEngine::Precision accPrecision0;
-    InferenceEngine::Precision accPrecision1;
+    std::vector<ov::element::Type> inputPrecisions;
+    ov::element::Type outputPrecision;
+    ov::element::Type accPrecision0;
+    ov::element::Type accPrecision1;
 
     VectorDims dimsTranspose0In0;
     VectorDims dimsTranspose1In0;
@@ -216,7 +216,7 @@ private:
     std::vector<size_t> wsp;
 
     bool isMulFirst;
-    InferenceEngine::Precision fqPrc2;
+    ov::element::Type fqPrc2;
 
     std::vector<float> mulScales;
     std::vector<float> fqScales0;

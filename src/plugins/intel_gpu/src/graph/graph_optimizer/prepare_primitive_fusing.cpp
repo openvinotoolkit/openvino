@@ -9,7 +9,6 @@
 #include "proposal_inst.h"
 #include "roi_pooling_inst.h"
 #include "quantize_inst.h"
-#include "binary_convolution_inst.h"
 #include "activation_inst.h"
 #include "batch_to_space_inst.h"
 #include "crop_inst.h"
@@ -316,7 +315,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             p.replace(prev_node, new_node);
             // Insert bias_node into 3-rd position in dependencies vector to get correct order in case of asymmetric quantization
             // which means that node can have > 2 dependencies even without bias
-            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, 0});
+            auto port_idx = new_node.get_port_from_deps(bias_node.id());
+            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, port_idx});
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node
@@ -545,25 +545,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return data_type_traits::is_i8_u8(in_dt);
         };
 
-        auto bin_conv_supports_eltw_fusings = [](binary_convolution_node& conv_node) -> bool {
-            auto& eltw_node = static_cast<const eltwise_node&>(*conv_node.get_users().front());
-            auto& eltw_prim = *eltw_node.get_primitive();
-
-            if (eltw_node.get_dependencies().size() < 2)
-                return false;
-
-            auto const_layout = eltw_node.get_input_layout(1);
-            auto conv_layout = conv_node.get_output_layout();
-            auto per_channel_eltwise = const_layout.feature() == conv_layout.feature();
-
-            if (eltw_node.get_dependency(1).is_constant() && per_channel_eltwise &&
-                (eltw_prim.mode == eltwise_mode::sum || eltw_prim.mode == eltwise_mode::prod) &&
-                all_ones(conv_node.get_primitive()->dilation))
-                return true;
-
-            return false;
-        };
-
         auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
             if (_lo.get_optimization_attributes().use_onednn_impls &&
                 _lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
@@ -734,9 +715,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
-            bool should_fuse = input.is_type<binary_convolution>();
-
-            should_fuse |= input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
+            bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
             should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
@@ -849,18 +828,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                      quantize_node.get_per_tensor_output_shift() &&
                                      quantize_node.get_per_tensor_output_range();
 
-            auto& input_lo = quantize_node.get_dependency(1);
-            auto& input_hi = quantize_node.get_dependency(2);
-            bool should_fuse = input_data.is_type<binary_convolution>() &&
-                               ((out_dt == data_types::u1 &&
-                               quantize_node.get_dependencies().size() == 5 &&
-                               ((in_layout.feature() == input_lo.get_output_layout().feature() &&
-                                 in_layout.feature() == input_hi.get_output_layout().feature()) ||
-                                (input_lo.get_output_layout().feature() == 1 &&
-                                 input_hi.get_output_layout().feature() == 1)))) &&
-                                 all_ones(input_data.as<binary_convolution>().get_primitive()->dilation);
-
-            should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
+            bool should_fuse = input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
                             in_layout.format == format::b_fs_yx_fsv16 ||
@@ -954,8 +922,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
-                                      (parents[i].first->is_type<binary_convolution>() &&
-                                       bin_conv_supports_eltw_fusings(parents[i].first->as<binary_convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
@@ -1197,7 +1163,6 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         if (next_node->is_type<fully_connected>() ||
             next_node->is_type<deconvolution>() ||
             next_node->is_type<convolution>() ||
-            next_node->is_type<binary_convolution>() ||
             next_node->is_type<deformable_conv>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
             std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};

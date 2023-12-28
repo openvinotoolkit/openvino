@@ -120,8 +120,7 @@ macro(ov_rpm_specific_settings)
     # group
     set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
     # changelog file
-    # TODO: fix "error: bad date in %changelog"
-    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
+    set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
     # use rpmlint to check packages in post-build step
     set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run

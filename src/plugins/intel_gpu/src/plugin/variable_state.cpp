@@ -40,7 +40,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_variable_state->is_set = true;
 }
 
-const ov::SoPtr<ov::ITensor>& VariableState::get_state() const {
+ov::SoPtr<ov::ITensor> VariableState::get_state() const {
     auto internal_memory = m_variable_state->memory;
     const bool blocking = true;
     internal_memory->copy_to(m_engine.get_service_stream(), m_state->data(), blocking);

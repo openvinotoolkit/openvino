@@ -89,10 +89,12 @@ protected:
         }
 
         ov::ParameterVector params;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+            params.push_back(param);
+            paramsOuts.push_back(param);
         }
-        auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::vector<ov::Shape> WRB = {{hiddenSize, inputSize}, {hiddenSize, hiddenSize}, {hiddenSize}};
         auto rnnCellOp = ngraph::builder::makeRNN(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 

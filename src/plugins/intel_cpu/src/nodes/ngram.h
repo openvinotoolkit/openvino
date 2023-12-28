@@ -47,7 +47,7 @@ private:
     size_t numIdces = 0;
     size_t numOutElems = 0;
 
-    InferenceEngine::Precision idcesPrecision;
+    ov::element::Type idcesPrecision;
 };
 
 }   // namespace node

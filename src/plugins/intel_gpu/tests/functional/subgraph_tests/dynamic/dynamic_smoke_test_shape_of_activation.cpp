@@ -92,15 +92,13 @@ protected:
         init_input_shapes({inputShape});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         std::vector<int> shape_pattern = {0, 1, -1, 0};
         auto shapePatternsNode = std::dynamic_pointer_cast<ngraph::Node>(
                                  std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({4}), shape_pattern));
-        auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(paramOuts[0], shapePatternsNode, true);
+        auto reshapeOp = std::make_shared<ngraph::opset1::Reshape>(params[0], shapePatternsNode, true);
         reshapeOp->set_friendly_name("reshape");
 
         auto shapeOfOp = std::make_shared<ngraph::opset3::ShapeOf>(reshapeOp, ElementType::i32);
@@ -115,8 +113,7 @@ protected:
         auto gatherOp = std::make_shared<ov::op::v7::Gather>(shapeOfOp, indicesNode, axisNode, 0);
         gatherOp->set_friendly_name("gather");
 
-        auto convertOp = ngraph::builder::makeConversion(gatherOp, ElementType::f32,
-                                                         ngraph::helpers::ConversionTypes::CONVERT);
+        auto convertOp = std::make_shared<ov::op::v0::Convert>(gatherOp, ElementType::f32);
         convertOp->set_friendly_name("convert");
 
         auto activationOp = ngraph::builder::makeActivation(convertOp,

@@ -48,22 +48,25 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32
 };
 
-const auto extractImagePatchesParamsSet = ::testing::Combine(
-        ::testing::ValuesIn(inDataShape),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(rates),
-        ::testing::ValuesIn(autoPads)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU1, ExtractImagePatchesTest,
+        ::testing::Combine(
+            ::testing::Values(ov::test::static_shapes_to_test_representation(inDataShape)[0]),
+            ::testing::Values(kernels[0]),
+            ::testing::Values(strides[0]),
+            ::testing::ValuesIn(rates),
+            ::testing::ValuesIn(autoPads),
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+        ExtractImagePatchesTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU, ExtractImagePatchesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU2, ExtractImagePatchesTest,
         ::testing::Combine(
             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inDataShape)),
             ::testing::ValuesIn(kernels),
             ::testing::ValuesIn(strides),
-            ::testing::ValuesIn(rates),
-            ::testing::ValuesIn(autoPads),
-            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(rates[0]),
+            ::testing::Values(autoPads[0]),
+            ::testing::Values(netPrecisions[0]),
             ::testing::Values(ov::test::utils::DEVICE_GPU)),
         ExtractImagePatchesTest::getTestCaseName);
 

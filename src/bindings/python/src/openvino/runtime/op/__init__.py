@@ -11,15 +11,6 @@ Low level wrappers for the c++ api in ov::op.
 import numpy as np
 
 from openvino._pyopenvino.op import Constant
-
-"""Retrieve Constant inner data.
-
-    Internally uses PyBind11 Numpy's buffer protocol.
-
-    :return Numpy array containing internally stored constant data.
-"""
-Constant.get_data = lambda self: np.array(self, copy=True)
-
 from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import if_op

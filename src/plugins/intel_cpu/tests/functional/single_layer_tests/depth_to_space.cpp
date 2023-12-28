@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/depth_to_space.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 
@@ -75,7 +76,7 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
+        auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
         function = makeNgraphFunction(inType, params, d2s, "DepthToSpace");
     }
 };

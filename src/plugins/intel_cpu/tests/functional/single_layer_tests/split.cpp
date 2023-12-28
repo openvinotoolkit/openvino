@@ -53,7 +53,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        size_t axis, numSplits;
+        size_t numSplits;
+        int axis;
         ElementType netPrecision;
         InputShape inputShapes;
         InferenceEngine::SizeVector outIndices;
@@ -71,13 +72,12 @@ protected:
         init_input_shapes({inputShapes});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],
-                                                                                                 netPrecision, numSplits, axis));
+
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, numSplits);
+
         ngraph::ResultVector results;
 
         for (size_t i = 0; i < outIndices.size(); i++) {

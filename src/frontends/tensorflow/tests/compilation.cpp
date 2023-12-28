@@ -20,7 +20,8 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     const auto runtime_model = compiled_model.get_runtime_model();
 
-    EXPECT_EQ(runtime_model->get_ordered_ops().size(), 4);
+    // A convert node will be inserted for CPU plugin API 2.0
+    EXPECT_EQ(runtime_model->get_ordered_ops().size(), 5);
     EXPECT_EQ(runtime_model->get_parameters().size(), 2);
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }

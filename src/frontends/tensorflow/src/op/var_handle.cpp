@@ -7,7 +7,6 @@
 #include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"

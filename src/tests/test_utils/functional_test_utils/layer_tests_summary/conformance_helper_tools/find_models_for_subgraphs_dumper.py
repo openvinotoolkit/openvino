@@ -90,6 +90,9 @@ def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_
                     except:
                         pass
         for line in model_list:
+            str_line = str(line)
+            if "tfhub_module.pb" in str_line or "_metadata.pb" in str_line:
+                continue
             output_file.write(f"{line}\n")
         output_file.close()
 

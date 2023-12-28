@@ -109,8 +109,14 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
                     ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id});
             }
             a->set(m_variables[variable_id]);
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            if (py::isinstance<ov::PartialShape>(m_attributes[name.c_str()])) {
+                a->set(m_attributes[name.c_str()].cast<ov::PartialShape>());
+            } else {
+                OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
+            }
         } else {
-            NGRAPH_CHECK(false, "No AttributeVisitor support for accessing attribute named: ", name);
+            OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
         }
     }
 }
@@ -121,7 +127,12 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
 }
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) {
     if (m_attributes.contains(name)) {
-        adapter.set(m_attributes[name.c_str()].cast<std::string>());
+        const auto& attribute = m_attributes[name.c_str()];
+        if (py::isinstance<ov::element::Type>(attribute)) {
+            adapter.set(attribute.cast<ov::element::Type>().get_type_name());
+        } else {
+            adapter.set(attribute.cast<std::string>());
+        }
     }
 }
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<int8_t>& adapter) {

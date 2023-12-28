@@ -1819,3 +1819,14 @@ TEST(constant, cast_vector) {
             << "Constant::cast_vector failed empty casting for type " << type;
     }
 }
+
+TEST(constant, get_values_as) {
+    ov::op::v0::Constant c(element::i64, Shape{6}, std::vector<int64_t>{2, -3, 1, 0, 1, 5});
+
+    EXPECT_EQ(c.get_shape_val(), Shape({2, 0, 1, 0, 1, 5}));
+    EXPECT_EQ(c.get_strides_val(), Strides({2, 0, 1, 0, 1, 5}));
+    EXPECT_EQ(c.get_coordinate_val(), Coordinate({2, 0, 1, 0, 1, 5}));
+    EXPECT_EQ(c.get_coordinate_diff_val(), CoordinateDiff({2, 0, 1, 0, 1, 5}));
+    EXPECT_EQ(c.get_axis_vector_val(), AxisVector({2, 0, 1, 0, 1, 5}));
+    EXPECT_EQ(c.get_axis_set_val(), AxisSet({0, 1, 2, 5}));
+}

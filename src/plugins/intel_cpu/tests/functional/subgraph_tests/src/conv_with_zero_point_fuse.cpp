@@ -51,8 +51,6 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         {-12.8f},
         {12.7f});
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
-
     std::vector<std::shared_ptr<ngraph::Node>> branches(2);
     {
         ngraph::Strides strides{1, 1};
@@ -78,10 +76,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         const auto weights_const_values = std::vector<int>(ngraph::shape_size(weights_const_shape), 1);
         const auto weights_const = ngraph::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
 
-        const auto weights_convert = ngraph::builder::makeConversion(
-            weights_const,
-            ov::element::f32,
-            ngraph::helpers::ConversionTypes::CONVERT);
+        const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
@@ -127,7 +122,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{branches[0], branches[1]}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{branches[0], branches[1]}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "ConvWithZeroPointFuseSubgraphTest");

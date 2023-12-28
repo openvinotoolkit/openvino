@@ -191,7 +191,7 @@ public:
             auto* indices_data = indices_tensor.data<int64_t>();
             std::sort(indices_data, indices_data + indices_tensor.get_size());
         } else {
-            IE_THROW() << "Unexpected indices precision: " << indices_et;
+            OPENVINO_THROW("Unexpected indices precision: ", indices_et);
         }
         inputs.insert({model_inputs[1].get_node_shared_ptr(), indices_tensor});
     }
