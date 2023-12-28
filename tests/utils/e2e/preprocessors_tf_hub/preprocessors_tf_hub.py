@@ -11,13 +11,13 @@ class AssignIndicesTFHub(ClassProvider):
         pass
 
     @staticmethod
-    def apply(data, model):
+    def apply(data):
         if isinstance(data, np.ndarray):
             data = [data]
         converted = {}
         for i in range(len(data)):
             converted[i] = data[i]
-        return converted, model
+        return converted
 
 
 class AlignWithBatchTFHub(ClassProvider):
@@ -38,7 +38,7 @@ class AlignWithBatchTFHub(ClassProvider):
         self.expand_dims = config.get('expand_dims', True)
         self.target_layers = config.get('target_layers', None)
 
-    def apply(self, data, model=None):
+    def apply(self, data):
         """Apply batch alignment (duplication) to data."""
         apply_to = self.target_layers if self.target_layers is not None else data.keys()
         log.info("Align batch data for layers {} to batch {} ...".format(', '.join(
@@ -47,4 +47,4 @@ class AlignWithBatchTFHub(ClassProvider):
             if self.expand_dims:
                 data[layer] = np.expand_dims(data[layer], axis=self.batch_dim)
             data[layer] = np.repeat(data[layer], self.batch, axis=self.batch_dim)
-        return data, model
+        return data

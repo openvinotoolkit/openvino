@@ -20,10 +20,15 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "get_ir"
 
     def __init__(self, config):
-        self.out_data = None
         action_name = next(iter(config))
         cfg = config[action_name]
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
-    def execute(self):
-        self.out_data = self.executor.get_ir()
+    def execute(self, passthrough_data):
+        # this may be considered a WA. To properly remove prepared_model
+        # we need to refactor all the class providers and handle pytorch cases with care
+        self.executor.prepared_model = passthrough_data.get("model_obj")
+        data = passthrough_data.get('feed_dict')
+        passthrough_data['xml'], passthrough_data['bin'] = self.executor.get_ir(data)
+        # passthrough_data['mo_log'] = self.executor.mo_log
+        return passthrough_data

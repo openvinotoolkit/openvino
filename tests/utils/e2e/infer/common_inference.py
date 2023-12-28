@@ -67,7 +67,9 @@ class Infer(ClassProvider):
         self.plugin_cfg_target_device = config.get("plugin_cfg_target_device", self.device)
         self.consecutive_infer = config.get("consecutive_infer", False)
         self.index_infer = config.get('index_infer')
-        self.inputs = config.get('inputs')
+        self.xml = None
+        self.bin = None
+        self.model_path = None
 
     def _get_thermal_metric(self, exec_net, ie):
         if "MYRIAD" in self.device:
@@ -108,8 +110,7 @@ class Infer(ClassProvider):
                                                                              pformat(self.plugin_cfg)))
             ie.set_property(self.plugin_cfg_target_device, self.plugin_cfg)
 
-    def _infer(self, model):
-        # TODO: model here could presented as xml and bin files
+    def _infer(self, input_data):
         log.info("Inference Engine version: {}".format(ie_get_version()))
         log.info("Using API v2.0")
         result, load_net_to_plug_time = None, None
@@ -122,8 +123,11 @@ class Infer(ClassProvider):
 
         log.info("Loading network files")
 
-        self.ov_model = ie.read_model(model=model)
-        self.network_modifiers.execute(network=self.ov_model, input_data=self.inputs)
+        if self.model_path:
+            self.ov_model = ie.read_model(model=self.model_path)
+        if self.xml:
+            self.ov_model = ie.read_model(model=self.xml)
+        self.network_modifiers.execute(network=self.ov_model, input_data=input_data)
 
         log.info("Loading network to the {} device...".format(self.device))
         compiled_model = ie.compile_model(self.ov_model, self.device)
@@ -135,11 +139,11 @@ class Infer(ClassProvider):
         result = []
         if self.consecutive_infer:
             for infer_run_counter in range(2):
-                helper = get_infer_result(self.inputs[infer_run_counter], compiled_model, self.ov_model,
+                helper = get_infer_result(input_data[infer_run_counter], compiled_model, self.ov_model,
                                           infer_run_counter, self.index_infer)
                 result.append(helper)
         else:
-            infer_result = get_infer_result(self.inputs, compiled_model, self.ov_model, index_infer=self.index_infer)
+            infer_result = get_infer_result(input_data, compiled_model, self.ov_model, index_infer=self.index_infer)
             result.append(infer_result)
 
         if not self.consecutive_infer:
@@ -151,16 +155,16 @@ class Infer(ClassProvider):
         else:
             mem_usage_ie = -1
 
-        if "compiled_model" in locals():
+        if "exec_net" in locals():
             del compiled_model
         if "ie" in locals():
             del ie
 
         return result, load_net_to_plug_time, mem_usage_ie
 
-    def infer(self, model):
+    def infer(self, input_data):
         self.res, self.load_net_to_plug_time, self.mem_usage_ie = \
-            multiprocessing_run(self._infer, [model], "Inference Engine Python API", self.timeout)
+            multiprocessing_run(self._infer, [input_data], "Inference Engine Python API", self.timeout)
 
         return self.res
 
@@ -173,7 +177,7 @@ class SequenceInference(Infer):
         super().__init__(config=config)
         self.default_shapes = config.get('default_shapes')
 
-    def _infer(self, model):
+    def _infer(self, input_data):
         log.info("Inference Engine version: {}".format(ie_get_version()))
         log.info("Using API v2.0")
         result, load_net_to_plug_time = None, None
@@ -185,20 +189,23 @@ class SequenceInference(Infer):
         self._configure_plugin(ie)
 
         log.info("Loading network files")
-        self.ov_model = ie.read_model(model=model)
-        self.network_modifiers.execute(network=self.ov_model, input_data=self.inputs)
+        if self.model_path:
+            ov_model = ie.read_model(model=self.model_path)
+        else:
+            ov_model = ie.read_model(model=self.xml)
+        self.network_modifiers.execute(network=ov_model, input_data=input_data)
 
         log.info("Loading network to the {} device...".format(self.device))
-        compiled_model = ie.compile_model(self.ov_model, self.device)
+        compiled_model = ie.compile_model(ov_model, self.device)
 
-        for input_tensor in self.ov_model.inputs:
+        for input_tensor in ov_model.inputs:
             # all input and output tensors have to be named
             assert input_tensor.names, "Input tensor {} has no names".format(input_tensor)
 
         result = []
-        input_data = align_input_names(self.inputs, self.ov_model)
+        input_data = align_input_names(input_data, ov_model)
         # make input_data (dict) a list of frame feed dicts
-        input_data = get_shapes_with_frame_size(self.default_shapes, self.ov_model, input_data)
+        input_data = get_shapes_with_frame_size(self.default_shapes, ov_model, input_data)
 
         new_input = []
         num_frames = max([input_data[key].shape[0] for key in input_data])
@@ -208,7 +215,7 @@ class SequenceInference(Infer):
 
         for current_frame_index in range(0, num_frames):
             cur_frame_data = {key: value[current_frame_index] for key, value in input_data.items()}
-            infer_result = get_infer_result(cur_frame_data, compiled_model, self.ov_model, current_frame_index)
+            infer_result = get_infer_result(cur_frame_data, compiled_model, ov_model, current_frame_index)
             result.append(infer_result)
 
         # make result (list of infer result for each frame) a dict (each layer contains infer result for all frames)
@@ -222,7 +229,7 @@ class SequenceInference(Infer):
         else:
             mem_usage_ie = -1
 
-        if "compiled_model" in locals():
+        if "exec_net" in locals():
             del compiled_model
         if "ie" in locals():
             del ie

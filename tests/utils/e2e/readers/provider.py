@@ -11,14 +11,17 @@ class ClassProvider(BaseProvider):
         methods = [
             f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)
         ]
-        if 'get_refs' not in methods:
+        if 'read' not in methods:
             raise AttributeError(
-                "Requested class {} registred as '{}' doesn't provide required method get_refs"
+                "Requested class {} registred as '{}' doesn't provide required method read"
                 .format(cls.__name__, cls.__action_name__))
 
 
-class TFHubStepProvider(BaseStepProvider):
-    __step_name__ = "get_refs_tf_hub"
+class StepProvider(BaseStepProvider):
+    """
+    Read network input data from the file.
+    """
+    __step_name__ = "read_input"
 
     def __init__(self, config):
         action_name = next(iter(config))
@@ -26,5 +29,7 @@ class TFHubStepProvider(BaseStepProvider):
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
     def execute(self, passthrough_data):
-        passthrough_data['output'] = self.executor.get_refs(passthrough_data)
+        model_object = passthrough_data.get('model_obj')
+        passthrough_data["feed_dict"] = self.executor.read(model_object) if model_object else self.executor.read()
+        passthrough_data['output'] = passthrough_data["feed_dict"]
         return passthrough_data

@@ -13,6 +13,7 @@ import logging as log
 import sys
 from collections import OrderedDict
 
+from utils.e2e.common.pipeline import PassThroughData
 from utils.e2e.postprocessors.provider import StepProvider
 from .provider import ClassProvider
 
@@ -45,10 +46,13 @@ class ComparatorsContainer:
     def apply_postprocessors(self):
         for _, comparator in self.comparators.items():
             if comparator.postprocessors is not None:
-                comparator.postprocessors.execute(comparator.infer_result)
-                comparator.infer_result = comparator.postprocessors.out_data
-                comparator.postprocessors.execute(comparator.reference)
-                comparator.reference = comparator.postprocessors.out_data
+                infer_data = PassThroughData({'output': comparator.infer_result})
+                infer_data = comparator.postprocessors.execute(infer_data)
+                comparator.infer_result = infer_data['output']
+
+                reference_data = PassThroughData({'output': comparator.reference})
+                reference_data = comparator.postprocessors.execute(reference_data)
+                comparator.reference = reference_data['output']
 
     def apply_all(self):
         for _, comparator in self.comparators.items():

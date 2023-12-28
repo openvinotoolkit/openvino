@@ -11,14 +11,14 @@ class ClassProvider(BaseProvider):
         methods = [
             f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)
         ]
-        if 'get_refs' not in methods:
+        if 'load_model' not in methods:
             raise AttributeError(
-                "Requested class {} registred as '{}' doesn't provide required method get_refs"
+                "Requested class {} registered as '{}' doesn't provide required method load_model"
                 .format(cls.__name__, cls.__action_name__))
 
 
-class TFHubStepProvider(BaseStepProvider):
-    __step_name__ = "get_refs_tf_hub"
+class StepProvider(BaseStepProvider):
+    __step_name__ = "load_model"
 
     def __init__(self, config):
         action_name = next(iter(config))
@@ -26,5 +26,7 @@ class TFHubStepProvider(BaseStepProvider):
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
     def execute(self, passthrough_data):
-        passthrough_data['output'] = self.executor.get_refs(passthrough_data)
+        data = passthrough_data.get('feed_dict')
+        passthrough_data['model_obj'] = self.executor.load_model(data)
+        passthrough_data['output'] = passthrough_data['model_obj']
         return passthrough_data

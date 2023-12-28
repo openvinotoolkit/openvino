@@ -538,70 +538,71 @@ def copy_input_files(instance):
     """
     Fixture for coping model from shared folder to localhost.
     """
-    def wait_copy_finished(path_to_local_inputs, timeout=60):
-        isCopied = False
-        while timeout > 0:
-            if os.path.exists(os.path.join(path_to_local_inputs, 'copy_complete')):
-                isCopied = True
-                break
-            else:
-                time.sleep(1)
-                timeout -= 1
-        return isCopied
-    if 'get_ovc_model' not in instance.ie_pipeline.get('get_ir', "None"):
-        return
-    # define value to copy
-    prefix = os.path.join(instance.environment['input_model_dir'], '')
-    if not os.path.exists(prefix):
-        os.mkdir(prefix)
-    if instance.ie_pipeline.get('load_pytorch_model') or instance.ie_pipeline.get('pytorch_to_onnx'):
-        if instance.ie_pipeline.get('load_pytorch_model'):
-            if instance.ie_pipeline['load_pytorch_model'].get('custom_pytorch_model_loader'):
-                # it's hard to find out what to copy because it could be anything in that case
-                model = None
-            else:
-                model = instance.ie_pipeline['load_pytorch_model']['load_pytorch_model'].get('model-path')
-        if instance.ie_pipeline.get('pytorch_to_onnx'):
-            model = instance.ie_pipeline['pytorch_to_onnx']['convert_pytorch_to_onnx'].get('model-path')
-        # in that case we load model during the test so there is nothing to copy
-        if not model:
-            return
-    else:
-        if isinstance(instance.ie_pipeline['get_ir']['get_ovc_model']['model'], str):
-            model = Path(instance.ie_pipeline['get_ir']['get_ovc_model']['model'])
-        else:
-            return
-    model = Path(model)
-    if os.path.isfile(model):
-        input_path = os.path.join(prefix, model.parents[1].name, model.parents[0].name)
-        model_path = model.parent
-        result_path = os.path.join(input_path, model.name)
-    else:
-        input_path = os.path.join(prefix, model.parent.name, model.name)
-        model_path = model
-        result_path = input_path
-
-    # copy stage
-    tries = 2
-    with log_timestamp('copy model'):
-        for i in range(tries):
-            try:
-                shutil.copytree(model_path, input_path)
-                open(os.path.join(input_path, 'copy_complete'), 'a').close()
-                if instance.ie_pipeline.get('prepare_model'):
-                    instance = set_path_for_pytorch_files(instance, result_path)
-                else:
-                    instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
-            except FileExistsError:
-                if wait_copy_finished(input_path):
-                    if instance.ie_pipeline.get('prepare_model'):
-                        instance = set_path_for_pytorch_files(instance, result_path)
-                    else:
-                        instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
-            except BaseException:
-                if i < tries - 1:
-                    continue
-                else:
-                    raise
-            break
-        log.info(f'Input model was copied from {model} to {input_path}')
+    pass
+    # def wait_copy_finished(path_to_local_inputs, timeout=60):
+    #     isCopied = False
+    #     while timeout > 0:
+    #         if os.path.exists(os.path.join(path_to_local_inputs, 'copy_complete')):
+    #             isCopied = True
+    #             break
+    #         else:
+    #             time.sleep(1)
+    #             timeout -= 1
+    #     return isCopied
+    # if 'get_ovc_model' not in instance.ie_pipeline.get('get_ir', "None"):
+    #     return
+    # # define value to copy
+    # prefix = os.path.join(instance.environment['input_model_dir'], '')
+    # if not os.path.exists(prefix):
+    #     os.mkdir(prefix)
+    # if instance.ie_pipeline.get('load_pytorch_model') or instance.ie_pipeline.get('pytorch_to_onnx'):
+    #     if instance.ie_pipeline.get('load_pytorch_model'):
+    #         if instance.ie_pipeline['load_pytorch_model'].get('custom_pytorch_model_loader'):
+    #             # it's hard to find out what to copy because it could be anything in that case
+    #             model = None
+    #         else:
+    #             model = instance.ie_pipeline['load_pytorch_model']['load_pytorch_model'].get('model-path')
+    #     if instance.ie_pipeline.get('pytorch_to_onnx'):
+    #         model = instance.ie_pipeline['pytorch_to_onnx']['convert_pytorch_to_onnx'].get('model-path')
+    #     # in that case we load model during the test so there is nothing to copy
+    #     if not model:
+    #         return
+    # else:
+    #     if isinstance(instance.ie_pipeline['get_ir']['get_ovc_model']['model'], str):
+    #         model = Path(instance.ie_pipeline['get_ir']['get_ovc_model']['model'])
+    #     else:
+    #         return
+    # model = Path(model)
+    # if os.path.isfile(model):
+    #     input_path = os.path.join(prefix, model.parents[1].name, model.parents[0].name)
+    #     model_path = model.parent
+    #     result_path = os.path.join(input_path, model.name)
+    # else:
+    #     input_path = os.path.join(prefix, model.parent.name, model.name)
+    #     model_path = model
+    #     result_path = input_path
+    #
+    # # copy stage
+    # tries = 2
+    # with log_timestamp('copy model'):
+    #     for i in range(tries):
+    #         try:
+    #             shutil.copytree(model_path, input_path)
+    #             open(os.path.join(input_path, 'copy_complete'), 'a').close()
+    #             if instance.ie_pipeline.get('prepare_model'):
+    #                 instance = set_path_for_pytorch_files(instance, result_path)
+    #             else:
+    #                 instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
+    #         except FileExistsError:
+    #             if wait_copy_finished(input_path):
+    #                 if instance.ie_pipeline.get('prepare_model'):
+    #                     instance = set_path_for_pytorch_files(instance, result_path)
+    #                 else:
+    #                     instance.ie_pipeline['get_ir']['get_ovc_model']['model'] = result_path
+    #         except BaseException:
+    #             if i < tries - 1:
+    #                 continue
+    #             else:
+    #                 raise
+    #         break
+    #     log.info(f'Input model was copied from {model} to {input_path}')

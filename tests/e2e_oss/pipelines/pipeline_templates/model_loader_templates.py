@@ -27,3 +27,11 @@ def pytorch_loader(model_name=None,
 def custom_pytorch_loader(func: callable, *args, **kwargs):
     return 'load_model', {
         'custom_pytorch_model_loader': {"execution_function": func(*args, **kwargs)}}
+
+
+def tf_hub_loader(model_name=None,
+                  model_link=None):
+    return "tf_hub_load_model", {"load_tf_hub_model": {
+        "model_name": model_name,
+        'model_link': model_link,
+    }}

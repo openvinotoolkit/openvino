@@ -342,7 +342,7 @@ Config file [reshape_utils.py](https://github.com/intel-innersource/frameworks.a
     2. Otherwise:
         * Create separate top-level folder: i.e. `e2e_oss/custom_pipelines`
         * Create new tests there (similarly to `pipelines/` tests)
-        * Use command-line options of [test.py](test.py) to specify location of
+        * Use command-line options of [test.py](test_tf_hub.py) to specify location of
           your tests:
             ~~~bash
             pytest test.py --modules <path to tests>

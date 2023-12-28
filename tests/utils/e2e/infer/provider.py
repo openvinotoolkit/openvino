@@ -21,10 +21,12 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "infer"
 
     def __init__(self, config):
-        self.out_data = None
         action_name = next(iter(config))
         self.executor = ClassProvider.provide(action_name, config=config[action_name])
 
-    def execute(self, model):
+    def execute(self, passthrough_data=None):
+        feed_dict = passthrough_data.strict_get('feed_dict', self)
+        self.executor.xml, self.executor.bin = passthrough_data.get('xml'), passthrough_data.get('bin')
         with log_timestamp('Inference'):
-            self.out_data = self.executor.infer(model)
+            passthrough_data['output'] = self.executor.infer(feed_dict)
+        return passthrough_data

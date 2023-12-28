@@ -21,12 +21,13 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "preprocess_tf_hub"
 
     def __init__(self, config):
-        self.out_data = None
         self.executors = []
         for name, params in config.items():
             self.executors.append(ClassProvider.provide(name, params))
 
-    def execute(self, data):
-        self.out_data = data
+    def execute(self, passthrough_data):
+        data = passthrough_data.strict_get('feed_dict', self)
         for executor in self.executors:
-            self.out_data = executor.apply(*self.out_data)
+            data = executor.apply(data)
+        passthrough_data["feed_dict"] = data
+        return passthrough_data

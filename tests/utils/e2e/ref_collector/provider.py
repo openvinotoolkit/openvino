@@ -20,11 +20,12 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "get_refs"
 
     def __init__(self, config):
-        self.out_data = None
         action_name = next(iter(config))
         cfg = config[action_name]
         self.executor = ClassProvider.provide(action_name, config=cfg)
 
-    def execute(self):
-        self.out_data = self.executor.get_refs()
+    def execute(self, passthrough_data):
+        data = passthrough_data.get('feed_dict')
+        passthrough_data['output'] = self.executor.get_refs(input_data=data)
+        return passthrough_data
 

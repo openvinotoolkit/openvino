@@ -9,7 +9,6 @@ from typing import Union
 import copy
 import numpy as np
 import tensorflow as tf
-import tensorflow_hub as hub
 
 
 from filelock import FileLock
@@ -515,15 +514,15 @@ def prepare_input(input_shape, input_type):
 
 
 def prepare_inputs(inputs_info):
-    if len(inputs_info) > 0 and inputs_info[0] == 'list':
-        inputs = []
-        inputs_info = inputs_info[1:]
-        for input_name, input_shape, input_type in inputs_info:
-            inputs.append(prepare_input(input_shape, input_type))
-    else:
-        inputs = {}
-        for input_name, input_shape, input_type in inputs_info:
-            inputs[input_name] = prepare_input(input_shape, input_type)
+    # if len(inputs_info) > 0 and inputs_info[0] == 'list':
+    #     inputs = []
+    #     inputs_info = inputs_info[1:]
+    #     for input_name, input_shape, input_type in inputs_info:
+    #         inputs.append(prepare_input(input_shape, input_type))
+    # else:
+    inputs = {}
+    for input_name, input_shape, input_type in inputs_info:
+        inputs[input_name] = prepare_input(input_shape, input_type)
     return inputs
 
 
@@ -560,17 +559,3 @@ def generate_tf_hub_inputs(model):
     Generates random inputs depending on model's input type
     """
     return prepare_inputs(get_inputs_info(model))
-
-
-def get_tf_hub_model(model_name, model_link):
-    load = hub.load(model_link)
-    if 'serving_default' in list(load.signatures.keys()):
-        prepared_model = load.signatures['serving_default']
-    elif 'default' in list(load.signatures.keys()):
-        prepared_model = load.signatures['default']
-    else:
-        signature_keys = sorted(list(load.signatures.keys()))
-        assert len(signature_keys) > 0, "No signatures for a model {}, url {}".format(model_name, model_link)
-        prepared_model = load.signatures[signature_keys[0]]
-    prepared_model._backref_to_saved_model = load
-    return prepared_model

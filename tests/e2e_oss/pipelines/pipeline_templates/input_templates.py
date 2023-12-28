@@ -24,3 +24,7 @@ def read_pb_input(path):
 
 def read_pt_input(path):
     return "read_input", {"pt": {"path": path}}
+
+
+def generate_tf_hub_inputs(model):
+    return {"read_input": {"generate_tf_hub_inputs": {"model": model}}}

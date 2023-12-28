@@ -18,4 +18,4 @@ class Pregenerated(ClassProvider):
     def get_ir(self, data=None):
         log.info("Reading ie IR from files:\n\t\tXML: {}\n\t\tBIN: {}".format(self.xml, self.bin))
         """Return existing IR."""
-        return self.xml, self.bin
+        return self.xml

@@ -23,22 +23,23 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "postprocessor"
 
     def __init__(self, config):
-        self.out_data = None
         self.executors = []
         for name, params in config.items():
             self.executors.append(ClassProvider.provide(name, params))
 
-    def execute(self, data):
-        self.out_data = data
-        if isinstance(self.out_data, list):
+    def execute(self, passthrough_data):
+        data = passthrough_data.strict_get('output', self)
+        if isinstance(data, list):
             # case when input is torch tensor without names
-            if isinstance(self.out_data[0], torch.Tensor):
+            if isinstance(data[0], torch.Tensor):
                 for executor in self.executors:
-                    self.out_data = executor.apply(self.out_data)
+                    data = executor.apply(data)
             # case of dynamism tests with --consecutive_infer key (list of two inputs)
             else:
                 for executor in self.executors:
-                    self.out_data = list(map(executor.apply, self.out_data))
+                    data = list(map(executor.apply, data))
         else:
             for executor in self.executors:
-                self.out_data = executor.apply(self.out_data)
+                data = executor.apply(data)
+        passthrough_data['output'] = data
+        return passthrough_data

@@ -25,7 +25,6 @@ class OVCMORunner(ClassProvider):
     def _build_arguments(self):
         """Construct model optimizer arguments."""
         args = {
-            'input_model': self._config['model'],
             'output_dir': self._config['mo_out'],
         }
 
@@ -36,13 +35,13 @@ class OVCMORunner(ClassProvider):
 
         if self.target_ir_name is not None:
             args.update({"model_name": self.target_ir_name})
-        if isinstance(self._config['model'], str):
-            if os.path.splitext(self._config['model'])[1] == ".meta":
-                args["input_meta_graph"] = args.pop("input_model")
-            # If our model not a regular file but directory then remove
-            # '--input_model' attr and add use '--saved_model_dir'
-            if os.path.isdir(self._config['model']):
-                args["saved_model_dir"] = args.pop("input_model")
+        # if isinstance(self._config['model'], str):
+        #     if os.path.splitext(self._config['model'])[1] == ".meta":
+        #         args["input_meta_graph"] = args.pop("input_model")
+        #     # If our model not a regular file but directory then remove
+        #     # '--input_model' attr and add use '--saved_model_dir'
+        #     if os.path.isdir(self._config['model']):
+        #         args["saved_model_dir"] = args.pop("input_model")
 
         if 'proto' in self._config.keys():
             args.update({"input_proto": str(self._config['proto'])})
@@ -62,23 +61,20 @@ class OVCMORunner(ClassProvider):
 
         return args
 
-    def get_ir(self):
+    def get_ir(self, passthrough_data):
         from openvino import convert_model, save_model
         from openvino.tools.mo.utils.cli_parser import input_shape_to_input_cut_info, input_to_input_cut_info
 
         ir_name = self.target_ir_name if self.target_ir_name else 'model'
-        xml = os.path.join(self.args['output_dir'], ir_name + '.xml')
-        bin = os.path.join(self.args['output_dir'], ir_name + '.bin')
+        xml_file = os.path.join(self.args['output_dir'], ir_name + '.xml')
+        bin_file = os.path.join(self.args['output_dir'], ir_name + '.bin')
         compress_to_fp16 = self.args.pop('compress_to_fp16')
         self.args.pop('output_dir')
-
-        if self.prepared_model:
-            self.args['input_model'] = self.prepared_model
 
         filtered_args = {}
         args_to_pop = []
         for k in self.args:
-            if k in ['input_model', 'example_input', 'output']:
+            if k in ['example_input', 'output']:
                 filtered_args[k] = self.args[k]
             if k in ['saved_model_dir']:
                 filtered_args['input_model'] = self.args['saved_model_dir']
@@ -123,23 +119,21 @@ class OVCMORunner(ClassProvider):
 
         with log_timestamp('Convert Model'):
             for k, v in filtered_args.items():
-                if k == 'input_model' and self.prepared_model:
-                    v = str(v.__class__)
                 if k == 'example_input':
                     v = True
                 log.info(f'{k}={v}')
 
-            self.ov_model = convert_model(filtered_args['input_model'],
+            ov_model = convert_model(self.prepared_model,
                                           input=filtered_args.get('input'),
                                           output=filtered_args.get('output'),
                                           example_input=filtered_args.get('example_input'),
                                           extension=filtered_args.get('extension'),
                                           verbose=filtered_args.get('verbose'),
                                           share_weights=filtered_args.get('share_weights', True))
-            save_model(self.ov_model, xml, compress_to_fp16)
+            save_model(ov_model, xml_file, compress_to_fp16)
 
-        self.xml = resolve_file_path(xml, as_str=True)
-        self.bin = resolve_file_path(bin, as_str=True)
+        self.xml = resolve_file_path(xml_file, as_str=True)
+        self.bin = resolve_file_path(bin_file, as_str=True)
         log.info(f'XML file with compress_to_fp16={compress_to_fp16} was saved to: {self.xml}')
         log.info(f'BIN file with compress_to_fp16={compress_to_fp16} was saved to: {self.bin}')
 

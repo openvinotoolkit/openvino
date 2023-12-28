@@ -24,22 +24,24 @@ class StepProvider(BaseStepProvider):
     __step_name__ = "preprocess"
 
     def __init__(self, config):
-        self.out_data = None
+
         self.executors = []
         for name, params in config.items():
             self.executors.append(ClassProvider.provide(name, params))
 
-    def execute(self, data):
-        self.out_data = data
-        if isinstance(self.out_data, list):
+    def execute(self, passthrough_data):
+        data = passthrough_data.strict_get('feed_dict', self)
+        if isinstance(data, list):
             # case when input is torch tensor without names
-            if isinstance(self.out_data[0], (torch.Tensor, np.ndarray)):
+            if isinstance(data[0], (torch.Tensor, np.ndarray)):
                 for executor in self.executors:
-                    self.out_data = executor.apply(self.out_data)
+                    data = executor.apply(data)
             # case of dynamism tests with --consecutive_infer key (list of two inputs)
             else:
                 for executor in self.executors:
-                    self.out_data = list(map(executor.apply, self.out_data))
+                    data = list(map(executor.apply, data))
         else:
             for executor in self.executors:
-                self.out_data = executor.apply(self.out_data)
+                data = executor.apply(data)
+        passthrough_data["feed_dict"] = data
+        return passthrough_data

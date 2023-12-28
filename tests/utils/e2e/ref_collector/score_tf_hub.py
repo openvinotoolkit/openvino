@@ -15,21 +15,17 @@ class ScoreTFHub(ClassProvider):
 
     def __init__(self, config):
         self.res = {}
-        self.model = config['model']
-        self.inputs = config['inputs']
 
-    def get_refs(self):
+    def get_refs(self, passthrough_data):
+        inputs = passthrough_data['feed_dict']
+        model = passthrough_data['model_obj']
+        # repack input dictionary to tensorflow constants
         tf_inputs = {}
-        for input_ind, input_name in enumerate(sorted(self.model.structured_input_signature[1].keys())):
-            tf_inputs[input_name] = tf.constant(self.inputs[input_ind])
+        for input_name, input_value in inputs.items():
+            tf_inputs[input_name] = tf.constant(input_value)
 
-        output_dict = {}
-        for out_name, out_value in self.model(**tf_inputs).items():
-            output_dict[out_name] = out_value.numpy()
-
-        for output_ind, external_name in enumerate(sorted(self.model.structured_outputs.keys())):
-            internal_name = self.model.outputs[output_ind].name
-            out_value = output_dict[external_name]
-            self.res[internal_name] = out_value
+        for out_name, out_value in model(**tf_inputs).items():
+            self.res[out_name] = out_value.numpy()
 
         return self.res
+
