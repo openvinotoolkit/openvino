@@ -9,6 +9,7 @@
 #include "common_op_table.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -45,7 +46,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node){
 
 		OutputVector concat_inputs;
         concat_inputs.push_back(perm);
-        concat_inputs.push_back(make_shared<v0::Constant>(perm.get_element_type(), Shape{1}, 2));
+        concat_inputs.push_back(make_shared<v0::ShapeOf>(perm, perm.get_element_type()));
 
         auto concat = make_shared<v0::Concat>(concat_inputs, 0);
 		auto conj_transpose = make_shared<v1::Transpose>(conj_tensor, concat);
