@@ -1542,23 +1542,22 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        // When we set input shape with range dims, real input shape maybe mismatch with output shape, we just change
-        // range min value to 1 to meet this case.
+        // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just change
+        // ranged min value to 1 to meet this case.
         // For example:
         // Output shape = {1, 160, {128, 256}, {128, 256}}
-        // Real input shape = {1, 160, 1, 1}
-        // Update shape to {1, 160, {1, 256}, {1, 256}}
+        // Sum input shape = {1, 160, 1, 1}
+        // Update sum shape to {1, 160, {1, 256}, {1, 256}}
         auto shape = getOutputShapeAtPort(0);
-        auto realShape = getInputShapeAtPort(getParentEdges().size() - 1);
+        auto sumShape = getInputShapeAtPort(getParentEdges().size() - 1);
         Shape finalShape = shape;
-        if (shape.getRank() == realShape.getRank()) {
-            auto realDims = realShape.getDims();
+        if (shape.getRank() == sumShape.getRank()) {
+            auto sumDims = sumShape.getDims();
             auto minDims = shape.getMinDims();
             auto maxDims = shape.getMaxDims();
             for (size_t i = 0; i < maxDims.size(); i++) {
-                if ((maxDims[i] > minDims[i]) && realDims[i] == 1) {
-                    if (minDims[i] > 1)
-                        minDims[i] = 1;
+                if ((maxDims[i] > minDims[i]) && sumDims[i] == 1) {
+                    minDims[i] = 1;
                 }
             }
             finalShape = Shape(minDims, maxDims);
