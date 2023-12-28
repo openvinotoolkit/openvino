@@ -53,8 +53,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto rank_b = shape_b.rank().get_length();
 
         // Transformation to FC is not supported for 1D inputs
-        if (rank_a == 1 || rank_b == 1 ||
-            rank_a > 3 || rank_b > 3) {
+        if (rank_a == 1 || rank_b == 1) {
             return false;
         }
 
