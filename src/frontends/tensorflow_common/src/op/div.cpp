@@ -16,10 +16,9 @@ OutputVector translate_div_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Div"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
-    bool m_pythondiv = false;
-
-    // compute Division with the 'pythondiv' parameter set to false
-    auto div = make_shared<v1::Divide>(x, y, m_pythondiv);
+    
+    // compute Division
+    auto div = make_shared<v1::Divide>(x, y);
 
     set_node_name(node.get_name(), div);
     return div->outputs();
