@@ -119,22 +119,39 @@ protected:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
-
+#define DEBUG_TPP_EMITTERS
 class UnaryEltwiseTppEmitter : public EltwiseTppEmitter {
 public:
     UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override { return 1; }
+#if defined(DEBUG_TPP_EMITTERS)
+    static void execute_unary_eltw_kernel(UnaryEltwiseTppEmitter* emitter, void *in0, void *out0);
+    const uintptr_t get_compiled_kernel_ptr() const override {
+        m_compiled_kernel = libxsmm_dispatch_meltw_unary_v2(m_op_type,
+                                                            m_shape,
+                                                            m_compile_flags);
+        return reinterpret_cast<const uintptr_t>(this);
+    }
+#else
     static void execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
+    const uintptr_t get_compiled_kernel_ptr() const override {
+        return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_unary_v2(m_op_type,
+                                                                                 m_shape,
+                                                                                 m_compile_flags));
+    }
+#endif
     const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel); }
-    const uintptr_t get_compiled_kernel_ptr() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
     libxsmm_meltw_unary_shape m_shape;
     libxsmm_meltw_unary_type m_op_type;
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
+#ifdef DEBUG_TPP_EMITTERS
+    mutable libxsmm_meltwfunction_unary m_compiled_kernel{nullptr};
+#endif
 };
 
 class ReduceTppEmitter : public UnaryEltwiseTppEmitter {

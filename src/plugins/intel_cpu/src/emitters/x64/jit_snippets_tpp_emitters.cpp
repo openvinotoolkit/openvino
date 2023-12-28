@@ -11,6 +11,7 @@
 #include "transformations/snippets/tpp/op/brgemm.hpp"
 #include "libxsmm.h"
 #include "transformations/snippets/tpp/op/eltwise.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -332,11 +333,18 @@ EltwiseTppEmitter::EltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     io_strides.resize(num_ins + num_outs);
     io_offsets.resize(num_ins + num_outs);
     io_port_descriptors.resize(num_ins + num_outs);
+    // Note: this is needed mostly for Reduce operations, since they allow the last subternsor dim to be FULL_DIM;
+    auto replace_full_dim = [](size_t dim, size_t replace_dim){
+        if (dim ==  snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM)
+            return replace_dim;
+        return dim;
+    };
 
     for (size_t i = 0; i < num_ins; i++) {
         io_dtypes[i] = ov_to_xsmm_dtype(node->get_input_element_type(i));
         io_offsets[i] = tpp_node->get_input_offset(i);
-        io_strides[i] = tpp_node->get_input_stride(i);
+        io_strides[i] = replace_full_dim(tpp_node->get_input_stride(i),
+                                         expr->get_input_port_descriptor(i)->get_shape().back());
         io_port_descriptors[i] = expr->get_input_port_descriptor(i);
     }
 
@@ -344,7 +352,8 @@ EltwiseTppEmitter::EltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
         const auto i_off = i + num_ins;
         io_dtypes[i_off] = ov_to_xsmm_dtype(node->get_output_element_type(i));
         io_offsets[i_off] = tpp_node->get_output_offset(i);
-        io_strides[i_off] = tpp_node->get_output_stride(i);
+        io_strides[i_off] = replace_full_dim(tpp_node->get_output_stride(i),
+                                             expr->get_output_port_descriptor(i)->get_shape().back());
         io_port_descriptors[i_off] = expr->get_output_port_descriptor(i);
     }
 }
@@ -509,11 +518,16 @@ UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generat
     m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_NONE;
 }
 
-const uintptr_t UnaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_unary_v2(m_op_type, m_shape, m_compile_flags));
+#if defined(DEBUG_TPP_EMITTERS)
+void UnaryEltwiseTppEmitter::execute_unary_eltw_kernel(UnaryEltwiseTppEmitter* emitter, void *in0, void *out0) {
+    libxsmm_meltw_unary_param param;
+    param.op.primary = nullptr;
+    param.in.primary = in0;
+    param.out.primary = out0;
+    assert(emitter);
+    emitter->m_compiled_kernel(&param);
 }
-
-
+#else
 void UnaryEltwiseTppEmitter::execute_unary_eltw_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0) {
     libxsmm_meltw_unary_param param;
     param.op.primary = nullptr;
@@ -522,6 +536,7 @@ void UnaryEltwiseTppEmitter::execute_unary_eltw_kernel(libxsmm_meltwfunction_una
     assert(eltwise_kernel);
     eltwise_kernel(&param);
 }
+#endif
 
 std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
     return {{element::f32}};
