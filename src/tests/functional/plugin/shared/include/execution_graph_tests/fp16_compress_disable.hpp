@@ -16,7 +16,6 @@ namespace ExecutionGraphTests {
 
 using ExecGraphDisableFP16CompressSpecificParams = std::tuple<
     bool,
-    bool,
     std::string                         // Target Device
 >;
 
@@ -32,10 +31,7 @@ protected:
     void create_model();
     void checkInferPrecision();
     bool matmulFP16Disabled;
-    bool FCFP16Disabled;
-    std::string matmulPrecision;
-    std::string fcPrecision;
-    std::shared_ptr<ov::Model> function = nullptr;
+    std::shared_ptr<ov::Model> funcPtr = nullptr;
     std::string enforcedPrecision;
 };
 

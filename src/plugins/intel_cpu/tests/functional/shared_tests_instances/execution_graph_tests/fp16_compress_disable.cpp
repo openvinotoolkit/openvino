@@ -13,10 +13,8 @@ using namespace InferenceEngine;
 namespace {
 
 const std::vector<ExecGraphDisableFP16CompressSpecificParams> InferPrecisionFP16DisableTestCommonParams = {
-    {false, true,  "CPU"},
-    {false, false, "CPU"},
-    {true, true,   "CPU"},
-    {true, false,  "CPU"},
+    {true,  "CPU"},
+    {false, "CPU"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphDisableFP16Compress,

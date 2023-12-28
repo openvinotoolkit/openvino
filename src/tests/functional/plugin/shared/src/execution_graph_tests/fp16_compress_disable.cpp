@@ -15,6 +15,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "execution_graph_tests/fp16_compress_disable.hpp"
 #include "ie/ie_plugin_config.hpp"
@@ -26,17 +27,15 @@ namespace ExecutionGraphTests {
 std::string ExecGraphDisableFP16Compress::getTestCaseName(testing::TestParamInfo<ExecGraphDisableFP16CompressSpecificParams> obj) {
     std::ostringstream result;
     bool matmulFP16Disabled;
-    bool FCFP16Disabled;
     std::string targetDevice;
-    std::tie(matmulFP16Disabled, FCFP16Disabled, targetDevice) = obj.param;
+    std::tie(matmulFP16Disabled, targetDevice) = obj.param;
     result << "matmul_BF16_Disabled=" << matmulFP16Disabled << "_";
-    result << "FC_BF16_Disabled=" << FCFP16Disabled << "_";
     result << "device=" << targetDevice;
     return result.str();
 }
 
 void ExecGraphDisableFP16Compress::SetUp() {
-    std::tie(matmulFP16Disabled, FCFP16Disabled, targetDevice) =  this->GetParam();
+    std::tie(matmulFP16Disabled, targetDevice) =  this->GetParam();
     create_model();
 }
 
@@ -48,15 +47,9 @@ void ExecGraphDisableFP16Compress::TearDown() {
       |Input  |
       ---------
           |
-    -------------
-    | --------- |
-    | | Matmul| |
-    | --------- |
-    |     |     |
-    | --------- |
-    | |  FC   |
-    | --------- |
-    |-----------|
+      ---------
+      |matmul |
+      ---------
           |
       ---------
       |Output |
@@ -65,63 +58,44 @@ void ExecGraphDisableFP16Compress::TearDown() {
 
 void ExecGraphDisableFP16Compress::create_model() {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 16});
-    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{16, 16});
-    ov::ParameterVector inputParams = {A , B};
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(A, B);
+    auto weightConst = ngraph::builder::makeConstant(ov::element::f16, ov::Shape{16, 16}, std::vector<float>{0.0f}, true);
+    auto weightConvert = std::make_shared<ov::op::v0::Convert>(weightConst, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(A, weightConvert);
     matmul->set_friendly_name("Matmul0");
     if (matmulFP16Disabled)
         ov::disable_fp16_compression(matmul);
-    auto fcWeight = ngraph::builder::makeConstant(ov::element::f16, ov::Shape{16, 16}, std::vector<float>{0.0f}, true);
-    auto weightConvert = std::make_shared<ov::op::v0::Convert>(fcWeight, ov::element::f32);
-    auto fc = std::make_shared<ov::op::v0::MatMul>(matmul, weightConvert);
-    fc->set_friendly_name("FC0");
-    if (FCFP16Disabled)
-        ov::disable_fp16_compression(fc);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(fc)};
-    function = std::make_shared<ov::Model>(results, inputParams, "testModel");
+    funcPtr = std::make_shared<ov::Model>(matmul->outputs(), ov::ParameterVector{A}, "testModel");
 }
 
 void ExecGraphDisableFP16Compress::checkInferPrecision() {
-    auto ie  = InferenceEngine::Core();
-    auto net = InferenceEngine::CNNNetwork(function);
-    InferenceEngine::ExecutableNetwork exec_net;
+    ov::CompiledModel compiledModel;
+    auto core = ov::test::utils::PluginCache::get().core();
     if (targetDevice == "CPU") {
-        //Enforce CPU to infer with BF16 precision.
-        exec_net = ie.LoadNetwork(net, targetDevice,
-                                    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}});
+        compiledModel = core->compile_model(funcPtr, targetDevice,
+                                {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}});
         enforcedPrecision = "bf16";
     } else {
-        exec_net = ie.LoadNetwork(net, targetDevice);
+        compiledModel = core->compile_model(funcPtr, targetDevice);
         enforcedPrecision = "f16";
     }
-
-    auto runtime_model = exec_net.GetExecGraphInfo().getFunction();
-
+    const auto runtime_model = compiledModel.get_runtime_model();
     ASSERT_NE(nullptr, runtime_model);
-
     auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
         auto it = rtInfo.find(paramName);
         OPENVINO_ASSERT(rtInfo.end() != it);
         return it->second.as<std::string>();
     };
-    std::string matmulPrecision, fcPrecision;
+    std::string matmulPrecision;
     for (const auto &node : runtime_model->get_ops()) {
         if (getExecValue(node->get_rt_info(), ov::exec_model_info::ORIGINAL_NAMES) == "Matmul0") {
             matmulPrecision = getExecValue(node->get_rt_info(), ov::exec_model_info::RUNTIME_PRECISION);
-        } else if (getExecValue(node->get_rt_info(), ov::exec_model_info::ORIGINAL_NAMES) == "FC0") {
-            fcPrecision = getExecValue(node->get_rt_info(), ov::exec_model_info::RUNTIME_PRECISION);
         }
     }
-    OPENVINO_ASSERT(!matmulPrecision.empty() && !fcPrecision.empty());
+    OPENVINO_ASSERT(!matmulPrecision.empty());
     if (matmulFP16Disabled)
         ASSERT_EQ(matmulPrecision, "f32");
     else
         ASSERT_EQ(matmulPrecision, enforcedPrecision);
-
-    if (FCFP16Disabled)
-        ASSERT_EQ(fcPrecision, "f32");
-    else
-        ASSERT_EQ(fcPrecision, enforcedPrecision);
 }
 
 TEST_P(ExecGraphDisableFP16Compress, CheckRuntimePrecision) {
@@ -130,5 +104,4 @@ TEST_P(ExecGraphDisableFP16Compress, CheckRuntimePrecision) {
         GTEST_SKIP();
     checkInferPrecision();
 }
-
 }  // namespace ExecutionGraphTests

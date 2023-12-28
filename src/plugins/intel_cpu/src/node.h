@@ -556,7 +556,7 @@ public:
                                        NameFromType(getType()));
         return false;
     }
-    const bool KeepOriginalPrecision() const {
+    const bool keepOrigPrecision() const {
         return keepOriginalPrecision;
     }
 

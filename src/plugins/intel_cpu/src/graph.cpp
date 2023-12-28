@@ -1690,7 +1690,7 @@ void Graph::EnforceInferencePrecision() {
 
         if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
-        if (node->KeepOriginalPrecision())
+        if (node->keepOrigPrecision())
             continue;
 #ifdef CPU_DEBUG_CAPS
         if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
