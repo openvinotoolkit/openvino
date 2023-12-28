@@ -4,14 +4,12 @@
 
 #include "op/org.openvinotoolkit/group_norm.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "utils/common.hpp"
-#include "utils/reshape.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/squeeze.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -30,13 +28,13 @@ OutputVector group_norm(const Node& node) {
     float eps = node.get_attribute_value<float>("eps", 1e-6f);
 
     if (!scale.get_partial_shape().rank().compatible(1)) {
-        scale = std::make_shared<default_opset::Squeeze>(scale);
+        scale = std::make_shared<v0::Squeeze>(scale);
     }
     if (!bias.get_partial_shape().rank().compatible(1)) {
-        bias = std::make_shared<default_opset::Squeeze>(bias);
+        bias = std::make_shared<v0::Squeeze>(bias);
     }
 
-    return {std::make_shared<ov::opset12::GroupNormalization>(data, scale, bias, num_groups, eps)};
+    return {std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps)};
 }
 
 }  // namespace set_1
