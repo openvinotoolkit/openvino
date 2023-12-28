@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -104,33 +106,33 @@ protected:
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));
                 inputNodes.push_back(
-                    ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
+                    ov::test::utils::deprecated::make_constant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
             }
         }
 
         if (withQuantization) {
             std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-            eltwiseOps.push_back(makeEltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
+            eltwiseOps.push_back(make_eltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
             for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
-                eltwiseOps.push_back(makeEltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
+                eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
             }
 
             std::vector<size_t> constShape(targetStaticShapes[0][0].size(), 1);
             constShape[1] = targetStaticShapes[0][0][1];
-            auto fq = ngraph::builder::makeFakeQuantize(eltwiseOps[eltwiseOps.size() - 1],
+            auto fq = ov::test::utils::make_fake_quantize(eltwiseOps[eltwiseOps.size() - 1],
                                                         ov::element::Type(ov::element::f32),
                                                         256,
                                                         constShape);
 
-            eltwiseOps.push_back(makeEltwise(fq, inputNodes[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
+            eltwiseOps.push_back(make_eltwise(fq, inputNodes[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
 
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
             function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_fq");
         } else {
             std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-            eltwiseOps.push_back(makeEltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
+            eltwiseOps.push_back(make_eltwise(paramVec[0], inputNodes[0], eltwiseOpTypes[0]));
             for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
-                eltwiseOps.push_back(makeEltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
+                eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes[i], eltwiseOpTypes[i]));
             }
 
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};

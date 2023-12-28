@@ -5,7 +5,9 @@
 #include "interpolate.hpp"
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+
+using namespace ov::intel_cpu;
 
 bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
                                          const std::vector<MemoryDescPtr>& srcDescs,
@@ -49,7 +51,7 @@ bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolat
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void ov::intel_cpu::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void ov::intel_cpu::InterpolateExecutor::buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                                   const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -169,7 +171,7 @@ void ov::intel_cpu::InterpolateExecutor::linearOnnxCF(int outCoord, float scale,
     }
 }
 
-void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
@@ -282,7 +284,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& sr
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                                       const std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -373,7 +375,7 @@ std::vector<float> ov::intel_cpu::InterpolateExecutor::getCubicCoeffs(float mant
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                                      float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
@@ -441,9 +443,9 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimP
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
-inline SizeVector getBlockND(const SizeVector& shape) {
+inline VectorDims getBlockND(const VectorDims& shape) {
     int shapeRank = shape.size();
-    SizeVector blockND(shapeRank + 1, 1);
+    VectorDims blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i+1];
     }
@@ -472,8 +474,8 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
         int padB3 = interpAttrs.padBegin[dimSize - 2];
         int padB4 = interpAttrs.padBegin[dimSize - 1];
 
-        SizeVector inShapeBlock = getBlockND(srcDim5d);
-        SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
+        VectorDims inShapeBlock = getBlockND(srcDim5d);
+        VectorDims inShapePadBlock = getBlockND(srcDimPad5d);
 
         if (interpAttrs.layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);

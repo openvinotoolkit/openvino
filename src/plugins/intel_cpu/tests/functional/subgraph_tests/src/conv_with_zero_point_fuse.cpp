@@ -4,8 +4,10 @@
 
 #include "subgraph_tests/include/conv_with_zero_point_fuse.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "test_utils/convolution_params.hpp"
 
 using namespace CPUTestUtils;
@@ -43,7 +45,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     selectedType = ".*_i8";
 
     ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes)};
-    const auto fq = ngraph::builder::makeFakeQuantize(inputParams[0],
+    const auto fq = ov::test::utils::make_fake_quantize(inputParams[0],
                                                       ov::element::f32,
                                                       256,
                                                       {1, 1, 1, 1},
@@ -59,7 +61,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         branches[0] = std::make_shared<ov::op::v1::MaxPool>(fq, strides, pads_begin, pads_end, kernel);
     }
     {
-        const auto fq_conv_data = ngraph::builder::makeFakeQuantize(fq,
+        const auto fq_conv_data = ov::test::utils::make_fake_quantize(fq,
                                                                     ov::element::f32,
                                                                     256,
                                                                     {1, 1, 1, 1},
@@ -71,13 +73,13 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         const ov::Shape weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ov::shape_size(weights_const_shape), 1);
         const auto weights_const =
-            ngraph::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
+            ov::test::utils::deprecated::make_constant(ov::element::i8, weights_const_shape, weights_const_values);
 
         const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
-            ngraph::builder::makeConstant(ov::element::f32,
+            ov::test::utils::deprecated::make_constant(ov::element::f32,
                                           {numOutChannels, 1, 1, 1},
                                           std::vector<float>(numOutChannels, 1.0)));
 
@@ -100,7 +102,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                 fq_conv_data,
                 std::make_shared<ov::opset10::Reshape>(
                     weights_multiply,
-                    ngraph::builder::makeConstant(
+                    ov::test::utils::deprecated::make_constant(
                         ov::element::i32,
                         {5},
                         std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),

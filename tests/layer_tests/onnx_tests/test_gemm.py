@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 from common.layer_test_class import CommonLayerTest
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestGemm(OnnxRuntimeLayerTest):
@@ -107,7 +107,7 @@ class TestGemm(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net
@@ -201,7 +201,7 @@ class TestGemm(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         if precision == 'FP16':
             const = const.astype(np.float16)

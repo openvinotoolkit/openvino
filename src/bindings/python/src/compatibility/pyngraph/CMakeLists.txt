@@ -83,8 +83,3 @@ install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
         COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
-
-install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility
-        DESTINATION tests/${PROJECT_NAME}
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)

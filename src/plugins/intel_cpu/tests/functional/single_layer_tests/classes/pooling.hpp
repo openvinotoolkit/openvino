@@ -7,7 +7,6 @@
 #include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/pooling.hpp"
 

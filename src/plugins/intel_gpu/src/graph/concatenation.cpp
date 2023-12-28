@@ -150,7 +150,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
 
     if (node.can_be_optimized()) {
         build_deps();
-        std::list<std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>>*> stack = {&_deps};
+        std::list<std::vector<std::pair<primitive_inst*, int32_t>>*> stack = {&_deps};
         while (!stack.empty()) {
             auto nodes_list = stack.front();
             stack.pop_front();

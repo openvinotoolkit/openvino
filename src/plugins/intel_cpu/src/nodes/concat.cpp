@@ -7,9 +7,9 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>
@@ -24,7 +24,6 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <partitioned_mem_mgr.h>
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -400,7 +399,7 @@ void Concat::prepareParams() {
     }
 }
 
-size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
+size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
     for (size_t i = 0; i < order.size(); i++) {
         if (axis == order[i]) {
             return i;

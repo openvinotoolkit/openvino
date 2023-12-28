@@ -3,7 +3,9 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -120,7 +122,7 @@ protected:
 
         auto makeDataFQ = [](const ov::Output<Node>& input) {
             const auto fqLevels = 256;
-            return ngraph::builder::makeFakeQuantize(input, ov::element::f32, fqLevels, {},
+            return ov::test::utils::make_fake_quantize(input, ov::element::f32, fqLevels, {},
                                                       {-128.f/127}, {1.f},
                                                       {-128.f/127}, {1.f});
         };
@@ -130,16 +132,16 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(inputParams[1]);
         } else {
-            H = ngraph::builder::makeConstant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ov::test::utils::deprecated::make_constant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
-            return ngraph::builder::makeFakeQuantize(weight, ov::element::f32,
+            return ov::test::utils::make_fake_quantize(weight, ov::element::f32,
                                                      fqLevelsW, std::vector<size_t>{},
                                                      {-127.f/63}, {127.f/63},
                                                      {-127.f/63}, {127.f/63});

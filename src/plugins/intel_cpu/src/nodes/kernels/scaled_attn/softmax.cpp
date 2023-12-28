@@ -18,7 +18,7 @@
 #include "softmax_kernel.hpp"
 #include "common.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -39,4 +39,4 @@ void attn_softmax(float* a,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

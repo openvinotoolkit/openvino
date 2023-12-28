@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -215,7 +215,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB =
-            ngraph::builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
+            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
@@ -541,7 +541,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         std::shared_ptr<ov::Node> inputWeights =
-            ngraph::builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
+            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);
@@ -579,6 +579,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
                          MatMulDecompressConvertTest2::getTestCaseName);
 
 }  // namespace
-
 }  // namespace test
 }  // namespace ov
