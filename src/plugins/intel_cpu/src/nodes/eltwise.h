@@ -205,6 +205,7 @@ private:
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 
     bool canUseAclExecutor = false;
+    bool canUseJitExecutor = false;
     EltwiseAttrs eltwiseAttrs;
     std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
 };
