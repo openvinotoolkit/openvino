@@ -30,8 +30,8 @@ OutputVector translate_gcd(const NodeContext& context) {
 
     auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_condition);
 
-    auto x_input = std::make_shared<v0::Parameter>(ov::element::i32, x.get_partial_shape());
-    auto y_input = std::make_shared<v0::Parameter>(ov::element::i32, y.get_partial_shape());
+    auto x_input = std::make_shared<v0::Parameter>(x.get_element_type(), x.get_partial_shape());
+    auto y_input = std::make_shared<v0::Parameter>(y.get_element_type(), y.get_partial_shape());
 
     auto condition = std::make_shared<v1::NotEqual>(y_input, zero);
     auto mod = std::make_shared<v1::Mod>(x_input, y_input);
