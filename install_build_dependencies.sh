@@ -220,7 +220,7 @@ fi
 current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
-    installed_cmake_ver=3.24.0
+    installed_cmake_ver=3.26.0
     arch=$(uname -m)
 
     if command -v apt-get &> /dev/null; then
