@@ -93,6 +93,13 @@ void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     exec_func();
 }
 
+bool JitEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                            const std::vector<MemoryDescPtr>& srcDescs,
+                                            const std::vector<MemoryDescPtr>& dstDescs) const {
+    // TODO: not completed
+    return true;
+}
+
 }   // namespace aarch64
 }   // namespace executors
 }   // namespace intel_cpu
