@@ -260,7 +260,11 @@ TSGatherBackward::TSGatherBackward() {
                 main_node->input(1).replace_source_output(squeeze->input_value(0));
             }
         }
+        std::vector<size_t> new_axes_val;
         if (!axes_val.empty()) {
+            for (size_t i = 0; i < axes_val.size(); ++i) {
+                new_axes_val.push_back(order_val[axes_val[i]]);
+            }
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
@@ -303,7 +307,7 @@ TSGatherBackward::TSGatherBackward() {
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
-            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {axes_val.size()}, axes_val);
+            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {new_axes_val.size()}, new_axes_val);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(main_node, unsqueeze_axes);
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);
