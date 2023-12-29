@@ -40,8 +40,8 @@ OutputVector translate_gcd(const NodeContext& context) {
 
     auto reduced_condition = std::make_shared<v1::ReduceLogicalOr>(condition, zero);
 
-    auto body = std::make_shared<ngraph::Function>(OutputVector{new_x, new_y, reduced_condition},
-                                                   ParameterVector{x_input, y_input});
+    auto body = std::make_shared<Model>(OutputVector{new_x, new_y, reduced_condition},
+                                        ParameterVector{x_input, y_input});
     loop->set_function(body);
 
     loop->set_special_body_ports({-1, 2});
