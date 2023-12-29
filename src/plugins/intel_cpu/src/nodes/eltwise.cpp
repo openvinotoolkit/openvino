@@ -2341,7 +2341,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         Blocked
     };
 
-    auto initDesc = [&] (LayoutType lt, bool useAclExecutor = false) -> NodeDesc {
+    auto initDesc = [&] (LayoutType lt, const bool useAclExecutor = false, const bool useJit = false) -> NodeDesc {
         auto createMemoryDesc = [lt](const Shape &shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             const auto &dims = shape.getDims();
             if (lt == ChannelsFirst && shape.getRank() != 1) {
@@ -2421,8 +2421,15 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
         config.outConfs.push_back(portConfig);
 
-        if (useAclExecutor) {
-            impl_desc_type impl_type = impl_desc_type::undef;
+        if (useAclExecutor || useJit) {
+            impl_desc_type impl_type;
+            #if defined (OPENVINO_ARCH_ARM64)
+            if (useJit) {
+                impl_type = impl_desc_type::jit_asimd;
+            }
+            #else
+            impl_type = impl_desc_type::undef;
+            #endif
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             for (size_t i = 0; i < config.inConfs.size(); i++) {
@@ -2484,11 +2491,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 
 #if defined (OV_CPU_WITH_ACL)
-    if (useAcl) {
+    //if (!useJit) {
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
 
-    auto addDesc = [&initDesc](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
-        auto nodeDesc = initDesc(layoutType, true);
+    auto addDesc = [&initDesc, &useJit](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
+        auto nodeDesc = initDesc(layoutType, !useJit, useJit);
         if (nodeDesc.getExecutorFactory())
             supportedPrimitiveDescriptors.emplace_back(nodeDesc);
     };
@@ -2504,10 +2511,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
     }
 
-    canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-    if (canUseAclExecutor)
+    canUseJitExecutor = !supportedPrimitiveDescriptors.empty() && useJit;
+    canUseAclExecutor = !canUseJitExecutor;
+    if (!supportedPrimitiveDescriptors.empty())
         return;
-    }
+    //}
 #endif
 
     if (isChannelsFirstApplicable)
