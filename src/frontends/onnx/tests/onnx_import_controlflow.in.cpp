@@ -7,7 +7,6 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/loop.hpp"
