@@ -3,7 +3,9 @@
 //
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/subgraph/reduce_eltwise.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
@@ -57,8 +59,8 @@ void ReduceEltwiseTest::SetUp() {
     std::vector<size_t> constShape(reduce.get()->get_output_partial_shape(0).rank().get_length(), 1);
     ASSERT_GT(constShape.size(), 2);
     constShape[2] = inputShape.back();
-    auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto constant = ov::test::utils::deprecated::make_constant<float>(ngPrc, constShape, {}, true);
+    auto eltw = ov::test::utils::make_eltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
     ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eltw)};
     function = std::make_shared<ngraph::Function>(results, params, "ReduceEltwise");
 }

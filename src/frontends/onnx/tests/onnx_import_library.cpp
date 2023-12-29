@@ -7,12 +7,14 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/file_util.hpp"
+#include "onnx_utils.hpp"
 
-static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+using namespace ov::frontend::onnx::tests;
+
+static std::string s_manifest = onnx_backend_manifest(MANIFEST);
 
 OPENVINO_TEST(onnx, check_ir_version_support) {
-    // It appears you've changed the ONNX library version used by nGraph. Please update the value
+    // It appears you've changed the ONNX library version used by OpenVINO. Please update the value
     // tested below to make sure it equals the current IR_VERSION enum value defined in ONNX headers
     //
     // You should also check the onnx_common/src/onnx_model_validator.cpp file and make sure that

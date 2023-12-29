@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
@@ -143,7 +143,9 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         auto index_Gather2 = makePattern<opset8::Gather>({slice_Slice2, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         auto unsqueeze = makePattern<opset1::Reshape>({index_Gather | index_Gather2, {1, 1, -1, head_dims}});
-        return unsqueeze;
+        auto unsqueeze2 = makePattern<opset1::Unsqueeze>({index_Gather2, 1});
+
+        return unsqueeze2 | unsqueeze;
     };
 
     auto cos_tab = prepare_cos_sin_gptneox(cos_const) | prepare_cos_sin_llama(cos_const);

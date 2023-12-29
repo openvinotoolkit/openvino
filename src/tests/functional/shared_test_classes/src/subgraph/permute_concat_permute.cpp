@@ -10,8 +10,6 @@
 #include <ctime>
 #include <iterator>
 
-#include "ov_models/builders.hpp"
-
 namespace SubgraphTestsDefinitions {
 std::string PermuteConcatPermute::getTestCaseName(const testing::TestParamInfo<PermuteConcatPermuteTuple>& obj) {
     std::vector<std::vector<size_t>> input;

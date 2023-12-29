@@ -9,7 +9,6 @@
 #include <compress_quantize_weights.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
-#include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
@@ -54,16 +53,6 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("model"),
         py::arg("params_with_custom_types"));
-
-    m_offline_transformations.def(
-        "apply_pot_transformations",
-        [](std::shared_ptr<ov::Model> model, std::string device) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::POTTransformations>(std::move(device));
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("device"));
 
     m_offline_transformations.def(
         "apply_low_latency_transformation",

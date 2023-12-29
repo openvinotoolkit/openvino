@@ -8,10 +8,10 @@
 #include <vector>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
+#include "ov_models/ov_builders/split.hpp"
 #include "utils/recurrent.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -33,7 +33,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
                 auto bias = ng_inputs.at(3);
                 // gates_count * 2 since B is: [Wb, Rb]
                 const int split_parts = 2 * 3;
-                const auto split_bias = builder::opset1::split(bias, split_parts, 1);
+                const auto split_bias = ov::op::util::split(bias, split_parts, 1);
                 const auto wr_z_bias = std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(3));
                 const auto wr_r_bias = std::make_shared<default_opset::Add>(split_bias.at(1), split_bias.at(4));
                 // The result has shape: [num_directions, 4 * hidden_size]
@@ -98,7 +98,7 @@ OutputVector gru(const Node& node) {
     const auto Y = gru_sequence->output(0);
     const auto Y_h = gru_sequence->output(1);
 
-    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}), builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
+    return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
 
 }  // namespace set_1

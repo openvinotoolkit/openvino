@@ -10,11 +10,9 @@
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include <dnnl_types.h>
-#include <openvino/opsets/opset1.hpp>
+#include "dnnl_types.h"
+#include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

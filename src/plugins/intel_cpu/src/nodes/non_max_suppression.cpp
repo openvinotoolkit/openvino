@@ -18,7 +18,7 @@
 
 #include <queue>
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

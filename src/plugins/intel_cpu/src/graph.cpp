@@ -55,8 +55,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -271,6 +269,8 @@ void Graph::InitNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
+        if (node->getConstantType() == Node::ConstantType::Unknown)
+            node->updateConstantType();
     }
 }
 
@@ -875,9 +875,13 @@ void Graph::Allocate() {
     //resolve inplace dead end nodes
     for (const auto& edge : graphEdges) {
         if (edge->getStatus() == Edge::Status::Uninitialized) {
-            if (one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
                 edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-            } else if (one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
                 edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
             }
         }
@@ -1459,6 +1463,9 @@ void Graph::DropNode(const NodePtr &node) {
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
+            if (child->getConstantType() != Node::ConstantType::Unknown) {
+                child->updateConstantType();
+            }
         }
     }
 }
@@ -1615,6 +1622,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     graphEdges.push_back(beforeNode);
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
+    node->updateConstantType();
     return true;
 }
 

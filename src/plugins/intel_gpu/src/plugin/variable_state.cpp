@@ -22,12 +22,14 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_context(context)
-    , m_shape_predictor(shape_predictor) {
+    , m_shape_predictor(shape_predictor)
+    , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
 
 void VariableState::reset() {
     m_is_set = false;
+    set_layout(m_initial_layout);
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
@@ -52,17 +54,9 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 }
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
-    const bool blocking = true;
-    auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(state._ptr);
     m_layout.set_partial_shape(state->get_shape());
     update_device_buffer();
-    if (remote_ptr != nullptr) {
-        auto user_memory = remote_ptr->get_memory();
-        m_memory->copy_from(m_context->get_engine().get_service_stream(), *user_memory, blocking);
-    } else {
-        auto data = state->data();
-        m_memory->copy_from(m_context->get_engine().get_service_stream(), data, blocking);
-    }
+    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream());
     set();
 }
 
@@ -72,7 +66,8 @@ void VariableState::update_device_buffer() {
 
     if (actual_size < m_layout.bytes_count()) {
         const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
-        const auto current_shape = get_tensor_shape(m_layout.get_partial_shape());
+        const auto current_buf_size = m_layout.get_buffer_size().sizes();
+        ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
         const auto alloc_shape = predict_shape(m_name, current_shape, m_layout.data_type, *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);

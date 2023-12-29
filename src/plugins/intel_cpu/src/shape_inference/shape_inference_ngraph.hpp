@@ -6,7 +6,6 @@
 
 #include "shape_inference_cpu.hpp"
 #include "shape_inference.hpp"
-#include <ie_ngraph_utils.hpp>
 
 namespace ov {
 namespace intel_cpu {

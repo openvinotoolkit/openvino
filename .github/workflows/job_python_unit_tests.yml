@@ -38,13 +38,13 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -120,14 +120,6 @@ jobs:
       #
       # Tests
       #
-
-      - name: Python API 1.0 Tests
-        # if: fromJSON(inputs.affected-components).Python_API.test # Ticket: 127101
-        run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
@@ -313,7 +305,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
