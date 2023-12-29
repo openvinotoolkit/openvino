@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-#include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
@@ -83,7 +82,7 @@ protected:
         init_input_shapes(shapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes.front())};
-        auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
+        auto reshapeData = ov::test::utils::deprecated::make_constant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshapeData, true);
 
         auto tensor = ov::test::utils::create_and_fill_tensor(prc, inputDynamicShapes.back().to_shape());

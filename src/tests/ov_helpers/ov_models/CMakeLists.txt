@@ -23,6 +23,8 @@ ov_add_target(
                 openvino::runtime::dev
                 common_test_utils
         ADD_CLANG_FORMAT
+        EXCLUDED_SOURCE_PATHS
+            "${CMAKE_CURRENT_SOURCE_DIR}/ov_builders"
 )
 
 ov_build_target_faster(${TARGET_NAME}
@@ -34,3 +36,5 @@ ov_build_target_faster(${TARGET_NAME}
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
                                     INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")
+
+add_subdirectory(ov_builders)

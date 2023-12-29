@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -157,12 +157,12 @@ protected:
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
-            maxOutBoxesPerClassNode = ngraph::builder::makeConstant(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            maxOutBoxesPerClassNode = ov::test::utils::deprecated::make_constant(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
         }
 
-        auto iouThrNode = ngraph::builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = ngraph::builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = ngraph::builder::makeConstant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto iouThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 

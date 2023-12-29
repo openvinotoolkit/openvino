@@ -2,25 +2,25 @@
     "modeMap" : {
         "checkOutput" : "CheckOutputMode",
         "bmPerf" : "BenchmarkAppPerformanceMode",
-        "compareBlobs" : "CompareBlobsMode"
+        "compareBlobs" : "CompareBlobsMode",
+        "nop" : "NopMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
         "firstFixedVersion" : "FirstFixedVersion",
         "allBreaks" : "AllBreakVersions",
-        "checkCommitSet" : "IterateOverSuspiciousCommits",
         "bruteForce" : "BruteForce"
     },
     "extendBuildCommand" : false,
     "commandList" : [
-        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
         {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
         {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
         {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
-        {"cmd" : "make --jobs=4", "catchMsg" : "Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "(.)*make(.)*Error(.)*", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
     "extendedCommandList" : [
@@ -36,11 +36,11 @@
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
         {"cmd" : "git clean -fxd", "path" : "{gitPath}"},
         {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
-        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
-        {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "(.)*make(.)*Error(.)*", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
     "skipMode" : {
@@ -68,7 +68,6 @@
     "linWorkPath" : "/tmp/commit_slider_tool",
     "winWorkPath" : "%tmp%\\commit_slider",
     "clearCache" : false,
-    "noCleanInterval" : 10,
     "checkIfBordersDiffer" : true,
     "printCSV" : false,
     "usePrevRunCache" : false,
@@ -79,5 +78,13 @@
         "launchedAsJob" : false,
         "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
         "appPath" : "path, substituted by job"
+    },
+    "cachedPathConfig": {
+        "enabled" : true,
+        "scheme" : "optional | mandatory",
+        "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
+        "passCmdList": true,
+        "changeAppPath": true,
+        "cashMap" : {}
     }
 }

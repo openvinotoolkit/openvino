@@ -42,7 +42,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
-                                             openvino::builders
                                              openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}
@@ -108,11 +107,7 @@ add_library(openvino::runtime::dev ALIAS openvino_runtime_dev)
 
 target_include_directories(openvino_runtime_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>>)
-
-target_compile_definitions(openvino_runtime_dev INTERFACE
-    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
 
 target_link_libraries(openvino_runtime_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 

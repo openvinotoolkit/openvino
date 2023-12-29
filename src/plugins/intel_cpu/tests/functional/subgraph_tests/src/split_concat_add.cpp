@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -48,7 +48,7 @@ protected:
         auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params.front(), split_axis_op, 3);
 
-        auto add_const = ngraph::builder::makeConstant(precision, {1}, std::vector<float>({1.0f}));
+        auto add_const = ov::test::utils::deprecated::make_constant(precision, {1}, std::vector<float>({1.0f}));
         auto add_1 = utils::make_eltwise(split->output(0), add_const, utils::EltwiseTypes::ADD);
         auto result_add_1 = std::make_shared<ov::op::v0::Result>(add_1);
         auto add_2 = utils::make_eltwise(split->output(1), add_const, utils::EltwiseTypes::ADD);
