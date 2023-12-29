@@ -8,6 +8,9 @@
 
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "jit_segfault_detector_emitter.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -47,6 +50,11 @@ private:
     size_t m_in_offset = 0lu;
     size_t m_out_offset = 0lu;
     size_t m_comp_offset = 0lu;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_uni_segfault_detector_emitter;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
+#endif
 };
 
 }   // namespace intel_cpu

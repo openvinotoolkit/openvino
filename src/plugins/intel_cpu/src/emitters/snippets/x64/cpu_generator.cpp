@@ -157,6 +157,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
+    DebugCapsConfig debugCaps;
+    custom_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
 #endif
 }
 
@@ -227,7 +229,8 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
-    need = need ||
+    const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
+    need = need || (cpu_target_machine && cpu_target_machine->custom_segfault_detector) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||

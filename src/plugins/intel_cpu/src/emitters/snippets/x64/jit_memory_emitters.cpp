@@ -38,10 +38,20 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, load->get_friendly_name()));
+#endif
 }
 
 void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -75,10 +85,20 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, broadcast_load->get_friendly_name()));
+#endif
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -114,10 +134,20 @@ jit_load_convert_emitter::jit_load_convert_emitter(jit_generator* h, cpu_isa_t i
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, true, false, load->get_friendly_name()));
+#endif
 }
 
 void jit_load_convert_emitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -152,10 +182,20 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
     store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count));
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, true, store->get_friendly_name()));
+#endif
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in,
                              const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -190,10 +230,20 @@ jit_store_convert_emitter::jit_store_convert_emitter(jit_generator* h, cpu_isa_t
     } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(expr->get_node())) {
         store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::saturation));
     }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, true, store->get_friendly_name()));
+#endif
 }
 
 void jit_store_convert_emitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {

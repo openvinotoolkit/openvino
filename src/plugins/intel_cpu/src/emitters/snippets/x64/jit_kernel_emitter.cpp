@@ -119,11 +119,21 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     gpr_map_pool.second.push_back(reg_indexes_idx);
     gpr_map_pool.second.push_back(reg_const_params_idx);
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, kernel->get_friendly_name()));
+#endif
 }
 
 void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
                                    const std::vector<size_t> &pool_vec_idx, const std::vector<size_t> &pool_gpr_idxs) const {
     validate_arguments(in, out);
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     emit_impl(in, out);
 }
 

@@ -8,6 +8,9 @@
 
 #include "jit_container_emitter.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "jit_segfault_detector_emitter.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -77,6 +80,11 @@ private:
 
     const size_t reg_indexes_idx;
     const size_t reg_const_params_idx;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_uni_segfault_detector_emitter;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
+#endif
 };
 
 }   // namespace intel_cpu

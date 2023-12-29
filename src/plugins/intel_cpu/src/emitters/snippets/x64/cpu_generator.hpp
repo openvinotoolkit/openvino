@@ -29,6 +29,9 @@ public:
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
+#ifdef SNIPPETS_DEBUG_CAPS
+    bool custom_segfault_detector = false;
+#endif
 
 private:
     std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;

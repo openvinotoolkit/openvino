@@ -125,6 +125,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
     m_store_offset_c = brgemm_node->get_offset_c();
     if (m_with_scratch)
         m_load_offset_scratch = brgemm_node->get_offset_scratch();
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    if (!debugCaps.snippets_segfault_detector.empty())
+        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, brgemm_node->get_friendly_name()));
+#endif
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -178,6 +184,10 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (segfault_detector_emitter != nullptr)
+        segfault_detector_emitter->emit_code(in, out);
+#endif
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));

@@ -7,6 +7,9 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "jit_segfault_detector_emitter.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -22,6 +25,10 @@ protected:
 
     size_t count = 0;
     size_t byte_offset = 0;
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_uni_segfault_detector_emitter;
+    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
+#endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {
