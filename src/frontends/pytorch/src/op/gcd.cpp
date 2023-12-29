@@ -25,8 +25,8 @@ OutputVector translate_gcd(const NodeContext& context) {
 
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
 
-    auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1000);
-    auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, true);
+    auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 1000);
+    auto exec_condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
 
     auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_condition);
 
