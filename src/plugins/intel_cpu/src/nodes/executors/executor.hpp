@@ -48,7 +48,8 @@ enum class ExecutorType {
     x64,
     Dnnl,
     Acl,
-    Mlas
+    Mlas,
+    Jit
 };
 
 class ExecutorContext {
