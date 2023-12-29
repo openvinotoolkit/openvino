@@ -139,13 +139,11 @@ void gather_inst::on_execute() {
 void gather_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
-
-    // need to run build_deps before checking same memory between input and output because deps are not setted yet in some case.
-    if (_node != nullptr)
-        build_deps();
-
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
+
+    if (_node != nullptr)
+        build_deps();
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
