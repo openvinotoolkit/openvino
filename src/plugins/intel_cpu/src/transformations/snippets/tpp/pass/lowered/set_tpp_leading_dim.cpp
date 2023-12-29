@@ -22,10 +22,18 @@ bool is_planar_layout(const std::vector<size_t>& layout) {
 }
 
 size_t get_leading_dim(ExpressionPort port) {
-    auto has_connected_buffer = [](ExpressionPort port) {
+    // Note: Buffer is directly connected to the port if it remains in the same loops with the port's expression
+    //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
+    //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
+    //  to their shape and layout
+    // TODO: discuss if similar logic is already implemented in Buffer insertion and we can just reuse it
+    auto has_directly_connected_buffer = [](const ExpressionPort& port) {
         bool has_buffer = false;
+        const auto& orig_loop_ids = port.get_expr()->get_loop_ids();
         for (const auto& p : port.get_connected_ports()) {
-            if (ov::is_type<snippets::op::Buffer>(p.get_expr()->get_node())) {
+            const auto& connected_expr = p.get_expr();
+            if (ov::is_type<snippets::op::Buffer>(connected_expr->get_node()) &&
+                connected_expr->get_loop_ids() == orig_loop_ids) {
                 OPENVINO_ASSERT(!has_buffer, "Only one Buffer can be connected to a TPP op");
                 has_buffer = true;
             }
@@ -35,7 +43,23 @@ size_t get_leading_dim(ExpressionPort port) {
     const auto& port_desc = port.get_descriptor_ptr();
     auto layout = port_desc->get_layout();
     auto shape = port_desc->get_shape();
-    if (has_connected_buffer(port)) {
+    auto subtensor = port_desc->get_subtensor();
+    // Some expressions (e.g. ReduceMax/ReduceSum) allow for FULL_DIM values in subtensor.
+    // Here we should replace them with actual dim values before calculating strides & offsets.
+    bool full_dim_substituted = false;
+    for (size_t i = 1; i <= subtensor.size(); i++) {
+        const auto idx = subtensor.size() - i;
+        if (subtensor[idx] == snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM) {
+            // the reason that we don't support FULL_DIM substitution for an arbitrary layout is that
+            // the layout and subtersor can (and usually do) have different ranks
+            full_dim_substituted = true;
+            subtensor[idx] = shape[shape.size() - i];
+        }
+    }
+    OPENVINO_ASSERT(!full_dim_substituted || is_planar_layout(layout),
+                    "Only planar layouts are supported for FULL_DIM substitution");
+
+    if (has_directly_connected_buffer(port)) {
         shape = port_desc->get_subtensor();
         OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());

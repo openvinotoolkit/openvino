@@ -11,6 +11,7 @@
 
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/arithmetic_reduction.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
 #include "snippets/op/reduce.hpp"
@@ -23,16 +24,14 @@ namespace pass {
 namespace {
 using namespace snippets::lowered;
 template<typename T>
-void set_port_desc(const T& port) {
+void set_port_desc(const T& port, std::vector<size_t> subtensor) {
     const auto& shape = port.get_shape();
-    std::vector<size_t> subtensor{32, 64};
-    for (int i = 1; i <= std::min(subtensor.size(), shape.size()); i++)
-        subtensor[subtensor.size() - i] = std::min(subtensor[subtensor.size() - i], shape[shape.size() - i]);
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (dim != PortDescriptor::ServiceDimensions::FULL_DIM)
+            dim = std::min(dim, shape[shape.size() - i]);
+    }
     PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor));
-}
-template<typename T, typename... Args>
-void set_port_desc(const T& port, Args... params) {
-    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
 }
 } // namespace
 
@@ -61,11 +60,14 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         OPENVINO_ASSERT(tpp_eltwise, "Failed to create TPP node");
 
         ngraph::replace_node(node, tpp_eltwise);
-
+        const size_t M_block = 32;
+        const size_t N_block = ov::is_type<ov::snippets::op::ReduceBase>(node) ?
+                               PortDescriptor::ServiceDimensions::FULL_DIM :
+                               64;
         for (size_t i = 0; i < node->get_input_size(); i++)
-            set_port_desc(tpp_eltwise->input(i));
+            set_port_desc(tpp_eltwise->input(i), {M_block, N_block});
 
-        set_port_desc(tpp_eltwise->output(0));
+        set_port_desc(tpp_eltwise->output(0), {M_block, N_block});
 
         return true;
     };

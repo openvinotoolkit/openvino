@@ -460,13 +460,12 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
 
     pipeline.register_pass<lowered::pass::ValidateShapes>();
-
     pipeline.register_pass<lowered::pass::ValidateLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
 
     pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
-    // pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
+    pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_pass<lowered::pass::PropagateLayout>();
 
     pipeline.register_positioned_passes(backend_passes);

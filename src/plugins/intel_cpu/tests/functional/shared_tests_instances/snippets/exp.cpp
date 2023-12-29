@@ -13,7 +13,7 @@ namespace snippets {
 namespace {
 // ===================================Exp=========================================================//
 // These  inputs are needed to test static Loop optimizations (emit the whole tile, body with increments, set WA etc)
-std::vector<ov::test::InputShape> inShapesStatic{{{}, {{1, 1, 32, 64}}}};
+std::vector<ov::test::InputShape> inShapesStatic{{{}, {{1, 1, 32, 128}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Exp,
                         ::testing::Combine(

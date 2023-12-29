@@ -27,7 +27,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
         return get_op_reg_type(op);
     };
-    linear_ir.serialize("snsdebug_linear_1.xml", "snsdebug_linear_1.xml");
+//    linear_ir.serialize("snsdebug_linear_1.xml", "snsdebug_linear_1.xml");
     lowered::pass::PassPipeline lowered_pipeline;
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same

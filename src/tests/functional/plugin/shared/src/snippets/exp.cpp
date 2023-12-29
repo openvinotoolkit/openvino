@@ -48,7 +48,10 @@ void Exp::SetUp() {
     auto axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 3);
     auto reduce = std::make_shared<op::v1::ReduceMax>(data0, axis, true);
     auto sub = std::make_shared<op::v1::Add>(data0, reduce);
-    function = std::make_shared<ov::Model>(NodeVector{sub}, ParameterVector{data0});
+//    auto exp = std::make_shared<op::v0::Exp>(sub);
+    auto axis2 = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 3);
+    auto reduce2 = std::make_shared<op::v1::ReduceSum>(sub, axis2, true);
+    function = std::make_shared<ov::Model>(NodeVector{reduce2}, ParameterVector{data0});
 
     //---------- Reduce --------------
     // auto data0 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
