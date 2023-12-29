@@ -55,10 +55,10 @@ class TestComplexConjugateTranspose(CommonTFLayerTest):
     
     
     test_data = [
-        (dict(shape=[1, 2], perm=[1, 0])),
-        (dict(shape=[1, 2, 3], perm=[2, 1, 0])),
-        (dict(shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
-        (dict(shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
+        (dict(input_shape=[1, 2], perm=[1, 0])),
+        (dict(input_shape=[1, 2, 3], perm=[2, 1, 0])),
+        (dict(input_shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
+        (dict(input_shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
     ]
     
     @pytest.mark.parametrize("params", test_data)
@@ -106,10 +106,10 @@ class TestConjugateTranspose(CommonTFLayerTest):
         return tf_net, ref_net
     
     test_data = [
-        (dict(shape=[1, 2], perm=[1, 0])),
-        (dict(shape=[1, 2, 3], perm=[2, 1, 0])),
-        (dict(shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
-        (dict(shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
+        (dict(input_shape=[1, 2], perm=[1, 0])),
+        (dict(input_shape=[1, 2, 3], perm=[2, 1, 0])),
+        (dict(input_shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
+        (dict(input_shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
     ]
     
     @pytest.mark.parametrize("params", test_data)
