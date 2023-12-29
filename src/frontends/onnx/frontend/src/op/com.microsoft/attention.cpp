@@ -5,8 +5,8 @@
 #include "op/com.microsoft/attention.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/builder/split.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ov_models/ov_builders/split.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -122,7 +122,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // head_size = hidden_size / num_heads
         head_size = std::make_shared<default_opset::Divide>(hidden_size, num_heads_node);
         // split the node into 3 even parts Q, K, V with shape (batch_size, sequence_len, hidden_size)
-        split = ngraph::builder::opset1::split(node, 3, 2);
+        split = ov::op::util::split(node, 3, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         auto new_shape =
             std::make_shared<default_opset::Concat>(NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
@@ -141,7 +141,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // Q: (batch_size, sequence_len, qkv_hidden_sizes[0])
         // K: (batch_size, sequence_len, qkv_hidden_sizes[1])
         // V: (batch_size, sequence_len, qkv_hidden_sizes[2])
-        split = ngraph::builder::opset1::split(node, qkv_hidden_sizes, 2);
+        split = ov::op::util::split(node, qkv_hidden_sizes, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         for (size_t i = 0; i < split.size(); i++) {
             auto new_shape = std::make_shared<default_opset::Concat>(
@@ -455,7 +455,7 @@ std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
         // (2, batch_size, num_heads, past_sequence_length + sequence_length, head_size)
         // so we need to split it into two parts, remove first dimension from each part and concatenate first part
         // with current K and second part with current V
-        const auto split = ngraph::builder::opset1::split(past, 2, 0);
+        const auto split = ov::op::util::split(past, 2, 0);
         const auto past_K = std::make_shared<default_opset::Squeeze>(split[0], zero);
         K = std::make_shared<default_opset::Concat>(NodeVector{past_K, K}, 2);
         const auto past_V = std::make_shared<default_opset::Squeeze>(split[1], zero);

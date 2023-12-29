@@ -269,4 +269,14 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     for (size_t i = 0; i < output_prim->get_layout().count(); ++i) {
         ASSERT_EQ(5, output_ptr[i]);
     }
+    set_values(input_mem, {20.f});
+    network.set_input_data("input", input_mem);
+    auto outputs2 = network.execute();
+    auto output_prim2 = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<int64_t> output_ptr2 (output_prim2, get_test_stream());
+    ASSERT_EQ(1, output_prim2->get_layout().count());
+    for (size_t i = 0; i < output_prim2->get_layout().count(); ++i) {
+        ASSERT_EQ(5, output_ptr2[i]);
+    }
 }
