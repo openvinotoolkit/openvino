@@ -86,6 +86,7 @@ def filter_example(model, example):
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
+
 def inspect_hf_model(model, max_depth: int = 2) -> dict:
     from collections import defaultdict
     modules_map = defaultdict(list)
@@ -103,6 +104,7 @@ def inspect_hf_model(model, max_depth: int = 2) -> dict:
             modules_queue.append((name + '.' + subname, submodule, depth + 1))
     return dict(modules_map)
 
+
 def hook_decorator(forward: callable, map_to_store: dict, module_name: str = ''):
     import inspect
     def hook_forward(*args, **kwargs):
@@ -114,6 +116,7 @@ def hook_decorator(forward: callable, map_to_store: dict, module_name: str = '')
         return forward(*args, **kwargs)
     return hook_forward
 
+
 class NetTraceWrapper(torch.nn.Module):
     def __init__(self, net, decorated_inputs: dict, args_names):
         super().__init__()
@@ -124,6 +127,7 @@ class NetTraceWrapper(torch.nn.Module):
     def forward(self, *args):
         tracable_args = {name: val for name, val in zip(self.args_names, args)}
         return self.net.forward(**tracable_args, **self.decorated_inputs)
+
 
 def decorate_module(module, example_input):
     keys_to_decorate = {}
@@ -138,6 +142,7 @@ def decorate_module(module, example_input):
     new_module = NetTraceWrapper(module, keys_to_decorate, input_names)
     return new_module, tuple(new_example), input_names
 
+
 def embed_model_with_hooks(model, max_depth: int = 2):
     # replace original forward with hooks to catch example inputs
     modules_map = inspect_hf_model(model, max_depth)
@@ -148,10 +153,12 @@ def embed_model_with_hooks(model, max_depth: int = 2):
         module.forward = hook_decorator(module.forward, example_inputs, module_name)
     return modules_map, orig_forwards, example_inputs
 
-def restore_and_convert_modules(modules_map, orig_forwards, example_inputs):
+
+def trace_modules(modules_map, orig_forwards, example_inputs):
     import torch        
     import openvino as ov
     
+    traced_modules = {}
     # restore original forwards before tracing
     for module_name, module in modules_map.items():
         module.forward = orig_forwards[module_name]
@@ -159,7 +166,10 @@ def restore_and_convert_modules(modules_map, orig_forwards, example_inputs):
             continue
         handled_model, handled_example, input_names = decorate_module(module, example_inputs[module_name])
         traced = torch.jit.trace(handled_model, handled_example, strict=False)
-        ov_model = ov.convert_model(traced, example_input=handled_example)
+        traced_modules[module_name] = traced
+        # ov_model = ov.convert_model(traced, example_input=handled_example)
+    return traced_modules
+
 
 class TestTransformersModel(TestTorchConvertModel):
     def setup_class(self):
@@ -235,6 +245,96 @@ class TestTransformersModel(TestTorchConvertModel):
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModel.from_pretrained(name, **model_kwargs)
             example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
+        elif name == 'laion/clap-htsat-unfused':
+            from transformers import AutoModel
+            model = AutoModel.from_pretrained(name)
+            import torch
+            input_features = torch.randn([1, 1, 1001, 64], dtype=torch.float32)
+            model.get_audio_features(input_features=input_features)
+            # generate
+            # eval correct
+        elif name == 'microsoft/git-large-coco':
+            from transformers import AutoProcessor, AutoModelForCausalLM
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForCausalLM.from_pretrained(name)
+            import torch
+            pixel_values = torch.randn(*(1, 3, 224, 224), dtype=torch.float32)
+            input_ids = torch.randint(1, 100, size=(1, 13), dtype=torch.int64)
+            model.generate(pixel_values=pixel_values, input_ids=input_ids, max_length=3)
+            # generate
+            # eval correct
+        elif name == 'openai/whisper-medium':
+            from transformers import AutoProcessor, WhisperForConditionalGeneration
+            model = WhisperForConditionalGeneration.from_pretrained(name)
+
+            model.config.forced_decoder_ids = None
+            example = (torch.randn([1, 80, 3000], dtype=torch.float32), )
+            model.generate(example)
+            # generate
+            # eval correct
+        elif name == 'ZinengTang/tvlt-base':
+            from transformers import AutoProcessor, AutoModel
+            processor = AutoProcessor.from_pretrained("ZinengTang/tvlt-base")
+            model = AutoModel.from_pretrained("ZinengTang/tvlt-base")
+            import torch
+
+            images = list(torch.rand(*(8, 3, 224, 224), dtype=torch.float32))
+            audio = list(torch.randn(10000, dtype=torch.float32))
+            example = dict(processor(images, audio, sampling_rate=44100, return_tensors="pt"))
+            # eval correct
+        elif name == 'openai/jukebox-1b-lyrics':
+            from transformers import AutoModel, AutoTokenizer
+
+            tokenizer = AutoTokenizer.from_pretrained(name)
+            model = AutoModel.from_pretrained(name)
+
+            from transformers import AutoTokenizer, JukeboxModel, set_seed
+
+            model = JukeboxModel.from_pretrained("openai/jukebox-1b-lyrics", min_duration=0).eval()
+            tokenizer = AutoTokenizer.from_pretrained("openai/jukebox-1b-lyrics")
+
+            lyrics = "Hey, are you awake? Can you talk to me?"
+            artist = "Zac Brown Band"
+            genre = "Country"
+            metas = tokenizer(artist=artist, genres=genre, lyrics=lyrics)
+            set_seed(0)
+            music_tokens = model.ancestral_sample(metas.input_ids, sample_length=400)
+            # eval correct
+            # generate
+        elif name == 'Salesforce/blip2-flan-t5-xl':
+            from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
+
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForVisualQuestionAnswering.from_pretrained(name)
+
+            example = dict(processor(images=self.image, return_tensors="pt"))
+            
+            modules_map, orig_forwards, example_inputs = embed_model_with_hooks(model, max_depth=1)
+            generated_ids = model.generate(**example)
+            traced_modules = trace_modules(modules_map, orig_forwards, example_inputs)
+            # todo: W/A return only the last module but run infer comparison inside TestTransformersModel.load_model
+            for submodule_name, fw_submodule in traced_modules.items(): 
+                self.example = example_inputs[submodule_name]
+                ov_model = self.convert_model(fw_submodule)
+                fw_outputs = self.infer_fw_model(fw_submodule, self.example)
+                ov_outputs = self.infer_ov_model(ov_model, self.example, 'CPU')  # todo: set ie device from kwargs
+                self.compare_results(fw_outputs, ov_outputs)
+            model = fw_submodule
+            example = example_inputs[submodule_name]
+            
+        elif name == 'suno/bark':
+            from transformers import AutoProcessor, AutoModelForTextToWaveform
+
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForTextToWaveform.from_pretrained(name)
+
+            inputs = processor(
+                text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."], 
+                return_tensors="pt"
+            )
+            speech_values = model.generate(**inputs, max_length=3)
+            # generate
+            # eval correct
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
@@ -270,47 +370,32 @@ class TestTransformersModel(TestTorchConvertModel):
             model = IdeficsForVisionText2Text.from_pretrained(name)
             processor = AutoProcessor.from_pretrained(name)
             
-            prompts = [[
-                "User: What is in this image?",
-                "https://upload.wikimedia.org/wikipedia/commons/8/86/Id%C3%A9fix.JPG",
-                "<end_of_utterance>",
+            url = "https://hips.hearstapps.com/hmg-prod/images/cute-photos-of-cats-in-grass-1593184777.jpg"
+            img = processor.image_processor.fetch_images([url])[0]
+            prompts = [
+                "User:",
+                img,
+                "Describe this image."
+                "t: An image of two kittens in grass."
 
-                "\nAssistant: This picture depicts Idefix, the dog of Obelix in Asterix and Obelix. Idefix is running on the ground.<end_of_utterance>",
+                "User:",
+                "https://hips.hearstapps.com/hmg-prod/images/dog-puns-1581708208.jpg",
+                "Describe this image."
+                "t:",
+            ]
 
-                "\nUser:",
-                "https://static.wikia.nocookie.net/asterix/images/2/25/R22b.gif/revision/latest?cb=20110815073052",
-                "And who is that?<end_of_utterance>",
+            inputs = processor(prompts, return_tensors="pt")
+            # embed model with hooks which capture and store example inputs for future ov.convert_model
+            modules_map, orig_forwards, example_inputs = embed_model_with_hooks(model)
 
-                "\nAssistant:",
-            ]]
+            model.generate(**inputs, max_length=3)
 
-            inputs = processor(prompts, add_end_of_utterance_token=False, return_tensors="pt")
-            exit_condition = processor.tokenizer("<end_of_utterance>", add_special_tokens=False).input_ids
-            bad_words_ids = processor.tokenizer(["<image>", "<fake_token_around_image>"], add_special_tokens=False).input_ids
-            
-            example = dict(inputs)
-            example.update({
-                'eos_token_id': exit_condition, 
-                'bad_words_ids': bad_words_ids,
-            })
+            # restore, trace and convert modules
+            traced_modules = trace_modules(modules_map, orig_forwards, example_inputs)
 
-            class Decorator(torch.nn.Module):
-                def __init__(self, model):
-                    super().__init__()
-                    self.model = model
-                def forward(self, input_ids, attention_mask, pixel_values, image_attention_mask, eos_token_id, bad_words_ids):
-                    return self.model.generate(
-                        input_ids=input_ids, 
-                        attention_mask=attention_mask, 
-                        pixel_values=pixel_values, 
-                        image_attention_mask=image_attention_mask, 
-                        eos_token_id=eos_token_id,
-                        bad_words_ids=bad_words_ids,
-                        max_length=100
-                    )
-            model = Decorator(model)
         elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
             from transformers import BlipProcessor, BlipForConditionalGeneration
+            import torch
 
             processor = BlipProcessor.from_pretrained(name)
             model = BlipForConditionalGeneration.from_pretrained(name)
@@ -343,7 +428,7 @@ class TestTransformersModel(TestTorchConvertModel):
             example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
             model.generate_speech(**example) #, vocoder=vocoder)
             # restore, trace and convert modules
-            restore_and_convert_modules(modules_map, orig_forwards, example_inputs)
+            trace_modules(modules_map, orig_forwards, example_inputs)
             # fw_outputs = self.infer_fw_model(fw_model, inputs)
             # print("Infer ov::Model")
             # ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)

@@ -410,5 +410,5 @@ Yova/SmallCapOPT7M,smallcap,skip,Load problem
 yusufani/trclip-vitl14-e10,trclip,skip,Load problem
 yysung53/dpr,text_similarity,skip,Load problem
 Zetatech/pvt-tiny-224,pvt,skip,Load problem
-ZinengTang/tvlt-base,tvlt,skip,Load problem
+ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem
