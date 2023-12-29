@@ -1,4 +1,3 @@
-#include <ngraph/function.hpp>
 #include "openvino/openvino.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
