@@ -86,7 +86,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.precommit # todo remove
     def test_models_list_complete(self, ie_device):
         m_list = timm.list_pretrained()
         all_models_ref = set(filter_timm(m_list))
