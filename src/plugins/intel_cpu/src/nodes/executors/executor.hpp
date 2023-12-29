@@ -56,7 +56,8 @@ enum class ExecutorType {
     x64,
     Dnnl,
     Acl,
-    Mlas
+    Mlas,
+    Jit
 };
 
 enum class OperationType {

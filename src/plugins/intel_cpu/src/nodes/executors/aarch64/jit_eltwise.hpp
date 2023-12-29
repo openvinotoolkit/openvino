@@ -42,6 +42,17 @@ private:
     std::function<void()> exec_func;
 };
 
+class JitEltwiseExecutorBuilder : public EltwiseExecutorBuilder {
+public:
+    bool isSupported(const EltwiseAttrs& eltwiseAttrs,
+                     const std::vector<MemoryDescPtr>& srcDescs,
+                     const std::vector<MemoryDescPtr>& dstDescs) const override;
+
+    EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+        return std::make_shared<JitEltwiseExecutor>(context);
+    }
+};
+
 }   // namespace aarch64
 }   // namespace executors
 }   // namespace intel_cpu
