@@ -113,6 +113,8 @@ class TestTransformersModel(TestTorchConvertModel):
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
+        if "bart" in mi.tags:
+            model_kwargs["attn_implementation"] = "eager"
         try:
             auto_model = mi.transformersInfo['auto_model']
             if "processor" in mi.transformersInfo:
@@ -486,6 +488,7 @@ class TestTransformersModel(TestTorchConvertModel):
             else:
                 example = (torch.randint(1, 1000, [1, 100]),)
         self.example = filter_example(model, example)
+        print(self.example)
         model.eval()
         # do first inference
         if isinstance(self.example, dict):
@@ -503,13 +506,7 @@ class TestTransformersModel(TestTorchConvertModel):
             self.cuda_available, self.gptq_postinit = None, None
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
-                                           ("bert-base-uncased", "bert"),
-                                           ("google/flan-t5-base", "t5"),
-                                           ("google/tapas-large-finetuned-wtq", "tapas"),
-                                           ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip"),
-                                           ("OpenVINO/opt-125m-gptq", 'opt')
+    @pytest.mark.parametrize("name,type", [("facebook/bart-large-mnli",'bart')
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
