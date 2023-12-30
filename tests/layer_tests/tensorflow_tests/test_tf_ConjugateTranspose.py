@@ -75,11 +75,11 @@ class TestConjugateTranspose(CommonTFLayerTest):
     
     def _prepare_input(self, inputs_info):
         
-        assert 'x' in inputs_info
-        input_shape = inputs_info['x']
+        assert 'input' in inputs_info
+        input_shape = inputs_info['input']
         
         inputs_data = {}
-        inputs_data['x'] = np.random.default_rng().random(input_shape).astype(np.float32)
+        inputs_data['input'] = np.random.default_rng().random(input_shape).astype(np.float32)
         
         return inputs_data
     
