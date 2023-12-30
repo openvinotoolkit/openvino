@@ -20,7 +20,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conj_transpose_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"ConjugateTranspose"});
+    default_op_checks(node, 2, {"ConjugateTranspose"}, true);
 
     auto x = node.get_input(0);
     auto perm = node.get_input(1);
