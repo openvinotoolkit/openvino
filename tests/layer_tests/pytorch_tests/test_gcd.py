@@ -55,3 +55,19 @@ class TestGcd(PytorchLayerTest):
             [121, 2, 16, 0, 1, 8], dtype=np.int32))
         self._test(*self.create_model_tensor_input(),
                    ie_device, precision, ir_version)
+        
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_gcd_int(self, ie_device, precision, ir_version):
+        self.input_data = (np.array(11, dtype=np.int64),
+                           np.array(17, dtype=np.int64))
+        self._test(*self.create_model_int_input(),
+                   ie_device, precision, ir_version)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_gcd_tensor(self, ie_device, precision, ir_version):
+        self.input_data = (np.array([14, 4, 12, 10, 3, 0], dtype=np.int64), np.array(
+            [121, 2, 16, 0, 1, 8], dtype=np.int64))
+        self._test(*self.create_model_tensor_input(),
+                   ie_device, precision, ir_version)

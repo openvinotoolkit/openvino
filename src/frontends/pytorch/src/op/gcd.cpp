@@ -1,13 +1,13 @@
-#include "openvino/openvino.hpp"
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/openvino.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -21,8 +21,9 @@ OutputVector translate_gcd(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    align_eltwise_input_types(context, x, y, false);
+    auto zero_i32 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto zero = std::make_shared<ov::op::v1::ConvertLike>(zero_i32, x);
 
     auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 1000);
     auto exec_condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
@@ -39,8 +40,8 @@ OutputVector translate_gcd(const NodeContext& context) {
 
     auto reduced_condition = std::make_shared<v1::ReduceLogicalOr>(condition, zero);
 
-    auto body = std::make_shared<Model>(OutputVector{new_x, new_y, reduced_condition},
-                                        ParameterVector{x_input, y_input});
+    auto body =
+        std::make_shared<Model>(OutputVector{new_x, new_y, reduced_condition}, ParameterVector{x_input, y_input});
     loop->set_function(body);
 
     loop->set_special_body_ports({-1, 2});
