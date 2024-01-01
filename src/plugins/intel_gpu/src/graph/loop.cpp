@@ -312,7 +312,7 @@ void loop_inst::update_backedge_mapped_memory() {
                     memory::ptr backedge_mem;
                     if (output_mapping.empty()) {
                         // from and to primitives in backedge are connected directly
-                        if (backedge_to_prim == backedge_from_prim->dependencies().front().first) {
+                        if (backedge_to_prim.get() == backedge_from_prim->dependencies().front().first) {
                             backedge_mapping.initial_mem = initial_mem;
                             continue;
                         } else {
@@ -536,7 +536,7 @@ void loop_inst::preprocess_backedge_memory() {
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
                             << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
         // Set backedge mode to SINGLE when backedge_from_prim has multiple users.
-        } else if ((output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first)
+        } else if ((output_mapping.empty() && backedge_to_prim.get() == backedge_from_prim->dependencies().front().first)
                 || (backedge_to_prim->get_users().size() > 1) ) {
             // SINGLE mode, from and to primitives in backedge are connected directly
             backedge_memory_mappings.emplace_back(

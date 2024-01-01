@@ -14,6 +14,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -107,7 +108,7 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape1);
     const auto fakeQuantize1 = fq1.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input1, precision, fq1.quantizationLevel, fq1.constantShape,
             fq1.inputLowValues, fq1.inputHighValues, fq1.outputLowValues, fq1.outputHighValues);
     if (fakeQuantize1 != nullptr) {
@@ -119,7 +120,7 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
         std::make_shared<ov::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input2, precision, fq2.quantizationLevel, fq2.constantShape,
             fq2.inputLowValues, fq2.inputHighValues, fq2.outputLowValues, fq2.outputHighValues);
     if (fakeQuantize2 != nullptr) {
