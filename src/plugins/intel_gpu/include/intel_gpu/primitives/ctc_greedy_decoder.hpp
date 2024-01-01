@@ -55,6 +55,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         seed = hash_combine(seed, blank_index);
         seed = hash_combine(seed, ctc_merge_repeated);
         seed = hash_combine(seed, second_output.empty());
+        seed = hash_combine(seed, use_multiple_outputs);
         return seed;
     }
 
@@ -75,6 +76,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         ob << ctc_merge_repeated;
         ob << output_tensor;
         ob << second_output;
+        ob << use_multiple_outputs;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -83,6 +85,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         ib >> ctc_merge_repeated;
         ib >> output_tensor;
         ib >> second_output;
+        ib >> use_multiple_outputs;
     }
 };
 }  // namespace cldnn
