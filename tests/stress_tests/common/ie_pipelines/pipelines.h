@@ -4,7 +4,6 @@
 
 #include <string>
 #include <functional>
-#include <inference_engine.hpp>
 #include "../infer_api/infer_api.h"
 
 std::function<void()> load_unload_plugin(const std::string &target_device, const int &api_version);
