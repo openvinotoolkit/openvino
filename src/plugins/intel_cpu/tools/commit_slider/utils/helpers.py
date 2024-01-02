@@ -31,7 +31,14 @@ def getParams():
         action="store_true",
         help="flag if current directory is working",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-u",
+        "--utility",
+        dest="utility",
+        help="run utility with specified name",
+        default="no_utility",
+    )
+    args, additionalArgs = parser.parse_known_args()
 
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
@@ -40,6 +47,14 @@ def getParams():
     with open(presetCfgPath) as cfgFile:
         presetCfgData = json.load(cfgFile)
     cfgFile.close()
+
+    if args.__dict__["utility"] != "no_utility":
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        args.__dict__ = mergedArgs
+        return args, presetCfgData, presetCfgPath
+
     customCfgData = None
     with open(customCfgPath) as cfgFile:
         customCfgData = json.load(cfgFile)
@@ -422,6 +437,17 @@ def safeClearDir(path, cfg):
         )
         p.wait()
     return
+
+
+def runUtility(args):
+    utilName = args.__dict__["utility"]
+    try:
+        mod = importlib.import_module(
+            "utils.{un}".format(un=utilName))
+        utility = getattr(mod, utilName)
+        utility(args.__dict__)
+    except ModuleNotFoundError as e:
+        raise CfgError("No utility {} found".format(utilName))
 
 
 class CfgError(Exception):

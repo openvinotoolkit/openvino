@@ -7,7 +7,11 @@ from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
 
-if args.__dict__["isWorkingDir"]:
+if args.__dict__["utility"] != "no_utility":
+    from utils.helpers import runUtility
+    runUtility(args)
+
+elif args.__dict__["isWorkingDir"]:
     # rerun script from work directory
     from utils.modes import Mode
     from utils.helpers import CfgError
