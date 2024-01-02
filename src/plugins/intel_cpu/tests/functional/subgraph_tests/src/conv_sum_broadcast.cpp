@@ -281,9 +281,9 @@ TEST_P(ConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-class ConvSumInPlaceTestStaticShape : public ConvSumInPlaceTest {
+class ConvSumBroadcastTest : public ConvSumInPlaceTest {
 public:
-    ConvSumInPlaceTestStaticShape() {
+    ConvSumBroadcastTest() {
         _convOutChannels = 8;
         rel_threshold = 1e-4;
     }
@@ -291,7 +291,7 @@ public:
 protected:
 };
 
-TEST_P(ConvSumInPlaceTestStaticShape, CompareWithRefs) {
+TEST_P(ConvSumBroadcastTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -500,7 +500,7 @@ InputShape secondInpStaticShape = {
         }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_StaticShape, ConvSumInPlaceTestStaticShape,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_StaticShape, ConvSumBroadcastTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShapeStaticShape),
                                  ::testing::Values(secondInpStaticShape),

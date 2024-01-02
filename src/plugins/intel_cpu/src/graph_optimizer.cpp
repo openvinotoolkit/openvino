@@ -1709,28 +1709,23 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
-        auto checkInputCompatibility = [](NodePtr sumNode) {
-            auto shape1 = sumNode->getInputShapeAtPort(0);
-            auto shape2 = sumNode->getInputShapeAtPort(1);
-            if (!shape1.isCompatible(shape2.getDims())) {
-                // If it is incompatible, just checking W, H*W, D*H*W dims.
-                if (shape1.getRank() == shape2.getRank()) {
-                    auto dims1 = shape1.getDims();
-                    auto dims2 = shape2.getDims();
-                    for (size_t d = 2; d < shape1.getRank(); d++) {
-                        bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
-                        bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
-                        if (cond1 || cond2) {
-                            return false;
-                        }
+        // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
+        // non-optimal code path inside Convolution node, so better to avoid fusing at all.
+        auto shape1 = sum->getInputShapeAtPort(0);
+        auto shape2 = sum->getInputShapeAtPort(1);
+        if (!shape1.isCompatible(shape2.getDims())) {
+            // If it is incompatible, just checking W, H*W, D*H*W dims.
+            if (shape1.getRank() == shape2.getRank()) {
+                auto dims1 = shape1.getDims();
+                auto dims2 = shape2.getDims();
+                for (size_t d = 2; d < shape1.getRank(); d++) {
+                    bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
+                    bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
+                    if (cond1 || cond2) {
+                        continue;
                     }
                 }
             }
-            return true;
-        };
-
-        if (!checkInputCompatibility(sum)) {
-            continue;
         }
 
         auto lastNode = sum;
