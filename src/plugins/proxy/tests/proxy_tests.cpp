@@ -512,7 +512,8 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                                         const ov::AnyMap& properties) const override {
             OPENVINO_ASSERT(model);
 
-            std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
+            std::unordered_set<std::string> supported_ops =
+                {"Parameter", "Result", "Add", "Constant", "Reshape", "Convert"};
 
             ov::SupportedOpsMap res;
             for (const auto& op : model->get_ordered_ops()) {
@@ -649,7 +650,8 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                                         const ov::AnyMap& properties) const override {
             OPENVINO_ASSERT(model);
 
-            std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Subtract"};
+            std::unordered_set<std::string> supported_ops =
+                {"Parameter", "Result", "Add", "Constant", "Subtract", "Convert"};
 
             ov::SupportedOpsMap res;
             for (const auto& op : model->get_ordered_ops()) {

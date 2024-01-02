@@ -565,7 +565,7 @@ protected:
 class MockPluginReshape : public MockPluginBase {
 public:
     MockPluginReshape(const std::string& name)
-        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Reshape"}, true) {}
+        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Reshape", "Convert"}, true) {}
 
     const ov::Version& get_const_version() override {
         static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_reshape_plugin"};
@@ -670,7 +670,7 @@ private:
 class MockPluginSubtract : public MockPluginBase {
 public:
     MockPluginSubtract(const std::string& name)
-        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Subtract"}) {}
+        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Subtract", "Convert"}) {}
 
     const ov::Version& get_const_version() override {
         static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_subtract_plugin"};
