@@ -1725,8 +1725,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                         continue;
                     }
                 }
-            }
-            else {
+            } else {
                 continue;
             }
         }
