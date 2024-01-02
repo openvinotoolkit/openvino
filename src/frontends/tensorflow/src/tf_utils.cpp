@@ -433,7 +433,8 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
 shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
                                               const shared_ptr<Model>& body_model,
                                               const shared_ptr<Model>& cond_model,
-                                              const OutputVector& ov_inputs) {
+                                              const OutputVector& ov_inputs,
+                                              const shared_ptr<Model>& prior_cond_model) {
     size_t input_size = ov_inputs.size();
     // inject condition body graph prior to Loop node
     // to check condition before to start iterations
@@ -449,7 +450,7 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     }
     cond_model->validate_nodes_and_infer_types();
 
-    auto cond_prior = cond_model->clone();
+    auto cond_prior = prior_cond_model ? prior_cond_model : cond_model->clone();
     ov::OutputVector ov_outputs;
     inject_body_model(cond_prior, while_node_name + "/cond", ov_inputs, ov_outputs);
     FRONT_END_GENERAL_CHECK(

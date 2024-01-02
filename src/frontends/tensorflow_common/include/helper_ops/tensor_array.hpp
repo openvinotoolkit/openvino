@@ -50,6 +50,14 @@ public:
         m_element_rank = element_rank;
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 1,
+                                      "[TensorFlow Frontend] internal error: TensorArrayV3 expects one input");
+        auto tensor_array_v3_node = std::make_shared<TensorArrayV3>(inputs[0], m_element_type, m_decoder);
+        tensor_array_v3_node->set_attrs(get_attrs());
+        return tensor_array_v3_node;
+    }
+
 private:
     ov::element::Type m_element_type;
     int64_t m_element_rank;
