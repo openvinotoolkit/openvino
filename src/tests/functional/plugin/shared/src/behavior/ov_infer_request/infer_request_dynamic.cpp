@@ -93,7 +93,10 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetwork) {
     ov::InferRequest req;
     const std::string outputname = function->outputs().back().get_any_name();
     for (auto& shape : vectorShapes) {
-        ov::runtime::Tensor inTensor = ov::test::utils::create_and_fill_tensor(element::f32, shape, 100, -50);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -50;
+        in_data.range = 100;
+        ov::runtime::Tensor inTensor = ov::test::utils::create_and_fill_tensor(element::f32, shape, in_data);
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", inTensor));
         OV_ASSERT_NO_THROW(req.infer());
@@ -115,11 +118,15 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetUnexpectedOutputTensorB
     ov::runtime::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -50;
+    in_data.range = 100;
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, in_data);
     OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
     auto outShape = refOutShape;
     outShape[0] += 1;
-    otensor = ov::test::utils::create_and_fill_tensor(element::f32, outShape, 100, 50);
+    in_data.start_from = 50;
+    otensor = ov::test::utils::create_and_fill_tensor(element::f32, outShape, in_data);
     OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
     OV_ASSERT_NO_THROW(req.infer());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
@@ -140,7 +147,10 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorPreAllocate
     ov::runtime::Tensor tensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -50;
+    in_data.range = 100;
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, in_data);
     OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
     float ptr[5000];
     ov::runtime::Tensor otensor(element::f32, refOutShape, ptr);
@@ -165,7 +175,10 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputShapeBeforeInfer)
     ov::runtime::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -50;
+    in_data.range = 100;
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, in_data);
     OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     OV_ASSERT_NO_THROW(otensor.set_shape(refOutShape));
@@ -189,7 +202,10 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkGetOutputThenSetOutputTens
     ov::runtime::Tensor tensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -50;
+    in_data.range = 100;
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, in_data);
     OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
     // first, get ouput tensor
     OV_ASSERT_NO_THROW(req.infer());

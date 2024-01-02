@@ -26,7 +26,8 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                       "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
@@ -257,18 +258,25 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+        std::string device_name;
+        try {
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+                device_name = m_scheduler->m_compile_context[FALLBACKDEVICE].m_device_info.device_name;
                 return m_scheduler->m_compile_context[FALLBACKDEVICE].m_compiled_model->get_property(name).as<bool>();
             }
-        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            return m_scheduler->m_compile_context[ACTUALDEVICE].
-                m_compiled_model->get_property(name).as<bool>();
-        } else {
-            std::lock_guard<std::mutex> lock(m_context->m_mutex);
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
-                            m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
-            return m_scheduler->m_compile_context[CPU].
-                m_compiled_model->get_property(name).as<bool>();
+            if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+                device_name = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+                return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<bool>();
+            } else {
+                OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
+                                m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
+                device_name = m_scheduler->m_compile_context[CPU].m_device_info.device_name;
+                return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name).as<bool>();
+            }
+        } catch (const ov::Exception&) {
+            LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", device_name.c_str());
+            return false;
         }
     }
     OPENVINO_THROW(get_log_tag(), ": not supported property ", name);

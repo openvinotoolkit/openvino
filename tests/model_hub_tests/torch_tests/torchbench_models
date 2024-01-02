@@ -4,13 +4,13 @@ Background_Matting,None
 LearningToPaint,None
 Super_SloMo,None,xfail,Unsupported ops aten::l1_loss aten::mse_loss
 #alexnet,None - Already tested by torchvision tests
-basic_gnn_edgecnn,None,xfail,Accuracy validation failed
-basic_gnn_gcn,None,xfail,Unsupported ops aten::pow_ aten::scatter_add_
-basic_gnn_gin,None,xfail,Unsupported op aten::scatter_add_
-basic_gnn_sage,None,xfail,Unsupported op aten::scatter_add_
+basic_gnn_edgecnn,None
+basic_gnn_gcn,None,xfail,CPU failed to allocate
+basic_gnn_gin,None
+basic_gnn_sage,None
 #cm3leon_generate,None,skip,No install.py is found
 dcgan,None
-demucs,None,xfail,Unsupported op aten::lstm
+demucs,None
 #densenet121,None - Already tested by torchvision tests
 #detectron2_fasterrcnn_r_101_c4,None - Already tested by det2 tests
 #detectron2_fasterrcnn_r_101_dc5,None - Already tested by det2 tests
@@ -93,7 +93,7 @@ tacotron2,None,skip,Can't be loaded without CUDA
 #timm_vision_transformer_large,None - Already tested by timm tests
 #timm_vovnet,None - Already tested by timm tests
 torch_multimodal_clip,None,skip,Can't be traced
-tts_angular,None,xfail,Unsupported op aten::lstm
+tts_angular,None
 #vgg16,None - Already tested by torchvision tests
 #vision_maskrcnn,None,skip,Only tensors, lists, tuples of tensors, or dictionary of tensors can be output from traced functions
 yolov3,None

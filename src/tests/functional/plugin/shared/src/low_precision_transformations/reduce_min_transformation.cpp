@@ -41,7 +41,7 @@ void ReduceMinTransformation::SetUp() {
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMin>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMin>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

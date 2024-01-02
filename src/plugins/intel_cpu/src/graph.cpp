@@ -47,7 +47,6 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 
 #include "openvino/runtime/memory_solver.hpp"
 
@@ -56,9 +55,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -273,6 +269,8 @@ void Graph::InitNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
+        if (node->getConstantType() == Node::ConstantType::Unknown)
+            node->updateConstantType();
     }
 }
 
@@ -606,6 +604,43 @@ void Graph::AllocateWithReuse() {
                 erase = true;
                 break;
             }
+
+            // Special allocation for string tensors
+            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
+                StringMemory::StringMemoryMngrPtr mngr;
+                if (edge->getParent()->isConstant()) {
+                    if (edge->getParent()->getType() == Type::Input) {
+                        auto constNode = static_cast<node::Input *>(edge->getParent().get());
+                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+                    } else {
+                        edge->externalAllocate(context->getWeightsCache());
+                    }
+                    auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
+                    OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
+                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
+                    mngr = stringMemory->getStringMemoryMngrPtr();
+                } else {
+                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
+                    edge->reuse(memory);
+                    mngr = memory->getStringMemoryMngrPtr();
+                }
+                for (auto& edge_c : cluster) {
+                    if (edge_c == edge) {
+                        continue;
+                    }
+                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
+                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
+                        edge_c->reuse(memory);
+                    } else {
+                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
+                            edge_c->getChild()->getName(), "' has an unexpected status: ", static_cast<int>(edge_c->getStatus()));
+                    }
+                }
+                erase = true;
+                continue;
+            }
+
             // Special allocation for constants
             if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
                 continue;
@@ -840,9 +875,13 @@ void Graph::Allocate() {
     //resolve inplace dead end nodes
     for (const auto& edge : graphEdges) {
         if (edge->getStatus() == Edge::Status::Uninitialized) {
-            if (one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
                 edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-            } else if (one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
                 edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
             }
         }
@@ -894,61 +933,26 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap.find(name);
     if (input_itr != inputNodesMap.end()) {
-        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
-            auto element_type = tensor->get_element_type();
-            auto shape = tensor->get_shape();
-            if (shape.empty())
-                shape = {tensor->get_size()};
-            std::vector<size_t> blk_order(shape.size());
-            std::iota(blk_order.begin(), blk_order.end(), 0);
-            std::vector<size_t> dim_offset(shape.size(), 0);
-            std::vector<size_t> blk_strides;
-            auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
-            if (byte_strides.empty()) {
-                blk_strides = ov::row_major_strides(shape);
-            } else {
-                // ROI tensor need figure out correct blk_strides
-                blk_strides.resize(byte_strides.size());
-                std::transform(byte_strides.begin(),
-                               byte_strides.end(),
-                               blk_strides.begin(),
-                               [&element_type](size_t byte_stride) {
-                                   OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                                   "Limitation: Stride in bytes ",
-                                                   byte_stride,
-                                                   " should be divisible by size of element ",
-                                                   element_type.size());
-                                   return byte_stride / element_type.size();
-                               });
-            }
-            InferenceEngine::TensorDesc tensorDesc(
-                InferenceEngine::details::convertPrecision(tensor->get_element_type()),
-                shape,
-                InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
-            return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
-        };
-
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
-        const auto& outDims = node->getOutputShapeAtPort(0);
+        auto edgeMemory = childEdge->getMemoryPtr();
 
         const void* ext_data_ptr = input->data();
-        void* inter_data_ptr = childEdge->getMemory().getData();
+        void* inter_data_ptr = edgeMemory->getData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tensor_desc = create_mem_desc(input);
-            Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-            childEdge->getMemory().load(ext_mem, false);
-        }
+            auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
+            auto actualDesc = edgeMemory->getDescPtr();
 
-        // todo: make sure 'name' exists in this map...
-        if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (input->get_element_type() == ov::element::f32) {
-                _normalizePreprocMap[name].NormalizeImage(outDims,
-                                                          reinterpret_cast<float*>(inter_data_ptr),
-                                                          TensorDesc::getLayoutByDims(input->get_shape()));
+            if (actualDesc->getPrecision() == element::string) {
+                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                edgeMemory->load(ext_mem);
+            } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
+                Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
+                edgeMemory->load(ext_mem, false);
             } else {
-                OPENVINO_THROW("Mean image of type ", input->get_element_type().get_type_name(), " is unsupported");
+                size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
+                cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
             }
         }
     } else {
@@ -973,44 +977,32 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
         }
 
-        InferenceEngine::TensorDesc expectedDesc(
-            InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
-            ext_blob->get_shape(),
-            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
+        auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
+        const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
         bool isScalarOutput = false;
-        if (actualDesc.getLayout() == SCALAR) {
-            isScalarOutput = expectedDesc.getLayout() == SCALAR ||
-                             (!expectedDesc.getDims().empty() &&
-                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
-        } else if (expectedDesc.getLayout() == SCALAR) {
-            isScalarOutput = actualDesc.getLayout() == SCALAR ||
-                             (!actualDesc.getDims().empty() &&
-                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
+        if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
+            const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), (size_t)1, std::multiplies<size_t>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
         if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
-                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
-            }
             DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
             " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
             DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
             " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
-            expectedDesc =
-                InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
-                                            ext_blob->get_shape(),
-                                            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
+            expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
         // check for empty output blob
@@ -1018,8 +1010,8 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             continue;
         }
 
-        auto srcPrec = actualDesc.getPrecision();
-        auto dstPrec = expectedDesc.getPrecision();
+        auto srcPrec = actualDesc->getPrecision();
+        auto dstPrec = expected_desc_ptr->getPrecision();
         if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
             OPENVINO_THROW("Output blob byte size is not equal network output byte size (",
                            ext_blob->get_byte_size(),
@@ -1034,24 +1026,16 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            // User can initialize output via SetOutput API using tensorDesc with ANY layout.
-            // For these cases we create planar memory descriptor.
-            auto outBlobDesc =
-                expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                    ? DnnlBlockedMemoryDesc(InferenceEngine::details::convertPrecision(expectedDesc.getPrecision()),
-                                            Shape(expectedDesc.getDims()))
-                    : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
-            Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
+        if (actualDesc->getPrecision() == element::string) {
+            StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
+            outBloMem.load(intr_blob);
+        } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
+            Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            DEBUG_LOG("pull_output: convert ", srcPrec, " to ", dstPrec);
-            cpu_convert(intr_blob_ptr,
-                        ext_blob_ptr,
-                        InferenceEngine::details::convertPrecision(srcPrec),
-                        InferenceEngine::details::convertPrecision(dstPrec),
-                        size_to_copy);
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            size_t size_to_copy = intr_blob.getSize();
+            cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
     }
 }
@@ -1479,6 +1463,9 @@ void Graph::DropNode(const NodePtr &node) {
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
+            if (child->getConstantType() != Node::ConstantType::Unknown) {
+                child->updateConstantType();
+            }
         }
     }
 }
@@ -1635,6 +1622,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     graphEdges.push_back(beforeNode);
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
+    node->updateConstantType();
     return true;
 }
 

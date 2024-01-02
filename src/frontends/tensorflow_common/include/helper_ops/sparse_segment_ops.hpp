@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "helper_ops/internal_operation.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -56,9 +56,7 @@ public:
         // num_segments input is optional so it is not always possible to deduce the first dimension of the output shape
         if (get_input_size() > 3) {
             ov::PartialShape num_segments_value;
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (output_rank.is_static() && ov::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (output_rank.is_static() && ov::util::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
                 FRONT_END_OP_CONVERSION_CHECK(output_rank.get_length() >= 1,
                                               "Data input of SparseSegmentSum must be of rank >= 1.");
                 output_shape[0] = num_segments_value[0];

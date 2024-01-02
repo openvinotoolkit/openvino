@@ -36,11 +36,14 @@ namespace LayerTestsDefinitions {
         std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto VariadicSplit = std::dynamic_pointer_cast<ngraph::opset3::VariadicSplit>(ngraph::builder::makeVariadicSplit(params[0], numSplits,
-                axis));
+
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis);
+        auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
+        auto VariadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(params[0], split_axis_op, num_split);
+
         ngraph::ResultVector results;
         for (int i = 0; i < numSplits.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(VariadicSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
     }

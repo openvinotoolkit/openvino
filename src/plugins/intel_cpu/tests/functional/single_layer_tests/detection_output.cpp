@@ -2,11 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/detection_output.hpp"
-
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+
+namespace DetectionOutput {
+static std::ostream& operator<<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
+    result << "Classes=" << attrs.num_classes << "_";
+    result << "backgrId=" << attrs.background_label_id << "_";
+    result << "topK="  << attrs.top_k << "_";
+    result << "varEnc=" << attrs.variance_encoded_in_target << "_";
+    result << "keepTopK=" << ov::test::utils::vec2str(attrs.keep_top_k) << "_";
+    result << "codeType=" << attrs.code_type << "_";
+    result << "shareLoc=" << attrs.share_location << "_";
+    result << "nmsThr=" << attrs.nms_threshold << "_";
+    result << "confThr=" << attrs.confidence_threshold << "_";
+    result << "clipAfterNms=" << attrs.clip_after_nms << "_";
+    result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
+    result << "decrId=" << attrs.decrease_label_id << "_";
+    result << "norm=" << attrs.normalized << "_";
+    result << "inH=" << attrs.input_height << "_";
+    result << "inW=" << attrs.input_width << "_";
+    result << "OS=" << attrs.objectness_score << "_";
+    return result;
+}
+}  // namespace DetectionOutput
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -108,7 +128,7 @@ public:
             result << "ARM_LOC=" << inShapes[4] << " }_";
         }
 
-        using LayerTestsDefinitions::operator<<;
+        using DetectionOutput::operator<<;
         result << attrs;
         result << "RDS=" << (replaceDynamicShapesToIntervals ? "true" : "false") << "_";
         result << "TargetDevice=" << targetDevice;

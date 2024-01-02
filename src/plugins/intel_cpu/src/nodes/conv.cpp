@@ -3,40 +3,40 @@
 //
 
 #include "conv.h"
-#include "onednn/dnnl.h"
-#include "reorder.h"
-#include "input.h"
+
+#include "common/c_types_map.hpp"
+#include "common/cpu_convert.h"
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "concat.h"
+#include "cpu/cpu_primitive.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
-#include "pooling.h"
-#include "concat.h"
-#include <graph.h>
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include <common/c_types_map.hpp>
-#include <cstdlib>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
-#include <vector>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <oneapi/dnnl/dnnl_types.h>
-#include <utils/general_utils.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "common/cpu_convert.h"
-#include <memory_desc/cpu_memory_desc_utils.h>
+#include "graph.h"
+#include "input.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "oneapi/dnnl/dnnl_common.hpp"
+#include "oneapi/dnnl/dnnl_types.h"
+#include "onednn/dnnl.h"
+#include "pooling.h"
+#include "reorder.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/cpu_primitive.hpp>
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
-#include "ie_ngraph_utils.hpp"
+#include "utils/general_utils.h"
+
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -1191,35 +1191,6 @@ bool Convolution::isNspcAvailable() const {
     }
 
     return true;
-}
-
-InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped) {
-    const auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(edgeNum)->getParent());
-    if (!constNode) {
-        OPENVINO_THROW("Cannot cast ", edgeNum, " input to Input node for ", getName(), ".");
-    }
-    auto blb = constNode->getMemoryPtr();
-    if (blb == nullptr)
-        OPENVINO_THROW("Cannot get const blob for node ", getName(), ".");
-
-    auto const elementsCount = blb->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-
-    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(ov::element::f32), dims, getWeightsLayoutByDims(dims, isGrouped));
-
-    Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
-    internalBlob->allocate();
-
-    if (internalBlob->size() != elementsCount) {
-        OPENVINO_THROW("Created internal blob and const blob has different size for node: ", getName(), ".");
-    }
-
-    cpu_convert(blb->getData(),
-                internalBlob->buffer(),
-                DnnlExtensionUtils::DataTypeToElementType(blb->getDataType()),
-                InferenceEngine::details::convertPrecision(internalBlob->getTensorDesc().getPrecision()),
-                elementsCount);
-
-    return internalBlob;
 }
 
 void Convolution::prepareParams() {

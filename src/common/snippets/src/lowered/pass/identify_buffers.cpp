@@ -65,126 +65,108 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
                                         const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
                                         const BufferPool& buffers,
                                         std::vector<bool>& adj) {
+    const auto size = buffers.size();
+    const auto lhs_idx = get_buffer_idx(lhs.first, buffers);
+    const auto rhs_idx = get_buffer_idx(rhs.first, buffers);
+    // Already adjacent - skip
+    if (adj[index(size, rhs_idx, lhs_idx)])
+        return;
+
     if (are_adjacent(lhs, rhs)) {
-        const auto size = buffers.size();
-        const auto lhs_idx = get_buffer_idx(lhs.first, buffers);
-        const auto rhs_idx = get_buffer_idx(rhs.first, buffers);
         adj[index(size, rhs_idx, lhs_idx)] = adj[index(size, lhs_idx, rhs_idx)] = true;
     }
 }
 
 std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
-    // There are several sync points for adjacency check:
-    // 1. Loop because only in Loop we increment pointers. So if some Buffers in the one Loop have conflict
-    //    (cannot be inplace: the different ptr increment and data sizes) they are called as adjacent
-    // 2. Brgemm because its blocking implementation requires Buffers with unique memory on all inputs and outputs
+    // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
+    // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
+    // they are called as adjacent
     const auto size = pool.size();
     std::vector<bool> adj(size * size, false);
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
 
-    auto is_buffer = [](const ExpressionPort& port) {
-        return ov::is_type<op::Buffer>(port.get_expr()->get_node());
-    };
-
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
-        if (const auto brgemm = ov::as_type_ptr<op::Brgemm>(expr->get_node())) {
-            const auto consumers = expr->get_output_port_connector(0)->get_consumers();
-
-            auto buffer_it = std::find_if(consumers.begin(), consumers.end(), is_buffer);
-            if (buffer_it == consumers.end())
-                continue;
-            OPENVINO_ASSERT(std::count_if(consumers.begin(), consumers.end(), is_buffer) == 1, "Brgemm mustn't have more than 1 consumer buffer");
-
-            BufferPool adjacency_buffers;
-            adjacency_buffers.push_back(buffer_it->get_expr());
-
-            for (const auto& input_connector : expr->get_input_port_connectors()) {
-                const auto parent_expr = input_connector->get_source().get_expr();
-                if (ov::is_type<op::Buffer>(parent_expr->get_node())) {
-                    adjacency_buffers.push_back(parent_expr);
-                }
-            }
-            for (auto buffer_it = adjacency_buffers.begin(); buffer_it != adjacency_buffers.end(); ++buffer_it) {
-                for (auto neighbour_it = std::next(buffer_it); neighbour_it != adjacency_buffers.end(); ++neighbour_it) {
-                    const auto buffer_idx = get_buffer_idx(*buffer_it, pool);
-                    const auto neighbour_idx = get_buffer_idx(*neighbour_it, pool);
-                    adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
-                }
-            }
-            continue;
-        }
-
-        const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
-        if (!loop_end)
+        if (!ov::is_type<op::LoopEnd>(expr->get_node()))
             continue;
 
-        const auto input_count = loop_end->get_input_num();
-        const auto output_count = loop_end->get_output_num();
-
-        const auto& ptr_increments = loop_end->get_ptr_increments();
-        const auto& finalization_offsets = loop_end->get_finalization_offsets();
-        const auto& data_sizes = loop_end->get_element_type_sizes();
-
-        // Buffer -> <ptr increment, finalization_offsets>
-        std::map<ExpressionPtr, ShiftPtrParams> buffer_neighbours;
-
-        for (size_t i = 0; i < input_count; ++i) {
-            const auto& parent_output = expr->get_input_port_connector(i)->get_source().get_expr();
-            if (ov::is_type<op::Buffer>(parent_output->get_node())) {
-                if (buffer_neighbours.count(parent_output) > 0) {
-                    OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == ptr_increments[i] &&
-                                    buffer_neighbours[parent_output].finalization_offset == finalization_offsets[i],
-                                    "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
-                    continue;
-                }
-                buffer_neighbours[parent_output] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
-            }
-        }
-        for (size_t i = input_count; i < input_count + output_count; ++i) {
-            // The consumers of the corresponding Store ops
-            const auto consumer_inputs = expr->get_input_port_connector(i)->get_consumers();
-            size_t buffer_count = 0;
-            size_t loop_count = 0;
-            for (const auto& consumer_input : consumer_inputs) {
-                const auto& child_expr = consumer_input.get_expr();
-                if (ov::is_type<op::Buffer>(child_expr->get_node())) {
-                    buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
-                    buffer_count++;
-                } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
-                    loop_count++;
-                }
-            }
-            if (buffer_count > 0) {
-                OPENVINO_ASSERT((buffer_count == 1) && (buffer_count + loop_count == consumer_inputs.size()),
-                                "Loop output must have not more than 1 Buffer");
-            }
-        }
-
-        // Buffers which are connected to the current Loop but without ptr shifts and Buffers which are inside this Loop - must be adjacent because
-        // after each Loop iteration GPR will be shifted using ptr increment of Buffer outside. But Buffers inside have the same GPR - it means that
-        // Buffers inside will work with shifted memory.
-        const auto loop_begin = loop_end->get_loop_begin();
-        for (auto it = std::reverse_iterator<LinearIR::constExprIt>(expr_it); (*it)->get_node() != loop_begin; ++it) {
-            const auto& inner_expr = *it;
-            if (ov::is_type<op::Buffer>(inner_expr->get_node())) {
-                // To make Buffers adjacent, we set value "INT64_MAX" for data ptr shifts params for inner Buffers,
-                // since outer Buffers (and other any Buffers) cannot have this value in shifting because of semantic of Loop op.
-                // Thus, inner and outer Buffers have always different data shift ptr params -> they're adjacent
-                if (buffer_neighbours.count(inner_expr) == 0)
-                    buffer_neighbours[inner_expr] = { INT64_MAX, INT64_MAX, INT64_MAX };
-            }
-        }
-
-        for (auto buffer_it = buffer_neighbours.begin(); buffer_it != buffer_neighbours.end(); ++buffer_it) {
-            for (auto neighbour_it = std::next(buffer_it); neighbour_it != buffer_neighbours.end(); ++neighbour_it) {
+        const auto buffer_loop_neighbours = get_buffer_loop_neighbours(expr);
+        const auto buffers_loop_inside = get_buffer_loop_inside(expr_it);
+        for (auto buffer_it = buffer_loop_neighbours.cbegin(); buffer_it != buffer_loop_neighbours.cend(); ++buffer_it) {
+            // If Buffers, that are connected to the same Loop, have not proportionally ptr shift params for this Loop - these Buffers are adjacent
+            for (auto neighbour_it = std::next(buffer_it); neighbour_it != buffer_loop_neighbours.cend(); ++neighbour_it) {
                 update_adj_matrix(*buffer_it, *neighbour_it, pool, adj);
+            }
+            // Buffers which are connected to the current Loop with zero ptr shifts and Buffers which are inside this Loop - must be adjacent:
+            // after each the Loop iteration GPR will be shifted using ptr increment of Buffer outside.
+            // But if inner Buffers have the same GPR - it means that these Buffers will work with shifted memory.
+            for (auto inner_it = buffers_loop_inside.cbegin(); inner_it != buffers_loop_inside.cend(); ++inner_it) {
+                update_adj_matrix(*buffer_it, *inner_it, pool, adj);
             }
         }
     }
 
     return adj;
+}
+
+IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
+    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
+    const auto input_count = loop_end->get_input_num();
+    const auto output_count = loop_end->get_output_num();
+
+    const auto& ptr_increments = loop_end->get_ptr_increments();
+    const auto& finalization_offsets = loop_end->get_finalization_offsets();
+    const auto& data_sizes = loop_end->get_element_type_sizes();
+
+    BufferMap buffer_neighbours;
+    for (size_t i = 0; i < input_count; ++i) {
+        const auto& parent_output = loop_end_expr->get_input_port_connector(i)->get_source().get_expr();
+        if (ov::is_type<op::Buffer>(parent_output->get_node())) {
+            if (buffer_neighbours.count(parent_output) > 0) {
+                OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == ptr_increments[i] &&
+                                buffer_neighbours[parent_output].finalization_offset == finalization_offsets[i],
+                                "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
+                continue;
+            }
+            buffer_neighbours[parent_output] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+        }
+    }
+    for (size_t i = input_count; i < input_count + output_count; ++i) {
+        // The consumers of the corresponding Store ops
+        const auto consumer_inputs = loop_end_expr->get_input_port_connector(i)->get_consumers();
+        size_t buffer_count = 0;
+        size_t loop_count = 0;
+        for (const auto& consumer_input : consumer_inputs) {
+            const auto& child_expr = consumer_input.get_expr();
+            if (ov::is_type<op::Buffer>(child_expr->get_node())) {
+                buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+                buffer_count++;
+            } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
+                loop_count++;
+            }
+        }
+        if (buffer_count > 0) {
+            OPENVINO_ASSERT((buffer_count == 1) && (buffer_count + loop_count == consumer_inputs.size()),
+                            "Loop output must have not more than 1 Buffer");
+        }
+    }
+    return buffer_neighbours;
+}
+
+IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
+    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
+    const auto loop_begin = loop_end->get_loop_begin();
+    BufferMap inner_buffers;
+    for (auto it = std::reverse_iterator<LinearIR::constExprIt>(loop_end_it); (*it)->get_node() != loop_begin; ++it) {
+        const auto& inner_expr = *it;
+        if (ov::is_type<op::Buffer>(inner_expr->get_node())) {
+            // Set default zero values since it's not used for adjacency definition in case with Buffers in Loop
+            if (inner_buffers.count(inner_expr) == 0)
+                inner_buffers[inner_expr] = { 0, 0, 0 };
+        }
+    }
+    return inner_buffers;
 }
 
 auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferPool> {
@@ -234,9 +216,7 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
 
 bool IdentifyBuffers::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
-    // Unite Buffers using Graph coloring algorithm.
-    // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
-    //        so these Buffers are always IntermediateBuffer nonadjacent
+    // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
     for (const auto& expr : linear_ir) {

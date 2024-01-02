@@ -11,7 +11,6 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 // To be removed
-#include "ie_system_conf.h"
 #include "exec_graph_info.hpp"
 
 namespace CPUTestUtils {
@@ -173,11 +172,9 @@ protected:
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const ov::AnyMap empty_plugin_config{};
-const std::map<std::string, std::string> cpuFP32PluginConfig =
-        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
-
+const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);

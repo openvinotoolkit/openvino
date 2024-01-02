@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/scaleshift_conv_scaleshift.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -64,34 +65,34 @@ void ScaleShiftAfterConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
 
     std::vector<size_t> outFormShapes = { 1, outputChannels * widthAfterConv, 1, 1 };
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(conv, reshapePattern2, false);
 
     auto scale = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -2.0f, 2.0f);
     auto shift = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -2.0f, 2.0f);
-    auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, outFormShapes, scale);
-    auto mul = std::make_shared<ngraph::opset1::Multiply>(reshape2, mul_const);
-    auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, outFormShapes, shift);
-    auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
+    auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, outFormShapes, scale);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(reshape2, mul_const);
+    auto add_const = std::make_shared<ov::op::v0::Constant>(ngPrc, outFormShapes, shift);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
 
     outFormShapes = {1,  outputChannels * widthAfterConv };
-    auto reshapePattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(add, reshapePattern3, false);
+    auto reshapePattern3 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(add, reshapePattern3, false);
 
     function = std::make_shared<ngraph::Function>(mul, params, "ScaleShiftAfterConvTest");
 }
@@ -153,33 +154,33 @@ void ScaleShiftBeforeConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputShape[1], 1, 1};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto scale = ov::test::utils::generate_float_numbers(convInputShape[1], -2.0f, 2.0f);
     auto shift = ov::test::utils::generate_float_numbers(convInputShape[1], -2.0f, 2.0f);
-    auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, convInputShape, scale);
-    auto mul = std::make_shared<ngraph::opset1::Multiply>(reshape1, mul_const);
-    auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, convInputShape, shift);
-    auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
+    auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, convInputShape, scale);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(reshape1, mul_const);
+    auto add_const = std::make_shared<ov::op::v0::Constant>(ngPrc, convInputShape, shift);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
 
     convInputShape = {1, inputChannels, 1, inputShape[1] / inputChannels};
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(mul, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(mul, reshapePattern2, false);
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape2,
+    auto conv = ov::test::utils::make_convolution(reshape2,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterReshape };
-    auto reshapePattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern3, false);
+    auto reshapePattern3 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(conv, reshapePattern3, false);
 
     function = std::make_shared<ngraph::Function>(reshape3, params, "ScaleShiftBeforeConvTest");
 }

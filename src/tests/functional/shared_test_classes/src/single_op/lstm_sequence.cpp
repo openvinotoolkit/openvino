@@ -116,7 +116,10 @@ void LSTMSequenceTest::SetUp() {
         params.push_back(param);
     } else if (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
                 mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, inputShapes[3], seq_lengths);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = seq_lengths;
+        auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, inputShapes[3], in_data);
         seq_lengths_node = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
         std::vector<int64_t> lengths(inputShapes[3][0], seq_lengths);

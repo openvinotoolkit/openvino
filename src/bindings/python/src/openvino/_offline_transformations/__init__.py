@@ -11,7 +11,6 @@ __version__ = get_version()
 from openvino._pyopenvino._offline_transformations import apply_fused_names_cleanup
 from openvino._pyopenvino._offline_transformations import apply_moc_transformations
 from openvino._pyopenvino._offline_transformations import apply_moc_legacy_transformations
-from openvino._pyopenvino._offline_transformations import apply_pot_transformations
 from openvino._pyopenvino._offline_transformations import apply_low_latency_transformation
 from openvino._pyopenvino._offline_transformations import apply_pruning_transformation
 from openvino._pyopenvino._offline_transformations import apply_make_stateful_transformation

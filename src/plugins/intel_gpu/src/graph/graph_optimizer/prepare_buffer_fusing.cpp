@@ -3,6 +3,8 @@
 //
 #include "prepare_buffer_fusing.h"
 #include "pooling_inst.h"
+#include "kv_cache_inst.h"
+#include "gather_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -14,6 +16,7 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "strided_slice_inst.h"
+#include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -407,6 +410,19 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     return false;
 }
 
+static bool can_read_value_be_optimize(const read_value_node& node) {
+    if (node.get_users().size() == 1)
+        return true;
+
+    const auto non_shape_of_users_count = std::count_if(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+        return !user->is_type<shape_of>();
+    });
+    if (non_shape_of_users_count <= 1)
+        return true;
+
+    return false;
+}
+
 static void propagate_padding_to_opt_out_users(program_node& node, cldnn::padding padding_data) {
     if (padding_data == cldnn::padding())
         return;
@@ -433,7 +449,7 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layout(0).data_padding;
-        if (node->is_type<read_value>())
+        if (node->is_type<read_value>() || node->is_type<kv_cache>())
             return true;
 
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
@@ -606,6 +622,63 @@ void prepare_buffer_fusing::run(program& p) {
 
             node.can_be_optimized(can_reshape_be_optimized(node));
         });
+        program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
+            auto kv_out_layout = node.get_output_layout();
+
+            program_node* rv_prim = nullptr;
+            program_node* gather_prim = nullptr;
+            if (node.get_dependency(0).is_type<read_value>()) {
+                rv_prim = &node.get_dependency(0);
+            } else {
+                if (node.get_dependency(0).is_type<gather>()) {
+                    gather_prim = &node.get_dependency(0);
+                } else {
+                    return;
+                }
+
+                if (gather_prim->get_dependency(0).is_type<read_value>()) {
+                    rv_prim = &gather_prim->get_dependency(0);
+                }
+            }
+
+            if (!rv_prim)
+                return;
+
+            if (kv_out_layout.data_type != rv_prim->get_output_layout().data_type)
+                return;
+
+            auto concat_axis_legacy = node.get_primitive()->concat_axis;
+            if (concat_axis_legacy >= 2) {
+                auto spatial_axis = concat_axis_legacy - 2;
+                // Default and minimum number of dimensions is 4
+                auto spatial_size = std::max<size_t>(kv_out_layout.get_partial_shape().size(), 4) - 2;
+                concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
+            }
+
+            if (kv_out_layout.is_dynamic()) {
+                // set dynamic pad dims for shape agnostic kernel
+                auto info_dynamic_pad = tensor(0).sizes();
+                info_dynamic_pad[concat_axis_legacy] = 1;
+                auto dynamic_pad_mask = tensor(info_dynamic_pad);
+                kv_out_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                node.set_output_layout(kv_out_layout);
+                node.can_share_buffer(false);
+
+                auto update_dep = [&dynamic_pad_mask](program_node* dep) {
+                    auto prev_layout = dep->get_output_layout();
+                    prev_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                    dep->set_output_layout(prev_layout);
+                    dep->can_share_buffer(false);
+                };
+
+                if (rv_prim) {
+                    update_dep(rv_prim);
+                }
+                if (gather_prim) {
+                    update_dep(gather_prim);
+                }
+            }
+        });
         program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
             // Current implementation allows to avoid copy on read_value primitive
             // only in cases when it has single user
@@ -632,10 +705,10 @@ void prepare_buffer_fusing::run(program& p) {
             //                   ┌────┴──────┐
             //                   │  Result   │
             //                   └───────────┘
-            // If read_value here returns virable memory w/o copy, then based on Add-s and Assign execution order we may have different results
+            // If read_value here returns variable memory w/o copy, then based on Add-s and Assign execution order we may have different results
             // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
-            node.can_be_optimized(node.get_users().size() == 1);
+            node.can_be_optimized(can_read_value_be_optimize(node));
         });
     }
 }

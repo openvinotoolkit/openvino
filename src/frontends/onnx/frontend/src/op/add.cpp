@@ -6,7 +6,6 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
 

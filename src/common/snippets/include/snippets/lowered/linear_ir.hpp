@@ -14,6 +14,7 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+#ifdef SNIPPETS_DEBUG_CAPS
 // Snippets performance count mode
 // Disabled - default, w/o perf count for snippets
 // Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
@@ -25,6 +26,7 @@ enum PerfCountMode {
     Chrono,
     BackendSpecific,
 };
+#endif
 
 class Config {
 public:
@@ -33,7 +35,9 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+#ifdef SNIPPETS_DEBUG_CAPS
     PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+#endif
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.
@@ -63,7 +67,7 @@ public:
     LinearIR() = default;
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
     std::shared_ptr<LinearIR> clone() const;
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
@@ -125,7 +129,6 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;

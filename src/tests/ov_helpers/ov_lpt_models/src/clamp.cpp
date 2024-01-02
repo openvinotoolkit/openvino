@@ -6,11 +6,12 @@
 #include <vector>
 
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/clamp.hpp"
 #include "low_precision/network_helper.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -39,7 +40,7 @@ std::shared_ptr<ov::Model> ClampFunction::getOriginal(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
 
     const std::shared_ptr<Node> fq = fakeQuantize.empty() ? nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input,
             precision,
             fakeQuantize.quantizationLevel,

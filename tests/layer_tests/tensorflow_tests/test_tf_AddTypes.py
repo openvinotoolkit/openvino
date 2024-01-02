@@ -14,7 +14,9 @@ class TestAddTypes(CommonTFLayerTest):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
         x_shape = inputs_info['x']
         inputs_data = {}
-        if np.issubdtype(self.input_type, np.signedinteger):
+        if np.issubdtype(self.input_type, np.floating):
+            inputs_data['x'] = rng.uniform(-5.0, 5.0, x_shape).astype(self.input_type)
+        elif np.issubdtype(self.input_type, np.signedinteger):
             inputs_data['x'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
         else:
             inputs_data['x'] = rng.integers(0, 8, x_shape).astype(self.input_type)
@@ -26,10 +28,13 @@ class TestAddTypes(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, [], 'x')
-            if np.issubdtype(self.input_type, np.signedinteger):
+            if np.issubdtype(self.input_type, np.floating):
+                const_value = rng.uniform(-5.0, 5.0, const_shape).astype(self.input_type)
+            elif np.issubdtype(self.input_type, np.signedinteger):
                 const_value = rng.integers(-8, 8, const_shape).astype(self.input_type)
             else:
-                const_value = rng.integers(0, 8, const_shape).astype(self.input_type)
+                # test bigger unsigned integer constants and avoid overflow by using smaller input values 0..8
+                const_value = rng.integers(128, 240, const_shape).astype(self.input_type)
             const_input = tf.constant(const_value, dtype=input_type)
             tf.raw_ops.Add(x=x, y=const_input)
             tf.compat.v1.global_variables_initializer()
