@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/two_fake_quantize_to_fullyconnected.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -115,7 +116,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto lowNode = ov::test::utils::deprecated::make_constant(ngraph::element::f32, channelDataSize, inputMinRange, false);
     auto highNode = ov::test::utils::deprecated::make_constant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], constShape[0],
+    auto inputFQNode = ov::test::utils::make_fake_quantize(params[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
     auto weightsFQNode = std::make_shared<ov::op::v0::FakeQuantize>(const_param,
