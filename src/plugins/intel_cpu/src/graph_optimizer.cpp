@@ -2092,9 +2092,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
 
 void GraphOptimizer::DropDoubleReorders(Graph &graph) {
     std::set<NodePtr> processed;
-    std::size_t graphNodesSize = graph.GetNodes().size();
-    for (std::size_t i = 0; i < graphNodesSize; i++) {
-        NodePtr& node = graph.GetNodes()[i];
+
+    for (const auto& node : graph.GetNodes()) {
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder
             && node->getChildEdges().size() == 1
             && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder ) {
@@ -2124,10 +2123,9 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             }
             if (!edge) OPENVINO_THROW("Inappropriate graph processing");
 
-
             std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
-            graph.GetEdges().erase(std::remove(graph.GetEdges().begin(), graph.GetEdges().end(), edge), graph.GetEdges().end());
+            graph.RemoveEdge(edge);
         }
     }
 }

@@ -1415,7 +1415,14 @@ void Graph::CreateEdge(const NodePtr& parent,
                        const NodePtr& child,
                        int parentPort,
                        int childPort) {
+    assert(parentPort >= 0 && childPort >= 0);
+    assert(std::all_of(child->getParentEdges().begin(), child->getParentEdges().end(),
+                       [&childPort](const EdgePtr& edge){
+                           return edge->getOutputNum() != childPort;
+                       }));
+
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
+
     parent->addChildEdge(edge);
     child->addParentEdge(edge);
     graphEdges.push_back(edge);
@@ -1427,7 +1434,9 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
 }
 
 void Graph::AddNode(NodePtr node) {
+    assert(node);
     assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
+
     graphNodes.push_back(node);
 }
 
@@ -1510,17 +1519,15 @@ void Graph::DropDWConvNode(const NodePtr &node) {
 }
 
 void Graph::RemoveDroppedNodes() {
-    auto& nodes = this->GetNodes();
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
-                               [](const NodePtr& node){ return node->isDropped(); }),
-                nodes.end());
+    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(),
+                                    [](const NodePtr& node){ return node->isDropped(); }),
+                     graphNodes.end());
 }
 
 void Graph::RemoveDroppedEdges() {
-    auto& edges = this->GetEdges();
-    edges.erase(std::remove_if(edges.begin(), edges.end(),
-                               [](const EdgePtr& node){ return node->isDropped(); }),
-                edges.end());
+    graphEdges.erase(std::remove_if(graphEdges.begin(), graphEdges.end(),
+                                    [](const EdgePtr& node){ return node->isDropped(); }),
+                     graphEdges.end());
 }
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,

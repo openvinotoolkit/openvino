@@ -64,16 +64,8 @@ public:
         return graphNodes;
     }
 
-    std::vector<NodePtr>& GetNodes() {
-        return graphNodes;
-    }
-
     std::string GetName() const {
         return _name;
-    }
-
-    std::vector<EdgePtr>& GetEdges() {
-        return graphEdges;
     }
 
     std::map<std::string, NodePtr>& GetInputNodesMap() {
