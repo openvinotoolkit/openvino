@@ -6,8 +6,6 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-
-#include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -107,13 +105,12 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
-        float* new_state_data = new float[element_count];
+        std::vector<float> new_state_data;
         for (int i = 0; i < element_count; i++) {
-            new_state_data[i] = new_state_val;
+            new_state_data.push_back(new_state_val);
         }
         ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
-        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
-        delete[] new_state_data;
+        std::memcpy(state_tensor.data(), new_state_data.data(), element_count * sizeof(float));
         state.set_state(state_tensor);
     }
 
@@ -138,13 +135,12 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        float* new_state_data = new float[element_count];
+        std::vector<float> new_state_data;
         for (int i = 0; i < element_count; i++) {
-            new_state_data[i] = new_state_val;
+            new_state_data.push_back(new_state_val);
         }
         ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
-        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
-        delete[] new_state_data;
+        std::memcpy(state_tensor.data(), new_state_data.data(), element_count * sizeof(float));
         state.set_state(state_tensor);
     }
 
@@ -180,13 +176,12 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        float* new_state_data = new float[element_count];
+        std::vector<float> new_state_data;
         for (int i = 0; i < element_count; i++) {
-            new_state_data[i] = new_state_val;
+            new_state_data.push_back(new_state_val);
         }
         ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
-        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
-        delete[] new_state_data;
+        std::memcpy(state_tensor.data(), new_state_data.data(), element_count * sizeof(float));
         state.set_state(state_tensor);
     }
     for (auto&& state : infer_req2.query_state()) {
@@ -236,13 +231,12 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        float* new_state_data = new float[element_count];
+        std::vector<float> new_state_data;
         for (int i = 0; i < element_count; i++) {
-            new_state_data[i] = new_state_val;
+            new_state_data.push_back(new_state_val);
         }
         ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
-        std::memcpy(state_tensor.data(), new_state_data, element_count * sizeof(float));
-        delete[] new_state_data;
+        std::memcpy(state_tensor.data(), new_state_data.data(), element_count * sizeof(float));
         state.set_state(state_tensor);
     }
 
