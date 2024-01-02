@@ -4,6 +4,9 @@
 
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
 
+#include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace SubgraphTestsDefinitions {
 std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj) {
     InferenceEngine::Precision netPrecision;
@@ -33,8 +36,8 @@ void BroadcastPowerTest::SetUp() {
             inputs_shapes[1]);
     auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshape_pattern, false);
 
-    auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
-    auto sum = ngraph::builder::makeEltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto const_mult2 = ov::test::utils::deprecated::make_constant<float>(ngPrc, {}, {-1.0f});
+    auto sum = ov::test::utils::make_eltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
     auto reshape_pattern_2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},
             inputs_shapes[0]);

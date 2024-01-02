@@ -153,7 +153,7 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     auto data = t.data<std::string>();
     py::list _list;
     for (size_t i = 0; i < t.get_size(); ++i) {
-        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
+        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "replace");
         _list.append(_unicode_obj);
         Py_XDECREF(_unicode_obj);
     }

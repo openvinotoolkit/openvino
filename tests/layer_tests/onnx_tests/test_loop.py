@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestLoop(OnnxRuntimeLayerTest):
@@ -139,7 +139,7 @@ class TestLoop(OnnxRuntimeLayerTest):
             [res]
         )
 
-        onnx_net = helper.make_model(graph_def, producer_name='test_loop_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_loop_model')
         # We do not create reference graph, as it's too complicated to construct it
         # So we return None to skip IR comparision
         return onnx_net, None
@@ -265,7 +265,7 @@ class TestLoop(OnnxRuntimeLayerTest):
             [res],
         )
 
-        onnx_net = helper.make_model(graph_def, producer_name='test_loop_in_loop_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_loop_in_loop_model')
         # We do not create reference graph, as it's too complicated to construct it
         # So we return None to skip IR comparision
 

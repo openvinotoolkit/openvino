@@ -55,13 +55,10 @@ void regmodule_properties(py::module m) {
         .value("HIGH", ov::hint::Priority::HIGH)
         .value("DEFAULT", ov::hint::Priority::DEFAULT);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     py::enum_<ov::hint::PerformanceMode>(m_hint, "PerformanceMode", py::arithmetic())
-        .value("UNDEFINED", ov::hint::PerformanceMode::UNDEFINED)
         .value("LATENCY", ov::hint::PerformanceMode::LATENCY)
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
