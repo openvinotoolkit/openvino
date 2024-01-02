@@ -53,7 +53,20 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = makePattern<opset1::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
     auto concat_v = makePattern<opset1::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
 
-    auto multi_query_bcst = [](std::shared_ptr<Node> kv) {
+    auto multi_query_bcst_bf16 = [](std::shared_ptr<Node> kv) {
+        auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
+        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, -2});
+        auto constant_bcst = makeConst(ov::element::bf16, ov::PartialShape("[...]"), [](ov::op::v0::Constant& node) {
+            const auto& bcst_arg = node.cast_vector<ov::bfloat16>();
+            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](ov::bfloat16 i) {
+                return i == 1.0;
+            });
+        });
+        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst});
+        return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
+    };
+
+    auto multi_query_bcst_fp32 = [](std::shared_ptr<Node> kv) {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, -2});
         auto constant_bcst = makeConst(ov::element::f32, ov::PartialShape("[...]"), [](ov::op::v0::Constant& node) {
@@ -66,8 +79,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
     };
 
-    auto present_k = concat_k | multi_query_bcst(concat_k);
-    auto present_v = concat_v | multi_query_bcst(concat_v);
+    auto present_k = concat_k | multi_query_bcst_fp32(concat_k) | multi_query_bcst_bf16(concat_k);
+    auto present_v = concat_v | multi_query_bcst_fp32(concat_v) | multi_query_bcst_bf16(concat_v);
 
     // canonical q/k/v shape definition: [B,H,...L,S]
     auto sdp0 = makePattern<opset13::ScaledDotProductAttention>({cur_q, present_k, present_v});
@@ -94,7 +107,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-
         PatternValidator validator(m);
         if (!validator) {
             return false;

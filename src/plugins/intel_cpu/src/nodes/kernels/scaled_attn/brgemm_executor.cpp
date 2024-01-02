@@ -24,16 +24,14 @@ brgemmExecutor::brgemmExecutor(size_t M,
                                size_t lda,
                                size_t ldb,
                                size_t ldc,
-                               bool b_transposed,
-                               ov::element::Type dstType)
+                               bool b_transposed)
     : M(M),
       K(K),
       N(N),
       lda(lda),
       ldb(ldb),
       ldc(ldc),
-      b_transposed(b_transposed),
-      dstType(dstType) {
+      b_transposed(b_transposed) {
     // blocking M
     const size_t matmulOptimalM = 32;
     M_blk = matmulOptimalM;
@@ -49,12 +47,9 @@ brgemmExecutor::brgemmExecutor(size_t M,
     K_tail = K % K_blk;
     if (K_tail) {
         K_tail = rnd_up(K_tail, 2);
-        std::cout << "K_tail|" << K_tail << std::endl;
     }
     packedBSize = rnd_up(K, brg0VnniFactor) * rnd_up(N, N_blk) * brg0Prc.size();
     packedASize = M_blk * rnd_up(K, K_blk) * brg0Prc.size();
-    packedBData.resize(packedBSize);
-    packedAData.resize(packedASize);
     //scrach buffer for AMX;
     wsp.resize(wsp_size_per_thread);
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
@@ -94,7 +89,7 @@ brgemmExecutor::brgemmExecutor(size_t M,
 
     // TODO: matrix A copy should be performed to enable AMX matmuls for arbitrary shapes
     if (brgemmCtx0.is_with_amx && K_tail) {
-        init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, lda, brgemmCtx0.dt_in0);
+        init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, K_blk, brgemmCtx0.dt_in0, false, lda * brg0Prc.size());
     }
 
     if (brgemmCtx0.is_with_amx || brg0Prc == ov::element::bf16) {
@@ -118,6 +113,14 @@ brgemmExecutor::brgemmExecutor(size_t M,
                            b_transposed,
                            b_stride);
     }
+}
+
+size_t brgemmExecutor::get_scratch_a_size() {
+    return packedASize;
+}
+
+size_t brgemmExecutor::get_scratch_b_size() {
+    return packedBSize;
 }
 
 void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
@@ -153,10 +156,6 @@ void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
     }
 
     ctx.is_with_amx = use_amx;
-    // if (dstType == ov::element::bf16) {
-    //     brgDesc.dt_d = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(dstType));
-    //     std::cout << "Set Kernel Output to BF16" << std::endl;
-    // }
     status = brgemm_init_tiles(brgDesc, ctx.palette);
     if (use_amx) {
         amx_tile_configure(ctx.palette);
@@ -181,23 +180,24 @@ void brgemmExecutor::init_brgemm_copy_a(
     size_t K_tail,
     size_t LDA,
     dnnl_data_type_t dt_in0,
-    bool transpose) {
+    bool transpose,
+    size_t copy_A_src_stride) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
     brgCopyKernelConf.K = K;
     brgCopyKernelConf.K_tail = K_tail;
     brgCopyKernelConf.K_blk = K_blk;
     brgCopyKernelConf.use_buffer_a_tail_only = false;
-    //padding K tail to K_blk
-    brgCopyKernelConf.LDA = K_blk;
+    //padding K tail to K_blk, LDA is the stride for target tensor
+    brgCopyKernelConf.LDA = LDA;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_dt = dt_in0;
-    brgCopyKernelConf.copy_A_src_stride = LDA;
+    brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
-    // copied A is still the precision of a
+    // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = avx512_core_amx;
@@ -259,17 +259,19 @@ void brgemmExecutor::init_brgemm_copy_b(
 #endif  // OPENVINO_ARCH_X86_64
 }
 
-void brgemmExecutor::executeGemm(void* a, void* b, void* c) {
+void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
     auto ptr_a = reinterpret_cast<uint8_t*>(a);
     auto ptr_b = reinterpret_cast<uint8_t*>(b);
     auto ptr_c = reinterpret_cast<uint8_t*>(c);
+    auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     auto dataType = ov::element::bf16;
     uint8_t* ptr_a_tail = nullptr;
     auto print_ptr = [](const std::string& prefix, uint8_t* ptr, size_t stride) {
         std::cout << prefix << "|";
         for (size_t i = 0; i < 2; i++) {
-            for (size_t j = stride; j > stride - 10; j--) {
-                bfloat16* data = reinterpret_cast<bfloat16*>(ptr + i * stride);
+            for (size_t j = 0; j < 10; j++) {
+                bfloat16* data = reinterpret_cast<bfloat16*>(ptr + i * stride * 2);
                 std::cout << data[j] << ",";
             }
             std::cout << "|" << std::endl;
@@ -289,7 +291,7 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
             auto pCopyKernel0In = ptr_b + nb * N_blk * dataType.size() * N_stride;
-            auto pCopyKernel0Out = packedBData.data() + nb * N_blk * brg0VnniFactor * dataType.size();
+            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brg0VnniFactor * dataType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -318,28 +320,27 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c) {
     for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
         const bool is_M_tail = (M - mb * M_blk < M_blk);
         auto cur_M_blk = is_M_tail ? M_tail : M_blk;
-        // if (brgCopyAKernel) {
-        //     // only copy the tailed data;
-        //     fprintf(stderr, "Execute copy A\n");
-        //     auto pCopyKernel0In = ptr_a + (mb * M_blk * brgCtxs0[brgIdx0].LDA + K0_step0) * ov::element::bf16.size();
-        //     auto pCopyKernel0Out = packedAData.data();
+        if (brgCopyAKernel) {
+            // only copy the tailed data;
+            auto pCopyKernelIn = ptr_a + (mb * M_blk * brgCtxs0[brgIdx0].LDA + K0_step0) * ov::element::bf16.size();
+            auto pCopyKernelOut = ptr_scartch_a;
 
-        //     auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
+            auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
 
-        //     ctx.current_M_blk = cur_M_blk;
-        //     ctx.zp_b_compensation_buffer_ptr = nullptr;
-        //     ctx.zp_a_compensation_result_ptr = nullptr;
-        //     ctx.zp_b_neg_value_ptr = nullptr;
-        //     ctx.zp_ab_comp_ptr = nullptr;
-        //     ctx.src = pCopyKernel0In;
-        //     ctx.tr_src = pCopyKernel0Out;
-        //     ctx.current_K_start = 0;
-        //     ctx.current_K_blk = K % K_blk;
+            ctx.current_M_blk = cur_M_blk;
+            ctx.zp_b_compensation_buffer_ptr = nullptr;
+            ctx.zp_a_compensation_result_ptr = nullptr;
+            ctx.zp_b_neg_value_ptr = nullptr;
+            ctx.zp_ab_comp_ptr = nullptr;
+            ctx.src = pCopyKernelIn;
+            ctx.tr_src = pCopyKernelOut;
+            ctx.current_K_start = 0;
+            ctx.current_K_blk = K % K_blk;
 
-        //     (*brgCopyAKernel)(&ctx);
+            (*brgCopyAKernel)(&ctx);
 
-        //     ptr_a_tail = pCopyKernel0Out;
-        // }
+            ptr_a_tail = pCopyKernelOut;
+        }
         for (size_t n = 0; n < 2; n++) {
             for (size_t k = 0; k < 2; k++) {
                 size_t mIdx = is_M_tail ? 1 : 0;
@@ -347,24 +348,24 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c) {
 
                 if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                     if (k) {
-                        // fprintf(stderr, "Execute tail M %ld N %ld K %ld LDA %ld ptrc %p\n", mb * M_blk, brgemmCtx.N, brgemmCtx.K, brgemmCtx.LDA, ptr_c);
-                        // callBrgemm(brgemmCtx,
-                        //        brgKernels[getBrgIdx(mIdx, k, n)],
-                        //        ptr_a_tail,
-                        //        packedBData.data() + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
-                        //        ptr_c + (mb * M_blk * brgemmCtx.LDC + n * N0_step1) * ov::element::bf16.size(),
-                        //        wsp.data());
+                        // print_ptr("A", ptr_a_tail, K_blk);
+                        // print_ptr("B", ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(), brgCtxs0[brgIdx0].LDB);
+                        callBrgemm(brgemmCtx,
+                               brgKernels[getBrgIdx(mIdx, k, n)],
+                               ptr_a_tail,
+                               ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
+                               ptr_c + (mb * M_blk * brgemmCtx.LDC + n * N0_step1) * ov::element::bf16.size(),
+                               wsp.data());
                     } else {
-                        printf("Execute body M %ld N %ld K %ld LDA %ld\n", mb * M_blk, brgemmCtx.N, brgemmCtx.K, brgemmCtx.LDA);
-                        print_ptr("A", ptr_a + (mb * M_blk * brgemmCtx.LDA) * ov::element::bf16.size(), brgemmCtx.LDA);
-                        print_ptr("B", packedBData.data() + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(), brgCtxs0[brgIdx0].LDB);
+                        // print_ptr("A", ptr_a + (mb * M_blk * brgemmCtx.LDA) * ov::element::bf16.size(), brgemmCtx.LDA);
+                        // print_ptr("B", ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(), brgCtxs0[brgIdx0].LDB);
                         callBrgemm(brgemmCtx,
                                 brgKernels[getBrgIdx(mIdx, k, n)],
                                 ptr_a + (mb * M_blk * brgemmCtx.LDA) * ov::element::bf16.size(),
-                                packedBData.data() + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
+                                ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
                                 ptr_c + (mb * M_blk * brgemmCtx.LDC + n * N0_step1) * ov::element::f32.size(),
                                 wsp.data());
-                        print_float("C", reinterpret_cast<float*>(ptr_c + (mb * M_blk * brgemmCtx.LDC + n * N0_step1) * ov::element::f32.size()), ldc);
+                        // print_float("C", reinterpret_cast<float*>(ptr_c + (mb * M_blk * brgemmCtx.LDC + n * N0_step1) * ov::element::f32.size()), ldc);
                     }
                 }
             }

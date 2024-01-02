@@ -32,6 +32,7 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/brgemm_executor.hpp"
+#include "nodes/common/cpu_convert.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
@@ -202,12 +203,67 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     dnnl::memory::desc out_md;
     dnnl::memory attn_score;
     dnnl::memory attn_weight;
+    PlainTensor fp32_out;
+    PlainTensor qk_scratch_a;
+    PlainTensor qk_scratch_b;
+    PlainTensor wv_scratch_a;
+    PlainTensor wv_scratch_b;
     dnnl::matmul qk_prim;
     dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
 
     std::shared_ptr<brgemmExecutor> qk_gemm_ptr = nullptr;
+    std::shared_ptr<brgemmExecutor> wv_gemm_ptr = nullptr;
+    MHAKernel() : fp32_out(true), qk_scratch_a(true), qk_scratch_b(true), wv_scratch_a(true), wv_scratch_b(true) {}
+    void prepare_multiquery_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
+        auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
+            dnnl::memory::dims dnnl_dims(dims.size());
+            for (size_t i = 0; i < dims.size(); i++)
+                dnnl_dims[i] = static_cast<dnnl::memory::dim>(dims[i]);
+            return dnnl_dims;
+        };
+        auto B = query.size(0);
+        auto H = query.size(1);
+        auto q_len = query.size(2);
+        auto head_size = query.size(3);
+        auto kv_len = present_key.size(2);
+        if (qk_gemm_ptr == nullptr) {
+            qk_gemm_ptr =
+                std::make_shared<brgemmExecutor>(q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true);
+        }
+
+        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
+        dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
+        weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
+        out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, head_size}), qkv_dt, tag::abcd);
+        size_t ldc_index = 2;
+        if (wv_gemm_ptr == nullptr) {
+            // weight layout [B, H, q_len, kv_len]
+            // value layout maybe [B, H kv_len, S] or others e.g. [kv_len, B, H, S] LDB must be obtained from
+            // present_key.stride[2] output layout [B,H, q_len, S]
+            wv_gemm_ptr = std::make_shared<brgemmExecutor>(q_len,
+                                                           head_size,
+                                                           kv_len,
+                                                           kv_len,
+                                                           present_key.stride(2),
+                                                           out_md.get_strides()[ldc_index],
+                                                           false,
+                                                           ov::element::bf16);
+        }
+        size_t nthr = static_cast<size_t>(parallel_get_max_threads());
+        if (kv_len >> 1 != 0) {
+            wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size()});
+        }
+        qk_scratch_b.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_b_size()});
+        wv_scratch_b.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_b_size()});
+        if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
+            attn_score = dnnl::memory(attn_md, strm.get_engine());
+            attn_weight = dnnl::memory(weight_md, strm.get_engine());
+            fp32_out.resize<float>({B, H, q_len, head_size});
+        }
+        return;
+    }
 
     void prepare_prim(dnnl::stream strm,
                       PlainTensor& query,
@@ -251,6 +307,46 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
         }
+    }
+
+    void exec_multiquery_qk(PlainTensor& query, PlainTensor& present_key) {
+        const auto B = query.size(0);
+        const auto H = query.size(1);
+        const auto q_len = query.size(2);
+        const auto Hk = present_key.size(1);
+        const auto kv_len = present_key.size(2);
+        size_t h_each_group_len = H / Hk;
+        PlainTensor score;
+        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
+        parallel_for2d(B, H, [&](size_t b, size_t h) {
+            size_t tid = parallel_get_thread_num();
+            bfloat16* q_ptr = &query.at<bfloat16>({b, h, 0, 0});
+            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
+            float* c_ptr = &score.at<float>({b, h, 0, 0});
+            qk_gemm_ptr->executeGemm(q_ptr, k_ptr, c_ptr, nullptr, &qk_scratch_b.at<bfloat16>({tid, 0}));
+        });
+    }
+
+    void exec_multiquery_wv(PlainTensor& present_value, PlainTensor& output_emb) {
+        const auto B = present_value.size(0);
+        const auto H = output_emb.size(1);
+        const auto q_len = output_emb.size(2);
+        const auto head_size = output_emb.size(3);
+        const auto Hk = present_value.size(1);
+        const auto kv_len = present_value.size(2);
+        size_t h_each_group_len = H / Hk;
+        PlainTensor weight;
+        weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
+        parallel_for2d(B, H, [&](size_t b, size_t h) {
+            size_t tid = parallel_get_thread_num();
+            bfloat16* q_ptr = &weight.at<bfloat16>({b, h, 0, 0});
+            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
+            float* c_ptr = &fp32_out.at<float>({b, h, 0, 0});
+            wv_gemm_ptr->executeGemm(q_ptr, v_ptr, c_ptr, &wv_scratch_a.at<bfloat16>({tid, 0}), &wv_scratch_b.at<bfloat16>({tid, 0}));
+        });
+        // gemm_bf16bf16f32 --> bf16
+        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}), &output_emb.at<bfloat16>({0, 0, 0, 0}),
+            ov::element::f32, ov::element::bf16, B * H *q_len * head_size);
     }
 
     void exec_qk(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
@@ -297,12 +393,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto head_size = query.size(3);
         auto Hk = present_key.size(1);
         auto kv_len = present_key.size(2);
-
+        bool is_multi_query = H != Hk;
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
-        exec_qk(strm, query, present_key);
+        if (!is_multi_query) {
+            prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
+            exec_qk(strm, query, present_key);
+        } else {
+            prepare_multiquery_prim(strm, query, present_key);
+            exec_multiquery_qk(query, present_key);
+        }
 
         PlainTensor score;
         score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
@@ -323,7 +424,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                          kv_len,
                          precision_of<T>::value);
         });
-        exec_kv(strm, present_value, output_emb);
+        if (!is_multi_query) {
+            exec_kv(strm, present_value, output_emb);
+        } else {
+            exec_multiquery_wv(present_value, output_emb);
+        }
     }
 };
 
@@ -1066,18 +1171,6 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // only support bf16 and f32
     if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
         rtPrecision = ov::element::f32;
-
-    size_t H_idx = 1;
-    if (!m_config.config.permute_axes.empty()) {
-        H_idx = m_config.config.permute_axes[1];
-    }
-    const auto& qDims = getInputShapeAtPort(0).getDims();
-    const auto& kDims = getInputShapeAtPort(1).getDims();
-    // if multi-query, enforce fp32 TODO: support BF16
-    if (qDims[H_idx] != kDims[H_idx]) {
-        rtPrecision = ov::element::f32;
-    }
-
     return rtPrecision;
 }
 

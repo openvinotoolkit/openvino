@@ -22,22 +22,21 @@ public:
                    size_t lda,
                    size_t ldb,
                    size_t ldc,
-                   bool b_transposed = false,
-                   ov::element::Type dstType = ov::element::f32);
-    void executeGemm(void* a, void* b, void* c);
+                   bool b_transposed = false);
+    // scratch_a / scratch_b
+    void executeGemm(void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+    size_t get_scratch_a_size();
+    size_t get_scratch_b_size();
 
 private:
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0;
     bool b_transposed = false;
-    ov::element::Type dstType;
     size_t brg0VnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     size_t wsp_size_per_thread = 4 * 1024;
-    std::vector<uint8_t> packedBData;
-    std::vector<uint8_t> packedAData;
     std::vector<size_t> wsp;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     struct brgemmCtx {
@@ -66,7 +65,8 @@ private:
                             size_t K_tail,
                             size_t LDA,
                             dnnl_data_type_t dt_in0,
-                            bool transpose = false);
+                            bool transpose = false,
+                            size_t copy_A_src_stride = 0);
 
     void init_brgemm_copy_b(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
                             size_t N,
