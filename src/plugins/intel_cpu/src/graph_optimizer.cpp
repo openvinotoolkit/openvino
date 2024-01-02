@@ -1726,6 +1726,9 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                     }
                 }
             }
+            else {
+                continue;
+            }
         }
 
         auto lastNode = sum;
