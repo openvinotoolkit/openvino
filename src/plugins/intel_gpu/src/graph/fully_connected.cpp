@@ -191,13 +191,17 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
 
-        auto batch_size = std::accumulate(input_shape.begin(),
+        auto input_batch_size = std::accumulate(input_shape.begin(),
                                           input_shape.end() - 1,
+                                          size_t{1},
+                                          std::multiplies<size_t>());
+        auto output_batch_size = std::accumulate(output_shape.begin(),
+                                          output_shape.end() - 1,
                                           size_t{1},
                                           std::multiplies<size_t>());
 
         // Vector by matrix multiplication sometimes works slower if we align it
-        if (batch_size == 1 && input_shape.back() >= 1024) {
+        if (input_batch_size == 1 && output_batch_size == 1 && input_shape.back() >= 1024) {
             return std::move(orig_impl_param);
         }
 
@@ -205,14 +209,14 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
-            auto is_extra_alignment_needed = batch_size >= 256;
+            auto is_extra_alignment_needed = output_batch_size >= 256;
             fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
         }
 
         // If input / output shape only have one dimension which is bigger than one except last dimension, preserve the index of aligned dimension.
         // ex) f16:bfyx:1x79x512:nopad -> f16:bfyx:1x80x512:nopad
         size_t aligned_input_idx = 0;
-        if (std::count_if(input_shape.begin(), input_shape.end()-1, [](size_t v){ return (v > 1); })) {
+        if (std::count_if(input_shape.begin(), input_shape.end()-1, [](size_t v){ return (v > 1); }) == 1) {
             for (size_t i = 0; i < (input_shape.size() - 1); i++) {
                 if (input_shape[i] > 1) {
                     aligned_input_idx = i;
@@ -221,7 +225,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             }
         }
         size_t aligned_output_idx = 0;
-        if (std::count_if(output_shape.begin(), output_shape.end()-1, [](size_t v){ return (v > 1); })) {
+        if (std::count_if(output_shape.begin(), output_shape.end()-1, [](size_t v){ return (v > 1); }) == 1) {
             for (size_t i = 0; i < (output_shape.size() - 1); i++) {
                 if (output_shape[i] > 1) {
                     aligned_output_idx = i;
@@ -233,8 +237,8 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
         std::fill(output_shape.begin(), output_shape.end() - 1, 1);
 
-        input_shape[aligned_input_idx] = align_to(batch_size, fake_align_base);
-        output_shape[aligned_output_idx] = align_to(batch_size, fake_align_base);
+        input_shape[aligned_input_idx]      = align_to(input_batch_size, fake_align_base);
+        output_shape[aligned_output_idx]    = align_to(output_batch_size, fake_align_base);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,
