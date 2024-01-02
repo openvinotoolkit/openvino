@@ -411,16 +411,16 @@ struct AttrAny {
 
     template <typename T>
     bool equal_to(const std::vector<T>& rhs) {
-        if (any.empty() && rhs.empty())
-            return true;
+        if (any.empty())
+            return rhs.empty();
         auto& vec = any.as<std::vector<T>>();
         return std::equal(vec.begin(), vec.end(), rhs.begin());
     }
 
     template <typename T, typename CT0, typename... CTs>
     bool equal_to(const std::vector<T>& rhs) {
-        if (any.empty() && rhs.empty())
-            return true;
+        if (any.empty())
+            return rhs.empty();
 
         if (any.is<std::vector<CT0>>()) {
             auto& vec = any.as<std::vector<CT0>>();
