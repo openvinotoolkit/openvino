@@ -55,6 +55,31 @@ void convert_vec<float, ov::float16>(jit_generator & gen,
     gen.movdqu(gen.xword[dst], f16vec);
 }
 
+// AVX512 instructions for ov::float16 to float conversion
+template <>
+void convert_vec<ov::float16, float>(jit_generator & gen,
+                                        const RegExp & src,
+                                        const RegExp & dst) {
+    auto const & f16vec = gen.zmm3;
+    auto const & f32vec = gen.zmm4;
+
+    gen.vmovdqu16(f16vec, gen.zword[src]);
+    gen.vcvtph2ps(f32vec, f16vec);
+    gen.vmovups(gen.zword[dst], f32vec);
+}
+
+template <>
+void convert_vec<float, ov::float16>(jit_generator & gen,
+                                        const RegExp & src,
+                                        const RegExp & dst) {
+    auto const & f16vec = gen.zmm3;
+    auto const & f32vec = gen.zmm4;
+
+    gen.vmovups(f32vec, gen.zword[src]);
+    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vmovdqu16(gen.zword[dst], f16vec);
+}
+
 class jit_convert_array : public jit_kernel {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_convert_array)
 
@@ -125,8 +150,15 @@ public:
 
     template<typename src_t, typename dst_t>
     static fn_t get() {
-        if (mayiuse(cpu_isa_t::avx2)
-            && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            static jit_convert_array converter(convert_vec<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
+            auto & generator = static_cast<jit_generator&>(converter);
+            generator.create_kernel();
+            return (fn_t)generator.jit_ker();
+        }
+        // fallback to AVX2 if AVX512 is not available
+        else if (mayiuse(cpu_isa_t::avx2)
+                 && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
             static jit_convert_array converter(convert_vec<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
             auto & generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
