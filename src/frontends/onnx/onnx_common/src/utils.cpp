@@ -68,16 +68,14 @@ const std::map<element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
 }  // namespace
 
 element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
-    const auto result =
-        std::find_if(OV_2_ONNX_TYPES.begin(),
-                     OV_2_ONNX_TYPES.end(),
-                     [&onnx_type](const std::pair<element::Type_t, TensorProto_DataType>& pair) {
-                         return pair.second == onnx_type;
-                     });
+    const auto result = std::find_if(OV_2_ONNX_TYPES.begin(),
+                                     OV_2_ONNX_TYPES.end(),
+                                     [&onnx_type](const std::pair<element::Type_t, TensorProto_DataType>& pair) {
+                                         return pair.second == onnx_type;
+                                     });
     if (result == std::end(OV_2_ONNX_TYPES)) {
-        OPENVINO_THROW(
-            "unsupported element type: " +
-            TensorProto_DataType_Name(static_cast<TensorProto_DataType>(onnx_type)));
+        OPENVINO_THROW("unsupported element type: " +
+                       TensorProto_DataType_Name(static_cast<TensorProto_DataType>(onnx_type)));
     }
     return result->first;
 }

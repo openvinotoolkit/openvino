@@ -160,8 +160,7 @@ void modify_initializer(TensorProto& initializer,
         initializer.add_dims(dim);
     }
 
-    const auto data_size_in_bytes =
-        shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
+    const auto data_size_in_bytes = shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
     initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
 
     // update input with type and shape of initializer
