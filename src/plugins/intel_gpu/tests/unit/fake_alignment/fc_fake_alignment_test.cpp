@@ -111,10 +111,10 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_fake_align_test,
             layout{ov::PartialShape{1, 55, 511}, data_types::f16, format::bfyx},                       // input_layout
             layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
             data_types::f16,
-            layout{ov::PartialShape{64, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_igpu
-            layout{ov::PartialShape{64, 1, 800}, data_types::f16, format::bfyx},                       // fake_aligned output layout_igpu
-            layout{ov::PartialShape{56, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_dgpu
-            layout{ov::PartialShape{56, 1, 800}, data_types::f16, format::bfyx}                        // fake_aligned output layout_dgpu
+            layout{ov::PartialShape{1, 64, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_igpu
+            layout{ov::PartialShape{1, 64, 800}, data_types::f16, format::bfyx},                       // fake_aligned output layout_igpu
+            layout{ov::PartialShape{1, 56, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{1, 56, 800}, data_types::f16, format::bfyx}                        // fake_aligned output layout_dgpu
         },
         {
             layout{ov::PartialShape{2, 55, 511}, data_types::f16, format::bfyx},                       // input_layout
