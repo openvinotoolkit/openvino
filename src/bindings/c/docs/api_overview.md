@@ -26,7 +26,7 @@ Supported Python* versions:
 
 To configure the environment for the OpenVINO C* API, run:
 
-- On Ubuntu 20.04: `source <INSTALL_DIR>/setupvars.sh .`
+- On Ubuntu 20.04/22.04: `source <INSTALL_DIR>/setupvars.sh .`
 - On Windows 10/11: `<INSTALL_DIR>\setupvars.bat `
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.
@@ -277,6 +277,7 @@ typedef enum {
 
 ## Properties
 
+### common properties
 ```
 OPENVINO_C_VAR(const char*) ov_property_key_supported_properties;
 
@@ -335,6 +336,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_enable_mmap;
 OPENVINO_C_VAR(const char*) ov_property_key_auto_batch_timeout;
 ```
 
+### AUTO plugin specified properties
 ```
 OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_device_bind_buffer;
 
@@ -343,6 +345,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_startup_fallback;
 OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_runtime_fallback;
 ```
 
+### GPU plugin specified properties
 ```
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_context_type;
 
@@ -610,7 +613,7 @@ This strcut represents OpenVINO entity and allows you to manipulate with plugins
 
   - Return value: Status code of the operation: OK(0) for success.
 
-## Model
+## OV Model
 
 This struct contains the information about the model read from IR and allows you to manipulate with some model parameters such as layers affinity and output layers.
 
@@ -1073,21 +1076,21 @@ This struct provides an interface to infer requests of `ov_compiled_model_t` and
     - `type` - Tensor element type.
   -  Return value: Status code of the operation: OK(0) for success.
 
-  - `ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size)`
+- `ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size)`
   - Description: Get byte size for tensor.
   - Parameters:
     - `tensor` - A point to ov_tensor_t
     - `byte_size` - The size of the current Tensor in bytes.
   -  Return value: Status code of the operation: OK(0) for success.
 
-  - `ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data)`
+- `ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data)`
   - Description: Provides an access to the underlaying host memory.
   - Parameters:
     - `tensor` - A point to ov_tensor_t
     - `data` - A point to host memory.
   -  Return value: Status code of the operation: OK(0) for success.
 
-  - `void ov_tensor_free(ov_tensor_t* tensor)`
+- `void ov_tensor_free(ov_tensor_t* tensor)`
   - Description: Free ov_tensor_t.
   - Parameters:
     - `tensor` - A point to ov_tensor_t
