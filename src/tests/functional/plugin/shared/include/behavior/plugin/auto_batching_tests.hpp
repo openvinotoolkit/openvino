@@ -64,7 +64,7 @@ protected:
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
-        std::vector<int> outElementsCount;
+        std::vector<std::size_t> outElementsCount;
 
         for (size_t i = 0; i < nets.size(); ++i) {
             auto net = nets[i];
