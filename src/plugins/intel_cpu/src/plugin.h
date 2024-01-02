@@ -43,10 +43,6 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented get_default_context  is not supported by CPU plugin!");
     };
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
 private:
     bool is_legacy_api() const;
 
@@ -62,7 +58,6 @@ private:
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     Config engConfig;
-    ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;

@@ -11,7 +11,6 @@
 #include "dnnl_extension_utils.h"
 #include "dnnl_types.h"
 #include "edge.h"
-#include "extension_mngr.h"
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -1321,7 +1320,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
-            if (ol != nullptr && ol->created(context->getExtensionManager()))
+            if (ol != nullptr && ol->created())
                 newNode = ol.release();
         } catch (const ov::Exception& ex) {
             if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {
@@ -1335,7 +1334,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
-            if (ol != nullptr && ol->created(context->getExtensionManager()))
+            if (ol != nullptr && ol->created())
                 newNode = ol.release();
         } catch (const ov::Exception& ex) {
             if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {

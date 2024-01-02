@@ -19,7 +19,6 @@
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
 #include "dnnl_extension_utils.h"
-#include "extension_mngr.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "ie_algorithm.hpp"
