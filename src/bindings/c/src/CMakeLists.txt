@@ -10,7 +10,6 @@ ov_disable_deprecated_warnings()
 add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE LEGACY_HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/c_api/*.h)
 file(GLOB_RECURSE HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/*.h)
 
 # create library
