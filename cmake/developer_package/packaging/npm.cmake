@@ -27,7 +27,7 @@ macro(ov_npm_cpack_set_dirs)
     set(OV_CPACK_ARCHIVEDIR .)
     set(OV_CPACK_PLUGINSDIR .)
 
-    set(OV_CPACK_RUNTIME_DIR .)
+    set(OV_CPACK_RUNTIMEDIR .)
 endmacro()
 
 ov_npm_cpack_set_dirs()
