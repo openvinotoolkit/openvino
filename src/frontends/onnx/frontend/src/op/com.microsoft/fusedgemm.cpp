@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/matmul.hpp"
