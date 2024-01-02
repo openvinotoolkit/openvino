@@ -198,6 +198,18 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
         auto input_padd = pred.first->get_output_layout().data_padding;
 
+        // If static padding exists in non dyn_pad axis, returns false to avoid runtime optimized out.
+        if (is_runtime) {
+            auto is_dynamic_pad = input_padd.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+            for (size_t j = 0; j < layout::max_rank(); j++) {
+                if (is_dynamic_pad[j] == 0) {
+                    if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
+                        || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
+                        return false;
+                }
+            }
+        }
+
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
         if (!concat_node.can_be_optimized()) {
