@@ -86,7 +86,7 @@ TEST_P(ov_multithreading_test, read_model) {
                     bin_path = networks[value % networks.size()].second;
         OV_EXPECT_OK(ov_core_read_model(core, model_path.c_str(), bin_path.c_str(), &model));
         EXPECT_NE(nullptr, model);
-        
+
         ov_model_free(model);
         ov_core_free(core);
     });
@@ -94,27 +94,22 @@ TEST_P(ov_multithreading_test, read_model) {
 
 TEST_P(ov_multithreading_test, compile_model) {
     auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
 
-    std::atomic<unsigned int> counter{0u};
-    set_up_networks();
     run_parallel([&]() {
-        auto value = counter++;
-        ov_core_t* core = nullptr;
-        OV_EXPECT_OK(ov_core_create(&core));
-        EXPECT_NE(nullptr, core);
         ov_compiled_model_t* compiled_model = nullptr;
-        ov_model_t* model = nullptr;
-        std::string model_path = networks[value % networks.size()].first,
-                    bin_path = networks[value % networks.size()].second;
-        OV_EXPECT_OK(ov_core_read_model(core, model_path.c_str(), bin_path.c_str(), &model));
-        EXPECT_NE(nullptr, model);
         OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
         EXPECT_NE(nullptr, compiled_model);
 
         ov_compiled_model_free(compiled_model);
-        ov_model_free(model);
-        ov_core_free(core);
     });
+    ov_model_free(model);
+    ov_core_free(core);
 }
 
 TEST_P(ov_multithreading_test, infer) {
