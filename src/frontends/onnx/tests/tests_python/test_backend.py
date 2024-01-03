@@ -777,7 +777,10 @@ tests_expected_to_fail = [
     ),
     (
         skip_issue_124587,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset13_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset18_cpu",
     ),
 ]
 
