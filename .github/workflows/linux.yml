@@ -337,6 +337,11 @@ jobs:
           ls -laR $GITHUB_WORKSPACE
           ls -laR openvino
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
       - name: Configure OpenVINO JS
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm i
