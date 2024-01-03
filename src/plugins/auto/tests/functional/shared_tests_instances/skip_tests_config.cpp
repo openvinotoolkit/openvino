@@ -73,8 +73,5 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*OVInferConsistencyTest.*)");
 #endif
 
-#if defined(_WIN32)
-    retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
-#endif
     return retVector;
 }
