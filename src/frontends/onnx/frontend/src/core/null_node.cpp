@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "openvino/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
