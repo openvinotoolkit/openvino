@@ -22,6 +22,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
+#include "openvino/core/extension.hpp"
 
 using namespace ov::threading;
 
@@ -385,7 +386,8 @@ using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 /**
  * @private
  */
-using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
+// using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
+using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
 
 /**
  * @def IE_CREATE_PLUGIN
@@ -441,4 +443,4 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
  */
 #define IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_IE_CREATE_EXTENSION_FUNC) \
     INFERENCE_EXTENSION_API(void)                                                  \
-    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr& ext)
+    _IE_CREATE_EXTENSION_FUNC(std::vector<::ov::Extension::Ptr>& ext)

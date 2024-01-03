@@ -39,6 +39,10 @@ void create_extensions(std::vector<Extension::Ptr>&);
 
 }  // namespace ov
 
+#ifndef IE_CREATE_EXTENSION
+#    define IE_CREATE_EXTENSION create_extensions
+#endif
+
 /**
  * @brief Macro generates the entry point for the library
  *
@@ -46,6 +50,6 @@ void create_extensions(std::vector<Extension::Ptr>&);
  */
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
     OPENVINO_EXTENSION_C_API                                               \
-    void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
+    void IE_CREATE_EXTENSION(std::vector<::ov::Extension::Ptr>& ext) { \
         ext = extensions;                                                  \
     }
