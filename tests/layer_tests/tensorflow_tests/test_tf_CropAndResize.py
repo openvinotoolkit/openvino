@@ -55,7 +55,7 @@ class TestCropAndResize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_crop_and_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_new_frontend, use_old_api):

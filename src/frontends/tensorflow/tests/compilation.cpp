@@ -72,6 +72,7 @@ TEST_F(CompileModelsTests, ModelWithSplitConvConcat)
 TEST_F(CompileModelsTests, ModelWithShapeOf) {
     auto model = convert_model("shapeof_slice_abs/shapeof_slice_abs.pbtxt");
     ov::Core core;
+    core.set_property("CPU", ov::hint::inference_precision(ov::element::f32));
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     const auto runtime_model = compiled_model.get_runtime_model();
     auto get_layer_type = [](const std::shared_ptr<ov::Node>& node) {
