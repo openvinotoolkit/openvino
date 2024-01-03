@@ -17,7 +17,7 @@
 
 #include "core/model.hpp"
 #include "core/transform.hpp"
-#include "ngraph/log.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph {

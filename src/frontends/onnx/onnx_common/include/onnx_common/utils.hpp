@@ -1,47 +1,49 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include <onnx/onnx_pb.h>
 
-namespace ONNX_NAMESPACE {
-enum TensorProto_DataType : int;
-class TensorShapeProto;
-}  // namespace ONNX_NAMESPACE
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
-namespace onnx_common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
+using namespace ::ONNX_NAMESPACE;
 /// \brief Retuns size of an ONNX data type in bytes.
 ///
 /// \param onnx_type Number assigned to an ONNX data type in the TensorProto_DataType enum.
 ///
 size_t get_onnx_data_size(int32_t onnx_type);
 
-/// \brief Retuns a nGraph data type corresponding to an ONNX type.
+/// \brief Retuns a OpenVINO data type corresponding to an ONNX type.
 ///
 /// \param onnx_type An element of TensorProto_DataType enum which determines an ONNX type.
 ///
-element::Type_t onnx_to_ng_data_type(const ONNX_NAMESPACE::TensorProto_DataType& onnx_type);
+element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type);
 
-/// \brief Retuns an ONNX data type corresponding to a nGraph data type.
+/// \brief Retuns an ONNX data type corresponding to a OpenVINO data type.
 ///
-/// \param ng_type An element of element::Type_t enum class which determines a nGraph data
+/// \param ov_type An element of element::Type_t enum class which determines a OpenVINO data
 /// type.
 ///
-ONNX_NAMESPACE::TensorProto_DataType ng_to_onnx_data_type(const element::Type_t& ng_type);
+TensorProto_DataType ov_to_onnx_data_type(const element::Type_t& ov_type);
 
-/// \brief Retuns true if a nGraph data type is mapped to an ONNX data type.
+/// \brief Retuns true if a OpenVINO data type is mapped to an ONNX data type.
 ///
-/// \param ng_type An element of element::Type_t enum class which determines a nGraph data
+/// \param ov_type An element of element::Type_t enum class which determines a OpenVINO data
 /// type.
 ///
-bool is_supported_ng_type(const element::Type_t& ng_type);
+bool is_supported_ov_type(const element::Type_t& ov_type);
 
-/// \brief Retuns nG PartialShape based on onnx_shape.
+/// \brief Retuns OpenVINO PartialShape based on onnx_shape.
 ///
 /// \param onnx_shape A shape of tensor represented in ONNX way.
 ///
-PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape);
+PartialShape onnx_to_ov_shape(const TensorShapeProto& onnx_shape);
 
-}  // namespace onnx_common
-}  // namespace ngraph
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

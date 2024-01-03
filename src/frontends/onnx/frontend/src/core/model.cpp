@@ -6,7 +6,6 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"

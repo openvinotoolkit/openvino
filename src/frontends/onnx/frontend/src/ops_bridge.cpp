@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "ngraph/log.hpp"
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"

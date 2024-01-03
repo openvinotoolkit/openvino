@@ -12,8 +12,8 @@
 
 #include "onnx_common/parser.hpp"
 
-using namespace ngraph;
-using namespace ngraph::test;
+using namespace ov::frontend::onnx::tests;
+using namespace ov::frontend::onnx::common;
 
 namespace {
 ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
@@ -202,8 +202,8 @@ bool default_name_comparator(std::string lhs, std::string rhs) {
 
 ComparisonResult compare_onnx_models(const std::string& model, const std::string& reference_model_path, CompType comp) {
     std::stringstream model_stream{model};
-    const auto model_proto = onnx_common::parse_from_istream(model_stream);
-    const auto ref_model = onnx_common::parse_from_file(reference_model_path);
+    const auto model_proto = parse_from_istream(model_stream);
+    const auto ref_model = parse_from_file(reference_model_path);
     return compare_onnx_graphs(model_proto.graph(), ref_model.graph(), comp);
 }
 
@@ -211,7 +211,7 @@ std::string change_opset_version(const std::string& model,
                                  const std::vector<int64_t>& new_opset_version,
                                  const std::string& domain) {
     std::stringstream model_stream{model};
-    auto model_proto = onnx_common::parse_from_istream(model_stream);
+    auto model_proto = parse_from_istream(model_stream);
     model_proto.clear_opset_import();
     for (const auto& opset_version : new_opset_version) {
         auto* opset_import = model_proto.add_opset_import();

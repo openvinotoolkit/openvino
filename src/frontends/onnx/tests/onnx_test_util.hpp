@@ -46,9 +46,3 @@ std::string change_opset_version(const std::string& model,
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-
-namespace ngraph {
-namespace test {
-using namespace ov::frontend::onnx::tests;
-}  // namespace test
-}  // namespace ngraph

@@ -34,6 +34,7 @@
 
 using namespace ov;
 using namespace ov::frontend::onnx;
+using namespace ov::frontend::onnx::common;
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
@@ -182,14 +183,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = ngraph::onnx_common::is_valid_model(model_stream);
+        const bool is_valid_model = ::ov::frontend::onnx::common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
-        return ngraph::onnx_common::is_valid_model(*stream);
+        return is_valid_model(*stream);
     }
 
     return false;

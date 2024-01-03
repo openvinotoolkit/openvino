@@ -13,6 +13,8 @@
 #include "ngraph/op/constant.hpp"
 #include "onnx_common/utils.hpp"
 
+using namespace ov::frontend::onnx::common;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
@@ -20,9 +22,8 @@ namespace op {
 namespace set_1 {
 OutputVector constant_fill(const Node& node) {
     Output<ngraph::Node> target_shape;
-    const auto dtype =
-        node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
-    const auto ng_type = onnx_common::onnx_to_ng_data_type(static_cast<ONNX_NAMESPACE::TensorProto_DataType>(dtype));
+    const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
+    const auto ng_type = onnx_to_ov_data_type(static_cast<TensorProto_DataType>(dtype));
     const auto const_val_to_fill = node.get_attribute_as_constant<float>("value", 0.f, ng_type);
     const auto input_as_shape = node.get_attribute_value<int64_t>("input_as_shape", 1);
     if (input_as_shape == 1)  // use the first input as target shape

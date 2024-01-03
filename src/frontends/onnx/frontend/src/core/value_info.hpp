@@ -16,6 +16,8 @@
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 
+using namespace ov::frontend::onnx::common;
+
 namespace ngraph {
 namespace onnx_import {
 class ValueInfo {
@@ -29,7 +31,7 @@ public:
             const auto& onnx_tensor = value_info_proto.type().tensor_type();
 
             if (onnx_tensor.has_shape()) {
-                m_partial_shape = onnx_common::to_ng_shape(onnx_tensor.shape());
+                m_partial_shape = onnx_to_ov_shape(onnx_tensor.shape());
             }
         }
     }
