@@ -66,7 +66,8 @@ bool ScaledDotProductAttentionKey::operator==(const ScaledDotProductAttentionKey
 // default implementation: reference
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
-    MHAKernel() = default;
+    const GraphContext::CPtr context;
+    MHAKernel(GraphContext::CPtr ctx) : context(ctx) {}
 
     template <typename D>
     float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
@@ -196,6 +197,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     // q: [B, H, q_len, S]
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
+    const GraphContext::CPtr context;
     dnnl::memory::desc q_md;
     dnnl::memory::desc k_md;
     dnnl::memory::desc weight_md;
@@ -212,10 +214,42 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
+    struct brgemmKey {
+        size_t M;
+        size_t N;
+        size_t K;
+        size_t lda;
+        size_t ldb;
+        size_t ldc;
+        bool b_transposed;
+        size_t hash() const {
+            using namespace dnnl::impl;
+            using namespace dnnl::impl::primitive_hashing;
+            size_t seed = 0;
+            seed = hash_combine(seed, M);
+            seed = hash_combine(seed, N);
+            seed = hash_combine(seed, K);
+            seed = hash_combine(seed, lda);
+            seed = hash_combine(seed, ldb);
+            seed = hash_combine(seed, ldc);
+            seed = hash_combine(seed, b_transposed);
+            return seed;
+        }
+        bool operator==(const brgemmKey& rhs) const {
+            return (rhs.M == M) && (rhs.N == N) && (rhs.K == K) && (rhs.lda == lda) && (rhs.ldb == ldb) &&
+                   (rhs.ldc == ldc) && (rhs.b_transposed == b_transposed);
+        }
+    };
 
     std::shared_ptr<brgemmExecutor> qk_gemm_ptr = nullptr;
     std::shared_ptr<brgemmExecutor> wv_gemm_ptr = nullptr;
-    MHAKernel() : fp32_out(true), qk_scratch_a(true), qk_scratch_b(true), wv_scratch_a(true), wv_scratch_b(true) {}
+    MHAKernel(GraphContext::CPtr ctx)
+        : context(ctx),
+          fp32_out(true),
+          qk_scratch_a(true),
+          qk_scratch_b(true),
+          wv_scratch_a(true),
+          wv_scratch_b(true) {}
     void prepare_multiquery_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
         auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
             dnnl::memory::dims dnnl_dims(dims.size());
@@ -228,29 +262,32 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto q_len = query.size(2);
         auto head_size = query.size(3);
         auto kv_len = present_key.size(2);
-        if (qk_gemm_ptr == nullptr) {
-            qk_gemm_ptr =
-                std::make_shared<brgemmExecutor>(q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true);
+        brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true};
+        auto builder = [](const brgemmKey& key) -> std::shared_ptr<brgemmExecutor> {
+            return std::make_shared<brgemmExecutor>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed);
+        };
+
+        auto cache = this->context->getParamsCache();
+        auto qk_result = cache->getOrCreate(qk_key, builder);
+        if (!qk_result.first) {
+            OPENVINO_THROW("ScaledDotProductAttention 1st token qk gemm creation fails");
         }
 
+        qk_gemm_ptr = qk_result.first;
         auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
         dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
         weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
         out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, head_size}), qkv_dt, tag::abcd);
         size_t ldc_index = 2;
-        if (wv_gemm_ptr == nullptr) {
-            // weight layout [B, H, q_len, kv_len]
-            // value layout maybe [B, H kv_len, S] or others e.g. [kv_len, B, H, S] LDB must be obtained from
-            // present_key.stride[2] output layout [B,H, q_len, S]
-            wv_gemm_ptr = std::make_shared<brgemmExecutor>(q_len,
-                                                           head_size,
-                                                           kv_len,
-                                                           kv_len,
-                                                           present_key.stride(2),
-                                                           out_md.get_strides()[ldc_index],
-                                                           false,
-                                                           ov::element::bf16);
+        brgemmKey wv_key = {q_len, head_size, kv_len, kv_len, present_key.stride(2), out_md.get_strides()[ldc_index], false};
+
+        auto wv_result = cache->getOrCreate(wv_key, builder);
+        if (!wv_result.first) {
+            OPENVINO_THROW("ScaledDotProductAttention 1st token qk gemm creation fails");
         }
+
+        wv_gemm_ptr = wv_result.first;
+
         size_t nthr = static_cast<size_t>(parallel_get_max_threads());
         if (kv_len >> 1 != 0) {
             wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size()});
@@ -435,11 +472,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 #ifdef OV_CPU_WITH_MLAS
 template <>
 struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
+    const GraphContext::CPtr context;
     size_t m_block_size;
     // buffer to hold qk temp
     std::vector<PlainTensor> qk_buffers;
 
-    MHAKernel() {
+    MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 4;
         select_nfltmax_at_0 = false;
         qk_buffers.resize(parallel_get_max_threads(), PlainTensor(true));
@@ -619,12 +657,13 @@ struct MHASingleToken {
 
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
+    GraphContext::CPtr context;
     PlainTensor attn_buf;          // f32[[B|1],[H|1], L1|1, L0+L1]
 
     MHAKernel<KType, T> kernel;
     MHASingleToken kernel_single_token;
 
-    AttentionExecutor() : attn_buf(true) {}
+    AttentionExecutor(GraphContext::CPtr ctx) : context(ctx), attn_buf(true), kernel(context) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
@@ -843,12 +882,12 @@ void ScaledDotProductAttention::createPrimitive() {
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor;
         if (rtPrecision == ov::element::bf16) {
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>();
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
         } else {
     #ifdef OV_CPU_WITH_MLAS
-            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>();
+            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
     #else
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>();
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
     #endif
         }
         return executor;
