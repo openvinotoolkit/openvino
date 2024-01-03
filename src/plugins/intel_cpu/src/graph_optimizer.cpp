@@ -1709,6 +1709,23 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
+        // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
+        // non-optimal code path inside Convolution node, so better to avoid fusing at all.
+        auto shape1 = sum->getInputShapeAtPort(0);
+        auto shape2 = sum->getInputShapeAtPort(1);
+        if (shape1.getRank() != shape2.getRank())
+            continue;
+
+        auto dims1 = shape1.getDims();
+        auto dims2 = shape2.getDims();
+        for (size_t d = 2; d < shape1.getRank(); d++) {
+            bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
+            bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
+            if (cond1 || cond2) {
+                continue;
+            }
+        }
+
         auto lastNode = sum;
 
         bool fuse_allowed = mergedConv->getChildEdges().size() == 1;
