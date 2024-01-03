@@ -206,43 +206,21 @@ void Node::addEdge(const EdgeWeakPtr& edge) {
     if (!parentPtr || !childPtr)
         return;
 
-    parentPtr->childEdges.push_back(edge);
-    childPtr->parentEdges.push_back(edge);
-}
-
-void Node::removeEdge(const EdgeWeakPtr& edge) {
-    auto edgePtr = edge.lock();
-    if (!edgePtr)
-        return;
-    auto parentPtr = edgePtr->getParent();
-    auto childPtr = edgePtr->getChild();
-    if (!parentPtr || !childPtr)
-        return;
-    for (auto it = childPtr->parentEdges.begin(); it != childPtr->parentEdges.end(); it++) {
-        auto parentEdge = (*it).lock();
-        if (parentEdge && parentEdge->getChild() == childPtr && parentEdge->getParent() == parentPtr) {
-            childPtr->parentEdges.erase(it);
-            break;
-        }
-    }
-    for (auto it = parentPtr->childEdges.begin(); it != parentPtr->childEdges.end(); it++) {
-        auto childEdge = (*it).lock();
-        if (childEdge && childEdge->getChild() == childPtr && childEdge->getParent() == parentPtr) {
-            parentPtr->childEdges.erase(it);
-            break;
-        }
-    }
+    parentPtr->addChildEdge(edge);
+    childPtr->addParentEdge(edge);
 }
 
 void Node::remove() {
-    auto parent_edges = parentEdges;
-    for (const auto &parentEdge : parent_edges) {
-        removeEdge(parentEdge);
-    }
-    auto child_edges = childEdges;
-    for (const auto &childEdge : child_edges) {
-        removeEdge(childEdge);
-    }
+    auto drop = [](std::vector<EdgeWeakPtr> edges){
+        for (auto& edge : edges) {
+            auto edgePtr = edge.lock();
+            if (!edgePtr) continue;
+            edgePtr->drop();
+        }
+    };
+
+    drop(parentEdges);
+    drop(childEdges);
 }
 
 bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const {
