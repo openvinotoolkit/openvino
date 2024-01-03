@@ -37,6 +37,11 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 
+#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "common/primitive_desc_iface.hpp"
+#endif
+
 #include "openvino/runtime/memory_solver.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
@@ -1417,8 +1422,8 @@ void Graph::CreateEdge(const NodePtr& parent,
                        int childPort) {
     assert(parentPort >= 0 && childPort >= 0);
     assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
-                       [&childPort](const EdgePtr& edge){
-                           return edge->getOutputNum() == childPort;
+                       [&childPort](const EdgeWeakPtr& edge){
+                           return edge.lock()->getOutputNum() == childPort;
                        }));
 
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
@@ -1433,11 +1438,11 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
     graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
 }
 
-void Graph::AddNode(NodePtr node) {
-    assert(node);
-    assert(std::none_of(graphNodes.begin(), graphNodes.end(), node));
+void Graph::AddNode(NodePtr new_node) {
+    assert(new_node);
+    assert(std::none_of(graphNodes.begin(), graphNodes.end(), [&new_node] (NodePtr node) { return node == new_node; }));
 
-    graphNodes.push_back(node);
+    graphNodes.push_back(new_node);
 }
 
 void Graph::DropNode(const NodePtr &node) {
