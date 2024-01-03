@@ -194,6 +194,7 @@ void Gather::createPrimitive() {
                     dst[i] = src[constIndices[i]];
                 }
             };
+            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
             return;
         }
     }

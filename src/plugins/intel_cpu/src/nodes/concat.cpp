@@ -342,6 +342,40 @@ void Concat::prepareParams() {
             hasOuterLoop = true;
         }
     }
+
+    if (outputShape.size() == 1 && outputStrides[0] == 1 && outputShape[0] <= 64 && elemSize == 4) {
+        // output is small 1d vector (which is typical in shape inference subgraph),
+        // in this case, inputs are also small 1d vector and single thread naive impl is faster
+        bool useSpecial = true;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+            const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& inputShape = srcMemDesc->getBlockDims();
+            const auto& strides = srcMemDesc->getStrides();
+            if (inputShape.size() != 1 || strides.size() != 1) {
+                useSpecial = false;
+                break;
+            }
+        }
+        if (useSpecial) {
+            execSpecialCase = [this]() {
+                auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+                for (size_t i = 0; i < getParentEdges().size(); i++) {
+                    const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+                    const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+                    const auto& inputShape = srcMemDesc->getBlockDims();
+
+                    const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+                    for (size_t i = 0; i < inputShape[0]; i++) {
+                        *dst++ = src[i];
+                    }
+                }
+            };
+            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
+            return;
+        }
+    }
+
     std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
@@ -448,6 +482,11 @@ void Concat::initOptimalPrimitiveDescriptor() {
 
 void Concat::execute(dnnl::stream strm) {
     if (isInPlace()) {
+        return;
+    }
+
+    if (execSpecialCase) {
+        execSpecialCase();
         return;
     }
 

@@ -51,6 +51,7 @@ private:
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;
+    std::function<void()> execSpecialCase;
 };
 
 }   // namespace node
