@@ -64,7 +64,10 @@ public:
             fully_connected(key_prim_id, input_info("input"), "weights", "bias")
         );
 
-        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        // To use get_fake_aligned_params, set allow_new_shape_infer as true
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cldnn::network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         const auto  prim_inst = net->get_primitive(key_prim_id);
         const auto  primitve  = prim_inst->desc();
 
@@ -72,10 +75,10 @@ public:
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
             ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 3365957578641948513UL);
+            ASSERT_EQ(params_hash, 16264882325609108757UL);
         } else {
             ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 9831190959346679696UL);
+            ASSERT_EQ(params_hash, 1429546277653779203UL);
         }
     }
 
