@@ -3,7 +3,7 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 #! [part1]

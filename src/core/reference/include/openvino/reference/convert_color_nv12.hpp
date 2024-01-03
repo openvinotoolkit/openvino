@@ -107,32 +107,32 @@ void color_convert_i420(const T* arg_y,
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-template <ov::element::Type_t ET>
+template <ov::element::Type_t T>
 inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
-                               const ov::HostTensorVector& outputs,
-                               const ov::HostTensorVector& inputs,
+                               ov::TensorVector& outputs,
+                               const ov::TensorVector& inputs,
                                ov::op::util::ConvertColorNV12Base::ColorConversion type) {
+    using ET = typename ov::element_type_traits<T>::value_type;
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;
-    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 2,
-                 "NV12 conversion shall have one or 2 inputs, but it is ",
-                 op->get_input_size());
+    OPENVINO_ASSERT(op->get_input_size() == 1 || op->get_input_size() == 2,
+                    "NV12 conversion shall have one or 2 inputs, but it is ",
+                    op->get_input_size());
     auto single_plane = op->get_input_size() == 1;
 
     const auto& y_tensor = inputs[0];
-    auto batch_size = y_tensor->get_shape()[N_DIM];
-    auto image_w = y_tensor->get_shape()[W_DIM];
-    auto image_h = y_tensor->get_shape()[H_DIM];
+    auto batch_size = y_tensor.get_shape()[N_DIM];
+    auto image_w = y_tensor.get_shape()[W_DIM];
+    auto image_h = y_tensor.get_shape()[H_DIM];
     if (single_plane) {
         image_h = image_h * 2 / 3;
     }
-    outputs[0]->set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
+    outputs[0].set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
     if (single_plane) {
-        color_convert_nv12(y_tensor->get_data_ptr<ET>(),
-                           y_tensor->get_data_ptr<ET>() + image_w * image_h,
-                           outputs[0]->get_data_ptr<ET>(),
+        color_convert_nv12(y_tensor.data<ET>(),
+                           y_tensor.data<ET>() + image_w * image_h,
+                           outputs[0].data<ET>(),
                            batch_size,
                            image_h,
                            image_w,
@@ -141,9 +141,9 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                            type);
     } else {
         const auto& uv_tensor = inputs[1];
-        color_convert_nv12(y_tensor->get_data_ptr<ET>(),
-                           uv_tensor->get_data_ptr<ET>(),
-                           outputs[0]->get_data_ptr<ET>(),
+        color_convert_nv12(y_tensor.data<ET>(),
+                           uv_tensor.data<ET>(),
+                           outputs[0].data<ET>(),
                            batch_size,
                            image_h,
                            image_w,
@@ -154,32 +154,33 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
     return true;
 }
 
-template <ov::element::Type_t ET>
+template <ov::element::Type_t T>
 inline bool color_convert_i420(const std::shared_ptr<Node>& op,
-                               const ov::HostTensorVector& outputs,
-                               const ov::HostTensorVector& inputs,
+                               ov::TensorVector& outputs,
+                               const ov::TensorVector& inputs,
                                ov::op::util::ConvertColorI420Base::ColorConversion type) {
+    using ET = typename ov::element_type_traits<T>::value_type;
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
     static const size_t W_DIM = 2;
-    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 3,
-                 "I420 conversion shall have one or 3 inputs, but it is ",
-                 op->get_input_size());
+    OPENVINO_ASSERT(op->get_input_size() == 1 || op->get_input_size() == 3,
+                    "I420 conversion shall have one or 3 inputs, but it is ",
+                    op->get_input_size());
     auto single_plane = op->get_input_size() == 1;
 
     const auto& y_tensor = inputs[0];
-    auto batch_size = y_tensor->get_shape()[N_DIM];
-    auto image_w = y_tensor->get_shape()[W_DIM];
-    auto image_h = y_tensor->get_shape()[H_DIM];
+    auto batch_size = y_tensor.get_shape()[N_DIM];
+    auto image_w = y_tensor.get_shape()[W_DIM];
+    auto image_h = y_tensor.get_shape()[H_DIM];
     if (single_plane) {
         image_h = image_h * 2 / 3;
     }
-    outputs[0]->set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
+    outputs[0].set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
     if (single_plane) {
-        color_convert_i420(y_tensor->get_data_ptr<ET>(),
-                           y_tensor->get_data_ptr<ET>() + image_w * image_h,
-                           y_tensor->get_data_ptr<ET>() + 5 * image_w * image_h / 4,
-                           outputs[0]->get_data_ptr<ET>(),
+        color_convert_i420(y_tensor.data<ET>(),
+                           y_tensor.data<ET>() + image_w * image_h,
+                           y_tensor.data<ET>() + 5 * image_w * image_h / 4,
+                           outputs[0].data<ET>(),
                            batch_size,
                            image_h,
                            image_w,
@@ -189,10 +190,10 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
     } else {
         const auto& u_tensor = inputs[1];
         const auto& v_tensor = inputs[2];
-        color_convert_i420(y_tensor->get_data_ptr<ET>(),
-                           u_tensor->get_data_ptr<ET>(),
-                           v_tensor->get_data_ptr<ET>(),
-                           outputs[0]->get_data_ptr<ET>(),
+        color_convert_i420(y_tensor.data<ET>(),
+                           u_tensor.data<ET>(),
+                           v_tensor.data<ET>(),
+                           outputs[0].data<ET>(),
                            batch_size,
                            image_h,
                            image_w,
@@ -203,6 +204,5 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace ov

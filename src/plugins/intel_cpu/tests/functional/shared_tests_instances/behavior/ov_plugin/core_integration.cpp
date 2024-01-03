@@ -29,24 +29,9 @@ INSTANTIATE_TEST_SUITE_P(
 // IE Class Query model
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("CPU"));
 
-const std::vector<ov::AnyMap> configsWithEmpty = {{}};
-const std::vector<ov::AnyMap> configsWithMetaPlugin = {{ov::device::priorities("AUTO")},
-                                                       {ov::device::priorities("MULTI")},
-                                                       {ov::device::priorities("AUTO", "MULTI")},
-                                                       {ov::device::priorities("AUTO", "CPU")},
-                                                       {ov::device::priorities("MULTI", "CPU")}};
-
+// OV Class Load network
 INSTANTIATE_TEST_SUITE_P(
-    smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyWithEmptyConfigTest,
-    OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
-    ::testing::Combine(::testing::Values("MULTI:AUTO", "AUTO:MULTI", "MULTI:CPU,AUTO", "AUTO:CPU,MULTI"),
-                       ::testing::ValuesIn(configsWithEmpty)),
-    ::testing::PrintToStringParamName());
-
-INSTANTIATE_TEST_SUITE_P(smoke_MULTI_AUTO_DoNotSupportMetaPluginLoadingItselfRepeatedlyTest,
-                         OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
-                         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(configsWithMetaPlugin)),
-                         ::testing::PrintToStringParamName());
+        smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTestWithThrow,
+        ::testing::Values(""));
 
 }  // namespace

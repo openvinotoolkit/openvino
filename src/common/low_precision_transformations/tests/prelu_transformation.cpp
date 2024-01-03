@@ -4,17 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/prelu.hpp>
+#include "low_precision/prelu.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/prelu_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/prelu.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -44,7 +44,7 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::PartialShape, PReluTransformationTestValues> PReluTransformationParams;
+typedef std::tuple<ov::PartialShape, PReluTransformationTestValues> PReluTransformationParams;
 
 class PReluTransformation : public LayerTransformation, public testing::WithParamInterface<PReluTransformationParams> {
 public:
@@ -58,7 +58,7 @@ public:
                                                                   testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(testValues.params);
+        transformer.add<ov::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
@@ -94,7 +94,7 @@ TEST_P(PReluTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 16, 16}, {-1, -1, -1, -1}, {1, 1, 2, 3, 4, 16}, {5}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 16, 16}, {-1, -1, -1, -1}, {1, 1, 2, 3, 4, 16}, {5}};
 
 const std::vector<PReluTransformationTestValues> testValues = {
     // U8: no subtract
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> shapesWithDynamicRank = {PartialShape::dynamic()};
 
 const std::vector<PReluTransformationTestValues> testValues = {
     {LayerTransformation::createParamsU8I8(),

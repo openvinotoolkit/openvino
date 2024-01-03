@@ -20,6 +20,14 @@ class aten_relu(torch.nn.Module):
         return x, torch.nn.functional.relu(x)
 
 
+class aten_multi_input_output(torch.nn.Module):
+    def forward(self, x, y, z):
+        x = x.to(torch.float32)
+        y = y.to(torch.float32)
+        z = z.to(torch.float32)
+        return torch.nn.functional.relu(x), x * y, z / x
+
+
 def get_scripted_model(model):
     with torch.no_grad():
         model = torch.jit.script(model)
@@ -74,6 +82,40 @@ def test_pytorch_fe_set_input_value():
     assert len(om.get_parameters()) == 0
 
 
+def test_pytorch_fe_override_all_inputs():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    decoder = TorchScriptPythonDecoder(aten_multi_input_output())
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    inputs = im.get_inputs()
+    assert len(inputs) == 3, "Model should have 3 inputs."
+    im.override_all_inputs([inputs[1], inputs[2], inputs[0]])
+    om = fe.convert(im)
+    assert om.get_parameters()[0].friendly_name == "y"
+    assert om.get_parameters()[1].friendly_name == "z"
+    assert om.get_parameters()[2].friendly_name == "x"
+
+
+def test_pytorch_fe_removes_input_set_value():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    decoder = TorchScriptPythonDecoder(aten_multi_input_output())
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    assert len(im.get_inputs()) == 3, "Model should have 3 inputs."
+    place = im.get_place_by_tensor_name("y")
+    im.set_partial_shape(place, PartialShape([1]))
+    im.set_element_type(place, Type.f32)
+    im.set_tensor_value(place, np.random.randn(1).astype(np.float32))
+    assert len(im.get_inputs()) == 2, "Model should have 2 inputs."
+    om = fe.convert(im)
+    assert om.get_parameters()[0].friendly_name == "x"
+    assert om.get_parameters()[1].friendly_name == "z"
+
+
 def test_conversion_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
@@ -108,7 +150,8 @@ def test_conversion_extension():
         inp = node.get_input(0)
         approximate = node.get_values_from_const_input(1)
         if approximate == "none":
-            f = ops.erf(ops.divide(inp, ops.constant(np.array([math.sqrt(2.0)], dtype=np.float32))))
+            f = ops.erf(ops.divide(inp, ops.constant(
+                np.array([math.sqrt(2.0)], dtype=np.float32))))
         elif approximate == "tanh":
             f = ops.tanh(ops.multiply(ops.constant(np.array([math.sqrt(2.0 / math.pi)], dtype=np.float32)),
                                       ops.add(inp, ops.multiply(ops.constant(np.array([0.044715], dtype=np.float32)),
@@ -128,7 +171,6 @@ def test_conversion_extension():
         div = ops.divide(exp, reduce_sum)
         return div.outputs()
 
-
     def convert_vector_norm(node: NodeContext):
         inp = node.get_input(0)
         ord = node.get_values_from_const_input(1)
@@ -142,14 +184,14 @@ def test_conversion_extension():
         rm = ops.reduce_max(ops.abs(inp), reduce_axes, False)
         return rm.outputs()
 
-
     fem = FrontEndManager()
     fe = fem.load_by_framework(framework="pytorch")
     assert fe
     fe.add_extension(ConversionExtension("aten::elu", convert_elu))
     fe.add_extension(ConversionExtension("aten::gelu", convert_gelu))
     fe.add_extension(ConversionExtension("aten::softmax", convert_softmax))
-    fe.add_extension(ConversionExtension("aten::linalg_vector_norm", convert_vector_norm))
+    fe.add_extension(ConversionExtension(
+        "aten::linalg_vector_norm", convert_vector_norm))
     input_model = fe.load(decoder)
     assert input_model
     converted_model = fe.convert(input_model)
@@ -177,7 +219,8 @@ def get_builtin_extensions_path():
         base_paths.append(repo_dir)
 
     for base_path in base_paths:
-        paths = glob.glob(os.path.join(base_path, "**", "*test_builtin_extensions*"), recursive=True)
+        paths = glob.glob(os.path.join(
+            base_path, "**", "*test_builtin_extensions*"), recursive=True)
         for path in paths:
             if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
                 return path
@@ -206,12 +249,14 @@ def test_op_extension():
     assert input_model
     converted_model = fe.convert(input_model)
     assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Result"]
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Elu", "Result"]
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)
     assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "CustomElu", "Result"]
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "CustomElu", "Result"]
 
 
 def test_pytorch_telemetry():

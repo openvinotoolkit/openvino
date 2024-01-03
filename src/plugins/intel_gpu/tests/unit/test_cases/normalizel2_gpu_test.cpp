@@ -28,18 +28,16 @@ struct normalize_input_types {
     static const auto format = layoutFormat;
     using type = DataType;
     using output_type = typename std::conditional<is_input_and_output_same<DataType>::value, DataType, float>::type;
-    static const data_types data_type = type_to_data_type<DataType>::value;
-    static const data_types output_data_type = type_to_data_type<output_type>::value;
     static const bool normalize_type = across_spatial;
 };
 
 template <typename NormalizeInput>
 struct normalize_basic : public testing::Test {
     static const auto format = NormalizeInput::format;
-    static const auto data_type = NormalizeInput::data_type;
-    static const auto output_data_type = NormalizeInput::output_data_type;
     using input_type = typename NormalizeInput::type;
     using output_type = typename NormalizeInput::output_type;
+    const ov::element::Type data_type = ov::element::from<input_type>();
+    const ov::element::Type output_data_type = ov::element::from<output_type>();
     static const bool across_spatial = NormalizeInput::normalize_type;
     const std::vector<output_type> get_expected_result() {
         return get_expected_result(std::integral_constant<bool, across_spatial>());
@@ -91,7 +89,7 @@ struct normalize_basic : public testing::Test {
 
         auto output = outputs.at("plane_normalize2").get_memory();
         if (this->data_type == data_types::f16) {
-            cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
             auto expected_results = this->get_expected_result();
             for (size_t i = 0; i < expected_results.size(); ++i) {
                 ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);
@@ -159,12 +157,12 @@ using format_types = testing::Types<normalize_input_types<format::bfyx, float, f
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv16, float, false>,
                                     normalize_input_types<format::bs_fs_yx_bsv16_fsv16, float, false>,
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv32, float, false>,
-                                    normalize_input_types<format::bfyx, half_t, false>,
-                                    normalize_input_types<format::b_fs_yx_fsv32, half_t, false>,
-                                    normalize_input_types<format::b_fs_yx_fsv16, half_t, false>,
-                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv16, half_t, false>,
-                                    normalize_input_types<format::bs_fs_yx_bsv16_fsv16, half_t, false>,
-                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv32, half_t, false>,
+                                    normalize_input_types<format::bfyx, ov::float16, false>,
+                                    normalize_input_types<format::b_fs_yx_fsv32, ov::float16, false>,
+                                    normalize_input_types<format::b_fs_yx_fsv16, ov::float16, false>,
+                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16, false>,
+                                    normalize_input_types<format::bs_fs_yx_bsv16_fsv16, ov::float16, false>,
+                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv32, ov::float16, false>,
                                     normalize_input_types<format::bfyx, int8_t, false>,
                                     normalize_input_types<format::b_fs_yx_fsv32, int8_t, false>,
                                     normalize_input_types<format::b_fs_yx_fsv16, int8_t, false>,
@@ -179,12 +177,12 @@ using format_types = testing::Types<normalize_input_types<format::bfyx, float, f
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv16, float, true>,
                                     normalize_input_types<format::bs_fs_yx_bsv16_fsv16, float, true>,
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv32, float, true>,
-                                    normalize_input_types<format::bfyx, half_t, true>,
-                                    normalize_input_types<format::b_fs_yx_fsv32, half_t, true>,
-                                    normalize_input_types<format::b_fs_yx_fsv16, half_t, true>,
-                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv16, half_t, true>,
-                                    normalize_input_types<format::bs_fs_yx_bsv16_fsv16, half_t, true>,
-                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv32, half_t, true>,
+                                    normalize_input_types<format::bfyx, ov::float16, true>,
+                                    normalize_input_types<format::b_fs_yx_fsv32, ov::float16, true>,
+                                    normalize_input_types<format::b_fs_yx_fsv16, ov::float16, true>,
+                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16, true>,
+                                    normalize_input_types<format::bs_fs_yx_bsv16_fsv16, ov::float16, true>,
+                                    normalize_input_types<format::bs_fs_yx_bsv32_fsv32, ov::float16, true>,
                                     normalize_input_types<format::bfyx, int8_t, true>,
                                     normalize_input_types<format::b_fs_yx_fsv32, int8_t, true>,
                                     normalize_input_types<format::b_fs_yx_fsv16, int8_t, true>,

@@ -15,8 +15,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -26,22 +26,20 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
-
-using namespace ngraph::opset1;
+#include "ov_lpt_models/depth_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<DepthToSpaceTransformationParams>& obj) {
-    static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
-        {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
-        {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
+    static std::map<ov::op::v0::DepthToSpace::DepthToSpaceMode, std::string> names = {
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = obj.param;
@@ -55,7 +53,7 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
 void DepthToSpaceTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 

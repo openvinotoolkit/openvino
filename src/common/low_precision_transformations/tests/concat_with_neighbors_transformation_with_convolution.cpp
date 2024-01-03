@@ -8,15 +8,15 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
-#include "lpt_ngraph_functions/precision_propagation_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/precision_propagation.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -104,24 +104,24 @@ public:
             testValues.actual.convert3,
             testValues.actual.dequantization3);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>({
+        auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>({
                 {{0}, {ov::element::u8}},
                 {{1}, {ov::element::i8}}
             })
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::opset1::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
@@ -160,24 +160,24 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ngraph::PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "ngraph::PrecisionsAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes)) <<
+        "ov::PrecisionsAttribute shared values are not the same";
 
     auto actualConcatOperations = LayerTransformation::get<ov::opset1::Concat>(actualFunction);
     ASSERT_EQ(2ul, actualConcatOperations.size()) << "unexpected concat operations";
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<ngraph::QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<ngraph::QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
+    ASSERT_FALSE(ov::pass::low_precision::getAttribute<ov::QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
+    ASSERT_FALSE(ov::pass::low_precision::getAttribute<ov::QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
 
     actualConcatOperations.insert(actualConcatOperations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ngraph::IntervalsAlignmentAttribute>(actualConcatOperations)) <<
-        "ngraph::IntervalsAlignmentAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(actualConcatOperations)) <<
+        "ov::IntervalsAlignmentAttribute shared values are not the same";
 
     auto convolutions = LayerTransformation::get<ov::opset1::Convolution>(actualFunction);
     ASSERT_EQ(1ul, convolutions.size()) << "unexpected convolution operations";
     ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size()) <<
         "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
     ASSERT_EQ(1ul, convolutions[0]->input(1).get_rt_info().size()) << "unexpected input 1 attributes count";
-    auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<ngraph::PrecisionsAttribute>();
+    auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<ov::PrecisionsAttribute>();
     ASSERT_EQ(element::i8, a1.value().front());
 }
 
@@ -204,15 +204,15 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
         {
             {
                 256ul, ov::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
-                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ov::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
-                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
-                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             ov::element::u8,
             {{}, {}, {}},

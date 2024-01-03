@@ -9,8 +9,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 #include <algorithm>
 
@@ -129,8 +128,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Affinity value = ov::Affinity::NONE;
 
 #if (defined(__APPLE__) || defined(_WIN32))
-    auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto numaNodes = ov::get_available_numa_nodes();
+    auto coreTypes = ov::get_available_cores_types();
     auto defaultBindThreadParameter = ov::Affinity::NONE;
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -139,7 +138,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
     }
@@ -153,13 +152,38 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_EQ(affinity, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
+    ov::Core ie;
+    ov::Affinity affinity = ov::Affinity::CORE;
+    bool value = false;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::HYBRID_AWARE;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::NUMA;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(false, value);
+}
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    const auto expected_precision_for_performance_mode = ov::element::f16;
+#else
+    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+#endif
+
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
     auto value = ov::element::f32;
-    const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
-    ASSERT_EQ(precision, value);
+    ASSERT_EQ(expected_precision_for_performance_mode, value);
 
     const auto forcedPrecision = ov::element::f32;
 
@@ -190,9 +214,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
 const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {

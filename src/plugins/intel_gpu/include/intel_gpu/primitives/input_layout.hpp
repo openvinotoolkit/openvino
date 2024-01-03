@@ -20,8 +20,6 @@ struct input_layout : public primitive_base<input_layout> {
 
     input_layout() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs input layout primitive.
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.

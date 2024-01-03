@@ -101,3 +101,35 @@ class TestMoConvertPaddle(CommonMOConvertTest):
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+
+class TestPaddleConversionParams(CommonMOConvertTest):
+    paddle_is_imported = False
+    try:
+        import paddle
+        paddle_is_imported = True
+    except ImportError:
+        pass
+
+    test_data = [
+        {'params_test': {'input': paddle.shape(paddle.to_tensor(np.random.rand(2, 3, 4)))},
+         'fw_model': make_pd_hapi_graph_model([1, 2]),
+         'ref_model': make_ref_graph_model([2, 3, 4])},
+        {'params_test': {'input': paddle.to_tensor(np.random.rand(5, 6)).shape},
+         'fw_model': make_pd_hapi_graph_model([1, 2, 3]),
+         'ref_model': make_ref_graph_model([5, 6])},
+        {'params_test': {'input': (paddle.to_tensor(np.random.rand(4, 2, 7)).shape, paddle.int32)},
+         'fw_model': make_pd_hapi_graph_model([2, 3]),
+         'ref_model': make_ref_graph_model([4, 2, 7], np.int32)},
+    ] if paddle_is_imported else []
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_conversion_params(self, params, ie_device, precision, ir_version,
+                                 temp_dir, use_new_frontend, use_old_api):
+        fw_model = params['fw_model']
+        test_params = params['params_test']
+        ref_model = params['ref_model']
+
+        test_params.update({'input_model': fw_model})
+        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)

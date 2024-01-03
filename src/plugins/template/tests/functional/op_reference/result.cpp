@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/result.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,11 +17,11 @@ namespace {
 struct ResultParams {
     template <class T>
     ResultParams(const Shape& input_shape,
-                    const Shape& expected_shape,
-                    const element::Type& input_type,
-                    const element::Type& expected_type,
-                    const std::vector<T>& input_value,
-                    const std::vector<T>& expected_value)
+                 const Shape& expected_shape,
+                 const element::Type& input_type,
+                 const element::Type& expected_type,
+                 const std::vector<T>& input_value,
+                 const std::vector<T>& expected_value)
         : m_input_shape(input_shape),
           m_expected_shape(expected_shape),
           m_input_type(input_type),
@@ -74,32 +75,24 @@ std::vector<ResultParams> generateParamsForResult() {
     using T = typename element_type_traits<ET>::value_type;
 
     std::vector<ResultParams> params{
-        ResultParams(Shape{2, 2},
-                        Shape{2, 2},
-                        ET,
-                        ET,
-                        std::vector<T>{1, 2, 3, 5},
-                        std::vector<T>{1, 2, 3, 5})
-    };
+        ResultParams(Shape{2, 2}, Shape{2, 2}, ET, ET, std::vector<T>{1, 2, 3, 5}, std::vector<T>{1, 2, 3, 5})};
 
     return params;
 }
 
 std::vector<ResultParams> generateCombinedParamsForResult() {
-    const std::vector<std::vector<ResultParams>> allTypeParams{
-        generateParamsForResult<element::Type_t::boolean>(),
-        generateParamsForResult<element::Type_t::f32>(),
-        generateParamsForResult<element::Type_t::f16>(),
-        generateParamsForResult<element::Type_t::bf16>(),
-        generateParamsForResult<element::Type_t::i64>(),
-        generateParamsForResult<element::Type_t::i32>(),
-        generateParamsForResult<element::Type_t::i16>(),
-        generateParamsForResult<element::Type_t::i8>(),
-        generateParamsForResult<element::Type_t::u64>(),
-        generateParamsForResult<element::Type_t::u32>(),
-        generateParamsForResult<element::Type_t::u16>(),
-        generateParamsForResult<element::Type_t::u8>()
-    };
+    const std::vector<std::vector<ResultParams>> allTypeParams{generateParamsForResult<element::Type_t::boolean>(),
+                                                               generateParamsForResult<element::Type_t::f32>(),
+                                                               generateParamsForResult<element::Type_t::f16>(),
+                                                               generateParamsForResult<element::Type_t::bf16>(),
+                                                               generateParamsForResult<element::Type_t::i64>(),
+                                                               generateParamsForResult<element::Type_t::i32>(),
+                                                               generateParamsForResult<element::Type_t::i16>(),
+                                                               generateParamsForResult<element::Type_t::i8>(),
+                                                               generateParamsForResult<element::Type_t::u64>(),
+                                                               generateParamsForResult<element::Type_t::u32>(),
+                                                               generateParamsForResult<element::Type_t::u16>(),
+                                                               generateParamsForResult<element::Type_t::u8>()};
 
     std::vector<ResultParams> combinedParams;
 
@@ -110,10 +103,9 @@ std::vector<ResultParams> generateCombinedParamsForResult() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Result_With_Hardcoded_Refs,
-    ReferenceResultLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForResult()),
-    ReferenceResultLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Result_With_Hardcoded_Refs,
+                         ReferenceResultLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForResult()),
+                         ReferenceResultLayerTest::getTestCaseName);
 
 }  // namespace

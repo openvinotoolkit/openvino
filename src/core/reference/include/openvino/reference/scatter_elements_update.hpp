@@ -8,8 +8,8 @@
 #include <cstring>
 #include <iterator>
 
-#include "ngraph/check.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
@@ -87,7 +87,7 @@ template <typename T>
 T reduction_neutral_value(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
-        return std::numeric_limits<T>::min();
+        return std::numeric_limits<T>::lowest();
     case Reduction::MIN:
         return std::numeric_limits<T>::max();
     case Reduction::PROD:

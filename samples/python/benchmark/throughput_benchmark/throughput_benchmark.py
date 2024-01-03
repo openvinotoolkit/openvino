@@ -9,7 +9,8 @@ import statistics
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version, AsyncInferQueue
+import openvino as ov
+from openvino.runtime import get_version
 from openvino.runtime.utils.types import get_dtype
 
 
@@ -29,20 +30,23 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info('OpenVINO:')
     log.info(f"{'Build ':.<39} {get_version()}")
-    if len(sys.argv) != 2:
-        log.info(f'Usage: {sys.argv[0]} <path_to_model>')
+    device_name = 'CPU'
+    if len(sys.argv) == 3:
+        device_name = sys.argv[2]
+    elif len(sys.argv) != 2:
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <device_name>(default: CPU)')
         return 1
     # Optimize for throughput. Best throughput can be reached by
     # running multiple openvino.runtime.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
 
     # Create Core and use it to compile a model.
-    # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+    # Select the device by providing the name as the second parameter to CLI.
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
-    core = Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
+    core = ov.Core()
+    compiled_model = core.compile_model(sys.argv[1], device_name, tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
+    ireqs = ov.AsyncInferQueue(compiled_model)
     # Fill input data for ireqs
     for ireq in ireqs:
         for model_input in compiled_model.inputs:

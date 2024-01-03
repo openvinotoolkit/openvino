@@ -61,10 +61,33 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     using kernel_selector_t = kernel_selector::gather_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::gather_params, kernel_selector::gather_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
+protected:
+    kernel_arguments_data get_arguments(const typed_primitive_inst<gather>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<gather>();
+
+        if (desc->decompression_scale.is_valid())
+            args.inputs.push_back(instance.dep_memory_ptr(2));
+
+        if (desc->decompression_zero_point.is_valid())
+            args.inputs.push_back(instance.dep_memory_ptr(3));
+
+        return args;
     }
 
 public:
@@ -96,6 +119,22 @@ public:
 
         params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+
+        bool commpressed = primitive->decompression_scale.is_valid();
+        bool with_zp = primitive->decompression_zero_point.is_valid();
+        if (commpressed) {
+            params.compressed = true;
+            params.decompression_scale = convert_data_tensor(impl_param.get_input_layout(2));
+            if (with_zp) {
+                params.has_decompression_zp = true;
+                params.decompression_zero_point = convert_data_tensor(impl_param.get_input_layout(3));
+            } else if (primitive->decompression_zero_point_scalar.has_value()) {
+                params.has_decompression_zp = true;
+                params.scalar_zp = true;
+                params.zp_value = primitive->decompression_zero_point_scalar.value();
+            }
+        }
+
         return {params, optional_params};
     }
 
@@ -116,7 +155,12 @@ public:
             out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
         }
 
-        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+        }
+        out_layout.set_partial_shape(extend_shape_to_rank_from_end(out_layout.get_partial_shape()));
+
+        return updated_impl_params;
     }
 
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
@@ -137,6 +181,8 @@ attach_gather_impl::attach_gather_impl() {
         data_types::f16,
         data_types::i8,
         data_types::u8,
+        data_types::i4,
+        data_types::u4,
         data_types::i32
     };
 
@@ -176,6 +222,8 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i4, format::bfyx),
+        std::make_tuple(data_types::u4, format::bfyx),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),

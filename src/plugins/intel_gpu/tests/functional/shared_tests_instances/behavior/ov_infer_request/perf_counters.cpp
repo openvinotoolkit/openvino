@@ -11,29 +11,6 @@ auto configs = []() {
     return std::vector<ov::AnyMap>{{}};
 };
 
-auto Multiconfigs = []() {
-    return std::vector<ov::AnyMap>{
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU)},
-#ifdef ENABLE_INTEL_CPU
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU), ov::enable_profiling(true)},
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU),
-         ov::intel_auto::device_bind_buffer(false)},
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU),
-         ov::intel_auto::device_bind_buffer(true)}
-#endif
-    };
-};
-
-auto Autoconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)},
-#ifdef ENABLE_INTEL_CPU
-                                   {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU),
-                                    ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
-                                    ov::intel_auto::device_bind_buffer(true)}
-#endif
-    };
-};
-
 auto AutoBatchConfigs = []() {
     return std::vector<ov::AnyMap>{
         // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
@@ -48,36 +25,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,
                                 ::testing::ValuesIn(configs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestPerfCountersTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs())),
-                         OVInferRequestPerfCountersTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestPerfCountersTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Autoconfigs())),
-                         OVInferRequestPerfCountersTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestPerfCountersTest,
                          ::testing::Combine(
                                  ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
-
-auto MulticonfigsTest = []() {
-    return std::vector<ov::AnyMap>{
-#ifdef ENABLE_INTEL_CPU
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU),
-         ov::device::priorities(ov::test::utils::DEVICE_CPU, ov::test::utils::DEVICE_GPU)}
-#endif
-    };
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVInferRequestPerfCountersExceptionTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(MulticonfigsTest())),
-                         OVInferRequestPerfCountersExceptionTest::getTestCaseName);
 }  // namespace

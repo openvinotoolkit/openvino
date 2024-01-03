@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/summary/op_summary.hpp"
-#include "functional_test_utils/summary/api_summary.hpp"
-
 #include "functional_test_utils/crash_handler.hpp"
-#include <signal.h>
+
 #include <limits.h>
+#include <signal.h>
+
+#include "functional_test_utils/summary/api_summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
 
 #if defined(__APPLE__)
-    typedef sig_t sighandler;
+typedef sig_t sighandler;
 #elif defined(_WIN32)
-#ifdef __GNUC__
-    typedef __p_sig_fn_t sighandler;
+#    ifdef __GNUC__
+typedef __p_sig_fn_t sighandler;
+#    else
+typedef _crt_signal_t sighandler;
+#    endif
 #else
-    typedef _crt_signal_t sighandler;
-#endif
-#else
-    typedef sighandler_t sighandler;
+typedef sighandler_t sighandler;
 #endif
 
 // enviroment to restore in case of crash
@@ -51,7 +52,7 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
 #endif
 
         if (!CrashHandler::IGNORE_CRASH) {
-            auto &s = ov::test::utils::OpSummary::getInstance();
+            auto& s = ov::test::utils::OpSummary::getInstance();
             s.saveReport();
             std::abort();
         }
@@ -73,7 +74,8 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
 
     if (type == CONFORMANCE_TYPE::api) {
         crashHandler = [](int errCode) {
-            std::cerr << "Unexpected application crash with code: " << errCode << ". Program will aborted." << std::endl;
+            std::cerr << "Unexpected application crash with code: " << errCode << ". Program will aborted."
+                      << std::endl;
 
             // reset custom signal handler to avoid infinit loop
             // if for some reasons sigsetjmp will not be available
@@ -85,7 +87,7 @@ CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
             signal(SIGFPE, SIG_DFL);
             signal(SIGALRM, SIG_DFL);
 #endif
-            auto &s = ov::test::utils::ApiSummary::getInstance();
+            auto& s = ov::test::utils::ApiSummary::getInstance();
             s.saveReport();
             std::abort();
         };

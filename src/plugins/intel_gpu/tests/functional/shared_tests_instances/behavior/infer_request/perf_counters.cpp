@@ -10,20 +10,6 @@ auto configs = []() {
     return std::vector<std::map<std::string, std::string>>{{}};
 };
 
-auto Multiconfigs =
-    []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_GPU}}};
-    };
-
-auto AutoConfigs =
-    []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU}}};
-    };
-
 auto AutoBatchConfigs =
     []() {
         return std::vector<std::map<std::string, std::string>>{
@@ -37,18 +23,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferRequestPerfCountersTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(configs())),
-                         InferRequestPerfCountersTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         InferRequestPerfCountersTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(Multiconfigs())),
-                         InferRequestPerfCountersTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         InferRequestPerfCountersTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(AutoConfigs())),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

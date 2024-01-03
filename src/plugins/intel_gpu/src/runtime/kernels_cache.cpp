@@ -13,7 +13,7 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "openvino/util/file_util.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
 
 #ifdef WIN32
 #include <sdkddkver.h>
@@ -76,7 +76,8 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SPEED)) {
         return false;
     }
 
@@ -272,7 +273,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);

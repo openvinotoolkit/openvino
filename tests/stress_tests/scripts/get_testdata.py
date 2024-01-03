@@ -138,7 +138,7 @@ def main():
         # clone Open Model Zoo into temporary path
         if os.path.exists(str(omz_path)):
             shutil.rmtree(str(omz_path))
-        cmd = 'git clone --single-branch --branch develop' \
+        cmd = 'git clone --single-branch --branch master' \
               ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
         run_in_subprocess(cmd)
 

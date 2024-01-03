@@ -15,8 +15,6 @@ struct generate_proposals
 
     generate_proposals() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs generate_proposals primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
@@ -61,7 +59,7 @@ struct generate_proposals
     int64_t post_nms_count = 0;
     bool normalized = false;
     float nms_eta = 0.0f;
-    data_types roi_num_type = data_types::bin;
+    data_types roi_num_type = data_types::undefined;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

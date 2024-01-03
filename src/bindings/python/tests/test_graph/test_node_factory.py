@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 from sys import platform
-from openvino.runtime import compile_model, Model
+from openvino import compile_model, Model
 import openvino.runtime.opset8 as ov
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
@@ -98,6 +98,7 @@ def test_node_factory_validate_missing_arguments():
 
 
 @pytest.mark.template_extension()
+@pytest.mark.dynamic_library()
 def test_extension_added_from_library():
     if platform == "win32":
         library_path = "openvino_template_extension.dll"

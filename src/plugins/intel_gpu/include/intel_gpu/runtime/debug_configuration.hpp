@@ -7,6 +7,7 @@
 #include <mutex>
 #include <vector>
 #include <set>
+#include <string>
 
 namespace ov {
 namespace intel_gpu {
@@ -99,6 +100,7 @@ public:
     int verbose_color;                                          // Print verbose color
     int list_layers;                                            // Print list layers
     int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
+    int print_input_data_shapes;                                  // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators

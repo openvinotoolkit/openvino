@@ -15,8 +15,6 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
 
     shuffle_channels() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs shuffle_channels primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.

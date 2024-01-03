@@ -47,6 +47,11 @@ struct input_info {
         return *this;
     }
 
+    /// @brief Compare
+    bool operator==(const input_info& rhs) const {
+        return ((pid == rhs.pid) && (idx == rhs.idx));
+    }
+
     primitive_id pid;
     int32_t idx;
     struct cmp {
@@ -61,6 +66,10 @@ struct input_info {
         }
     };
 
+    bool is_valid() const {
+        return pid.compare("") != 0;
+    }
+
     void save(BinaryOutputBuffer& ob) const {
         ob << pid;
         ob << idx;
@@ -70,7 +79,18 @@ struct input_info {
         ib >> pid;
         ib >> idx;
     }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << "input_info(pid:" << pid << ",idx:" << idx << ")";
+        return ss.str();
+    }
 };
+
+static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+    os << info.to_string();
+    return os;
+}
 
 struct prim_map_storage {
     static prim_map_storage& instance() {
@@ -82,12 +102,17 @@ struct prim_map_storage {
         return map.at(type_string);
     }
 
+    const cldnn::primitive_id get_type_string(const cldnn::primitive_type_id type_id) const {
+        return inverse_map.at(type_id);
+    }
+
     bool set_type_id(const std::string& type_string, const cldnn::primitive_type_id type_id) {
-        return map.insert({type_string, type_id}).second;
+        return map.insert({type_string, type_id}).second && inverse_map.insert({type_id, type_string}).second;
     }
 
 private:
     std::unordered_map<std::string, cldnn::primitive_type_id> map;
+    std::unordered_map<cldnn::primitive_type_id, std::string> inverse_map;
 };
 
 /// @brief Base class of network primitive description.
@@ -150,7 +175,7 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
                 return false;
         }
 
@@ -203,7 +228,7 @@ public:
 
     size_t num_outputs;
 
-    virtual std::string get_type() const { return "NONE"; }
+    virtual const std::string& get_type_info() const = 0;
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -233,6 +258,7 @@ public:
         ib >> output_paddings;
         size_t output_data_types_size;
         ib >> output_data_types_size;
+        output_data_types.clear();
         for (size_t i = 0; i < output_data_types_size; i++) {
             bool has_value;
             ib >> has_value;
@@ -246,6 +272,22 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+    }
+
+    virtual padding get_output_padding(size_t idx) const {
+        if (idx < output_paddings.size()) {
+            return output_paddings[idx];
+        } else {
+            return padding();
+        }
+    }
+
+    virtual optional_data_type get_output_data_type(size_t idx) const {
+        if (idx < output_data_types.size()) {
+            return output_data_types[idx];
+        } else {
+            return optional_data_type();
+        }
     }
 
 protected:
@@ -313,6 +355,7 @@ struct primitive_info {
     }
 
 #define CLDNN_DECLARE_PRIMITIVE(PType)       \
+    DECLARE_OBJECT_TYPE_SERIALIZATION(PType) \
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 

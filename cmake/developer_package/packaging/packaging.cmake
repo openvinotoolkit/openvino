@@ -4,9 +4,6 @@
 
 include(CPackComponent)
 
-# we don't need RPATHs, because setupvars.sh is used
-set(CMAKE_SKIP_INSTALL_RPATH ON)
-
 #
 # ov_install_static_lib(<target> <comp>)
 #
@@ -32,12 +29,42 @@ macro(ov_install_static_lib target comp)
 endmacro()
 
 #
+# ov_set_install_rpath(<target> <lib_install_path> <dependency_install_path> ...)
+#
+# macOS:
+# Sets LC_RPATH properties for macOS MACH-O binaries to ensure that libraries can find their dependencies
+# when macOS system integrity protection (SIP) is enabled (DYLD_LIBRARY_PATH is ignored in this case).
+# Note, that this is important when binaries are dynamically loaded at runtime (e.g. via Python).
+#
+# NPM:
+# we need to set RPATH, because archive must be self-sufficient
+#
+function(ov_set_install_rpath TARGET_NAME lib_install_path)
+    if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$" OR CPACK_GENERATOR STREQUAL "NPM")
+        if (APPLE)
+            set(RPATH_PREFIX "@loader_path")
+        else()
+            set(RPATH_PREFIX "$ORIGIN")
+        endif()
+
+        unset(rpath_list)
+        foreach(dependency_install_path IN LISTS ARGN)
+            file(RELATIVE_PATH dependency_rpath "/${lib_install_path}" "/${dependency_install_path}")
+            set(dependency_rpath "${RPATH_PREFIX}/${dependency_rpath}")
+            list(APPEND rpath_list "${dependency_rpath}")
+        endforeach()
+
+        set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH "${rpath_list}")
+    endif()
+endfunction()
+
+#
 # ov_get_pyversion(<OUT pyversion>)
 #
 function(ov_get_pyversion pyversion)
-    find_package(PythonInterp 3 QUIET)
-    if(PYTHONINTERP_FOUND)
-        set(${pyversion} "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" PARENT_SCOPE)
+    find_package(Python3 QUIET COMPONENTS Interpreter Develoment.Module)
+    if(Python3_Interpreter_FOUND)
+        set(${pyversion} "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}" PARENT_SCOPE)
     else()
         set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
     endif()
@@ -49,22 +76,22 @@ endfunction()
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
 function(ov_cpack_add_component name)
-    if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
+    if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)
         cpack_add_component(${name} ${ARGN})
 
         # need to store informarion about cpack_add_component arguments in CMakeCache.txt
         # to restore it later
         set(_${name}_cpack_component_args "${ARGN}" CACHE INTERNAL "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
-        list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
-        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
+        list(APPEND OV_CPACK_COMPONENTS_ALL ${name})
+        set(OV_CPACK_COMPONENTS_ALL "${OV_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
     endif()
 endfunction()
 
-foreach(comp IN LISTS IE_CPACK_COMPONENTS_ALL)
+foreach(comp IN LISTS OV_CPACK_COMPONENTS_ALL)
     unset(_${comp}_cpack_component_args)
 endforeach()
-unset(IE_CPACK_COMPONENTS_ALL CACHE)
+unset(OV_CPACK_COMPONENTS_ALL CACHE)
 
 # create `tests` component
 if(ENABLE_TESTS)
@@ -118,21 +145,16 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES "openvino_req_files")
+    # nodejs
+    set(OV_CPACK_COMP_NPM "ov_node_addon")
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")
 endmacro()
 
 ov_define_component_names()
-
-if(NOT DEFINED CPACK_GENERATOR)
-    set(CPACK_GENERATOR "TGZ")
-elseif(NOT CPACK_GENERATOR)
-    message(FATAL_ERROR "CPACK_GENERATOR cannot contain an empty value")
-endif()
 
 #
 # Include generator specific configuration file:
@@ -164,13 +186,15 @@ elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
+elseif(CPACK_GENERATOR STREQUAL "NPM")
+    include(packaging/npm)
 elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN|VCPKG)$")
     include(packaging/common-libraries)
 elseif(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$")
     include(packaging/archive)
 endif()
 
-macro(ie_cpack)
+macro(ov_cpack)
     set(CPACK_SOURCE_GENERATOR "") # not used
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
@@ -179,8 +203,6 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_CONTACT "OpenVINO Developers <openvino@intel.com>")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    # TODO: set proper license file for Windows installer
-    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
     # default permissions for directories creation
     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS

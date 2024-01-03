@@ -17,6 +17,13 @@ struct weight_bias_params : public base_params {
     WeightsTensor weights;
     MultiDataTensor bias;
 
+    bool compressed = false;
+    bool has_decompression_zp = false;
+    bool scalar_zp = false;
+    float zp_value = 0.0f;
+    DataTensor decompression_scale;
+    DataTensor decompression_zero_point;
+
     ParamsKey GetParamsKey() const override;
 };
 

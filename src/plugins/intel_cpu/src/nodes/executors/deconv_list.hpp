@@ -64,7 +64,7 @@ public:
             }
         }
 
-        IE_THROW() << "DeconvExecutorFactory: Supported executor is not found";
+        OPENVINO_THROW("DeconvExecutorFactory: Supported executor is not found");
     }
 
 private:

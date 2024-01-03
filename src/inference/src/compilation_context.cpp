@@ -16,9 +16,7 @@
 #include "details/ie_exception.hpp"
 #include "file_utils.h"
 #include "itt.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/fix_rt_info.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -86,7 +84,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     uint64_t seed = 0;
     // 1. Calculate hash on function
     ov::pass::Manager m;
-    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
@@ -193,9 +190,12 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
 CompiledBlobHeader::CompiledBlobHeader() {}
 
-CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo)
+CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
+                                       const std::string& fileInfo,
+                                       const std::string& runtimeInfo)
     : m_ieVersion(ieVersion),
-      m_fileInfo(fileInfo) {}
+      m_fileInfo(fileInfo),
+      m_runtimeInfo(runtimeInfo) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
@@ -211,6 +211,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_node compiledBlobNode = document.document_element();
     header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
     header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
+    header.m_runtimeInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "runtime_info");
 
     return stream;
 }
@@ -220,6 +221,7 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     auto compiledBlobNode = document.append_child("compiled_blob");
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
+    compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
 
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();

@@ -4,15 +4,15 @@
 
 #include <vector>
 
-#include "single_layer_tests/topk.hpp"
+#include "single_op_tests/topk.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::TopKLayerTest;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16
 };
 
 const std::vector<int64_t> axes = {
@@ -30,28 +30,28 @@ const std::vector<int64_t> k = {
         21
 };
 
-const std::vector<ngraph::opset4::TopK::Mode> modes = {
-        ngraph::opset4::TopK::Mode::MIN,
-        ngraph::opset4::TopK::Mode::MAX
+const std::vector<ov::op::v1::TopK::Mode> modes = {
+        ov::op::v1::TopK::Mode::MIN,
+        ov::op::v1::TopK::Mode::MAX
 };
 
-const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
-        ngraph::opset4::TopK::SortType::SORT_INDICES,
-        ngraph::opset4::TopK::SortType::SORT_VALUES,
+const std::vector<ov::op::v1::TopK::SortType> sort_types = {
+        ov::op::v1::TopK::SortType::SORT_INDICES,
+        ov::op::v1::TopK::SortType::SORT_VALUES,
 };
 
+const std::vector<std::vector<ov::Shape>> input_shape_static = {
+        {{21, 21, 21, 21}}
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(k),
                 ::testing::ValuesIn(axes),
                 ::testing::ValuesIn(modes),
-                ::testing::ValuesIn(sortTypes),
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({21, 21, 21, 21})),
+                ::testing::ValuesIn(sort_types),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shape_static)),
                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
         TopKLayerTest::getTestCaseName);
 }  // namespace

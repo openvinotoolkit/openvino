@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <thread>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -96,7 +98,7 @@ public:
     void SetUp() override {
         std::tie(m_batch_size, m_element_type) = this->GetParam();
         std::vector<size_t> inputShape = {1, 3, 24, 24};
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, m_element_type);
+        m_model = ov::test::utils::make_multi_single_conv(inputShape, m_element_type);
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
 
         m_auto_batch_plugin =

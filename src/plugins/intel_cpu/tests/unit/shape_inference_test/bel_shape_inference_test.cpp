@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock.h>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
 #include "openvino/op/parameter.hpp"
 #include "utils.hpp"
 
@@ -30,7 +31,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_none) {
 
     this->input_shapes = {StaticShape{3, 4, 7, 5}, StaticShape{3, 4, 7, 5}};
 
-    shape_inference(op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
     ASSERT_EQ(this->output_shapes.front(), StaticShape({3, 4, 7, 5}));
 }
@@ -42,7 +43,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_none_incompatible_shapes) {
 
     this->input_shapes = {StaticShape{3, 4, 6, 5}, StaticShape{3, 1, 6, 1}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, this->output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Argument shapes are inconsistent."))
 }
@@ -53,8 +54,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_numpy_equal_rank) {
     const auto op = this->make_op(a, b);
 
     this->input_shapes = {StaticShape{3, 1, 1, 5}, StaticShape{3, 1, 6, 1}};
-
-    shape_inference(op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
     ASSERT_EQ(this->output_shapes.front(), StaticShape({3, 1, 6, 5}));
 }
@@ -65,8 +65,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_numpy_a_rank_higher) {
     const auto op = this->make_op(a, b);
 
     this->input_shapes = {StaticShape{6, 5, 1, 8}, StaticShape{5, 6, 1}},
-
-    shape_inference(op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
     ASSERT_EQ(this->output_shapes.front(), StaticShape({6, 5, 6, 8}));
 }
@@ -77,8 +76,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_numpy_b_rank_higher) {
     const auto op = this->make_op(a, b);
 
     this->input_shapes = {StaticShape{5, 6, 1}, StaticShape{6, 5, 1, 8}},
-
-    shape_inference(op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
     ASSERT_EQ(this->output_shapes.front(), StaticShape({6, 5, 6, 8}));
 }
@@ -90,7 +88,7 @@ TYPED_TEST_P(BELStaticShapeInferenceTest, broadcast_numpy_incompatible_shapes) {
 
     this->input_shapes = {StaticShape{3, 4, 6, 6}, StaticShape{2, 4, 6, 6}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, this->output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Argument shapes are inconsistent."))
 }

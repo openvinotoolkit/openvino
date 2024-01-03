@@ -18,7 +18,7 @@ template <typename BufferType, typename T>
 class Serializer<BufferType, std::unique_ptr<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::unique_ptr<T>& ptr) {
-        const auto& type = ptr->get_type();
+        const auto& type = ptr->get_type_info();
         buffer << type;
         const auto save_func = saver_storage<BufferType>::instance().get_save_function(type);
         save_func(buffer, ptr.get());
@@ -51,7 +51,7 @@ template <typename BufferType, typename T>
 class Serializer<BufferType, std::shared_ptr<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::shared_ptr<T>& ptr) {
-        const std::string& type = ptr->get_type();
+        const std::string& type = ptr->get_type_info();
         buffer << type;
         if (type.compare("NONE") != 0) {
             const auto save_func = saver_storage<BufferType>::instance().get_save_function(type);

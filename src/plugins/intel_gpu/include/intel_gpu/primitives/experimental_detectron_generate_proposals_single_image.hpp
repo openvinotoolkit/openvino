@@ -15,8 +15,6 @@ struct experimental_detectron_generate_proposals_single_image
 
     experimental_detectron_generate_proposals_single_image() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs experimental_detectron_generate_proposals_single_image primitive
     /// @param id This primitive id
     /// @param input_im_info image size info

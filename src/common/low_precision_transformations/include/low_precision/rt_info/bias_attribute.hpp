@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/node.hpp>
-#include <openvino/core/runtime_attribute.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 LP_TRANSFORMATIONS_API void mark_as_bias(const std::shared_ptr<Node>& node);

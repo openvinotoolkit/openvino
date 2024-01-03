@@ -19,7 +19,7 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
     using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::gemm_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {

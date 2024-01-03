@@ -41,7 +41,12 @@ SyncInferRequest::SyncInferRequest(
       m_batched_request_wrapper(worker_request),
       m_batch_id(batch_id),
       m_batch_size(num_batch) {
-    share_tensors_with_batched_req(batched_inputs, batched_outputs);
+    if (m_batched_request_wrapper)
+        share_tensors_with_batched_req(batched_inputs, batched_outputs);
+}
+
+size_t SyncInferRequest::get_batch_size() const {
+    return m_batch_size;
 }
 
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
@@ -81,7 +86,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }
@@ -90,7 +97,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }

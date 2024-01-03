@@ -15,29 +15,23 @@ namespace utils {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
 
-#define all_close_ov_type(type)\
-    case ov::element::type:\
-         return all_close<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
-             static_cast<ov::element_type_traits<ov::element::type>::value_type>(rtol), \
-             static_cast<ov::element_type_traits<ov::element::type>::value_type>(atol));\
+#define all_close_ov_type(type)                                                        \
+    case ov::element::type:                                                            \
+        return all_close<ov::element_type_traits<ov::element::type>::value_type>(      \
+            a,                                                                         \
+            b,                                                                         \
+            static_cast<ov::element_type_traits<ov::element::type>::value_type>(rtol), \
+            static_cast<ov::element_type_traits<ov::element::type>::value_type>(atol));
 
     switch (a.get_element_type()) {
-    all_close_ov_type(u8)
-    all_close_ov_type(u16)
-    all_close_ov_type(u32)
-    all_close_ov_type(u64)
-    all_close_ov_type(i8)
-    all_close_ov_type(i16)
-    all_close_ov_type(i32)
-    all_close_ov_type(i64)
-    // all_close_ov_type(bf16)
-    // all_close_ov_type(f16)
-    all_close_ov_type(f32)
-    all_close_ov_type(f64)
-    all_close_ov_type(boolean)
-    default:
-        return ::testing::AssertionFailure()
-               << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
+        all_close_ov_type(u8) all_close_ov_type(u16) all_close_ov_type(u32) all_close_ov_type(u64) all_close_ov_type(i8)
+                all_close_ov_type(i16) all_close_ov_type(i32) all_close_ov_type(i64)
+            // all_close_ov_type(bf16)
+            // all_close_ov_type(f16)
+            all_close_ov_type(f32) all_close_ov_type(f64) all_close_ov_type(boolean) default
+            : return ::testing::AssertionFailure()
+              << "Cannot compare tensors with unsupported element type: "
+              << a.get_element_type();
     }
 }
 }  // namespace utils

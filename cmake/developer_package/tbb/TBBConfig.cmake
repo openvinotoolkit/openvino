@@ -14,13 +14,13 @@
 
 # Path to IE own version of TBBConfig.cmake old TBB version without cmake config.
 if(APPLE)
-    set(IE_OWN_TBB_CONFIG tbb/mac)
+    set(_OV_OWN_TBB_CONFIG tbb/mac)
 elseif(UNIX)
-    set(IE_OWN_TBB_CONFIG tbb/lnx)
+    set(_OV_OWN_TBB_CONFIG tbb/lnx)
 elseif(WIN)
-    set(IE_OWN_TBB_CONFIG tbb/win)
+    set(_OV_OWN_TBB_CONFIG tbb/win)
 else()
-    unset(IE_OWN_TBB_CONFIG)
+    unset(_OV_OWN_TBB_CONFIG)
 endif()
 
 unset(TBB_DIR)
@@ -29,8 +29,10 @@ unset(TBB_DIR CACHE)
 find_package(TBB
     2017.0
     CONFIG
-    PATHS "${IEDevScripts_DIR}/${IE_OWN_TBB_CONFIG}"
+    PATHS "${OpenVINODeveloperScripts_DIR}/${_OV_OWN_TBB_CONFIG}"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH)
 
 find_package_handle_standard_args(TBB CONFIG_MODE)
+
+unset(_OV_OWN_TBB_CONFIG)

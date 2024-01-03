@@ -72,11 +72,8 @@ protected:
         std::vector<float> scores_data;
         size_t out_shape_size;
         bool sort_result_descending;
-        ngraph::element::Type output_type;
+        ov::element::Type output_type;
     };
-
-    InfoForNMS5 get_info_for_nms5_eval(const ov::op::v5::NonMaxSuppression* nms5,
-                                       const std::vector<std::shared_ptr<HostTensor>>& inputs);
 };
 
 }  // namespace interpreter

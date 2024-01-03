@@ -4,33 +4,33 @@
 
 #pragma once
 
-#include <regex>
-#include <fstream>
-#include <string>
-#include <vector>
 #include <sys/stat.h>
 
+#include <fstream>
+#include <regex>
+#include <string>
+#include <vector>
+
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/w_dirent.h"
-#include "common_test_utils/common_utils.hpp"
-
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 
 #ifdef _WIN32
-#include <direct.h>
-#define rmdir(dir) _rmdir(dir)
+#    include <direct.h>
+#    define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
-#include <unistd.h>
+#    include <unistd.h>
 #endif  // _WIN32
 
 namespace ov {
 namespace test {
 namespace utils {
 
-template<class T>
+template <class T>
 inline std::string to_string_c_locale(T value) {
     std::stringstream val_stream;
     val_stream.imbue(std::locale("C"));
@@ -38,25 +38,26 @@ inline std::string to_string_c_locale(T value) {
     return val_stream.str();
 }
 
-inline std::string makePath(const std::string &folder, const std::string &file) {
-    if (folder.empty()) return file;
+inline std::string makePath(const std::string& folder, const std::string& file) {
+    if (folder.empty())
+        return file;
     return folder + FileSeparator + file;
 }
 
-inline long long fileSize(const char *fileName) {
+inline long long fileSize(const char* fileName) {
     std::ifstream in(fileName, std::ios_base::binary | std::ios_base::ate);
     return in.tellg();
 }
 
-inline long long fileSize(const std::string &fileName) {
+inline long long fileSize(const std::string& fileName) {
     return fileSize(fileName.c_str());
 }
 
-inline bool fileExists(const char *fileName) {
+inline bool fileExists(const char* fileName) {
     return fileSize(fileName) >= 0;
 }
 
-inline bool fileExists(const std::string &fileName) {
+inline bool fileExists(const std::string& fileName) {
     return fileExists(fileName.c_str());
 }
 
@@ -72,7 +73,7 @@ inline void removeFile(const std::string& path) {
     }
 }
 
-inline void removeIRFiles(const std::string &xmlFilePath, const std::string &binFileName) {
+inline void removeIRFiles(const std::string& xmlFilePath, const std::string& binFileName) {
     if (fileExists(xmlFilePath)) {
         std::remove(xmlFilePath.c_str());
     }
@@ -87,8 +88,8 @@ inline void removeIRFiles(const std::string &xmlFilePath, const std::string &bin
 // < 0 - error
 // >= 0 - count of removed files
 inline int removeFilesWithExt(std::string path, std::string ext) {
-    struct dirent *ent;
-    DIR *dir = opendir(path.c_str());
+    struct dirent* ent;
+    DIR* dir = opendir(path.c_str());
     int ret = 0;
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
@@ -114,8 +115,8 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
 // Return value:
 // vector of strings representing file paths
 inline std::vector<std::string> listFilesWithExt(const std::string& path, const std::string& ext) {
-    struct dirent *ent;
-    DIR *dir = opendir(path.c_str());
+    struct dirent* ent;
+    DIR* dir = opendir(path.c_str());
     std::vector<std::string> res;
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
@@ -131,11 +132,11 @@ inline std::vector<std::string> listFilesWithExt(const std::string& path, const 
     return res;
 }
 
-inline int removeDir(const std::string &path) {
+inline int removeDir(const std::string& path) {
     return rmdir(path.c_str());
 }
 
-inline bool directoryExists(const std::string &path) {
+inline bool directoryExists(const std::string& path) {
     struct stat sb;
 
     if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
@@ -143,36 +144,6 @@ inline bool directoryExists(const std::string &path) {
     }
 
     return false;
-}
-
-
-inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
-    struct CloseDir {
-        void operator()(DIR* d) const noexcept {
-            if (d) {
-                closedir(d);
-            }
-        }
-    };
-    using Dir = std::unique_ptr<DIR, CloseDir>;
-    Dir directory(opendir(name.c_str()));
-    struct dirent *entire;
-    if (directory) {
-        const std::string current_dir{"."};
-        const std::string parent_dir{".."};
-        while ((entire = readdir(directory.get())) != nullptr) {
-            if (entire->d_name == parent_dir || entire->d_name == current_dir) {
-                continue;
-            }
-            std::string path = name + FileSeparator + entire->d_name;
-            if (directoryExists(path)) {
-                directoryFileListRecursive(path, file_list);
-            }
-            if (fileExists(path)) {
-                file_list.push_back(path);
-            }
-        }
-    }
 }
 
 inline int createDirectory(const std::string& dirPath) {
@@ -201,48 +172,6 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
     return 0;
 }
 
-inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
-                                                              const std::vector<std::regex>& patterns) {
-    auto getFileListByPattern = [&patterns](const std::string& folderPath) {
-        std::vector<std::string> allFilePaths;
-        directoryFileListRecursive(folderPath, allFilePaths);
-        std::set<std::string> result;
-        for (auto& filePath : allFilePaths) {
-            for (const auto& pattern : patterns) {
-                if (fileExists(filePath) && std::regex_match(filePath, pattern)) {
-                    result.insert(filePath);
-                    break;
-                }
-            }
-        }
-        return result;
-    };
-
-    std::vector<std::string> result;
-    for (auto &&folderPath : folderPaths) {
-        if (!directoryExists(folderPath)) {
-            std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
-            throw std::runtime_error(msg);
-        }
-        auto fileListByPattern = getFileListByPattern(folderPath);
-        result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());
-    }
-    return result;
-}
-
-inline std::string replaceExt(std::string file, const std::string& newExt) {
-    std::string::size_type i = file.rfind('.', file.length());
-
-    if (i != std::string::npos) {
-        if (newExt == "") {
-            file = file.substr(0, i);
-        } else {
-            file.replace(i + 1, newExt.length(), newExt);
-        }
-    }
-    return file;
-}
-
 inline std::vector<std::string> splitStringByDelimiter(std::string paths, const std::string& delimiter = ",") {
     size_t delimiterPos;
     std::vector<std::string> splitPath;
@@ -256,30 +185,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
-inline std::vector<std::string> readListFiles(const std::vector<std::string>& filePaths) {
-    std::vector<std::string> res;
-    for (const auto& filePath : filePaths) {
-        if (!fileExists(filePath)) {
-            std::string msg = "Input directory (" + filePath + ") doesn't not exist!";
-            throw std::runtime_error(msg);
-        }
-        std::ifstream file(filePath);
-        if (file.is_open()) {
-            std::string buffer;
-            while (getline(file, buffer)) {
-                if (buffer.find("#") == std::string::npos && !buffer.empty()) {
-                    res.emplace_back(buffer);
-                }
-            }
-        } else {
-            std::string msg = "Error in opening file: " + filePath;
-            throw std::runtime_error(msg);
-        }
-        file.close();
-    }
-    return res;
-}
-
+std::string getOpenvinoLibDirectory();
 std::string getExecutableDirectory();
 std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);
@@ -288,7 +194,7 @@ namespace {
 inline std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
+                                              mockEngineName + OV_BUILD_POSTFIX);
 }
 
 template <class T>

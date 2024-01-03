@@ -1,8 +1,6 @@
 Handwritten Chinese and Japanese OCR with OpenVINO™
 ===================================================
 
-
-
 In this tutorial, we perform optical character recognition (OCR) for
 handwritten Chinese (simplified) and Japanese. An OCR tutorial using the
 Latin alphabet is available in `notebook
@@ -10,59 +8,78 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_japanese_recognition_0001.html>`__
 and
-`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.1/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2023.0/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
 To decode model outputs as readable text
 `kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
 `scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
-charlists are used. Both models are available on `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+charlists are used. Both models are available on `Open Model
+Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
 
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Select a Language <#select-a-language>`__
-- `Download the Model <#download-the-model>`__
-- `Load the Model and Execute <#load-the-model-and-execute>`__
-- `Select inference device <#select-inference-device>`__
-- `Fetch Information About Input and Output Layers <#fetch-information-about-input-and-output-layers>`__
-- `Load an Image <#load-an-image>`__
-- `Visualize Input Image <#visualize-input-image>`__
-- `Prepare Charlist <#prepare-charlist>`__
-- `Run Inference <#run-inference>`__
-- `Process the Output Data <#process-the-output-data>`__
-- `Print the Output <#print-the-output>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Select a Language <#select-a-language>`__
+-  `Download the Model <#download-the-model>`__
+-  `Load the Model and Execute <#load-the-model-and-execute>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Fetch Information About Input and Output
+   Layers <#fetch-information-about-input-and-output-layers>`__
+-  `Load an Image <#load-an-image>`__
+-  `Visualize Input Image <#visualize-input-image>`__
+-  `Prepare Charlist <#prepare-charlist>`__
+-  `Run Inference <#run-inference>`__
+-  `Process the Output Data <#process-the-output-data>`__
+-  `Print the Output <#print-the-output>`__
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
+.. code:: ipython3
 
+    # Install openvino-dev package
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q matplotlib numpy
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
     from collections import namedtuple
     from itertools import groupby
-    from pathlib import Path
     
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    from notebook_utils import download_file
 
-Settings `⇑ <#top>`__
-###############################################################################################################################
-
+Settings 
+--------------------------------------------------
 
 Set up all constants and folders used in this notebook
 
 .. code:: ipython3
 
     # Directories where data will be placed.
-    model_folder = "model"
-    data_folder = "../data"
+    base_models_dir = "models"
+    data_folder = "data"
     charlist_folder = f"{data_folder}/text"
     
     # Precision used by the model.
@@ -87,9 +104,8 @@ To group files, you have to define the collection. In this case, use
         demo_image_name="handwritten_japanese_test.png",
     )
 
-Select a Language `⇑ <#top>`__
-###############################################################################################################################
-
+Select a Language 
+-----------------------------------------------------------
 
 Depending on your choice you will need to change a line of code in the
 cell below.
@@ -106,9 +122,8 @@ If you want to perform OCR on a text in Japanese, set
     
     selected_language = languages.get(language)
 
-Download the Model `⇑ <#top>`__
-###############################################################################################################################
-
+Download the Model 
+------------------------------------------------------------
 
 In addition to images and charlists, you need to download the model
 file. In the sections below, there are cells for downloading either the
@@ -117,35 +132,36 @@ Chinese or Japanese model.
 If it is your first time running the notebook, the model will be
 downloaded. It may take a few minutes.
 
-Use ``omz_downloader``, which is a command-line tool from the
-``openvino-dev`` package. It automatically creates a directory structure
-and downloads the selected model.
+Use ``download_file`` function from the utils package, which
+automatically creates a directory structure and downloads the selected
+model file.
 
 .. code:: ipython3
 
-    path_to_model_weights = Path(f'{model_folder}/intel/{selected_language.model_name}/{precision}/{selected_language.model_name}.bin')
-    if not path_to_model_weights.is_file():
-        download_command = f'omz_downloader --name {selected_language.model_name} --output_dir {model_folder} --precision {precision}'
-        print(download_command)
-        ! $download_command
+    path_to_model = download_file(
+        url=f'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.xml',
+        directory=base_models_dir
+    )
+    _ = download_file(
+        url=f'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.bin',
+        directory=base_models_dir
+    )
+
 
 
 .. parsed-literal::
 
-    omz_downloader --name handwritten-simplified-chinese-recognition-0001 --output_dir model --precision FP16
-    ################|| Downloading handwritten-simplified-chinese-recognition-0001 ||################
-    
-    ========== Downloading model/intel/handwritten-simplified-chinese-recognition-0001/FP16/handwritten-simplified-chinese-recognition-0001.xml
-    
-    
-    ========== Downloading model/intel/handwritten-simplified-chinese-recognition-0001/FP16/handwritten-simplified-chinese-recognition-0001.bin
-    
-    
+    models/handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
 
 
-Load the Model and Execute `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    models/handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
+
+
+Load the Model and Execute 
+--------------------------------------------------------------------
 
 When all files are downloaded and language is selected, read and compile
 the network to run inference. The path to the model is defined based on
@@ -153,21 +169,17 @@ the selected language.
 
 .. code:: ipython3
 
-    core = Core()
-    path_to_model = path_to_model_weights.with_suffix(".xml")
+    core = ov.Core()
     model = core.read_model(model=path_to_model)
 
-Select inference device `⇑ <#top>`__
-###############################################################################################################################
+Select inference device 
+-----------------------------------------------------------------
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    core = Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -191,9 +203,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Fetch Information About Input and Output Layers `⇑ <#top>`__
-###############################################################################################################################
-
+Fetch Information About Input and Output Layers 
+-----------------------------------------------------------------------------------------
 
 Now that the model is loaded, fetch information about the input and
 output layers (shape).
@@ -203,9 +214,8 @@ output layers (shape).
     recognition_output_layer = compiled_model.output(0)
     recognition_input_layer = compiled_model.input(0)
 
-Load an Image `⇑ <#top>`__
-###############################################################################################################################
-
+Load an Image 
+-------------------------------------------------------
 
 Next, load an image. The model expects a single-channel image as input,
 so the image is read in grayscale.
@@ -217,15 +227,17 @@ keep letters proportional and meet input shape.
 
 .. code:: ipython3
 
-    # Read a filename of a demo file based on the selected model.
-    
-    file_name = selected_language.demo_image_name
+    # Download the image from the openvino_notebooks storage based on the selected model.
+    file_name = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/" + selected_language.demo_image_name,
+        directory=data_folder
+    )
     
     # Text detection models expect an image in grayscale format.
     # IMPORTANT! This model enables reading only one line at time.
     
     # Read the image.
-    image = cv2.imread(filename=f"{data_folder}/image/{file_name}", flags=cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(filename=str(file_name), flags=cv2.IMREAD_GRAYSCALE)
     
     # Fetch the shape.
     image_height, _ = image.shape
@@ -249,9 +261,15 @@ keep letters proportional and meet input shape.
     # Reshape to network input shape.
     input_image = resized_image[None, None, :, :]
 
-Visualize Input Image `⇑ <#top>`__
-###############################################################################################################################
 
+
+.. parsed-literal::
+
+    data/handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
+
+
+Visualize Input Image 
+---------------------------------------------------------------
 
 After preprocessing, you can display the image.
 
@@ -263,17 +281,31 @@ After preprocessing, you can display the image.
 
 
 
-.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_21_0.png
+.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_22_0.png
 
 
-Prepare Charlist `⇑ <#top>`__
-###############################################################################################################################
-
+Prepare Charlist 
+----------------------------------------------------------
 
 The model is loaded and the image is ready. The only element left is the
 charlist, which is downloaded. You must add a blank symbol at the
 beginning of the charlist before using it. This is expected for both the
 Chinese and Japanese models.
+
+.. code:: ipython3
+
+    # Download the image from the openvino_notebooks storage based on the selected model.
+    used_charlist_file = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/" + selected_language.charlist_name,
+        directory=charlist_folder
+    )
+
+
+
+.. parsed-literal::
+
+    data/text/chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
+
 
 .. code:: ipython3
 
@@ -283,12 +315,11 @@ Chinese and Japanese models.
     # With both models, there should be blank symbol added at index 0 of each charlist.
     blank_char = "~"
     
-    with open(f"{charlist_folder}/{used_charlist}", "r", encoding="utf-8") as charlist:
+    with used_charlist_file.open(mode="r", encoding="utf-8") as charlist:
         letters = blank_char + "".join(line.strip() for line in charlist)
 
-Run Inference `⇑ <#top>`__
-###############################################################################################################################
-
+Run Inference 
+-------------------------------------------------------
 
 Now, run inference. The ``compiled_model()`` function takes a list with
 input(s) in the same order as model input(s). Then, fetch the output
@@ -299,9 +330,8 @@ from output tensors.
     # Run inference on the model
     predictions = compiled_model([input_image])[recognition_output_layer]
 
-Process the Output Data `⇑ <#top>`__
-###############################################################################################################################
-
+Process the Output Data 
+-----------------------------------------------------------------
 
 The output of a model is in the ``W x B x L`` format, where:
 
@@ -340,9 +370,8 @@ Finally, get the symbols from corresponding indexes in the charlist.
     # Assign letters to indexes from the output array.
     output_text = [letters[letter_index] for letter_index in output_text_indexes]
 
-Print the Output `⇑ <#top>`__
-###############################################################################################################################
-
+Print the Output 
+----------------------------------------------------------
 
 Now, having a list of letters predicted by the model, you can display
 the image with predicted text printed below.
@@ -362,5 +391,5 @@ the image with predicted text printed below.
 
 
 
-.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_30_1.png
+.. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_32_1.png
 

@@ -29,7 +29,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
 
     std::shared_ptr<ov::op::v1::StridedSlice> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<strided_slice_impl>(*this);
@@ -56,6 +56,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << begin_data;
         ob << end_data;
         ob << strides_data;
@@ -68,6 +69,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> begin_data;
         ib >> end_data;
         ib >> strides_data;

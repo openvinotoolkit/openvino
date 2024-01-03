@@ -5067,19 +5067,19 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     const int output_xy = 1 + (input_xy + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -5092,7 +5092,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5171,7 +5171,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     network.execute();
 
     auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5214,19 +5214,19 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     const int output_xy = 1 + (input_xy - filter_xy) / stride;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -5238,7 +5238,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
 
     // Generate bias data
     auto biases_size = tensor(1, output_f, 1, 1);
-    auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+    auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
     auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
     set_values(biases_mem, biases_data);
 
@@ -5281,7 +5281,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     network.execute();
 
     auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5358,14 +5358,14 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     const int output_xy = 1 + (input_xy + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // ref input
-    auto half_input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
-    auto input_data = VVVVF<FLOAT16>(batch_num);
+    auto half_input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = VVVVF<ov::float16>(batch_num);
 
     // concatenated cldnn input tensor
     for (auto bi = 0; bi < batch_num; ++bi)
@@ -5402,14 +5402,14 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     topology.add(right_crop);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto half_ref_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto half_ref_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     // reference convolution and concat
     if (with_bias)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5478,7 +5478,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     topology.add(reorder("reorder", input_info("conv_fsv"), { data_types::f16, format::bfyx, input_size }));
     topology.add(concatenation("concat", { input_info("left_crop"), input_info("reorder") }, 1));
 
-    auto ref_result = VVVVF<FLOAT16>(batch_num);
+    auto ref_result = VVVVF<ov::float16>(batch_num);
     // concatenate half ref input and ref conv output, by features
     for (auto bi = 0; bi < batch_num; ++bi)
     {
@@ -5505,7 +5505,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     network.execute();
 
     auto out_mem = network.get_output("concat").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -5660,21 +5660,21 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     const int output_y = 1 + (input_size_y + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_size_y, input_size_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_size_y, input_size_x, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
 
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -5685,7 +5685,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5749,7 +5749,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     network.execute();
 
     auto out_mem = network.get_output("out").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     auto output_layout = out_mem->get_layout();
     ASSERT_EQ(output_layout.format, format::bfyx);
@@ -6028,14 +6028,14 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
         input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, 0, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
 
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfzyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6043,7 +6043,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
             input_layout("input", input_mem->get_layout()),
@@ -6056,7 +6056,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfzyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6120,12 +6120,12 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     network.execute();
 
     auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
-    blockedFormatZeroCheck<FLOAT16>(out_mem);
+    blockedFormatZeroCheck<ov::float16>(out_mem);
 
     ASSERT_EQ(out_mem->get_layout().format, input_format);
 
@@ -6470,14 +6470,14 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
     tests::random_generator rg(GET_SUITE_NAME);
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, 0, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
 
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6485,7 +6485,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
             input_layout("input", input_mem->get_layout()),
@@ -6498,7 +6498,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6562,10 +6562,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     network.execute();
 
     auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = network.get_output("reorder_bfyx").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -6784,19 +6784,19 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(groups), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
             input_layout("input", input_mem->get_layout()),
@@ -6839,7 +6839,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     network.execute();
 
     auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -6928,19 +6928,19 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -6983,7 +6983,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     network.execute();
 
     auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -7060,19 +7060,19 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
     const int output_x = 1 + (input_x + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -7122,7 +7122,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     auto out_mem = network.get_output("out").get_memory();
 
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
     for (int bi = 0; bi < batch_num; ++bi) {
@@ -7276,19 +7276,19 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -7328,7 +7328,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     network.execute();
 
     auto out_mem = network.get_output("conv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -7726,25 +7726,25 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto expected_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto expected_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
     topology topology;
 
     // Calculate reference values
     if (with_bias) {
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -7818,7 +7818,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     network.execute();
 
     auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
     ASSERT_EQ(out_mem->get_layout().format, input_data_format);
@@ -7886,13 +7886,13 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     const std::ptrdiff_t pad_x = (filter_x - 1) / 2;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(input_b, input_f, filter_x, filter_y, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(input_b, input_f, filter_x, filter_y, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::oiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7926,7 +7926,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<FLOAT16> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target = get_test_default_config(engine);
@@ -7939,7 +7939,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<FLOAT16> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
@@ -7986,13 +7986,13 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     const std::ptrdiff_t pad_x = (filter_x - 1) / 2;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(input_b, input_f, filter_x, filter_y, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(input_b, input_f, filter_x, filter_y, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -8275,7 +8275,7 @@ protected:
     bool bigger_pad() { return _bigger_pad; }
     bool grouped_weights_shape() { return _grouped_weights_shape; }
 
-    data_types input_type() const { return type_to_data_type<InputT>::value; }
+    data_types input_type() const { return ov::element::from<InputT>(); }
     format input_format() const { return _input_fmt; }
     tensor input_size() const {
         return tensor(TensorValue(batch_num()),
@@ -8284,7 +8284,7 @@ protected:
                       TensorValue(input_y()));
     }
 
-    data_types weights_type() const { return type_to_data_type<WeightsT>::value; }
+    data_types weights_type() const { return ov::element::from<WeightsT>(); }
     tensor weights_size() const {
         return tensor(TensorValue(output_features()),
                       TensorValue(weights_input_features()),
@@ -8314,7 +8314,7 @@ protected:
         }
     }
 
-    data_types output_type() const { return type_to_data_type<OutputT>::value; }
+    data_types output_type() const { return ov::element::from<OutputT>(); }
 };
 
 struct convolution_random_test_all_params {
@@ -8995,7 +8995,7 @@ public:
         if (generic_params->data_type == data_types::f32) {
             prepare_input_for_test_typed<float>(inputs);
         } else {
-            prepare_input_for_test_typed<FLOAT16>(inputs);
+            prepare_input_for_test_typed<ov::float16>(inputs);
         }
     }
 
@@ -9128,7 +9128,7 @@ public:
         if (generic_params->data_type == data_types::f32) {
             return generate_reference_typed<float>(inputs);
         } else {
-            return generate_reference_typed<FLOAT16>(inputs);
+            return generate_reference_typed<ov::float16>(inputs);
         }
     }
 
@@ -9236,25 +9236,25 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto expected_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto expected_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
     topology topology;
 
     // Calculate reference values
     if (with_bias) {
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -9332,7 +9332,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = get_output_values_to_float<FLOAT16>(network, outputs.find("conv_fsv")->second);
+    auto out_ptr = get_output_values_to_float<ov::float16>(network, outputs.find("conv_fsv")->second);
     auto out_lay = network.get_node_output_layout("conv_fsv");
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
@@ -9368,13 +9368,13 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(16, 16, 1, 1, 1);
-    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, 1, 1, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, 1, 1, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -9448,11 +9448,11 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     ov::PartialShape weights_pshape = {16, 16, 3};
     layout in_layout{ input_pshape, data_types::f16, format::bfyx };
     layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
-    auto input_data = rg.generate_random_1d<FLOAT16>(in_layout.count(), -1, 1);
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
     auto input_mem = engine.allocate_memory(in_layout);
     set_values(input_mem, input_data);
 
-    auto weights_data = rg.generate_random_1d<FLOAT16>(weights_layout.count(), -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
     auto weights_mem = engine.allocate_memory(weights_layout);
     set_values(weights_mem, weights_data);
 
@@ -9865,11 +9865,11 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(
 }
 
 TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_block_size_1) {
-    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<FLOAT16>(false);
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(false);
 }
 
 TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_block_size_1) {
-    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<FLOAT16>(true);
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
 

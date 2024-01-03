@@ -5,11 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -17,7 +17,7 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,11 +27,11 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
  * [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ov::pass::ModelPass {
+class ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkupAvgPoolPrecisionPreserved", "0");
-    MarkupAvgPoolPrecisionPreserved(const std::vector<ov::element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support);
+    MarkupAvgPoolPrecisionPreserved(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
-    const std::vector<ngraph::element::Type> defaultPrecisions;
+    const std::vector<ov::element::Type> defaultPrecisions;
 };

@@ -15,18 +15,16 @@ enum MODEL {
     THROUGHPUT = 2,
 };
 
-using ConfigParams = std::tuple<
-        bool,                        // if can continue to run
-        bool,                        // if select throw exception
-        MODEL,                       // config model general, latency, throughput
-        std::vector<DeviceParams>,   // {device, loadSuccess}
-        unsigned int,                // select count
-        unsigned int,                // load count
-        unsigned int                 // load device success count
-        >;
+using ConfigParams = std::tuple<bool,                       // if can continue to run
+                                bool,                       // if select throw exception
+                                MODEL,                      // config model general, latency, throughput
+                                std::vector<DeviceParams>,  // {device, loadSuccess}
+                                unsigned int,               // select count
+                                unsigned int,               // load count
+                                unsigned int                // load device success count
+                                >;
 
-class AutoLoadFailedTest :  public tests::AutoTest,
-                            public ::testing::TestWithParam<ConfigParams> {
+class AutoLoadFailedTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
         unsigned int selectCount;
@@ -36,8 +34,8 @@ public:
         bool continueRun;
         bool thrExcWheSelect;
         MODEL configModel;
-        std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs,
-                 selectCount, loadCount, loadSuccessCount) = obj.param;
+        std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount, loadCount, loadSuccessCount) =
+            obj.param;
         std::ostringstream result;
         for (auto& item : deviceConfigs) {
             if (std::get<1>(item)) {
@@ -53,22 +51,21 @@ public:
         }
 
         switch (configModel) {
-            case GENERAL:
-                result << "GENERAL";
-                break;
-            case LATENCY:
-                result << "LATENCY";
-                break;
-            case THROUGHPUT:
-                result << "THROUGHPUT";
-                break;
-            default:
-                LOG_ERROR("should not come here");
-                break;
+        case GENERAL:
+            result << "GENERAL";
+            break;
+        case LATENCY:
+            result << "LATENCY";
+            break;
+        case THROUGHPUT:
+            result << "THROUGHPUT";
+            break;
+        default:
+            LOG_ERROR("should not come here");
+            break;
         }
 
-        result << "select_" << selectCount << "_loadCount_"
-               << loadCount << "_loadSuccessCount_" << loadSuccessCount;
+        result << "select_" << selectCount << "_loadCount_" << loadCount << "_loadSuccessCount_" << loadSuccessCount;
         return result.str();
     }
     void SetUp() override {
@@ -87,8 +84,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     bool continueRun;
     bool thrExcWheSelect;
     MODEL configModel;
-    std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount,
-             loadCount, loadSuccessCount) = this->GetParam();
+    std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount, loadCount, loadSuccessCount) =
+        this->GetParam();
 
     // test auto plugin
     plugin->set_device_name("AUTO");
@@ -99,30 +96,37 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         bool loadSuccess = std::get<1>(*iter);
         // accoding to device loading config, set if the loading will successful or throw exception.
         if (loadSuccess) {
-            ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                        (_))).WillByDefault(Return(mockExeNetwork));
+            ON_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                                  (_)))
+                .WillByDefault(Return(mockExeNetwork));
         } else {
-            ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                        (_)))
+            ON_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                                  (_)))
                 .WillByDefault(Throw(ov::Exception{"compile error"}));
         }
         DeviceInformation devInfo;
         switch (configModel) {
-            case GENERAL:
-                devInfo = {deviceName, {}, 2, ""};
-                break;
-            case LATENCY:
-                devInfo = {deviceName, {ov::hint::performance_mode("LATENCY"), ov::hint::allow_auto_batching(true), ov::auto_batch_timeout(1000)},
-                    2, ""};
-                break;
-            case THROUGHPUT:
-                devInfo = {deviceName, {ov::hint::performance_mode("THROUGHPUT")}, 2, ""};
-                break;
-            default:
-                LOG_ERROR("should not come here");
-                break;
+        case GENERAL:
+            devInfo = {deviceName, {}, 2, ""};
+            break;
+        case LATENCY:
+            devInfo = {deviceName,
+                       {ov::hint::performance_mode("LATENCY"),
+                        ov::hint::allow_auto_batching(true),
+                        ov::auto_batch_timeout(1000)},
+                       2,
+                       ""};
+            break;
+        case THROUGHPUT:
+            devInfo = {deviceName, {ov::hint::performance_mode("THROUGHPUT")}, 2, ""};
+            break;
+        default:
+            LOG_ERROR("should not come here");
+            break;
         }
 
         metaDevices.push_back(std::move(devInfo));
@@ -156,9 +160,11 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(AtLeast(1));
     EXPECT_CALL(*plugin, select_device(_, _, _)).Times(selectCount);
-    EXPECT_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const ov::AnyMap&>(_))).Times(loadCount);
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(loadCount);
 
     // if loadSuccess will get the optimalNum requset of per device, in this test is 2;
     EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
@@ -177,8 +183,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 //                DeviceParams {ov::test::utils::DEVICE_CPU, true}}, 2, 3, 2},
 //
 // every element for ConfigParams
-// {continueRun, selectThrowException,  config model,  deviceLoadsuccessVector, selectCount, loadCount, loadSuccessCount}
-// {       true,                false,       GENERAL,                 3 device,           2,         3,                2}
+// {continueRun, selectThrowException,  config model,  deviceLoadsuccessVector, selectCount, loadCount,
+// loadSuccessCount} {       true,                false,       GENERAL,                 3 device,           2, 3, 2}
 //
 // there are three devices for loading
 // CPU load for accelerator success, but GPU will load faild and then select NPU and load again
@@ -353,7 +359,7 @@ const std::vector<ConfigParams> testConfigs = {
                  3,
                  2}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoLoadFailedTest,
-                ::testing::ValuesIn(testConfigs),
-            AutoLoadFailedTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         AutoLoadFailedTest,
+                         ::testing::ValuesIn(testConfigs),
+                         AutoLoadFailedTest::getTestCaseName);

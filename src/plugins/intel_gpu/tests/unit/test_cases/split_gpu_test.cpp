@@ -37,7 +37,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     auto& engine = get_test_engine();
     cldnn::tensor reference_input_size = { batch_num, feature_num, x_size, y_size };
 
-    cldnn::memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, reference_input_size });
+    cldnn::memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, reference_input_size });
     std::vector<std::pair<primitive_id, cldnn::tensor> > input_ids_offsets;
 
     topology topology;

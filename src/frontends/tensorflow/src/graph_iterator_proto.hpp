@@ -10,10 +10,10 @@
 #include "checkpoint_v1_reader.hpp"
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
-#include "graph.pb.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
+#include "ov_tensorflow/graph.pb.h"
 
 namespace ov {
 namespace frontend {

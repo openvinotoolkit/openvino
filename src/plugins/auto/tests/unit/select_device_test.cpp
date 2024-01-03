@@ -5,30 +5,28 @@
 #include "include/auto_unit_test.hpp"
 
 using namespace ov::mock_auto_plugin;
-using ConfigParams = std::tuple<
-        std::string,                        // netPrecision
-        std::vector<DeviceInformation>,      // metaDevices for select
-        DeviceInformation,                   // expect DeviceInformation
-        bool,                                // throw exception
-        bool,                                // enabledevice_priority
-        bool                                 // reverse total device
-        >;
+using ConfigParams = std::tuple<std::string,                     // netPrecision
+                                std::vector<DeviceInformation>,  // metaDevices for select
+                                DeviceInformation,               // expect DeviceInformation
+                                bool,                            // throw exception
+                                bool,                            // enabledevice_priority
+                                bool                             // reverse total device
+                                >;
 
 const DeviceInformation CPU_INFO = {ov::test::utils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
-const DeviceInformation OTHERS_INFO = {"OTHERS", {}, 2, "01", "OTHERS" };
+const DeviceInformation OTHERS_INFO = {"OTHERS", {}, 2, "01", "OTHERS"};
 const std::vector<DeviceInformation> fp32DeviceVector = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> fp16DeviceVector = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> int8DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
+const std::vector<DeviceInformation> binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
+const std::vector<DeviceInformation> batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
-                                                                           {"FP16", fp16DeviceVector},
-                                                                           {"INT8", int8DeviceVector},
-                                                                           {"BIN",  binDeviceVector},
-                                                                           {"BATCHED_BLOB", batchedblobDeviceVector}
-                                                                         };
+                                                                          {"FP16", fp16DeviceVector},
+                                                                          {"INT8", int8DeviceVector},
+                                                                          {"BIN", binDeviceVector},
+                                                                          {"BATCHED_BLOB", batchedblobDeviceVector}};
 const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> reverseTotalDevices = {CPU_INFO, OTHERS_INFO, IGPU_INFO, DGPU_INFO};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
@@ -47,7 +45,7 @@ public:
         std::ostringstream result;
         result << "_netPrecision_" << netPrecision;
         for (auto& item : devices) {
-            result <<  "_device_" << item.unique_name;
+            result << "_device_" << item.unique_name;
         }
         result << "_expect_" << expect.unique_name;
         if (throwExcept) {
@@ -72,9 +70,14 @@ public:
     }
     // combine select_num devices from devices and make them to ConfigParams
     // insert the ConfigParams into testConfigs
-    static void combine_device(const std::vector<DeviceInformation>& devices, size_t start,
-            size_t* result, size_t result_index, const size_t select_num, std::string& netPrecision,
-            bool enabledevice_priority, bool reverse) {
+    static void combine_device(const std::vector<DeviceInformation>& devices,
+                               size_t start,
+                               size_t* result,
+                               size_t result_index,
+                               const size_t select_num,
+                               std::string& netPrecision,
+                               bool enabledevice_priority,
+                               bool reverse) {
         for (size_t i = start; i < devices.size() + 1 - result_index; i++) {
             result[result_index - 1] = i;
             if (result_index - 1 == 0) {
@@ -100,8 +103,11 @@ public:
                     if (enabledevice_priority) {
                         std::vector<DeviceInformation> validDevices;
                         for (auto& item : devicesInfo) {
-                            auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
-                                    [&item](const DeviceInformation& d)->bool{return d.unique_name == item.unique_name;});
+                            auto device = std::find_if(metaDevices.begin(),
+                                                       metaDevices.end(),
+                                                       [&item](const DeviceInformation& d) -> bool {
+                                                           return d.unique_name == item.unique_name;
+                                                       });
                             if (device != metaDevices.end()) {
                                 validDevices.push_back(*device);
                             }
@@ -118,8 +124,11 @@ public:
                         }
                     } else {
                         for (auto& item : devicesInfo) {
-                            auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
-                                    [&item](const DeviceInformation& d)->bool{return d.unique_name == item.unique_name;});
+                            auto device = std::find_if(metaDevices.begin(),
+                                                       metaDevices.end(),
+                                                       [&item](const DeviceInformation& d) -> bool {
+                                                           return d.unique_name == item.unique_name;
+                                                       });
                             if (device != metaDevices.end()) {
                                 find = true;
                                 expect = item;
@@ -133,11 +142,17 @@ public:
                 } else {
                     find = false;
                 }
-                testConfigs.push_back(std::make_tuple(netPrecision, metaDevices,
-                            expect, !find, enabledevice_priority, reverse));
+                testConfigs.push_back(
+                    std::make_tuple(netPrecision, metaDevices, expect, !find, enabledevice_priority, reverse));
             } else {
-                combine_device(devices, i + 1, result, result_index - 1,
-                        select_num, netPrecision, enabledevice_priority, reverse);
+                combine_device(devices,
+                               i + 1,
+                               result,
+                               result_index - 1,
+                               select_num,
+                               netPrecision,
+                               enabledevice_priority,
+                               reverse);
             }
         }
     }
@@ -178,7 +193,7 @@ public:
                 combine_device(reverseTotalDevices, 0, result, i, i, netPrecision, true, true);
             }
         }
-        delete []result;
+        delete[] result;
         return testConfigs;
     }
 
@@ -189,14 +204,16 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*plugin, select_device).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                   const std::string& netPrecision, unsigned int priority) {
-               return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
-               });
-       ON_CALL(*plugin, get_valid_device)
-           .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-               return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
-           });
+        ON_CALL(*plugin, select_device)
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                  const std::string& netPrecision,
+                                  unsigned int priority) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+            });
+        ON_CALL(*plugin, get_valid_device)
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
+            });
     }
 };
 
@@ -220,13 +237,12 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     if (throwExcept) {
         ASSERT_THROW(plugin->select_device(devices, netPrecision, 0), ov::Exception);
     } else {
-        auto result =  plugin->select_device(devices, netPrecision, 0);
+        auto result = plugin->select_device(devices, netPrecision, 0);
         compare(result, expect);
     }
 }
 
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, SelectDeviceTest,
-                ::testing::ValuesIn(SelectDeviceTest::CreateConfigs()),
-            SelectDeviceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         SelectDeviceTest,
+                         ::testing::ValuesIn(SelectDeviceTest::CreateConfigs()),
+                         SelectDeviceTest::getTestCaseName);

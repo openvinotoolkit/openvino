@@ -13,7 +13,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::ScatterElementsUpdate>& op) {
+static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<op::util::ScatterElementsUpdateBase>& op) {
     validate_inputs_count(op, {4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -26,16 +26,26 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
     int64_t axis = ov::normalize_axis(op.get(), axes_constant->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    auto mode = cldnn::ScatterElementsUpdateOp::Reduction::NONE;
+    auto use_init_val = true;
+    if (const auto op_v12 = std::dynamic_pointer_cast<cldnn::ScatterElementsUpdateOp>(op)) {
+        mode = op_v12->get_reduction();
+        use_init_val = op_v12->get_use_init_val();
+    }
+
     auto primitive = cldnn::scatter_elements_update(layerName,
                                                     inputs[0],
                                                     inputs[1],
                                                     inputs[2],
-                                                    axis);
+                                                    axis,
+                                                    mode,
+                                                    use_init_val);
 
     p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);
+REGISTER_FACTORY_IMPL(v12, ScatterElementsUpdate);
 
 }  // namespace intel_gpu
 }  // namespace ov

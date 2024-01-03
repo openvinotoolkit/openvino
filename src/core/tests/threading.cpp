@@ -20,7 +20,7 @@
 using namespace ov;
 using namespace std;
 
-std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
+static std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
         auto relu = std::make_shared<ov::opset8::Relu>(input);
         auto type_relaxed =

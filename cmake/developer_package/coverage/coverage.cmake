@@ -16,7 +16,7 @@ endif()
 
 
 set(OV_COVERAGE_REPORTS "${CMAKE_BINARY_DIR}/coverage")
-set(OV_COVERAGE_SCRIPT_DIR "${IEDevScripts_DIR}/coverage")
+set(OV_COVERAGE_SCRIPT_DIR "${OpenVINODeveloperScripts_DIR}/coverage")
 
 include(CMakeParseArguments)
 
@@ -171,9 +171,9 @@ function(ov_coverage_genhtml)
 endfunction()
 
 #
-# ie_coverage_remove(INPUT <info_file> OUTPUT <output_file> PATTERNS <patterns ...>)
+# ov_coverage_remove(INPUT <info_file> OUTPUT <output_file> PATTERNS <patterns ...>)
 #
-function(ie_coverage_remove)
+function(ov_coverage_remove)
     cmake_parse_arguments(OV_COVERAGE "" "INPUT;OUTPUT" "PATTERNS" ${ARGN})
 
     set(input_file "${OV_COVERAGE_REPORTS}/${OV_COVERAGE_INPUT}.info")
@@ -199,9 +199,9 @@ function(ie_coverage_remove)
 endfunction()
 
 #
-# ie_coverage_merge(OUTPUT <output file> INPUTS <input files ...>)
+# ov_coverage_merge(OUTPUT <output file> INPUTS <input files ...>)
 #
-function(ie_coverage_merge)
+function(ov_coverage_merge)
     cmake_parse_arguments(OV_COVERAGE "" "OUTPUT" "INPUTS" ${ARGN})
 
     set(output_file "${OV_COVERAGE_REPORTS}/${OV_COVERAGE_OUTPUT}.info")
@@ -226,6 +226,8 @@ function(ie_coverage_merge)
 
     add_dependencies(ov_coverage_${OV_COVERAGE_OUTPUT}_info ${dependencies})
 endfunction()
+
+# deprecated
 
 if(NOT TARGET ie_coverage)
     add_custom_target(ie_coverage)

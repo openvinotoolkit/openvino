@@ -126,9 +126,6 @@ std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::Compiled
 
 // ! [compiled_model:get_property]
 ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -141,15 +138,8 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
         return rw_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
     if (ov::model_name == name) {
-        auto model_name = m_model->get_friendly_name();
+        auto& model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;

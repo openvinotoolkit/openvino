@@ -41,6 +41,5 @@ using ov::pass::GraphRewrite;
 namespace pattern {
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::MatcherState;
-using ov::pass::pattern::RecurrentMatcher;
 }  // namespace pattern
 }  // namespace ngraph

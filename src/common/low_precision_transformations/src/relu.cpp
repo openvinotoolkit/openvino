@@ -8,13 +8,13 @@
 #include <memory>
 #include <string>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -22,7 +22,7 @@ ReluTransformation::ReluTransformation(const Params& params) : LayerTransformati
     MATCHER_SCOPE(ReluTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Relu>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -30,11 +30,11 @@ ReluTransformation::ReluTransformation(const Params& params) : LayerTransformati
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool ReluTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> relu = m.get_match_root();
     if (!canBeTransformed(context, relu)) {
         return false;
@@ -70,4 +70,4 @@ bool ReluTransformation::canBeTransformed(const TransformationContext& context, 
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -85,7 +85,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 }
 
 template<typename ShapeType>
-std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<gemm>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
@@ -108,7 +108,11 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_paddings[0]} };
+    cldnn::format output_format = input0_layout.format;
+    if (node.get_preferred_output_fmt() != format::any)
+        output_format = node.get_preferred_output_fmt();
+
+    return { layout{output_shapes[0], output_type, output_format, prim->output_paddings[0]} };
 }
 
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);

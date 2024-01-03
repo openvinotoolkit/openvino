@@ -33,7 +33,7 @@ public:
         auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
-        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+        ov::test::utils::generate_test_model(modelName, weightsName);
     }
 
     void TearDown() override {
@@ -63,7 +63,7 @@ public:
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + IE_BUILD_POSTFIX));
+                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
@@ -95,7 +95,7 @@ TEST_F(IECoreThreadingTests, RegisterPlugin) {
         [&]() {
             const std::string deviceName = std::to_string(index++);
             ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                               deviceName);
             ie.GetVersions(deviceName);
             ie.UnregisterPlugin(deviceName);
@@ -118,7 +118,7 @@ TEST_F(IECoreThreadingTests, RegisterPlugins) {
         file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
-        file << IE_BUILD_POSTFIX;
+        file << OV_BUILD_POSTFIX;
         file << ov::util::FileTraits<char>::dot_symbol;
         file << ov::util::FileTraits<char>::library_ext();
         file << "\" name=\"";

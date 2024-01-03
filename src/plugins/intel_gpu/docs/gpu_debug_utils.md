@@ -39,7 +39,7 @@ Behavior when both versions are specified is not defined.
 
 Some options also allow multiple prefixes: `OV` and `OV_GPU`. `OV` prefix is intended to be used for options common for all OpenVINO components. When an option is set twice with different prefixes, then `OV_GPU` has higher priority.
 
-### List of parameters 
+### List of parameters
 
 This is a part of the full list. To get all parameters, see OV_GPU_Help result.
 
@@ -66,12 +66,12 @@ This is a part of the full list. To get all parameters, see OV_GPU_Help result.
 
 The execution graph (also known as a runtime graph) is a device-specific graph after all transformations applied by the plugin. It is a very useful
 feature for performance analysis and it allows finding a source of performance regressions quickly. The execution graph can be retrieved from the plugin
-using `GetExecGraphInfo()` method of `InferenceEngine::ExecutableNetwork` and then serialized as usual IR:
+using `get_runtime_model()` method of `ov::CompiledModel` and then serialized as usual IR:
 ```cpp
-    ExecutableNetwork exeNetwork;
+    ov::CompiledModel compiled_model;
     // Load some model into the plugin
-    CNNNetwork execGraphInfo = exeNetwork.GetExecGraphInfo();
-    execGraphInfo.serialize("/path/to/serialized/exec/graph.xml");
+    std::shared_ptr<ov::Model> runtime_model = compiled_model.get_runtime_model();
+    ov::serialize(runtime_model, "/path/to/serialized/exec/graph.xml");
 ```
 
 The capability to retrieve the execution graph and store it on the disk is integrated into `benchmark_app`. The execution graph can be simply dumped
@@ -116,14 +116,14 @@ Most of the data here is very handy for performance analysis. For example, for e
 
 This graph can be visualized using Netron tool and all these properties can be analyzed there.
 
-> **NOTE**: execution time collection for each primitive requires `CONFIG_KEY(PERF_COUNT)` to be enabled (`benchmark_app` does it automatically). Therefore, the overall model execution time is usually much worse in such use cases.
+> **NOTE**: execution time collection for each primitive requires `ov::enable_profiling` to be enabled (`benchmark_app` does it automatically). Therefore, the overall model execution time is usually much worse in such use cases.
 
 ## Performance counters
 
 This feature is a simplified version of the execution graph as it provides much less information, but it might be more suitable for quick analysis and some kind of
 processing with scripts.
 
-Performance counters can be retrieved from each `InferenceEngine::InferRequest` object using `getPerformanceCounts()` method. This feature is also integrated
+Performance counters can be retrieved from each `ov::InferRequest` object using `get_profiling_info()` method. This feature is also integrated
 into `benchmark_app` and the counters can be printed to count using `-pc` parameter.
 
 The format looks as follows:
@@ -149,14 +149,6 @@ So it allows you to quickly check the execution time of some operation on the de
 
 * You can dump graphs with `OV_GPU_DumpGraphs` of debug config. For the usage of debug config, see the [link](#debug-config).
 
-* Alternatively, you can also enable the dumps from the application source code:
-clDNN plugin has the special internal config option - `graph_dumps_dir`, which can be set from the user app via plugin config:
-```cpp
-Core ie;
-std::map<std::string, std::string> device_config;
-device_config[CLDNN_CONFIG_KEY(GRAPH_DUMPS_DIR)] = "/some/existing/path/";
-ie.SetConfig(device_config, "GPU");
-```
 
 For each stage, it dumps:
 ```
@@ -175,14 +167,6 @@ Since *Intel_GPU* source tree contains only *templates* of the OpenCL™ kernels
 
 * You can use `OV_GPU_DumpSources` of debug config. For the usage of debug config, see [link](#debug-config).
 
-* You can also dump OpenCL source code by changing OpenVINO source code:
-clDNN plugin has the special internal config option - `sources_dumps_dir`, which can be set from the user app via plugin config:
-```cpp
-Core ie;
-std::map<std::string, std::string> device_config;
-device_config[CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR)] = "/some/existing/path/";
-ie.SetConfig(device_config, "GPU");
-```
 
 When this key is enabled, the plugin dumps multiple files with the following names:
 ```

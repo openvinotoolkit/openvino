@@ -21,7 +21,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
 
     std::shared_ptr<ov::op::v3::ScatterUpdate> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::scatter_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_update_impl>(*this);
@@ -40,10 +40,12 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << axis;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> axis;
     }
 

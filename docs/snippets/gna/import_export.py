@@ -2,25 +2,30 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #! [import]
-from openvino.runtime import Core
+import openvino as ov
 from io import BytesIO
 #! [import]
 
-model_path = "model.xml"
-blob_path = "compiled_model.blob"
+from snippets import get_model
 
-core = Core()
-model = core.read_model(model=model_path)
-compiled_model = core.compile_model(model, device_name="GNA")
+def main():
+    model = get_model()
+    blob_path = "compiled_model.blob"
 
-#! [ov_gna_export]
-user_stream = compiled_model.export_model()
-with open(blob_path, 'wb') as f:
-    f.write(user_stream)
-#! [ov_gna_export]
+    core = ov.Core()
+    if "GNA" not in core.available_devices:
+        return 0
 
-# [ov_gna_import]
-with open(blob_path, 'rb') as f:
-    buf = BytesIO(f.read())
-    compiled_model = core.import_model(buf, device_name="GNA")
-# [ov_gna_import]
+    compiled_model = core.compile_model(model, device_name="GNA")
+
+    #! [ov_gna_export]
+    user_stream = compiled_model.export_model()
+    with open(blob_path, "wb") as f:
+        f.write(user_stream)
+    #! [ov_gna_export]
+
+    # [ov_gna_import]
+    with open(blob_path, "rb") as f:
+        buf = BytesIO(f.read())
+        compiled_model = core.import_model(buf, device_name="GNA")
+    # [ov_gna_import]

@@ -20,8 +20,6 @@ struct deconvolution : public primitive_base<deconvolution> {
 
     deconvolution() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs deconvolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

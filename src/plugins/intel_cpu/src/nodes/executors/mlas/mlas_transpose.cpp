@@ -3,11 +3,9 @@
 //
 
 #include "mlas_transpose.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "mlas.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -92,7 +90,7 @@ int64_t MlasTransposeExecutor::calcShapeSize(const Shape& shape, size_t start, s
     return size;
 }
 
-bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(SizeVector permutations, size_t& from, size_t& to) {
+bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(VectorDims permutations, size_t& from, size_t& to) {
     // if a single axis moved to an outer dimension, the values should be one lower than the index until the slot the
     // axis was moved from, and equal to the index after that.
     // e.g. axis 3 moves out to 1 would be: 0, 3, 1, 2, 4

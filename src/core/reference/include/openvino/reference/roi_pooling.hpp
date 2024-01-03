@@ -4,7 +4,10 @@
 
 #pragma once
 
-#include "ngraph/shape.hpp"
+#include <cmath>
+#include <limits>
+
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {
@@ -39,7 +42,7 @@ void roi_pooling(const T* feature_maps,
         int roi_batch_id = static_cast<int>(rois[roi_idx + 0]);
 
         // ROI batch id must be in the range of [0, N-1]
-        NGRAPH_CHECK(0 <= roi_batch_id && roi_batch_id < batches, "ROI batch id must be in the range of [0, N-1]");
+        OPENVINO_ASSERT(0 <= roi_batch_id && roi_batch_id < batches, "ROI batch id must be in the range of [0, N-1]");
 
         if (pooling_method == "max") {
             // ROI coordinates scaled to input feature maps

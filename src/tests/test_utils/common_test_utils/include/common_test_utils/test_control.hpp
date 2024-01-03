@@ -22,31 +22,35 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 
 #define OPENVINO_GTEST_TEST_(backend_name, test_case_name, test_name, parent_class, parent_id)                        \
     class OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public parent_class {            \
-    public:                                                                                                         \
+    public:                                                                                                           \
         OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                 \
-                                                                                                                    \
-    private:                                                                                                        \
-        void TestBody() override;                                                                                   \
-        static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;                                       \
+                                                                                                                      \
+    private:                                                                                                          \
+        void TestBody() override;                                                                                     \
+        static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;                                         \
         GTEST_DISALLOW_COPY_AND_ASSIGN_(OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));    \
-    };                                                                                                              \
-                                                                                                                    \
+    };                                                                                                                \
+                                                                                                                      \
     ::testing::TestInfo* const OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::test_info_ = \
-        ::testing::internal::MakeAndRegisterTestInfo(                                                               \
-            ::ov::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),                        \
-            ::ov::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),                              \
-            nullptr,                                                                                                \
-            nullptr,                                                                                                \
-            ::testing::internal::CodeLocation(__FILE__, __LINE__),                                                  \
-            (parent_id),                                                                                            \
-            parent_class::SetUpTestCase,                                                                            \
-            parent_class::TearDownTestCase,                                                                         \
-            new ::testing::internal::TestFactoryImpl<                                                               \
+        ::testing::internal::MakeAndRegisterTestInfo(                                                                 \
+            ::ov::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),                              \
+            ::ov::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),                                    \
+            nullptr,                                                                                                  \
+            nullptr,                                                                                                  \
+            ::testing::internal::CodeLocation(__FILE__, __LINE__),                                                    \
+            (parent_id),                                                                                              \
+            parent_class::SetUpTestCase,                                                                              \
+            parent_class::TearDownTestCase,                                                                           \
+            new ::testing::internal::TestFactoryImpl<                                                                 \
                 OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>);                           \
     void OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
 
 #define OPENVINO_TEST(test_case_name, test_name) \
-    OPENVINO_GTEST_TEST_(test_case_name, test_case_name, test_name, ::testing::Test, ::testing::internal::GetTestTypeId())
+    OPENVINO_GTEST_TEST_(test_case_name,         \
+                         test_case_name,         \
+                         test_name,              \
+                         ::testing::Test,        \
+                         ::testing::internal::GetTestTypeId())
 
 // OPENVINO_TEST_F facilitates the use of the same configuration parameters for multiple
 // unit tests similar to the original TEST_F, but with the introduction of a new 0th
@@ -68,10 +72,10 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // (rather than the BACKENDNAME.* that worked before the use of OPENVINO_TEST_F)
 #define OPENVINO_TEST_F(backend_name, test_fixture, test_name) \
     OPENVINO_GTEST_TEST_(backend_name,                         \
-                       test_fixture,                         \
-                       test_name,                            \
-                       test_fixture,                         \
-                       ::testing::internal::GetTypeId<test_fixture>())
+                         test_fixture,                         \
+                         test_name,                            \
+                         test_fixture,                         \
+                         ::testing::internal::GetTypeId<test_fixture>())
 
 // OPENVINO_TEST_P combined with OPENVINO_INSTANTIATE_TEST_SUITE_P facilate the generation
 // of value parameterized tests (similar to the original TEST_P and INSTANTIATE_TEST_SUITE_P
@@ -81,10 +85,10 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // Start by defining a class derived from ::testing::TestWithParam<T>, which you'll pass
 // for the test_case_name parameter.
 // Then use OPENVINO_INSTANTIATE_TEST_SUITE_P to define each generation of test cases (see below).
-#define OPENVINO_TEST_P(backend_name, test_case_name, test_name)                                                     \
-    class OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public test_case_name {         \
+#define OPENVINO_TEST_P(backend_name, test_case_name, test_name)                                                   \
+    class OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public test_case_name {       \
     public:                                                                                                        \
-        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                \
+        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                              \
         void TestBody() override;                                                                                  \
                                                                                                                    \
     private:                                                                                                       \
@@ -95,16 +99,16 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
                                                           ::testing::internal::CodeLocation(__FILE__, __LINE__))   \
                 ->AddTestPattern(                                                                                  \
                     #backend_name "/" #test_case_name,                                                             \
-                    ::ov::prepend_disabled(#backend_name "/" #test_case_name, #test_name, s_manifest).c_str(), \
+                    ::ov::prepend_disabled(#backend_name "/" #test_case_name, #test_name, s_manifest).c_str(),     \
                     new ::testing::internal::TestMetaFactory<                                                      \
-                        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>());                \
+                        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>());              \
             return 0;                                                                                              \
         }                                                                                                          \
         static int gtest_registering_dummy_ GTEST_ATTRIBUTE_UNUSED_;                                               \
-        GTEST_DISALLOW_COPY_AND_ASSIGN_(OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));   \
+        GTEST_DISALLOW_COPY_AND_ASSIGN_(OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)); \
     };                                                                                                             \
-    int OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::gtest_registering_dummy_ =         \
-        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::AddToRegistry();                   \
+    int OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::gtest_registering_dummy_ =       \
+        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::AddToRegistry();                 \
     void OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
 
 // Use OPENVINO_INSTANTIATE_TEST_SUITE_P to create a generated set of test case variations.
@@ -140,7 +144,7 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // the filter to run all the tests for a given backend should be:
 // --gtest_filter=BACKENDNAME*.*
 // (rather than the BACKENDNAME.* that worked before the use of OPENVINO_TEST_P)
-#define OPENVINO_INSTANTIATE_TEST_SUITE_P(backend_name, prefix, test_suite_name, generator)                     \
+#define OPENVINO_INSTANTIATE_TEST_SUITE_P(backend_name, prefix, test_suite_name, generator)                   \
     static ::testing::internal::ParamGenerator<test_suite_name::ParamType>                                    \
         gtest_##prefix##backend_name##test_suite_name##_EvalGenerator_() {                                    \
         return generator;                                                                                     \

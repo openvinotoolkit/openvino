@@ -3,15 +3,14 @@
 //
 
 #include "low_precision/split.hpp"
-#include "ngraph/node.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -27,11 +26,11 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SplitTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool SplitTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -47,9 +46,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     ov::copy_runtime_info(split, newSplit);
 
     const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const size_t normalizedAxis = ngraph::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const size_t normalizedAxis =
+        ov::util::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
 
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {
@@ -129,8 +127,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
 
 void SplitTransformation::updateOutputs(
     TransformationContext& context,
-    std::vector<std::shared_ptr<ngraph::Node>> lastNodes,
-    std::shared_ptr<ngraph::Node> originalNode) const {
+    std::vector<std::shared_ptr<ov::Node>> lastNodes,
+    std::shared_ptr<ov::Node> originalNode) const {
     //TODO: LPT: during refactoring update is not tested
     if (lastNodes.size() == 1ul) {
         updateOutput(context, lastNodes[0], originalNode);
@@ -161,4 +159,4 @@ bool SplitTransformation::canBeTransformed(const TransformationContext& context,
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

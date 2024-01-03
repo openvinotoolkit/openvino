@@ -89,15 +89,15 @@ body:
     id: model_name
     attributes:
       label: Model used
-      description: Please provide us the link to your model in the description
+      description: Link to the model
       placeholder: ResNet50 / YOLOv4
     validations:
       required: true
   - type: dropdown
     id: model_quantized
     attributes:
-      label: Quantized model?
-      description: Is your model quantized with model optimized?
+      label: Model quantization
+      description: Is your model quantized?
       options:
         - 'Yes'
         - 'No'
@@ -119,11 +119,9 @@ body:
     attributes:
       label: Performance issue description
       description: What issue are you having, and what did you expect to happen instead?
-      placeholder: Please provide a detailed description of what happened
-      value: |
-          let us know the application you use for performance tests
-          e.g., hello_classification.py / benchmark_app / own test script
-          if you are using your own test script, could this reproduce using benchmark_app?
+      placeholder: |
+          Please provide a detailed description of what happened.
+          Can the issue be reproduced using benchmark_app?
     validations:
       required: true
   - type: textarea
@@ -140,9 +138,9 @@ body:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report the performance issue. It's not a question
+        - label: I'm reporting a performance issue. It's not a question.
           required: true
-        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found the solution
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
           required: true
         - label: There is reproducer code and related data files such as images, videos, models, etc.
           required: true

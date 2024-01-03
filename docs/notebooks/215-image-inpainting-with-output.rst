@@ -1,8 +1,6 @@
 Image In-painting with OpenVINO™
 --------------------------------
 
-
-
 This notebook demonstrates how to use an image in-painting model with
 OpenVINO, using `GMCNN
 model <https://github.com/shepnerd/inpainting_gmcnn>`__ from `Open Model
@@ -11,22 +9,35 @@ given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
-
-- `Download the Model <#download-the-model>`__
-- `Convert Tensorflow model to OpenVINO IR format <#convert-tensorflow-model-to-openvino-ir-format>`__
-- `Load the model <#load-the-model>`__
-- `Determine the input shapes of the model <#determine-the-input-shapes-of-the-model>`__
-- `Create a square mask <#create-a-square-mask>`__
-- `Load and Resize the Image <#load-and-resize-the-image>`__
-- `Generating the Masked Image <#generating-the-masked-image>`__
-- `Preprocessing <#preprocessing>`__
-- `Inference <#inference>`__
-- `Save the Restored Image <#save-the-restored-image>`__
+-  `Download the Model <#download-the-model>`__
+-  `Convert Tensorflow model to OpenVINO IR
+   format <#convert-tensorflow-model-to-openvino-ir-format>`__
+-  `Load the model <#load-the-model>`__
+-  `Determine the input shapes of the
+   model <#determine-the-input-shapes-of-the-model>`__
+-  `Create a square mask <#create-a-square-mask>`__
+-  `Load and Resize the Image <#load-and-resize-the-image>`__
+-  `Generating the Masked Image <#generating-the-masked-image>`__
+-  `Preprocessing <#preprocessing>`__
+-  `Inference <#inference>`__
+-  `Save the Restored Image <#save-the-restored-image>`__
 
 .. |pipeline| image:: https://user-images.githubusercontent.com/4547501/165792473-ba784c0d-0a37-409f-a5f6-bb1849c1d140.png
+
+.. code:: ipython3
+
+    %pip install -q "openvino>=2023.1.0" "opencv-python" "matplotlib"
+
+
+.. parsed-literal::
+
+    
+    [notice] A new release of pip is available: 23.2.1 -> 23.3.1
+    [notice] To update, run: pip install --upgrade pip
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -37,20 +48,21 @@ original image. The Following pipeline will be used in this notebook.
     import matplotlib.pyplot as plt
     import numpy as np
     from zipfile import ZipFile
-    from openvino.tools import mo
-    from openvino.runtime import Core, Tensor, serialize
+    import openvino as ov
     
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download the Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Download the Model
+~~~~~~~~~~~~~~~~~~
 
-Download ``gmcnn-places2-tf``\ model (this step will be skipped if the model is already downloaded) and then
-unzip it. Downloaded model stored in TensorFlow frozen graph format. The
-steps how this frozen graph can be obtained from original model
-checkpoint can be found in this
-`instruction <https://docs.openvino.ai/2023.1/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
+
+
+Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
+model is already downloaded) and then unzip it. Downloaded model stored
+in TensorFlow frozen graph format. The steps how this frozen graph can
+be obtained from original model checkpoint can be found in this
+`instruction <https://docs.openvino.ai/2023.0/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
 
 .. code:: ipython3
 
@@ -75,14 +87,15 @@ checkpoint can be found in this
     Already downloaded
 
 
-Convert Tensorflow model to OpenVINO IR format `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert Tensorflow model to OpenVINO IR format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format with model conversion API. For more
 information about model conversion, see this
-`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 This step is also skipped if the model is already converted.
 
 .. code:: ipython3
@@ -92,8 +105,8 @@ This step is also skipped if the model is already converted.
     
     # Run model conversion API to convert model to OpenVINO IR FP32 format, if the IR file does not exist.
     if not ir_path.exists():
-        ov_model = mo.convert_model(model_path, input_shape=[[1,512,680,3],[1,512,680,1]])
-        serialize(ov_model, str(ir_path))
+        ov_model = ov.convert_model(model_path, input=[[1,512,680,3],[1,512,680,1]])
+        ov.save_model(ov_model, str(ir_path))
     else:
         print(f"{ir_path} already exists.")
 
@@ -103,8 +116,9 @@ This step is also skipped if the model is already converted.
     model/public/ir/frozen_model.xml already exists.
 
 
-Load the model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load the model
+~~~~~~~~~~~~~~
+
 
 
 Now, load the OpenVINO IR model and perform as follows:
@@ -119,7 +133,7 @@ Only a few lines of code are required to run the model:
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     
     # Read the model.xml and weights file
     model = core.read_model(model=ir_path)
@@ -154,8 +168,9 @@ Only a few lines of code are required to run the model:
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-Determine the input shapes of the model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Determine the input shapes of the model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 Note that both input shapes are the same. However, the second input has
@@ -165,8 +180,9 @@ Note that both input shapes are the same. However, the second input has
 
     N, H, W, C = input_layer.shape
 
-Create a square mask `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Create a square mask
+~~~~~~~~~~~~~~~~~~~~
+
 
 
 Next, create a single channeled mask that will be laid on top of the
@@ -206,11 +222,12 @@ original image.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_15_0.png
 
 
-Load and Resize the Image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load and Resize the Image
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 This image will be altered by using the mask. You can process any image
@@ -222,7 +239,7 @@ you like. Just change the URL below.
     
     if not img_path.exists():
         # Download an image.
-        url = "https://www.intel.com/content/dam/www/central-libraries/us/en/images/arc-home-hero-128.png.rendition.intel.web.480.360.png"
+        url = "https://user-images.githubusercontent.com/29454499/281372079-fa8d84c4-8bf9-4a82-a1b9-5a74ad42ce47.png"
         image_file = utils.download_file(
             url, filename="laptop.png", directory="data", show_progress=False, silent=True, timeout=30
         )
@@ -236,11 +253,12 @@ you like. Just change the URL below.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_17_0.png
 
 
-Generating the Masked Image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Generating the Masked Image
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 This multiplication of the image and the mask gives the result of the
@@ -256,11 +274,12 @@ will be the first input to the GMCNN model.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_18_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_19_0.png
 
 
-Preprocessing `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preprocessing
+~~~~~~~~~~~~~
+
 
 
 The model expects the input dimensions to be ``NHWC``.
@@ -273,8 +292,9 @@ The model expects the input dimensions to be ``NHWC``.
     masked_image = masked_image[None, ...]
     mask = mask[None, ...]
 
-Inference `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Inference
+~~~~~~~~~
+
 
 
 Do inference with the given masked image and the mask. Then, show the
@@ -282,18 +302,19 @@ restored image.
 
 .. code:: ipython3
 
-    result = compiled_model([Tensor(masked_image.astype(np.float32)), Tensor(mask.astype(np.float32))])[output_layer]
+    result = compiled_model([ov.Tensor(masked_image.astype(np.float32)), ov.Tensor(mask.astype(np.float32))])[output_layer]
     result = result.squeeze().astype(np.uint8)
     plt.figure(figsize=(16, 12))
     plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB));
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_22_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_23_0.png
 
 
-Save the Restored Image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Save the Restored Image
+~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 Save the restored image to the data directory to download it.

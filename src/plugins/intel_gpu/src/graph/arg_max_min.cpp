@@ -105,7 +105,7 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
-        auto dt = desc->output_data_types[i].value_or(input_layout.data_type);
+        auto dt = desc->get_output_data_type(i).value_or(input_layout.data_type);
         layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
     }
     return layouts;

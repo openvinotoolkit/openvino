@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/mat_mul.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include <string>
-#include <ov_ops/type_relaxed.hpp>
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu/cpu_config.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 struct ShapeRelatedParams {
     std::vector<InputShape> inputShapes;
@@ -31,7 +28,7 @@ typedef std::tuple<
         ElementType,                        // Output precision
         fusingSpecificParams,
         CPUSpecificParams,
-        std::map<std::string, std::string>, // Additional config
+        ov::AnyMap, // Additional config
         float                               // Weights sparse rate
 > MatMulSparseParamSet;
 
@@ -43,7 +40,7 @@ public:
         ElementType inType, weiType, outType;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         float weiSparseRate;
         std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
             weiSparseRate) = obj.param;
@@ -75,7 +72,7 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         result << "_weiSparseRate=" << weiSparseRate;
@@ -88,7 +85,7 @@ protected:
 
     template<typename T>
     void transpose(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
@@ -104,7 +101,7 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        int countZero = 0;
+        size_t countZero = 0;
 
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
@@ -128,15 +125,15 @@ protected:
                                             bool transpose_a,
                                             bool transpose_b,
                                             const std::vector<int8_t>& weiData) {
-        using namespace ngraph;
         auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, A.get_partial_shape());
-        auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
+        auto matrixBFP32 = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
-            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b)),
+        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
+            ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
-        auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = ov::test::utils::deprecated::make_constant<int8_t>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 
@@ -145,13 +142,12 @@ protected:
 
     void SetUp() override {
         abs_threshold = 0.5f;
-        using ngraph::pass::ConvertPrecision;
 
         ShapeRelatedParams shapeRelatedParams;
         ElementType inType, weiType, outType;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         float weiSparseRate;
 
         std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
@@ -190,21 +186,20 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
-        auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
+        auto matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
-        auto matMul = makeMatMulRelaxed(paramOuts[0], inShapeB, weiType, transpA, transpB, weiData);
+        auto weiData = generateSparseVector(ov::shape_size(inShapeB.get_shape()), weiSparseRate);
+        auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
         function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
 
         checkFusingPosition = false;
 
         functionRefs = ov::clone_model(*function);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-        functionRefs->validate_nodes_and_infer_types();
+        convert_precisions.insert({ov::element::i8, ov::element::f32});
+        convert_precisions.insert({ov::element::u8, ov::element::f32});
     }
 };
 
@@ -234,9 +229,9 @@ std::vector<CPUSpecificParams> filterSpecificParams(bool sparseExpected) {
 namespace fullyConnected {
 
 // cpu (sparse) configs
-const std::map<std::string, std::string> emptyConfig = {};
-const std::map<std::string, std::string> SparseRate50 = {{CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE, "0.5"}};
-const std::map<std::string, std::string> SparseRate80 = {{CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE, "0.8"}};
+const ov::AnyMap emptyConfig = {};
+const ov::AnyMap SparseRate50 = {{ov::intel_cpu::sparse_weights_decompression_rate(0.5)}};
+const ov::AnyMap SparseRate80 = {{ov::intel_cpu::sparse_weights_decompression_rate(0.8)}};
 
 const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
     {static_shapes_to_test_representation({{64, 64}, {64, 64}}), {false, true}},
@@ -259,6 +254,7 @@ const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
         },
         {false, true}
     },
+    {static_shapes_to_test_representation({{1, 4096}, {4096, 16384}}), {false, true}},
 };
 
 const auto testParams2D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),
@@ -337,4 +333,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8_sparse, MatMulSparseCPUTest, testParams3
 
 } // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

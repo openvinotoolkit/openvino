@@ -6,7 +6,7 @@ from collections.abc import Mapping
 import numpy as np
 import pytest
 
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino import Core, CompiledModel, InferRequest, Model
 from openvino.runtime import ConstOutput
 from openvino.runtime.ie_api import OVDict

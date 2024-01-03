@@ -8,14 +8,14 @@
 #include <string>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<std::vector<size_t>>,  // mask, then, else shapes
         InferenceEngine::Precision,        // then, else precision
-        ngraph::op::AutoBroadcastSpec,     // broadcast
+        ov::op::AutoBroadcastSpec,     // broadcast
         std::string> selectTestParams;     // device name
 
 class SelectLayerTest : public testing::WithParamInterface<selectTestParams>, virtual public LayerTestsUtils::LayerTestsCommon {

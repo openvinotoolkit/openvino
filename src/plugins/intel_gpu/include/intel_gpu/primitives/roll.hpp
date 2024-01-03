@@ -15,8 +15,6 @@ struct roll : primitive_base<roll> {
 
     roll() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs roll primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

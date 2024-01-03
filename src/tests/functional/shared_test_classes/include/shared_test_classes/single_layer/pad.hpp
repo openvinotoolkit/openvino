@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 typedef std::tuple<
@@ -33,6 +33,29 @@ public:
 
 protected:
     void SetUp() override;
+    virtual std::shared_ptr<ov::Node> CreatePadOp(const ngraph::Output<ov::Node>& data,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode) const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, false);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        return pad;
+    }
 };
 
+class PadLayerTest12 : public PadLayerTest {
+protected:
+    std::shared_ptr<ov::Node> CreatePadOp(const ngraph::Output<ov::Node>& data,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode) const override {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, true);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        return pad;
+    }
+};
 }  // namespace LayerTestsDefinitions

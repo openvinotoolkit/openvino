@@ -10,4 +10,4 @@ add_library(${TARGET_NAME} STATIC standalone_build_test.cpp)
 target_link_libraries(${TARGET_NAME} PUBLIC openvino_tensorflow_frontend)
 
 # Enable code style check
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

@@ -4,17 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/reshape.hpp>
+#include "low_precision/reshape.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/reshape_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/reshape.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -39,7 +39,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<int> reshapeConstValues;  // if empty then create shapeOf
     TestTransformationParams params;
     Actual actual;
@@ -59,7 +59,7 @@ public:
                                                                     testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
+        transformer.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

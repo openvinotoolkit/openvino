@@ -9,7 +9,6 @@
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 
-
 using namespace reference_tests;
 using namespace ov;
 

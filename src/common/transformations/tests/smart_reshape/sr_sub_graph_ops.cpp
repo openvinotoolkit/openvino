@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -49,26 +48,17 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
     // concat output (seq len = 1, so it means num_iter = 1)
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
@@ -109,26 +99,17 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
     // concat output (seq len = 1, so it means num_iter = 1)
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopStaticParameters) {
@@ -174,29 +155,17 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopDynamicParameters) {
@@ -242,29 +211,17 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
@@ -314,29 +271,17 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({4, 3, 2}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({4, 30, 2}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({4, 3, 2}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
 }
 
 TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
@@ -381,24 +326,15 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
         f = std::make_shared<Model>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible({1, 1, 1}));
     // concat output (seq len = 1, so it means num_iter = 1)
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(
-        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                 {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }

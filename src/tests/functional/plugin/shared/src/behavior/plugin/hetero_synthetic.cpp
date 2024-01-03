@@ -4,21 +4,25 @@
 
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include <ngraph/op/util/op_types.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include <random>
 #include "ie_algorithm.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
-    [] {return ngraph::builder::subgraph::makeSplitMultiConvConcat();},
-    [] {return ngraph::builder::subgraph::makeNestedSplitConvConcat();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
-    [] {return ngraph::builder::subgraph::makeNestedBranchConvConcat();},
+    [] {return ov::test::utils::make_split_multi_conv_concat();},
+    [] {return ov::test::utils::make_nested_split_conv_concat();},
+    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch();},
+    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out();},
+    [] {return ov::test::utils::make_nested_branch_conv_concat();},
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(
@@ -119,11 +123,11 @@ void HeteroSyntheticTest::SetUp() {
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
                 PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
-                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + OV_BUILD_POSTFIX),
                     pluginParameter._name);
             } else {
                 PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
-                    + IE_BUILD_POSTFIX, pluginParameter._name);
+                    + OV_BUILD_POSTFIX, pluginParameter._name);
             }
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
@@ -151,7 +155,7 @@ void HeteroSyntheticTest::SetUp() {
 }
 
 void HeteroSyntheticTest::TearDown() {
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::current_test_is_disabled()) {
         for (auto&& pluginName : _registredPlugins) {
             PluginCache::get().ie()->UnregisterPlugin(pluginName);
         }
@@ -194,7 +198,7 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::current_test_is_disabled()) {
         ASSERT_NE(nullptr, cnnNetwork.getFunction());
     }
 }

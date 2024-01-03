@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/interpolate_function.hpp"
+#include "ov_lpt_models/interpolate.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -55,7 +55,7 @@ void InterpolateTransformation::SetUp() {
     interpAttributes attributes;
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
 
-    ngraph::op::InterpolateAttrs interpAttrs;
+    ov::op::v0::Interpolate::Attributes interpAttrs;
     interpAttrs.axes = attributes.axes;
     interpAttrs.mode = attributes.mode;
     interpAttrs.align_corners = attributes.align_corners;

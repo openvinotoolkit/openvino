@@ -10,18 +10,18 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/depth_to_space.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
+#include "ov_lpt_models/depth_to_space.hpp"
 
 namespace {
 using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
-using namespace ngraph::opset1;
+using namespace ov::opset1;
 using namespace ov;
 
 class DepthToSpaceTransformationTestValues {
@@ -48,13 +48,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     DepthToSpaceTransformationTestValues> DepthToSpaceTransformationParams;
 
 class DepthToSpaceTransformation : public LayerTransformation, public testing::WithParamInterface<DepthToSpaceTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const DepthToSpaceTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = DepthToSpaceFunction::getOriginal(
@@ -65,7 +65,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
+        transform.add<ov::pass::low_precision::DepthToSpaceTransformation, ov::opset1::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(
@@ -84,7 +84,7 @@ public:
             {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
         };
 
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const DepthToSpaceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -107,7 +107,7 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize2 = {
+const std::vector<ov::PartialShape> inputShapesForBlockSize2 = {
     { 1, 4, 3, 3 },
     {-1, -1, -1, -1}
 };
@@ -229,7 +229,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize3 = {
+const std::vector<ov::PartialShape> inputShapesForBlockSize3 = {
     { 1, 9, 3, 3 },
     {-1, -1, -1, -1}
 };
@@ -279,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic(),
 };
 

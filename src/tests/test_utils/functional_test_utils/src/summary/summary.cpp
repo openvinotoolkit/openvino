@@ -8,7 +8,13 @@ namespace ov {
 namespace test {
 namespace utils {
 
-PassRate::PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h, double rel_p, double rel_a) {
+PassRate::PassRate(unsigned long p,
+                   unsigned long f,
+                   unsigned long s,
+                   unsigned long c,
+                   unsigned long h,
+                   double rel_p,
+                   double rel_a) {
     passed = p;
     failed = f;
     skipped = s;
@@ -43,8 +49,6 @@ double PassRate::getRelPassrate() const {
 
 bool Summary::extendReport = false;
 bool Summary::saveReportWithUniqueName = false;
-bool Summary::isCrashReported = false;
-bool Summary::isHangReported = false;
 size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
 
@@ -60,17 +64,30 @@ void Summary::setReportFilename(const std::string& val) {
     reportFilename = val.c_str();
 }
 
-void Summary::setExtendReport(bool val) { extendReport = val; }
-bool Summary::getExtendReport() { return extendReport; }
+void Summary::setExtendReport(bool val) {
+    extendReport = val;
+}
+bool Summary::getExtendReport() {
+    return extendReport;
+}
 
-void Summary::setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
-bool Summary::getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
+void Summary::setSaveReportWithUniqueName(bool val) {
+    saveReportWithUniqueName = val;
+}
+bool Summary::getSaveReportWithUniqueName() {
+    return saveReportWithUniqueName;
+}
 
-void Summary::setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
-size_t Summary::getSaveReportTimeout() { return saveReportTimeout; }
+void Summary::setSaveReportTimeout(size_t val) {
+    saveReportTimeout = val;
+}
+size_t Summary::getSaveReportTimeout() {
+    return saveReportTimeout;
+}
 
-void Summary::setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
-
+void Summary::setOutputFolder(const std::string& val) {
+    outputFolder = val.c_str();
+}
 
 }  // namespace utils
 }  // namespace test

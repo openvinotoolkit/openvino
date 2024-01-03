@@ -34,19 +34,13 @@
 // #define LPT_PRINT_DEQUANTIZATION_INFO
 // #define LPT_DISPLAY_PRECISION
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 namespace precision_set {
-    const std::vector<element::Type> int8_support  = {
-            ngraph::element::u8,  ngraph::element::i8
-    };
-    const std::vector<element::Type> int8_int16_int32_support = {
-            ngraph::element::u8,  ngraph::element::i8,
-            ngraph::element::u16, ngraph::element::i16,
-            ngraph::element::u32, ngraph::element::i32
-    };
-}
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_support();
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_int16_int32_support();
+} // namespace precision_set
 enum levels : size_t {
     int4 = 16,
     int4_narrow_range = 15,
@@ -94,6 +88,7 @@ public:
         switch (precision) {
             case element::i4:
             case element::u4:
+            case element::nf4:
                 return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
             case element::i8:
             case element::u8:
@@ -151,9 +146,9 @@ public:
             case element::f32:
                 return std::numeric_limits<float>::lowest();
             default:
-                NGRAPH_CHECK(false, "unexpected precision ", precision);
+                OPENVINO_ASSERT(false, "unexpected precision ", precision);
         }
-        NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
+        OPENVINO_ASSERT(false, "unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {
@@ -189,7 +184,7 @@ public:
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
-                NGRAPH_CHECK(false, "unexpected precision ", precision);
+                OPENVINO_ASSERT(false, "unexpected precision ", precision);
         }
     }
 
@@ -258,8 +253,8 @@ public:
         Params(
             const bool updatePrecisions = true,
             element::Type deqPrecision = element::f32,
-            const std::vector<ngraph::element::Type> defaultPrecisions =
-            { ngraph::element::u8,  ngraph::element::i8 },
+            const std::vector<ov::element::Type> defaultPrecisions =
+            { ov::element::u8,  ov::element::i8 },
             const bool reshapeIgnorePerTensorQuantizationCheck = false) :
             updatePrecisions(updatePrecisions),
             deqPrecision(deqPrecision),
@@ -276,14 +271,14 @@ public:
             return *this;
         }
 
-        Params& setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+        Params& setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions) {
             this->defaultPrecisions = defaultPrecisions;
             return *this;
         }
 
         bool updatePrecisions;
         element::Type deqPrecision;
-        std::vector<ngraph::element::Type> defaultPrecisions;
+        std::vector<ov::element::Type> defaultPrecisions;
         // to support GPU workarround to keep Reshape and MatMul in FP32
         bool reshapeIgnorePerTensorQuantizationCheck;
     };
@@ -308,11 +303,11 @@ public:
 
     void setUpdatePrecisions(const bool updatePrecisions);
 
-    void setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions);
+    void setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions);
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -326,13 +321,13 @@ public:
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
     virtual bool isQuantized(const std::shared_ptr<const Node>& layer,
-        const std::vector<ngraph::element::Type>& defaultPrecisions) const;
+        const std::vector<ov::element::Type>& defaultPrecisions) const;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
@@ -355,35 +350,35 @@ protected:
 
     bool updatePrecisions;
     element::Type deqPrecision;
-    std::vector<ngraph::element::Type> defaultPrecisions;
+    std::vector<ov::element::Type> defaultPrecisions;
     bool reshapeIgnorePerTensorQuantizationCheck;
 
     static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
 
 protected:
-    std::shared_ptr<ngraph::Node> moveDequantizationAfter(
+    std::shared_ptr<ov::Node> moveDequantizationAfter(
         TransformationContext &context,
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    std::shared_ptr<ngraph::Node> moveDequantizationBefore(
+    std::shared_ptr<ov::Node> moveDequantizationBefore(
         TransformationContext& context,
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    void updateOutput(
+    bool updateOutput(
         TransformationContext &context,
-        std::shared_ptr<ngraph::Node> lastNode,
-        std::shared_ptr<ngraph::Node> originalNode) const;
+        std::shared_ptr<ov::Node> lastNode,
+        std::shared_ptr<ov::Node> originalNode) const;
 
     void updateOutput(
         TransformationContext& context,
-        std::shared_ptr<ngraph::Node> lastNode,
+        std::shared_ptr<ov::Node> lastNode,
         std::string originalName) const;
 
     void addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
@@ -393,7 +388,7 @@ protected:
 
     template <typename Operation>
     void addSingleNodePattern(ov::pass::GraphRewrite& pass, TransformationContext& context) const {
-        using namespace ngraph;
+        using namespace ov;
 
         auto is_op_type = [](std::shared_ptr<Node> n) {
             return !!as_type_ptr<Operation>(n);
@@ -408,4 +403,4 @@ typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

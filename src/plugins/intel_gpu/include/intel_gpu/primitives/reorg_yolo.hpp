@@ -16,8 +16,6 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
 
     reorg_yolo() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

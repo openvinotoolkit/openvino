@@ -10,14 +10,14 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include <low_precision/normalize_l2.hpp>
+#include "low_precision/normalize_l2.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 
-#include "lpt_ngraph_functions/normalize_l2_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/normalize_l2.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
@@ -46,8 +46,8 @@ public:
 
 typedef std::tuple<
     ov::element::Type,
-    ngraph::PartialShape,
-    ngraph::op::EpsMode,
+    ov::PartialShape,
+    ov::op::EpsMode,
     std::vector<size_t>,
     NormalizeL2TransformationTestValues> NormalizeL2TransformationParams;
 
@@ -55,8 +55,8 @@ class NormalizeL2Transformation : public LayerTransformation, public testing::Wi
 public:
     void SetUp() override {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
-        ngraph::op::EpsMode epsMode;
+        ov::PartialShape shape;
+        ov::op::EpsMode epsMode;
         std::vector<size_t> axes;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = GetParam();
@@ -70,7 +70,7 @@ public:
             params.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::NormalizeL2Transformation, ov::op::v0::NormalizeL2>(params.transformationParams);
+        transform.add<ov::pass::low_precision::NormalizeL2Transformation, ov::op::v0::NormalizeL2>(params.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
@@ -86,9 +86,9 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         ov::Shape axes;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = obj.param;
 
@@ -115,9 +115,9 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f16
 };
 
-std::vector<ngraph::op::EpsMode> epsMode = {
-    ngraph::op::EpsMode::ADD,
-    ngraph::op::EpsMode::MAX
+std::vector<ov::op::EpsMode> epsMode = {
+    ov::op::EpsMode::ADD,
+    ov::op::EpsMode::MAX
 };
 
 std::vector<std::vector<size_t>> axes = {
@@ -126,7 +126,7 @@ std::vector<std::vector<size_t>> axes = {
 };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { -1, -1, -1, -1}
 };
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+const std::vector<ov::PartialShape> shapesWithDynamicChannels = {
     PartialShape::dynamic()
 };
 

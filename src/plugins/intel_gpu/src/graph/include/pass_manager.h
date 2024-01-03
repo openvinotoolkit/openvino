@@ -149,7 +149,6 @@ public:
 private:
     void run(program& p) override;
     void handle_quantize_node(program& p, quantize_node& quantize_node);
-    void prepare_packed_quantize(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
@@ -196,6 +195,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -403,6 +403,22 @@ public:
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
+    void run(program& p) override;
+};
+
+class dynamic_shape_gather_opts : public base_pass {
+public:
+    dynamic_shape_gather_opts() : base_pass("dynamic_shape_gather_opts") {}
+
+private:
     void run(program& p) override;
 };
 

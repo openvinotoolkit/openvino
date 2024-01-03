@@ -10,10 +10,10 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
-#include "openvino/util/file_util.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
 #include "quantize_inst.h"
@@ -89,17 +89,20 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
+          _engine(nullptr),
           _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
 
     bool is_cpu() const override { return false; }
+    bool is_onednn() const override { return true; }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
     //     [ dnnl::primitive_desc ]
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_impl::save(ob);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_attrs->get() == nullptr) {
             ob << false;
@@ -202,6 +205,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_impl::load(ib);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_attrs;
         ib >> has_attrs;
@@ -368,7 +372,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
+                    ov::intel_gpu::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);

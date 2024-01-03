@@ -5,14 +5,14 @@
 #include <memory>
 #include <gtest/gtest.h>
 #include <ie_blob.h>
-#include <low_precision/layer_transformation.hpp>
-#include <low_precision/network_helper.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ov;
 
 TEST(smoke_LPT_DataPrecision, check) {
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
 
     const std::vector<element::Type> type_items = {
         element::i4,

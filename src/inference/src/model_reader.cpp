@@ -9,6 +9,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -39,8 +41,8 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         const auto outputs = model->outputs();
         for (size_t i = 0; i < outputs.size(); ++i) {
             if (!frontendMode) {
-                const auto ngraph_type = outputs[i].get_element_type();
-                const auto legacy_type = InferenceEngine::details::toLegacyType(ngraph_type, false);
+                const auto ov_type = outputs[i].get_element_type();
+                const auto legacy_type = InferenceEngine::details::toLegacyType(ov_type, false);
                 prepost.output(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : outputs[i].get_names()) {
@@ -155,10 +157,10 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
 
     ov::AnyVector params{&modelStream};
     if (weights) {
-        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
-            std::make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
-                                                                        weights.get_byte_size(),
-                                                                        weights);
+        std::shared_ptr<ov::AlignedBuffer> weights_buffer =
+            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
+                                                           weights.get_byte_size(),
+                                                           weights);
         params.emplace_back(weights_buffer);
     }
 

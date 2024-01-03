@@ -3,17 +3,19 @@
 //
 
 #include "low_precision/reduce_base_transformation.hpp"
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+#include <memory>
+
+#include "low_precision/network_helper.hpp"
+#include "validation_util.hpp"
+
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -48,9 +50,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();
@@ -107,4 +107,4 @@ bool ReduceBaseTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

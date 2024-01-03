@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generate, generator
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
@@ -47,9 +46,8 @@ nodes_attributes = {
 }
 
 
-@generator
-class TestReshapeShapeInfer(unittest.TestCase):
-    @generate(*[
+class TestReshapeShapeInfer():
+    @pytest.mark.parametrize("input_value, input_shape, output_shape, ref_value, ref_shape",[
         (None, shape_array([1, 100, 4]), shape_array([-1, 25]), None, [16, 25]),
         (None, shape_array([5, 100, 4]), shape_array([0, -1, 25]), None, [5, 16, 25]),
         (None, shape_array([5, dynamic_dimension_value, 4]), shape_array([4, -1, 5]), None,
@@ -89,5 +87,5 @@ class TestReshapeShapeInfer(unittest.TestCase):
         node = Node(graph, 'reshape')
         Reshape.infer(node)
         if ref_value is not None:
-            self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), shape_array(ref_value)))
-        self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), shape_array(ref_shape)))
+            assert strict_compare_tensors(node.out_port(0).data.get_value(), shape_array(ref_value))
+        assert strict_compare_tensors(node.out_port(0).data.get_shape(), shape_array(ref_shape))

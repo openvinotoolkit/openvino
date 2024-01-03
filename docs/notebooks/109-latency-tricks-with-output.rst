@@ -19,9 +19,7 @@ many hints simultaneously, like more inference threads + shared memory.
 It should give even better performance, but we recommend testing it
 anyway.
 
-.. note::
-
-   We especially recommend trying
+   **NOTE**: We especially recommend trying
    ``OpenVINO IR model + CPU + shared memory in latency mode`` or
    ``OpenVINO IR model + CPU + shared memory + more inference threads``.
 
@@ -29,72 +27,85 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__ and
-`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
+`111-detection-quantization <../111-detection-quantization>`__ and
+`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
 
 |image0|
 
-.. note::
+   **NOTE**: Many of the steps presented below will give you better
+   performance. However, some of them may **not change anything** or
+   even **worsen the performance** if they are strongly dependent on
+   either the hardware or the model. Please run this notebook on your
+   computer with your model to learn which of them makes sense in your
+   case.
 
-   Many of the steps presented below will give you better
-   performance. However, some of them may not change anything if they
-   are strongly dependent on either the hardware or the model. Please
-   run this notebook on your computer with your model to learn which of
-   them makes sense in your case.
-
-   All the following tricks were run with OpenVINO 2022.3. Future
+   All the following tricks were run with OpenVINO 2023.0. Future
    versions of OpenVINO may include various optimizations that may
    result in different performance.
 
 A similar notebook focused on the throughput mode is available
-`here <109-throughput-tricks-with-output.html>`__.
+`here <109-throughput-tricks.ipynb>`__.
+
+**Table of contents:**
 
 
+-  `Prerequisites <#prerequisites>`__
+-  `Data <#data>`__
+-  `Model <#model>`__
+-  `Hardware <#hardware>`__
+-  `Helper functions <#helper-functions>`__
+-  `Optimizations <#optimizations>`__
 
-.. _top:
+   -  `PyTorch model <#pytorch-model>`__
+   -  `ONNX model <#onnx-model>`__
+   -  `OpenVINO IR model <#openvino-ir-model>`__
+   -  `OpenVINO IR model on GPU <#openvino-ir-model-on-gpu>`__
+   -  `OpenVINO IR model + more inference
+      threads <#openvino-ir-model--more-inference-threads>`__
+   -  `OpenVINO IR model in latency
+      mode <#openvino-ir-model-in-latency-mode>`__
+   -  `OpenVINO IR model in latency mode + shared
+      memory <#openvino-ir-model-in-latency-mode--shared-memory>`__
+   -  `Other tricks <#other-tricks>`__
 
-**Table of contents**:
+-  `Performance comparison <#performance-comparison>`__
+-  `Conclusions <#conclusions>`__
 
-- `Data <#data>`__
-- `Model <#model>`__
-- `Hardware <#hardware>`__
-- `Helper functions <#helper-functions>`__
-- `Optimizations <#optimizations>`__
-
-  - `PyTorch model <#pytorch-model>`__
-  - `ONNX model <#onnx-model>`__
-  - `OpenVINO IR model <#openvino-ir-model>`__
-  - `OpenVINO IR model on GPU <#openvino-ir-model-on-gpu>`__
-  - `OpenVINO IR model + more inference threads <#openvino-ir-model-+-more-inference-threads>`__
-  - `OpenVINO IR model in latency mode <#openvino-ir-model-in-latency-mode>`__
-  - `OpenVINO IR model in latency mode + shared memory <#openvino-ir-model-in-latency-mode-+-shared-memory>`__
-  - `Other tricks <#other-tricks>`__
-
-- `Performance comparison <#performance-comparison>`__
-- `Conclusions <#conclusions>`__
+.. |image0| image:: https://user-images.githubusercontent.com/4547501/229120774-01f4f972-424d-4280-8395-220dd432985a.png
 
 Prerequisites
 -------------
 
-.. |image0| image:: https://user-images.githubusercontent.com/4547501/229120774-01f4f972-424d-4280-8395-220dd432985a.png
+
 
 .. code:: ipython3
 
-    !pip install -q seaborn ultralytics
+    %pip install -q "openvino>=2023.1.0" seaborn "ultralytics<=8.0.178" onnx --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
     import os
-    import sys
     import time
     from pathlib import Path
     from typing import Any, List, Tuple
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
     import notebook_utils as utils
 
-Data `⇑ <#top>`__
-###############################################################################################################################
+Data
+----
+
 
 
 We will use the same image of the dog sitting on a bicycle for all
@@ -110,7 +121,7 @@ requirements of this particular object detection model.
     IMAGE_HEIGHT = 480
     
     # load image
-    image = utils.load_image("../data/image/coco_bike.jpg")
+    image = utils.load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg")
     image = cv2.resize(image, dsize=(IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
     
     # preprocess it for YOLOv5
@@ -123,19 +134,20 @@ requirements of this particular object detection model.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_4_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_5_0.jpg
 
 
 
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=c492bd5a5310fae2dfdea013f2ab99ab>
+    <DisplayHandle display_id=e5b567bdbd103853038ec2c801bd914a>
 
 
 
-Model `⇑ <#top>`__
-###############################################################################################################################
+Model
+-----
+
 
 
 We decided to go with
@@ -164,7 +176,7 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
     Using cache found in /opt/home/k8sworker/.cache/torch/hub/ultralytics_yolov5_master
-    YOLOv5 🚀 2023-4-21 Python-3.8.10 torch-1.13.1+cpu CPU
+    YOLOv5 🚀 2023-4-21 Python-3.8.10 torch-2.1.0+cpu CPU
     
 
 
@@ -176,37 +188,27 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
     Downloading https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5n.pt to model/yolov5n.pt...
-
-
-
-.. parsed-literal::
-
-      0%|          | 0.00/3.87M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
+    100%|██████████| 3.87M/3.87M [00:02<00:00, 1.50MB/s]
     
     Fusing layers... 
     YOLOv5n summary: 213 layers, 1867405 parameters, 0 gradients
     Adding AutoShape... 
 
 
-Hardware `⇑ <#top>`__
-###############################################################################################################################
+Hardware
+--------
+
 
 
 The code below lists the available hardware we will use in the
 benchmarking process.
 
-.. note::
-
-   The hardware you have is probably completely different from
+   **NOTE**: The hardware you have is probably completely different from
    ours. It means you can see completely different results.
 
 .. code:: ipython3
 
-    import openvino.runtime as ov
+    import openvino as ov
     
     # initialize OpenVINO
     core = ov.Core()
@@ -222,8 +224,9 @@ benchmarking process.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-Helper functions `⇑ <#top>`__
-###############################################################################################################################
+Helper functions
+----------------
+
 
 
 We’re defining a benchmark model function to use for all optimized
@@ -358,16 +361,18 @@ the image.
     
         utils.show_array(output_img)
 
-Optimizations `⇑ <#top>`__
-###############################################################################################################################
+Optimizations
+-------------
+
 
 
 Below, we present the performance tricks for faster inference in the
 latency mode. We release resources after every benchmarking to be sure
 the same amount of resource is available for every experiment.
 
-PyTorch model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+PyTorch model
+~~~~~~~~~~~~~
+
 
 
 First, we’re benchmarking the original PyTorch model without any
@@ -384,17 +389,18 @@ optimizations applied. We will treat it as our baseline.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_14_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_15_0.jpg
 
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0227 seconds
-    PyTorch model on CPU: 0.0191 seconds per image (52.34 FPS)
+    PyTorch model on CPU. First inference time: 0.0252 seconds
+    PyTorch model on CPU: 0.0214 seconds per image (46.73 FPS)
 
 
-ONNX model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ONNX model
+~~~~~~~~~~
+
 
 
 The first optimization is exporting the PyTorch model to ONNX and
@@ -434,17 +440,18 @@ Representation (IR) to leverage the OpenVINO Runtime.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_17_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_18_0.jpg
 
 
 .. parsed-literal::
 
-    ONNX model on CPU. First inference time: 0.0182 seconds
-    ONNX model on CPU: 0.0135 seconds per image (74.31 FPS)
+    ONNX model on CPU. First inference time: 0.0186 seconds
+    ONNX model on CPU: 0.0124 seconds per image (80.72 FPS)
 
 
-OpenVINO IR model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+OpenVINO IR model
+~~~~~~~~~~~~~~~~~
+
 
 
 Let’s convert the ONNX model to OpenVINO Intermediate Representation
@@ -457,11 +464,9 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 .. code:: ipython3
 
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(onnx_path, compress_to_fp16=True)
+    ov_model = ov.convert_model(onnx_path)
     # save the model on disk
-    ov.serialize(ov_model, xml_path=str(onnx_path.with_suffix(".xml")))
+    ov.save_model(ov_model, str(onnx_path.with_suffix(".xml")))
     
     ov_cpu_model = core.compile_model(ov_model, device_name="CPU")
     
@@ -473,17 +478,18 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_19_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_20_0.jpg
 
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0157 seconds
-    OpenVINO model on CPU: 0.0134 seconds per image (74.40 FPS)
+    OpenVINO model on CPU. First inference time: 0.0148 seconds
+    OpenVINO model on CPU: 0.0123 seconds per image (81.38 FPS)
 
 
-OpenVINO IR model on GPU `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+OpenVINO IR model on GPU
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 Usually, a GPU device is faster than a CPU, so let’s run the above model
@@ -507,16 +513,18 @@ execution.
     
         del ov_gpu_model  # release resources
 
-OpenVINO IR model + more inference threads `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+OpenVINO IR model + more inference threads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
-cores. It should help us a lot. There are `more
-options <https://docs.openvino.ai/2023.1/groupov_runtime_cpp_prop_api.html>`__
+cores. There are `more
+options <https://docs.openvino.ai/2023.0/groupov_runtime_cpp_prop_api.html>`__
 to be changed, so it’s worth playing with them to see what works best in
-our case.
+our case. In some cases, this optimization may worsen the performance.
+If it is the case, don’t use it.
 
 .. code:: ipython3
 
@@ -532,21 +540,22 @@ our case.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_23_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_24_0.jpg
 
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU. First inference time: 0.0151 seconds
-    OpenVINO model + more threads on CPU: 0.0134 seconds per image (74.36 FPS)
+    OpenVINO model + more threads on CPU. First inference time: 0.0155 seconds
+    OpenVINO model + more threads on CPU: 0.0124 seconds per image (80.47 FPS)
 
 
-OpenVINO IR model in latency mode `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+OpenVINO IR model in latency mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
 which can select the best device for us based on a performance hint.
 There are three different hints: ``LATENCY``, ``THROUGHPUT``, and
 ``CUMULATIVE_THROUGHPUT``. As this notebook is focused on the latency
@@ -563,17 +572,18 @@ devices as well.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_25_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_26_0.jpg
 
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO. First inference time: 0.0159 seconds
-    OpenVINO model on AUTO: 0.0136 seconds per image (73.57 FPS)
+    OpenVINO model on AUTO. First inference time: 0.0156 seconds
+    OpenVINO model on AUTO: 0.0125 seconds per image (79.73 FPS)
 
 
-OpenVINO IR model in latency mode + shared memory `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+OpenVINO IR model in latency mode + shared memory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 OpenVINO is a C++ toolkit with Python wrappers (API). The default
@@ -598,28 +608,30 @@ performance!
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_27_0.jpg
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_28_0.jpg
 
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO. First inference time: 0.0139 seconds
-    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (184.61 FPS)
+    OpenVINO model + shared memory on AUTO. First inference time: 0.0112 seconds
+    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (185.55 FPS)
 
 
-Other tricks `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Other tricks
+~~~~~~~~~~~~
+
 
 
 There are other tricks for performance improvement, such as quantization
 and pre-post-processing or dedicated to throughput mode. To get even
 more from your model, please visit
-`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__,
-`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__, and
-`109-throughput-tricks <109-latency-tricks-with-output.html>`__.
+`111-detection-quantization <../111-detection-quantization>`__,
+`118-optimize-preprocessing <../118-optimize-preprocessing>`__, and
+`109-throughput-tricks <109-throughput-tricks.ipynb>`__.
 
-Performance comparison `⇑ <#top>`__
-###############################################################################################################################
+Performance comparison
+----------------------
+
 
 
 The following graphical comparison is valid for the selected model and
@@ -653,11 +665,12 @@ steps, just skip them.
 
 
 
-.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_30_0.png
+.. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_31_0.png
 
 
-Conclusions `⇑ <#top>`__
-###############################################################################################################################
+Conclusions
+-----------
+
 
 
 We already showed the steps needed to improve the performance of an
@@ -665,6 +678,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above, e.g., shared memory.

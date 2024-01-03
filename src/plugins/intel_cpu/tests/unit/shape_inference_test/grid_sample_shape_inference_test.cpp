@@ -11,11 +11,11 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class GridSampleStaticShapeInferenceTest : public OpStaticShapeInferenceTest<opset9::GridSample> {};
+class GridSampleStaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v9::GridSample> {};
 
 TEST_F(GridSampleStaticShapeInferenceTest, GridSample) {
-    const auto data = std::make_shared<opset9::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    const auto grid = std::make_shared<opset9::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    const auto grid = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     op = make_op(data, grid, opset9::GridSample::Attributes{});
 
@@ -23,7 +23,7 @@ TEST_F(GridSampleStaticShapeInferenceTest, GridSample) {
     output_shapes = {StaticShape{}};
     exp_shape = StaticShape{2, 3, 6, 7};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], exp_shape);
 }
 
@@ -34,6 +34,6 @@ TEST_F(GridSampleStaticShapeInferenceTest, GridSample_default_constructor) {
     output_shapes = {StaticShape{}};
     exp_shape = StaticShape{2, 3, 6, 7};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], exp_shape);
 }

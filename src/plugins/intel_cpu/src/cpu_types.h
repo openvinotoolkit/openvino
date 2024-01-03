@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "caseless.hpp"
-
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +17,6 @@ using VectorDims = std::vector<Dim>;
 
 enum class Type {
     Unknown,
-    Generic,
     If,
     Reorder,
     Input,
@@ -105,13 +104,17 @@ enum class Type {
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
+    Multinomial,
     Subgraph,
     PriorBox,
     PriorBoxClustered,
     Interaction,
     MHA,
+    RandomUniform,
     Unique,
-    Ngram
+    Ngram,
+    ScaledDotProductAttention,
+    RoPE,
 };
 
 enum class Algorithm {
@@ -181,6 +184,10 @@ enum class Algorithm {
     EltwiseErf,
     EltwiseSoftSign,
     EltwiseLog,
+    EltwiseBitwiseAnd,
+    EltwiseBitwiseNot,
+    EltwiseBitwiseOr,
+    EltwiseBitwiseXor,
 
     // FakeQuantize algorithms
     FQCommon,
@@ -255,5 +262,5 @@ std::string NameFromType(const Type type);
 
 std::string algToString(const Algorithm alg);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -6,11 +6,12 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/type/float16.hpp>
-
 #include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -28,8 +29,6 @@
 #include <utility>
 #include <vector>
 
-#include <cassert>
-#include <cctype>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"

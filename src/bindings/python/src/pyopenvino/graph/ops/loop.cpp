@@ -24,15 +24,7 @@ void regclass_graph_op_Loop(py::module m) {
 
     cls.def(
         py::init([](const std::shared_ptr<ov::Node>& trip_count, const std::shared_ptr<ov::Node>& execution_condition) {
-            if (MultiSubgraphHelpers::is_constant_or_parameter(trip_count) &&
-                MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
-                return std::make_shared<ov::op::v5::Loop>(trip_count->output(0), execution_condition->output(0));
-            } else {
-                OPENVINO_WARN
-                    << "Please specify execution_condition and trip_count as Constant or Parameter. Default Loop() "
-                       "constructor was applied.";
-                return std::make_shared<ov::op::v5::Loop>();
-            }
+            return std::make_shared<ov::op::v5::Loop>(trip_count, execution_condition);
         }),
         py::arg("trip_count"),
         py::arg("execution_condition"));
@@ -92,7 +84,9 @@ void regclass_graph_op_Loop(py::module m) {
             py::arg("successive_value"));
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v5::Loop>& self) {
-        return self->get_function();
+        auto model = self->get_function();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def(

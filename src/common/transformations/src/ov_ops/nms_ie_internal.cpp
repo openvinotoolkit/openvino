@@ -20,12 +20,14 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
                                                                        const ov::element::Type& output_type,
-                                                                       const ov::element::Type& score_output_type)
+                                                                       const ov::element::Type& score_output_type,
+                                                                       const int rotation)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
       m_center_point_box(center_point_box),
       m_sort_result_descending(sort_result_descending),
       m_output_type(output_type),
-      m_scores_output_type(score_output_type) {
+      m_scores_output_type(score_output_type),
+      m_rotation(rotation) {
     constructor_validate_and_infer_types();
 }
 
@@ -38,12 +40,14 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
                                                                        const ov::element::Type& output_type,
-                                                                       const ov::element::Type& score_output_type)
+                                                                       const ov::element::Type& score_output_type,
+                                                                       const int rotation)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
       m_center_point_box(center_point_box),
       m_sort_result_descending(sort_result_descending),
       m_output_type(output_type),
-      m_scores_output_type(score_output_type) {
+      m_scores_output_type(score_output_type),
+      m_rotation{rotation} {
     constructor_validate_and_infer_types();
 }
 
@@ -59,7 +63,9 @@ std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_
                                                         new_args.at(5),
                                                         m_center_point_box,
                                                         m_sort_result_descending,
-                                                        m_output_type);
+                                                        m_output_type,
+                                                        m_scores_output_type,
+                                                        m_rotation);
     } else if (new_args.size() == 5) {
         return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0),
                                                         new_args.at(1),
@@ -68,7 +74,9 @@ std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_
                                                         new_args.at(4),
                                                         m_center_point_box,
                                                         m_sort_result_descending,
-                                                        m_output_type);
+                                                        m_output_type,
+                                                        m_scores_output_type,
+                                                        m_rotation);
     }
     OPENVINO_THROW("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
@@ -79,6 +87,7 @@ bool op::internal::NonMaxSuppressionIEInternal::visit_attributes(AttributeVisito
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("score_output_type", m_scores_output_type);
+    visitor.on_attribute("rotation", m_rotation);
     return true;
 }
 

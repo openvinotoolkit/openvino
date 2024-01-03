@@ -4,7 +4,7 @@
 
 #include <openvino/frontend/tensorflow/frontend.hpp>
 
-void test_load() {
+inline void test_load() {
     ov::frontend::tensorflow::FrontEnd fe;
     fe.get_name();
 }

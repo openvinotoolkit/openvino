@@ -356,17 +356,16 @@ TEST_F(TypePropEyeV9Test, default_ctor) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
     auto op = make_op();
     op->set_out_type(element::i32);
 
     int64_t rows = 8, cols = 5;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
-    const auto constant_map = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
-        {1, std::make_shared<HostTensor>(element::i64, Shape{}, &cols)},
-        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
+    const auto constant_map =
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i64, Shape{}, &rows}},
+                                               {1, {element::i64, Shape{}, &cols}},
+                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
 
     const auto output_shapes =
         op::v9::shape_infer(op.get(), PartialShapes{{}, {}, {}, {3}}, make_tensor_accessor(constant_map));

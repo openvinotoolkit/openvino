@@ -182,7 +182,8 @@ TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, cons
 
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);
 
-TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len);
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& X,
+                                             const std::shared_ptr<Node>& seq_len_input);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
 
@@ -191,9 +192,29 @@ TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<N
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const PartialShape& expected,
                                                                     const PartialShape& actual);
 
+/**
+ * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
+ * and calls "func" for each ov::Node.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
 TRANSFORMATIONS_API void visit_shape_path(ov::Node* node,
                                           std::unordered_set<ov::Node*>& visited,
                                           std::function<void(ov::Node*)> func);
+
+/**
+ * \brief Traverses a constant path starting from "node", and calls "func" for each ov::Node.
+ * If the function was called for non-constant subgraph, exception is thrown.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
+TRANSFORMATIONS_API void visit_constant_path(ov::Node* node,
+                                             std::unordered_set<ov::Node*>& visited,
+                                             std::function<void(ov::Node*)> func);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
@@ -214,11 +235,13 @@ TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::s
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<Node>& shape_node,
-    const std::vector<size_t>& indices);
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_source(
     const Output<Node>& shape_source,
-    const std::vector<size_t>& indices);
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
 
 TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 
@@ -230,6 +253,28 @@ TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>
 
 TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
 
+template <typename T>
+ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
+    return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
+        if (auto constant = as_type_ptr<v0::Constant>(n)) {
+            auto values = constant->cast_vector<T>();
+            return predicate(values);
+        }
+        return false;
+    });
+}
 }  // namespace util
 }  // namespace op
 }  // namespace ov
+
+#define INT_CONSTANT_WITH_PREDICATE(expression)                                                   \
+    pattern::wrap_type<op::v0::Constant>(                                                         \
+        ov::op::util::constant_predicate<int64_t>([](const std::vector<int64_t>& value) -> bool { \
+            return expression;                                                                    \
+        }))
+
+#define FLOAT_CONSTANT_WITH_PREDICATE(expression)                                             \
+    pattern::wrap_type<op::v0::Constant>(                                                     \
+        ov::op::util::constant_predicate<float>([](const std::vector<float>& value) -> bool { \
+            return expression;                                                                \
+        }))

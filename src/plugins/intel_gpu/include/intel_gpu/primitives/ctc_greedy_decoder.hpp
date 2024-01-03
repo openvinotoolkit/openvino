@@ -13,8 +13,6 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
 
     ctc_greedy_decoder() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id (input, sequence_indicators, second_output(optional)).

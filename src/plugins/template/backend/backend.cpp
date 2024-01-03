@@ -7,8 +7,6 @@
 #include <sstream>
 
 #include "int_backend.hpp"
-#include "ngraph/file_util.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 

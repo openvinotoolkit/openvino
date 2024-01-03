@@ -31,11 +31,19 @@ struct Configuration {
     // Plugin configuration parameters
 
     int device_id = 0;
-    bool perf_count = true;
+    bool perf_count = false;
     ov::threading::IStreamsExecutor::Config streams_executor_config;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
+    uint32_t num_requests = 1;
     bool disable_transformations = false;
     bool exclusive_async_requests = false;
+
+    // unused
+    ov::element::Type inference_precision = ov::element::undefined;
+    ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::ACCURACY;
+    ov::log::Level log_level = ov::log::Level::NO;
+
+    ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 };
 // ! [configuration:header]
 

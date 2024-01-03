@@ -43,6 +43,36 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvolutionReverseInferUpdateShape) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic(4));
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(data,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, DYN, DYN});
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(data,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -336,6 +366,25 @@ TEST_F(TransformationTestsF, ConcatReverseInfer) {
     }
 }
 
+TEST_F(TransformationTestsF, ConcatReverseInferUpdateShape) {
+    {
+        auto data1 = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape{DYN, DYN, 224, DYN});
+        // Specify rank and type in one of Concat input to inherit in another
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, DYN, 224});
+        auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
+        auto result = std::make_shared<opset10::Result>(concat);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, 224, 224});
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, 224, 224});
+        auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
+        auto result = std::make_shared<opset10::Result>(concat);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
+    }
+}
+
 TEST_F(TransformationTestsF, SliceReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -398,6 +447,41 @@ TEST_F(TransformationTestsF, SqueezeReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(6));
         auto axes = opset10::Constant::create(element::i32, Shape{2}, {0, 1});
+        auto squeeze = std::make_shared<opset10::Squeeze>(data, axes);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(squeeze,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, SqueezeAxesReverseInfer) {
+    auto dyn = Dimension::dynamic();
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape{1, dyn, 1, dyn, dyn, dyn});
+        auto squeeze = std::make_shared<opset10::Squeeze>(data);
+        // Convolution is needed to produce static rank
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(squeeze,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1, dyn, 1, dyn, dyn, dyn});
+        auto axes = opset10::Constant::create(element::i64, Shape{2}, {0, 2});
         auto squeeze = std::make_shared<opset10::Squeeze>(data, axes);
         auto weights =
             opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));

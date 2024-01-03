@@ -2,20 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tile.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
 struct TileParams {
-    TileParams(
-        const reference_tests::Tensor& A, const reference_tests::Tensor& repeats,
-        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
-        A(A), repeats(repeats), expected(expected), testcaseName(testcaseName) {}
+    TileParams(const reference_tests::Tensor& A,
+               const reference_tests::Tensor& repeats,
+               const reference_tests::Tensor& expected,
+               const std::string& testcaseName = "")
+        : A(A),
+          repeats(repeats),
+          expected(expected),
+          testcaseName(testcaseName) {}
 
     reference_tests::Tensor A;
     reference_tests::Tensor repeats;
@@ -51,10 +58,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const TileParams& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
-        const auto repeats = std::make_shared<opset1::Constant>(params.repeats.type, params.repeats.shape,
-                                                                params.repeats.data.data());
-        const auto tile = std::make_shared<opset1::Tile>(A, repeats);
+        const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
+        const auto repeats =
+            std::make_shared<op::v0::Constant>(params.repeats.type, params.repeats.shape, params.repeats.data.data());
+        const auto tile = std::make_shared<op::v0::Tile>(A, repeats);
         const auto f = std::make_shared<Model>(NodeVector{tile}, ParameterVector{A});
         return f;
     }
@@ -68,46 +75,41 @@ template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<TileParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
-    std::vector<TileParams> params {
-        TileParams(
-            reference_tests::Tensor(ET, {}, std::vector<T>{
-                1
-            }),
-            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            reference_tests::Tensor(ET, {2}, std::vector<T>{
-                1, 1
-            }),
-            "tile_0d_to_1d_data_broadcast"),
-        TileParams(
-            reference_tests::Tensor(ET, {6}, std::vector<T>{
-                1, 2, 3, 4, 5, 6,
-            }),
-            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            reference_tests::Tensor(ET, {24}, std::vector<T>{
-                1, 2, 3, 4, 5, 6,
-                1, 2, 3, 4, 5, 6,
-                1, 2, 3, 4, 5, 6,
-                1, 2, 3, 4, 5, 6
-            }),
-            "tile_1d_to_1d_no_broadcast"),
-        TileParams(
-            reference_tests::Tensor(ET, {3}, std::vector<T>{
-                1, 2, 3
-            }),
-            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 2, 1}),
-            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
-                1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3
-            }),
-            "tile_1d_to_3d_data_broadcast"),
-        TileParams(
-            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
-                1, 2, 3, 4, 5, 6
-            }),
-            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
-                1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6
-            }),
-            "tile_3d_to_3d_repeats_broadcast"),
+    std::vector<TileParams> params{
+        TileParams(reference_tests::Tensor(ET, {}, std::vector<T>{1}),
+                   reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                   reference_tests::Tensor(ET, {2}, std::vector<T>{1, 1}),
+                   "tile_0d_to_1d_data_broadcast"),
+        TileParams(reference_tests::Tensor(ET,
+                                           {6},
+                                           std::vector<T>{
+                                               1,
+                                               2,
+                                               3,
+                                               4,
+                                               5,
+                                               6,
+                                           }),
+                   reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+                   reference_tests::Tensor(ET, {24}, std::vector<T>{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,
+                                                                    1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}),
+                   "tile_1d_to_1d_no_broadcast"),
+        TileParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 2, 1}),
+                   reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3}),
+                   "tile_1d_to_3d_data_broadcast"),
+        TileParams(reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                   reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+                   reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6}),
+                   "tile_3d_to_3d_repeats_broadcast"),
+        TileParams(reference_tests::Tensor(ET, {1}, std::vector<T>{1}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 2, 3}),
+                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   "tile_1d_to_3d_with_zero_on_axis_0"),
+        TileParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 0, 3}),
+                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   "tile_1d_to_3d_with_zero_on_axis_1"),
     };
     return params;
 }
@@ -116,22 +118,20 @@ template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<TileParams> generateParamsFloatValue() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
-    std::vector<TileParams> params {
-        TileParams(
-            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
-                1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f
-            }),
-            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
-                1.1f, 2.2f, 3.3f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 4.4f, 5.5f, 6.6f
-            }),
-            "tile_3d_to_3d_repeats_broadcast_float_val"),
+    std::vector<TileParams> params{
+        TileParams(reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f}),
+                   reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+                   reference_tests::Tensor(
+                       ET,
+                       {2, 2, 3},
+                       std::vector<T>{1.1f, 2.2f, 3.3f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 4.4f, 5.5f, 6.6f}),
+                   "tile_3d_to_3d_repeats_broadcast_float_val"),
     };
     return params;
 }
 
 std::vector<TileParams> generateCombinedParams() {
-    const std::vector<std::vector<TileParams>> generatedParams {
+    const std::vector<std::vector<TileParams>> generatedParams{
         // test each data type for each repeats type
         // CVS-73511 - commented here due segmentation fault
         // generateParams<element::Type_t::i4, element::Type_t::i4>(),
@@ -315,8 +315,7 @@ std::vector<TileParams> generateCombinedParams() {
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u8>(),
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u16>(),
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u32>(),
-        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u64>()
-    };
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u64>()};
     std::vector<TileParams> combinedParams;
 
     for (const auto& params : generatedParams) {
@@ -325,6 +324,8 @@ std::vector<TileParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Tile_With_Hardcoded_Refs, ReferenceTileTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceTileTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_Tile_With_Hardcoded_Refs,
+                         ReferenceTileTest,
+                         testing::ValuesIn(generateCombinedParams()),
+                         ReferenceTileTest::getTestCaseName);
+}  // namespace

@@ -5,7 +5,7 @@
 #include <common_test_utils/test_constants.hpp>
 #include "behavior/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
@@ -17,30 +17,8 @@ std::vector<memoryStateParams> memoryStateTestCases = {
                       ov::test::utils::DEVICE_HETERO,
                       {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
 
-std::vector<memoryStateParams> memoryStateAutoTestCases = {
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_AUTO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
-
-std::vector<memoryStateParams> memoryStateMultiTestCases = {
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_MULTI,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
-
 INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic,
                          InferRequestVariableStateTest,
                          ::testing::ValuesIn(memoryStateTestCases),
-                         InferRequestVariableStateTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         InferRequestVariableStateTest,
-                         ::testing::ValuesIn(memoryStateAutoTestCases),
-                         InferRequestVariableStateTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         InferRequestVariableStateTest,
-                         ::testing::ValuesIn(memoryStateMultiTestCases),
                          InferRequestVariableStateTest::getTestCaseName);
 } // namespace

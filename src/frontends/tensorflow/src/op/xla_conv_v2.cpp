@@ -14,8 +14,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "ov_tensorflow/xla_data.pb.h"
 #include "utils.hpp"
-#include "xla_data.pb.h"
 
 using namespace std;
 using namespace ov;

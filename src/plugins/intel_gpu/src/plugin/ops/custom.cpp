@@ -229,6 +229,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   outputLayout,
                                                   gws,
                                                   lws);
+    p.add_primitive(*op, customPrim);
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
@@ -240,7 +241,6 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                             customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }
-    p.add_primitive(*op, customPrim);
 }
 
 }  // namespace intel_gpu

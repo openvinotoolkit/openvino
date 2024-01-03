@@ -7,6 +7,7 @@
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "subgraph_collector.hpp"
 
 namespace ov {
 namespace hetero {
@@ -39,6 +40,8 @@ public:
 private:
     friend class InferRequest;
 
+    void compile_model(const std::shared_ptr<ov::Model>& model);
+
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
@@ -50,11 +53,7 @@ private:
     const bool m_loaded_from_cache;
     std::vector<ov::Output<const ov::Node>> m_compiled_inputs;
     std::vector<ov::Output<const ov::Node>> m_compiled_outputs;
-    std::vector<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>> m_inputs_to_submodels_inputs,
-        m_outputs_to_submodels_outputs;
-    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,
-             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>
-        m_submodels_input_to_prev_output;
+    SubgraphsMappingInfo m_mapping_info;
 
     struct CompiledModelDesc {
         std::string device;

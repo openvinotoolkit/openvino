@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set(TARGET_NAME "onnx_fe_standalone_build_test")
 
 add_library(${TARGET_NAME} STATIC standalone_build_test.cpp)
@@ -10,4 +11,4 @@ add_library(${TARGET_NAME} STATIC standalone_build_test.cpp)
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::frontend::onnx)
 
 # Enable code style check
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

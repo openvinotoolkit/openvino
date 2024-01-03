@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/idft.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/idft.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,13 +17,13 @@ namespace {
 struct IDFTParams {
     template <class T>
     IDFTParams(const Shape& input_shape,
-              const Shape& expected_shape,
-              const element::Type_t& input_type,
-              const element::Type_t& expected_type,
-              const std::vector<T>& input_value,
-              const std::vector<T>& expected_value,
-              const std::shared_ptr<op::v0::Constant>& axes,
-              const std::shared_ptr<op::v0::Constant>& signal) {
+               const Shape& expected_shape,
+               const element::Type_t& input_type,
+               const element::Type_t& expected_type,
+               const std::vector<T>& input_value,
+               const std::vector<T>& expected_value,
+               const std::shared_ptr<op::v0::Constant>& axes,
+               const std::shared_ptr<op::v0::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -1157,12 +1158,12 @@ std::vector<IDFTParams> generateParamsForIDFT() {
         // idft1d_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
-                  ET,
-                  ET,
-                  idft1d_input_data_1,
-                  data_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
-                  NULL),
+                   ET,
+                   ET,
+                   idft1d_input_data_1,
+                   data_1,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                   NULL),
         // idft1d_eval
         IDFTParams(Shape{2, 10, 10, 2},
                    Shape{2, 10, 10, 2},
@@ -1393,10 +1394,9 @@ std::vector<IDFTParams> generateCombinedParamsForIDFT() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_IDFT_With_Hardcoded_Refs,
-    ReferenceIDFTLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForIDFT()),
-    ReferenceIDFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_IDFT_With_Hardcoded_Refs,
+                         ReferenceIDFTLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForIDFT()),
+                         ReferenceIDFTLayerTest::getTestCaseName);
 
 }  // namespace

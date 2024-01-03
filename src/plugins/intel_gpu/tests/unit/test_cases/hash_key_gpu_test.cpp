@@ -44,17 +44,17 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 4145865612957978777UL);
-        ASSERT_EQ(params_hash, 14779472302025859443UL);
+        ASSERT_EQ(params_hash, 13330229854511334999UL);
     }
 
     void test_fc_basic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        const int32_t b = 1, in_f = 128, in_x = 1, in_y = 1, out_f = 65;
+        const int32_t b = 1, in_f = 128, out_f = 65;
 
-        auto input_prim = engine.allocate_memory({ { b, in_f, in_y, in_x }, data_types::f32, format::bfyx });
-        auto weights_prim = engine.allocate_memory({ { out_f, in_f, in_y, in_x }, data_types::f32, format::bfyx });
-        auto bias_prim = engine.allocate_memory({ { 1, 1, out_f, 1 }, data_types::f32, format::bfyx });
+        auto input_prim = engine.allocate_memory({ { b, in_f }, data_types::f32, format::bfyx });
+        auto weights_prim = engine.allocate_memory({ { out_f, in_f }, data_types::f32, format::bfyx });
+        auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f32, format::bfyx });
 
         const auto key_prim_id = "fc";
         topology topology(
@@ -70,9 +70,13 @@ public:
 
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
-
-        ASSERT_EQ(primitive_hash, 2197080758510296176UL);
-        ASSERT_EQ(params_hash, 4714860879383010855UL);
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
+            ASSERT_EQ(params_hash, 3365957578641948513UL);
+        } else {
+            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
+            ASSERT_EQ(params_hash, 9831190959346679696UL);
+        }
     }
 
     void test_gather_basic(bool is_caching_test) {
@@ -90,7 +94,7 @@ public:
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(
-            gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
+            gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, 5, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
         );
 
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
@@ -100,8 +104,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 93320679543770233UL);
-        ASSERT_EQ(params_hash, 16130855364209139301UL);
+        ASSERT_EQ(primitive_hash, 8439414674502129643UL);
+        ASSERT_EQ(params_hash, 9235751886952244871UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {
@@ -124,7 +128,7 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
         ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-        ASSERT_EQ(params_hash, 16181383969029667789UL);
+        ASSERT_EQ(params_hash, 12585836190897043350UL);
     }
 
     void test_permute_basic(bool is_caching_test) {
@@ -145,7 +149,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-        ASSERT_EQ(params_hash, 5773472682005147183UL);
+        ASSERT_EQ(params_hash, 10588150284756843899UL);
     }
 
     void test_reorder_basic(bool is_caching_test) {
@@ -172,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 4771142562684430881UL);
+        ASSERT_EQ(params_hash, 15950979219660866859UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
@@ -196,7 +200,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-        ASSERT_EQ(params_hash, 2578847666139139067UL);
+        ASSERT_EQ(params_hash, 4349925423879269352UL);
     }
 
     void test_conv_basic(bool is_caching_test) {
@@ -221,7 +225,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 13549661972131371304UL);
-        ASSERT_EQ(params_hash, 2971412112872172751UL);
+        ASSERT_EQ(params_hash, 7127098854451559675UL);
     }
 
     void test_quantize_basic(bool is_caching_test) {
@@ -251,7 +255,7 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
         ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-        ASSERT_EQ(params_hash, 881730825593882400UL);
+        ASSERT_EQ(params_hash, 5990757629995899044UL);
     }
 };
 

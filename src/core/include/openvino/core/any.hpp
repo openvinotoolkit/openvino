@@ -370,6 +370,11 @@ class Node;
 class RuntimeAttribute;
 
 class CompiledModel;
+namespace proxy {
+
+class CompiledModel;
+
+}
 class RemoteContext;
 class RemoteTensor;
 
@@ -659,6 +664,7 @@ class OPENVINO_API Any {
     friend class ::ov::RuntimeAttribute;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
+    friend class ::ov::proxy::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
     friend class ::ov::Plugin;

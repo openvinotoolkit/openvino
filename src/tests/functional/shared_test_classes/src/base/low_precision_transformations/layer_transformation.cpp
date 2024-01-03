@@ -11,26 +11,26 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;
 
 namespace LayerTestsUtils {
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params();
+ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
+    return ov::pass::low_precision::LayerTransformation::Params();
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params();
+ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
+    return ov::pass::low_precision::LayerTransformation::Params();
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params();
+ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
+    return ov::pass::low_precision::LayerTransformation::Params();
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
-    return ngraph::pass::low_precision::LayerTransformation::Params();
+ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
+    return ov::pass::low_precision::LayerTransformation::Params();
 }
 
 LayerTransformation::LayerTransformation() {
@@ -57,8 +57,8 @@ std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngrap
     return std::make_pair(low, hight);
 }
 
-std::string LayerTransformation::toString(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-    using namespace ngraph::pass::low_precision;
+std::string LayerTransformation::toString(const ov::pass::low_precision::LayerTransformation::Params& params) {
+    using namespace ov::pass::low_precision;
     std::ostringstream result;
     result <<
         (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<
@@ -71,7 +71,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const InferenceEngine::Precision precision,
     const InferenceEngine::SizeVector& inputShapes,
     const std::string& targetDevice,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+    const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result << precision.name() << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << toString(params);
     return result.str();
@@ -81,7 +81,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShapes,
     const std::string& targetDevice,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+    const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result << precision << "_" << inputShapes << "_" << targetDevice << "_" << toString(params);
     return result.str();

@@ -15,8 +15,6 @@ struct convolution : public primitive_base<convolution> {
 
     convolution() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs convolution primitive
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -313,8 +311,6 @@ struct deformable_interp : public primitive_base<deformable_interp> {
 
     deformable_interp() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     deformable_interp(const primitive_id& id,
                       const std::vector<input_info>& inputs,
                       uint32_t groups,
@@ -429,8 +425,6 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     CLDNN_DECLARE_PRIMITIVE(deformable_conv)
 
     deformable_conv() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     deformable_conv(const primitive_id& id,
                     const input_info& input,

@@ -151,10 +151,10 @@ void ProposalLayerTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
     params[0]->set_friendly_name("a_scores");
     params[1]->set_friendly_name("b_boxes");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto proposal = std::dynamic_pointer_cast<ov::op::v4::Proposal>(
+             ngraph::builder::makeProposal(params[0], params[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
                                            post_nms_topn,
@@ -169,10 +169,11 @@ void ProposalLayerTest::SetUp() {
                                            box_size_scale,
                                            box_coordinate_scale,
                                            framework));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
-        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
+        std::make_shared<ov::op::v0::Result>(proposal->output(0)),
+        std::make_shared<ov::op::v0::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 

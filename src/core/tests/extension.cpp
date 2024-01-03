@@ -15,7 +15,7 @@
 
 inline std::string get_extension_path() {
     return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 TEST(extension, load_extension) {

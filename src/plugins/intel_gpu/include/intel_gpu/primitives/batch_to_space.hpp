@@ -42,8 +42,6 @@ struct batch_to_space : public primitive_base<batch_to_space> {
 
     batch_to_space() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs batch_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.

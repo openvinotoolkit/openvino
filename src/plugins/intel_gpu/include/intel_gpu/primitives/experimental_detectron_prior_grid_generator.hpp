@@ -8,16 +8,12 @@
 
 namespace cldnn {
 
-
-
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator
     : public primitive_base<experimental_detectron_prior_grid_generator> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_prior_grid_generator)
 
     experimental_detectron_prior_grid_generator() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     experimental_detectron_prior_grid_generator(const primitive_id& id,
                                                 const std::vector<input_info>& inputs,

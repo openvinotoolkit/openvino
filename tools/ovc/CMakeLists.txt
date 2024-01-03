@@ -14,8 +14,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     get_filename_component(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." REALPATH)
 endif()
 
-if(NOT IEDevScripts_FOUND)
-    find_package(IEDevScripts REQUIRED
+if(NOT OpenVINODeveloperScripts_FOUND)
+    find_package(OpenVINODeveloperScripts REQUIRED
                  PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                  NO_CMAKE_FIND_ROOT_PATH
                  NO_DEFAULT_PATH)
@@ -36,9 +36,19 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         USE_SOURCE_PERMISSIONS)
 
 #
+# Tests
+#
+if(ENABLE_TESTS)
+    install(DIRECTORY unit_tests
+            DESTINATION tests/ovc
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
+
+#
 # Cpack
 #
 
 if(CMAKE_SOURCE_DIR STREQUAL OpenVINOConverter_SOURCE_DIR)
-    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+    ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()

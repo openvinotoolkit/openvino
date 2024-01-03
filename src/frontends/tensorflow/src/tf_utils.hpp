@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "tensor.pb.h"
-#include "tensor_shape.pb.h"
-#include "types.pb.h"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/tensor.pb.h"
+#include "ov_tensorflow/tensor_shape.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -102,6 +103,19 @@ bool propagate_conditional_flow(const ov::OutputVector& ov_inputs,
 
 // copy existing markers from copy_from to copy_to marker
 void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& copy_to);
+
+// create Loop operation corresponding to TensorFlow While operation
+std::shared_ptr<ov::op::v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
+                                                           const std::shared_ptr<ov::Model>& body_model,
+                                                           const std::shared_ptr<ov::Model>& cond_model,
+                                                           const ov::OutputVector& ov_inputs);
+
+// inject a graph by given inputs and return outputs of the injected graph
+void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
+                       const std::string& operation_type,
+                       const ov::OutputVector& ov_inputs,
+                       ov::OutputVector& ov_outputs,
+                       const std::vector<std::string>& ov_input_names = {});
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

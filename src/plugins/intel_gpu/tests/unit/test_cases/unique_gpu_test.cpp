@@ -49,9 +49,9 @@ public:
         std::tie(p, fmt) = testing::TestWithParam<unique_test_params<ElemT, IndexT, CountT>>::GetParam();
 
         auto& engine = get_test_engine();
-        const auto elem_data_type = type_to_data_type<ElemT>::value;
-        const auto index_data_type = type_to_data_type<IndexT>::value;
-        const auto count_data_type = type_to_data_type<CountT>::value;
+        const auto elem_data_type = ov::element::from<ElemT>();
+        const auto index_data_type = ov::element::from<IndexT>();
+        const auto count_data_type = ov::element::from<CountT>();
         const auto plain_format = format::bfyx;
 
         const layout in_layout(p.data_shape, elem_data_type, plain_format);
@@ -120,9 +120,9 @@ public:
         std::ostringstream result;
         result << "data_shape=" << vec2str(p.data_shape) << "; ";
         result << "input_data=" << vec2str(p.input_data) << "; ";
-        result << "data_type=" << type_to_data_type<ElemT>::value << "; ";
-        result << "index_type=" << type_to_data_type<IndexT>::value << "; ";
-        result << "counts_type=" << type_to_data_type<CountT>::value << "; ";
+        result << "data_type=" << ov::element::from<ElemT>() << "; ";
+        result << "index_type=" << ov::element::from<IndexT>() << "; ";
+        result << "counts_type=" << ov::element::from<CountT>() << "; ";
         result << "sorted=" << p.sorted << "; ";
         if (!p.flattened) {
             result << "axis=" << p.axis << "; ";

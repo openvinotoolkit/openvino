@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
+import openvino.runtime.opset12 as ops
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 
-input_0 = ov.opset11.parameter([INPUT_SIZE], name="input_0")
-input_1 = ov.opset11.parameter([INPUT_SIZE], name="input_1")
-add_inputs = ov.opset11.add(input_0, input_1)
-res = ov.opset11.reduce_sum(add_inputs, reduction_axes=0, name="reduced")
+input_0 = ops.parameter([INPUT_SIZE], name="input_0")
+input_1 = ops.parameter([INPUT_SIZE], name="input_1")
+add_inputs = ops.add(input_0, input_1)
+res = ops.reduce_sum(add_inputs, reduction_axes=0, name="reduced")
 model = ov.Model(res, [input_0, input_1], name="my_model")
 model.outputs[0].tensor.set_names({"reduced_result"})  # Add name for Output
 
@@ -56,7 +57,7 @@ run(time_in_sec)
 
 # Hiding latency
 request.start_async({"input_0": data_0, "input_1": data_1})
-run()
+run(time_in_sec)
 request.wait()
 results = request.get_output_tensor(0).data  # Gather data from InferRequest
 #! [hiding_latency]

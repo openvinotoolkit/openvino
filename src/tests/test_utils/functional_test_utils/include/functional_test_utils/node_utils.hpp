@@ -7,7 +7,9 @@
 
 #include "openvino/opsets/opset.hpp"
 
-namespace FuncTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 inline std::string get_op_version(std::string version_full_name) {
     std::string op_version(version_full_name);
@@ -38,4 +40,6 @@ static std::map<std::string, std::set<std::string>> get_unique_ops() {
     return res;
 }
 
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

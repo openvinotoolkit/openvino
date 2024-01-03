@@ -45,6 +45,8 @@
 #    define TF_LITE_EXT
 #endif
 
+namespace {
+
 ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
@@ -65,6 +67,7 @@ ov::OutputVector ReluToSwishTranslator(const ov::frontend::NodeContext& node) {
     return {std::make_shared<ov::opset8::Swish>(node.get_input(0))};
 }
 
+#ifdef ENABLE_OV_PADDLE_FRONTEND
 std::map<std::string, ov::OutputVector> ReluToSwishTranslatorPDPD(const ov::frontend::NodeContext& node) {
     return {{"Out", {std::make_shared<ov::opset8::Swish>(node.get_input("X"))}}};
 }
@@ -79,6 +82,8 @@ std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::fr
     ret["Out"] = {relu};
     return ret;
 }
+#endif
+}  // namespace
 
 class CustomElu : public ov::op::Op {
 public:

@@ -8,14 +8,14 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -24,7 +24,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -36,12 +36,12 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
  * in the Inference Engine Developer Guide.
  */
 template <class AttributeType>
-class ngraph::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {
+class ov::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateSharedValue");
 
-        std::vector<std::shared_ptr<ngraph::Node>> nodes(f->get_ordered_ops());
+        std::vector<std::shared_ptr<ov::Node>> nodes(f->get_ordered_ops());
         for (auto it = nodes.begin(); it != nodes.end(); it++) {
             const std::shared_ptr<Node> node = *it;
             if (ov::is_type<opset1::FakeQuantize>(node)) {
@@ -103,7 +103,7 @@ public:
 
 private:
     std::vector<ov::Any> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
+        const std::shared_ptr<ov::Node> node) {
         std::vector<ov::Any> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);
@@ -133,7 +133,7 @@ private:
         return parentAttributes;
     }
 
-    void handle(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::Node>& node) {
+    void handle(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::Node>& node) {
         const bool precisionPreserved = NetworkHelper::isPrecisionPreserved(node);
         if (precisionPreserved) {
             const auto parentRestrictions = getParentInputRestrictions(node);

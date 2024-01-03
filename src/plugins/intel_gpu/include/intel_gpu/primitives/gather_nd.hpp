@@ -14,8 +14,6 @@ struct gather_nd : public primitive_base<gather_nd> {
 
     gather_nd() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather_nd primitive.
     ///
     /// @param id                   This primitive id.

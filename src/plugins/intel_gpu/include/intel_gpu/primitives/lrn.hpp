@@ -6,8 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
     lrn_norm_region_within_channel
@@ -28,8 +26,6 @@ struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
 
     lrn() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.

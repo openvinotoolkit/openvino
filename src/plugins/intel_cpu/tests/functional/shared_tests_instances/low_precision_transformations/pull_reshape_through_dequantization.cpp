@@ -15,7 +15,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
@@ -38,7 +38,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ngraph::element::f32,
         {},
         "output_original",
-        "U8"
+        "u8"
     },
     {
         ngraph::element::f32,
@@ -57,7 +57,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ngraph::element::f32,
         {},
         "output_original",
-        "FP32"
+        "f32"
     }
 };
 

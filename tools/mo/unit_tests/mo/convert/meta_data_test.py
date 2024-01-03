@@ -5,7 +5,6 @@ import os
 import tempfile
 from pathlib import Path
 
-from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
@@ -18,7 +17,6 @@ from utils import save_to_onnx
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 
-@generator
 class MetaDataTest(UnitTestWithMockedTelemetry):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 

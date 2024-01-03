@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
-#include "single_layer_tests/reduce_ops.hpp"
+#include "single_op_tests/reduce_ops.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8,
+using ov::test::ReduceOpsLayerTest;
+using ov::test::ReduceOpsLayerWithSpecificInputTest;
+
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::i32,
+        ov::element::u8,
+        ov::element::i8,
 };
 
 const std::vector<bool> keepDims = {
@@ -58,19 +57,19 @@ std::vector<ov::test::utils::OpType> opTypes = {
         ov::test::utils::OpType::VECTOR,
 };
 
-const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
-        ngraph::helpers::ReductionType::Mean,
-        ngraph::helpers::ReductionType::Min,
-        ngraph::helpers::ReductionType::Max,
-        ngraph::helpers::ReductionType::Sum,
-        ngraph::helpers::ReductionType::Prod,
-        ngraph::helpers::ReductionType::L1,
-        ngraph::helpers::ReductionType::L2,
+const std::vector<ov::test::utils::ReductionType> reductionTypes = {
+        ov::test::utils::ReductionType::Mean,
+        ov::test::utils::ReductionType::Min,
+        ov::test::utils::ReductionType::Max,
+        ov::test::utils::ReductionType::Sum,
+        ov::test::utils::ReductionType::Prod,
+        ov::test::utils::ReductionType::L1,
+        ov::test::utils::ReductionType::L2,
 };
 
-const std::vector<ngraph::helpers::ReductionType> reductionLogicalTypes = {
-        ngraph::helpers::ReductionType::LogicalOr,
-        ngraph::helpers::ReductionType::LogicalAnd
+const std::vector<ov::test::utils::ReductionType> reductionLogicalTypes = {
+        ov::test::utils::ReductionType::LogicalOr,
+        ov::test::utils::ReductionType::LogicalAnd
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReduceOneAxis,
@@ -79,10 +78,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceOneAxis,
                                           testing::ValuesIn(opTypes),
                                           testing::Values(true, false),
                                           testing::ValuesIn(reductionTypes),
-                                          testing::Values(InferenceEngine::Precision::FP32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::element::f32),
                                           testing::ValuesIn(inputShapesOneAxis),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -93,10 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogicalOneAxis,
                                           testing::ValuesIn(opTypes),
                                           testing::Values(true, false),
                                           testing::ValuesIn(reductionLogicalTypes),
-                                          testing::Values(InferenceEngine::Precision::BOOL),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::element::boolean),
                                           testing::ValuesIn(inputShapes),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -106,12 +99,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
                          testing::Combine(testing::Values(std::vector<int>{1, 3}),
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
-                                          testing::Values(ngraph::helpers::ReductionType::Sum),
-                                          testing::Values(InferenceEngine::Precision::FP32,
-                                                          InferenceEngine::Precision::I32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::test::utils::ReductionType::Sum),
+                                          testing::Values(ov::element::f32,
+                                                          ov::element::i32),
                                           testing::Values(std::vector<size_t>{2, 2, 2, 2}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -122,12 +112,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
                                                           std::vector<int>{-1, -2}),
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
-                                          testing::Values(ngraph::helpers::ReductionType::Sum),
-                                          testing::Values(InferenceEngine::Precision::FP32,
-                                                          InferenceEngine::Precision::I32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::test::utils::ReductionType::Sum),
+                                          testing::Values(ov::element::f32,
+                                                          ov::element::i32),
                                           testing::Values(std::vector<size_t>{2, 3, 4, 5, 4, 3, 2, 3},
                                                           std::vector<size_t>{2, 3, 4, 5, 4, 3, 2}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
@@ -138,11 +125,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_InputShapes,
                          testing::Combine(testing::Values(std::vector<int>{0}),
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
-                                          testing::Values(ngraph::helpers::ReductionType::Mean),
-                                          testing::Values(InferenceEngine::Precision::FP32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::test::utils::ReductionType::Mean),
+                                          testing::Values(ov::element::f32),
                                           testing::Values(std::vector<size_t>{3},
                                                           std::vector<size_t>{3, 5},
                                                           std::vector<size_t>{2, 4, 6},
@@ -157,11 +141,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Axes,
                          testing::Combine(testing::ValuesIn(axes),
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
-                                          testing::Values(ngraph::helpers::ReductionType::Mean),
-                                          testing::Values(InferenceEngine::Precision::FP32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::test::utils::ReductionType::Mean),
+                                          testing::Values(ov::element::f32),
                                           testing::ValuesIn(inputShapes),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -172,10 +153,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_ReductionTypes,
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
                                           testing::ValuesIn(reductionTypes),
-                                          testing::Values(InferenceEngine::Precision::FP32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::element::f32),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -186,10 +164,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogical_ReductionTypes,
                                           testing::Values(opTypes[1]),
                                           testing::ValuesIn(keepDims),
                                           testing::ValuesIn(reductionLogicalTypes),
-                                          testing::Values(InferenceEngine::Precision::BOOL),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::element::boolean),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
@@ -199,12 +174,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce,
                          testing::Combine(testing::ValuesIn(decltype(axes){{0}, {1}}),
                                           testing::Values(opTypes[1]),
                                           testing::Values(true),
-                                          testing::Values(ngraph::helpers::ReductionType::Sum),
-                                          testing::Values(InferenceEngine::Precision::FP32,
-                                                          InferenceEngine::Precision::I32),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(ov::test::utils::ReductionType::Sum),
+                                          testing::Values(ov::element::f32,
+                                                          ov::element::i32),
                                           testing::Values(std::vector<size_t>{2, 10}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerWithSpecificInputTest::getTestCaseName);

@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
+from utils import get_model
+
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 core = ov.Core()
-model = core.read_model("model.xml")
+model = get_model()
 compiled_model = core.compile_model(model, "AUTO")
 
 #! [create_infer_request]
@@ -31,10 +32,12 @@ infer_request.wait_for(10)
 #! [wait_for]
 
 #! [set_callback]
-def callback(request, userdata):
+def callback(request, _):
     request.start_async()
 
-infer_request.set_callback(callback)
+callbacks_info = {}
+callbacks_info["finished"] = 0
+infer_request.set_callback(callback, callbacks_info)
 #! [set_callback]
 
 #! [cancel]
@@ -48,24 +51,21 @@ output_tensor = infer_request.get_output_tensor()
 
 #! [get_set_index_tensor]
 input_tensor = infer_request.get_input_tensor(0)
-output_tensor = infer_request.get_output_tensor(1)
+output_tensor = infer_request.get_output_tensor(0)
 #! [get_set_index_tensor]
 
-#! [get_set_name_tensor]
-input_tensor = infer_request.get_tensor("input_name")
-output_tensor = infer_request.get_tensor("output_name")
-#! [get_set_name_tensor]
+input_tensor_name = "input"
 
 #! [get_set_tensor]
-tensor1 = infer_request.get_tensor("tensor_name1")
-tensor2 = ov.Tensor()
-infer_request.set_tensor("tensor_name2", tensor2)
+tensor1 = infer_request.get_tensor("result")
+tensor2 = ov.Tensor(ov.Type.f32, [1, 3, 32, 32])
+infer_request.set_tensor(input_tensor_name, tensor2)
 #! [get_set_tensor]
 
 #! [get_set_tensor_by_port]
 input_port = model.input(0)
-output_port = model.input("tensor_name")
-input_tensor = ov.Tensor()
+output_port = model.input(input_tensor_name)
+input_tensor = ov.Tensor(ov.Type.f32, [1, 3, 32, 32])
 infer_request.set_tensor(input_port, input_tensor)
 output_tensor = infer_request.get_tensor(output_port)
 #! [get_set_tensor_by_port]
@@ -81,15 +81,15 @@ infer_request2.set_input_tensor(0, output)
 #! [roi_tensor]
 # input_tensor points to input of a previous network and
 # cropROI contains coordinates of output bounding box **/
-input_tensor = ov.Tensor(type=ov.Type.f32, shape=ov.Shape([1, 3, 20, 20]))
+input_tensor = ov.Tensor(type=ov.Type.f32, shape=ov.Shape([1, 3, 100, 100]))
 begin = [0, 0, 0, 0]
-end = [1, 2, 3, 3]
+end = [1, 3, 32, 32]
 # ...
 
 # roi_tensor uses shared memory of input_tensor and describes cropROI
 # according to its coordinates **/
 roi_tensor = ov.Tensor(input_tensor, begin, end)
-infer_request2.set_tensor("input_name", roi_tensor)
+infer_request2.set_tensor(input_tensor_name, roi_tensor)
 #! [roi_tensor]
 
 #! [remote_tensor]

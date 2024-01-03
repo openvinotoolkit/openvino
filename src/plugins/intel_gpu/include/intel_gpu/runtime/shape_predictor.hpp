@@ -50,7 +50,7 @@ public:
 ///         says if shape is successfully predicted and can be preallocated, and the second element is ov::Shape itself.
     std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
                                                            const ov::Shape& current_shape,
-                                                           size_t dt_size,
+                                                           size_t dt_bitwidth,
                                                            bool can_reuse_buffer);
     bool can_preallocate(size_t desired_buffer_size);
 

@@ -7,73 +7,28 @@ set(TARGET_NAME "benchmark_app")
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-ie_add_sample(NAME ${TARGET_NAME}
+ov_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
 # Required nlohmann_json dependency
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
 if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json QUIET
-                 # exception for Ubuntu 18.04, where cmake files for nlohmann_json
-                 # are located in a wrong directory
-                 HINTS /usr/lib/cmake)
-    if(TARGET nlohmann_json)
-        # Ubuntu 18.04 case where target 'nlohmann_json' is here, but nlohmann_json_FOUND is OFF
-        if(NOT TARGET nlohmann_json::nlohmann_json)
-            set_target_properties(nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
-        endif()
-        set(nlohmann_json_FOUND ON)
-    endif()
-    if(nlohmann_json_FOUND)
-        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(PkgConfig_FOUND)
-        pkg_search_module(nlohmann_json QUIET
-                          IMPORTED_TARGET GLOBAL
-                          nlohmann_json)
-        if(nlohmann_json_FOUND)
-            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
-        endif()
-    endif()
-
-    if(NOT nlohmann_json_FOUND)
-        # try to find header file json.hpp
-        # for example, on debian 9 there is no cmake / pkgconfig files
-        find_file(nlohmann_include_file
-                  NAMES "json.hpp"
-                  "Path to json.hpp (nlohmann-json-dev)")
-        if(nlohmann_include_file)
-            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-            get_filename_component(nlohmann_include_dir "${nlohmann_include_file}" PATH)
-            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-                                  INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_include_dir}"
-                                  INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
-            set(nlohmann_json_FOUND ON)
-        endif()
-    endif()
-
-    if(NOT nlohmann_json_FOUND)
-        if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
-            # OpenVINO package puts thirdparty to samples dir
-            # suppress shadowing names warning
-            set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-            add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
-                             "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
-        elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json")
-            # Allow running samples CMakeLists.txt as stand alone from openvino sources
-            # suppress shadowing names warning
-            set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-            add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json"
-                             "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
-        else()
-            message(FATAL_ERROR "Failed to find / build nlohmann_json library")
-        endif()
+    if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
+        # OpenVINO package puts thirdparty to samples dir
+        # suppress shadowing names warning
+        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+        add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
+                            "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+    elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json")
+        # Allow running samples CMakeLists.txt as stand alone from openvino sources
+        # suppress shadowing names warning
+        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+        add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json"
+                            "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+    else()
+        message(FATAL_ERROR "Failed to find / build nlohmann_json library")
     endif()
 endif()
 
@@ -146,7 +101,7 @@ if(SAMPLES_ENABLE_OPENCL)
 
         target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
     else()
-        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
+        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support and you will not be able to use the '-use_device_mem' option. Please, install '<apt | yum> install opencl-headers' to enable the option")
     endif()
 endif()
 

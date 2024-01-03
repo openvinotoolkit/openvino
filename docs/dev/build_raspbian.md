@@ -43,9 +43,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
   via `pip3`, adding the following options:
    ```sh
    -DENABLE_PYTHON=ON \
-   -DPYTHON_EXECUTABLE=/usr/bin/python3.7 \
-   -DPYTHON_LIBRARY=/usr/lib/arm-linux-gnueabihf/libpython3.7m.so \
-   -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
+   -DPython3_EXECUTABLE=/usr/bin/python3.8
    ```
 
 ## See also

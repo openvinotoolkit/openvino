@@ -22,7 +22,10 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
     auto desc = impl_param.typed_desc<broadcast>();
 
     if (!desc->target_shape.empty()) {
-        std::vector<tensor::value_type> dims_converted(desc->target_shape.begin(), desc->target_shape.end());
+        std::vector<tensor::value_type> dims_converted(desc->target_shape.size());
+        std::transform(desc->target_shape.begin(), desc->target_shape.end(), dims_converted.begin(), [](size_t value) {
+            return static_cast<tensor::value_type>(value);
+        });
         for (size_t i = dims_converted.size(); i < 4; i++)
             dims_converted.push_back(1);  // extend shape to 4d
 
@@ -87,7 +90,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
+        output_shapes[0] = desc->output_pshape.rank().is_static() ? desc->output_pshape : ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
