@@ -116,7 +116,7 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
-        if (outType == element::Type_t::f32) {
+        if (outType == ov::element::f32) {
             LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
                                                        reinterpret_cast<const float*>(actualBuffer),
                                                        expectedNumRois * outputSize,
@@ -131,7 +131,7 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         }
 
         if (expectedNumRois < actualNumRois) {
-            if (outType == element::Type_t::f32) {
+            if (outType == ov::element::f32) {
                 const auto fBuffer = static_cast<const float*>(actual[i].data());
                 for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
                     ASSERT_TRUE(fBuffer[j] == 0.0f)
