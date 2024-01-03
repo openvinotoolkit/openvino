@@ -168,6 +168,10 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    if (!orig_impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+        return std::move(orig_impl_param);
+    }
+
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     auto orig_input_layout = orig_impl_param.get_input_layout();
@@ -209,37 +213,14 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
         }
 
-        // If input / output shape only have one dimension which is bigger than one except last dimension, preserve the index of aligned dimension.
-        // ex) f16:bfyx:1x79x512:nopad -> f16:bfyx:1x80x512:nopad
-        // Supported cases which preserve the index of aligned dimension.
-        // * Input [1, M, K], Output [1, M, N], Batch M
-        // * Input [1, 1, M, K], Output [1, 1, M, N], Batch M
-        // TODO: support other case
-        // * Input [2, M, K, 1], Output [2, M, N, 1], Batch 2M
-        size_t aligned_input_idx = 0;
-        if (std::count_if(input_shape.begin(), input_shape.end()-1, [](size_t v){ return (v > 1); }) == 1) {
-            for (size_t i = 0; i < (input_shape.size() - 1); i++) {
-                if (input_shape[i] > 1) {
-                    aligned_input_idx = i;
-                    break;
-                }
-            }
-        }
-        size_t aligned_output_idx = 0;
-        if (std::count_if(output_shape.begin(), output_shape.end()-1, [](size_t v){ return (v > 1); }) == 1) {
-            for (size_t i = 0; i < (output_shape.size() - 1); i++) {
-                if (output_shape[i] > 1) {
-                    aligned_output_idx = i;
-                    break;
-                }
-            }
-        }
+        // Modify aligned_idx to prevent the aligned index is changed like f16:bfyx:1x79x512:nopad -> f16:bfyx:80x1x512:nopad
+        size_t aligned_idx = (input_shape.size() == 2 || input_shape.size() == 3) ? input_shape.size() - 2 : 0;
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
         std::fill(output_shape.begin(), output_shape.end() - 1, 1);
 
-        input_shape[aligned_input_idx] = align_to(batch_size, fake_align_base);
-        output_shape[aligned_output_idx] = align_to(batch_size, fake_align_base);
+        input_shape[aligned_idx] = align_to(batch_size, fake_align_base);
+        output_shape[aligned_idx] = align_to(batch_size, fake_align_base);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,
