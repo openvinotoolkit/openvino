@@ -14,7 +14,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/enum_names.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
