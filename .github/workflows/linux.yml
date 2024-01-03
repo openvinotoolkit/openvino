@@ -293,6 +293,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
+    name: JS API
     needs: [ Build, Smart_CI ]
     defaults:
       run:
@@ -319,23 +320,11 @@ jobs:
           echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js" >> "$GITHUB_ENV"
           echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
 
-      - name: Check Dir
-        continue-on-error: true
-        run: |
-          ls -laR $GITHUB_WORKSPACE
-          ls -laR openvino
-
       - name: Download OpenVINO js package
         uses: actions/download-artifact@v3
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
-
-      - name: Check Dir 2
-        continue-on-error: true
-        run: |
-          ls -laR $GITHUB_WORKSPACE
-          ls -laR openvino
 
       - name: Setup Node
         uses: actions/setup-node@v4
