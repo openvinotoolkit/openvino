@@ -20,6 +20,7 @@
 #include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
+class IInferRequestInternalWrapper;
 
 /**
  * @brief Base class with default implementation of asynchronous multi staged inference request.
@@ -202,6 +203,7 @@ private:
     Futures m_futures;
     std::promise<void> m_promise;
 
+    friend class IInferRequestInternalWrapper;
     friend struct DisableCallbackGuard;
     struct DisableCallbackGuard {
         explicit DisableCallbackGuard(IAsyncInferRequest* this_) : _this{this_} {
