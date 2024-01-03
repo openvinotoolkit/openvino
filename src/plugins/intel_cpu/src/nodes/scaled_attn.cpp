@@ -262,6 +262,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto q_len = query.size(2);
         auto head_size = query.size(3);
         auto kv_len = present_key.size(2);
+        auto Hk = present_key.size(1);
         brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true};
         auto builder = [](const brgemmKey& key) -> std::shared_ptr<brgemmExecutor> {
             return std::make_shared<brgemmExecutor>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed);
@@ -283,7 +284,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         auto wv_result = cache->getOrCreate(wv_key, builder);
         if (!wv_result.first) {
-            OPENVINO_THROW("ScaledDotProductAttention 1st token qk gemm creation fails");
+            OPENVINO_THROW("ScaledDotProductAttention 1st token wv gemm creation fails");
         }
 
         wv_gemm_ptr = wv_result.first;
@@ -292,8 +293,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (kv_len >> 1 != 0) {
             wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size()});
         }
-        qk_scratch_b.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_b_size()});
-        wv_scratch_b.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_b_size()});
+        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size()});
+        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size()});
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
@@ -346,6 +347,99 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
     }
 
+    void exec_multiquery(PlainTensor& query,
+                         PlainTensor& present_key,
+                         PlainTensor& present_value,
+                         const PlainTensor& alibi_mask,
+                         const PlainTensor& attention_mask,
+                         PlainTensor& output_emb,
+                         bool has_out_transpose,
+                         bool auto_causal,
+                         float d_scale = 0.0f) {
+        const auto B = query.size(0);
+        const auto H = query.size(1);
+        const auto q_len = query.size(2);
+        const auto head_size = query.size(3);
+        const auto Hk = present_key.size(1);
+        const auto kv_len = present_key.size(2);
+        size_t h_each_group_len = H / Hk;
+        PlainTensor score, weight;
+        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
+        weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
+
+        const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
+        auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+        // packed k, v
+        parallel_for2d(B, Hk, [&](size_t b, size_t h) {
+            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h, 0, 0});
+            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h, 0, 0});
+            qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<bfloat16>({b, h, 0}));
+            wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<bfloat16>({b, h, 0}));
+        });
+
+        // attention
+        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+            auto m_start = m_blk * m_block_size;
+            auto m_end = std::min(m_start + m_block_size, q_len);
+            auto m_cnt = m_end - m_start;
+            size_t tid = parallel_get_thread_num();
+            bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
+            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
+            float* c_ptr = &score.at<float>({b, h, m_start, 0});
+            qk_gemm_ptr->executeGemm(m_cnt,
+                                     q_ptr,
+                                     k_ptr,
+                                     c_ptr,
+                                     nullptr,
+                                     &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
+            float* alibi_ptr = nullptr;
+            auto alibi_stride = 0;
+            if (alibi_mask) {
+                alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                if (alibi_mask.size(2) > 1)
+                    alibi_stride = alibi_mask.stride(2);
+            }
+            float* attn_mask_ptr = nullptr;
+            auto attn_mask_stride = 0;
+            if (attention_mask) {
+                attn_mask_ptr = &attention_mask.at<float>({b, h, 0, 0}, true);
+                if (attention_mask.size(2) > 1)
+                    attn_mask_stride = attention_mask.stride(2);
+            }
+            uint8_t* cmask_ptr = nullptr;
+            auto cmask_stride = 0;
+            if (causal_mask) {
+                cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
+                if (causal_mask.size(2) > 1)
+                    cmask_stride = causal_mask.stride(2);
+            }
+            for (size_t m = m_start; m < m_end; m++) {
+                // apply attention mask & sofmax
+                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                attn_softmax(&score.at<float>({b, h, m, 0}),
+                             &weight.at<bfloat16>({b, h, m, 0}),
+                             d_scale,
+                             alibi_ptr + m * alibi_stride,
+                             attn_mask_ptr + m * attn_mask_stride,
+                             cmask_ptr + m * cmask_stride,
+                             select_nfltmax_at_0,
+                             ncausal,
+                             kv_len,
+                             precision_of<T>::value);
+            }
+            bfloat16* w_ptr = &weight.at<bfloat16>({b, h, m_start, 0});
+            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
+            float* fp32_out_ptr = &fp32_out.at<float>({b, h, m_start, 0});
+            wv_gemm_ptr->executeGemm(m_cnt,
+                                     w_ptr,
+                                     v_ptr,
+                                     fp32_out_ptr,
+                                     &wv_scratch_a.at<bfloat16>({tid, 0}),
+                                     &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
+        });
+        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}), &output_emb.at<bfloat16>({0, 0, 0, 0}),
+            ov::element::f32, ov::element::bf16, B * H * q_len * head_size);
+    }
     void exec_multiquery_qk(PlainTensor& query, PlainTensor& present_key) {
         const auto B = query.size(0);
         const auto H = query.size(1);
@@ -376,10 +470,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
         parallel_for2d(B, H, [&](size_t b, size_t h) {
             size_t tid = parallel_get_thread_num();
-            bfloat16* q_ptr = &weight.at<bfloat16>({b, h, 0, 0});
+            bfloat16* w_ptr = &weight.at<bfloat16>({b, h, 0, 0});
             bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* c_ptr = &fp32_out.at<float>({b, h, 0, 0});
-            wv_gemm_ptr->executeGemm(q_ptr, v_ptr, c_ptr, &wv_scratch_a.at<bfloat16>({tid, 0}), &wv_scratch_b.at<bfloat16>({tid, 0}));
+            wv_gemm_ptr->executeGemm(w_ptr, v_ptr, c_ptr, &wv_scratch_a.at<bfloat16>({tid, 0}), &wv_scratch_b.at<bfloat16>({tid, 0}));
         });
         // gemm_bf16bf16f32 --> bf16
         cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}), &output_emb.at<bfloat16>({0, 0, 0, 0}),
@@ -434,13 +528,22 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        if (!is_multi_query) {
-            prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
-            exec_qk(strm, query, present_key);
-        } else {
+        if (is_multi_query) {
             prepare_multiquery_prim(strm, query, present_key);
-            exec_multiquery_qk(query, present_key);
+            exec_multiquery(query,
+                            present_key,
+                            present_value,
+                            alibi_mask,
+                            attention_mask,
+                            output_emb,
+                            has_out_transpose,
+                            auto_causal,
+                            d_scale);
+            return;
         }
+
+        prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
+        exec_qk(strm, query, present_key);
 
         PlainTensor score;
         score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
@@ -461,11 +564,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                          kv_len,
                          precision_of<T>::value);
         });
-        if (!is_multi_query) {
-            exec_kv(strm, present_value, output_emb);
-        } else {
-            exec_multiquery_wv(present_value, output_emb);
-        }
+
+        exec_kv(strm, present_value, output_emb);
     }
 };
 

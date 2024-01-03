@@ -23,10 +23,19 @@ public:
                    size_t ldb,
                    size_t ldc,
                    bool b_transposed = false);
-    // scratch_a / scratch_b
+    // execute all M
     void executeGemm(void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+    // execute m_blk
+    void executeGemm(size_t m_blk, void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+
+    void copy_buffer_a();
+    void copy_buffer_b(void* b, void* scratch_b);
+    // scratch_a / scratch_b
     size_t get_scratch_a_size();
     size_t get_scratch_b_size();
+    size_t get_mblk_size() {
+        return 32;
+    }
 
 private:
     size_t M = 0, M_blk = 0, M_tail = 0;
@@ -39,6 +48,7 @@ private:
     size_t wsp_size_per_thread = 4 * 1024;
     std::vector<size_t> wsp;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
+    static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {
         size_t M = 0, N = 0, K = 0, LDA = 0, LDB = 0, LDC = 0;
         dnnl_data_type_t dt_in0 = dnnl_data_type_undef;

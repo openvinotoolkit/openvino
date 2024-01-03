@@ -33,7 +33,6 @@ brgemmExecutor::brgemmExecutor(size_t M,
       ldc(ldc),
       b_transposed(b_transposed) {
     // blocking M
-    const size_t matmulOptimalM = 32;
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
     ov::element::Type brg0Prc = ov::element::bf16;
@@ -259,6 +258,121 @@ void brgemmExecutor::init_brgemm_copy_b(
 #endif  // OPENVINO_ARCH_X86_64
 }
 
+void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
+    auto ptr_b = reinterpret_cast<uint8_t*>(b);
+    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
+    auto dataType = ov::element::bf16;
+    if (brgCopyBKernel) {
+        for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
+            auto N_stride = b_transposed ? ldb : 1;
+            auto pCopyKernel0In = ptr_b + nb * N_blk * dataType.size() * N_stride;
+            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brg0VnniFactor * dataType.size();
+
+            auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
+
+            const bool is_N_tail = (N - nb * N_blk < N_blk);
+            ctx.current_N_blk = is_N_tail ? N_tail : N_blk;
+            ctx.src = pCopyKernel0In;
+            ctx.tr_src = pCopyKernel0Out;
+            ctx.compensation_ptr = nullptr;
+            ctx.zp_a_compensation_ptr = nullptr;
+            ctx.zp_a_neg_value_ptr = nullptr;
+            ctx.current_K_start = 0;
+            ctx.current_K_iters = K;
+
+            (*brgCopyBKernel)(&ctx);
+        }
+    }
+}
+
+void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
+    auto ptr_a = reinterpret_cast<uint8_t*>(a);
+    auto ptr_b = reinterpret_cast<uint8_t*>(b);
+    auto ptr_c = reinterpret_cast<uint8_t*>(c);
+    auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
+    auto dataType = ov::element::bf16;
+    uint8_t* ptr_a_tail = nullptr;
+    // if (brgCopyBKernel) {
+    //     for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
+    //         auto N_stride = b_transposed ? ldb : 1;
+    //         auto pCopyKernel0In = ptr_b + nb * N_blk * dataType.size() * N_stride;
+    //         auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brg0VnniFactor * dataType.size();
+
+    //         auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
+
+    //         const bool is_N_tail = (N - nb * N_blk < N_blk);
+    //         ctx.current_N_blk = is_N_tail ? N_tail : N_blk;
+    //         ctx.src = pCopyKernel0In;
+    //         ctx.tr_src = pCopyKernel0Out;
+    //         ctx.compensation_ptr = nullptr;
+    //         ctx.zp_a_compensation_ptr = nullptr;
+    //         ctx.zp_a_neg_value_ptr = nullptr;
+    //         ctx.current_K_start = 0;
+    //         ctx.current_K_iters = K;
+
+    //         (*brgCopyBKernel)(&ctx);
+    //     }
+    // }
+    size_t brgIdx0 = getBrgIdx(0, 0, 0);
+    // The step for matrix A over main K dimension
+    size_t K0_step0 = brgCtxs0[brgIdx0].K;
+    // The step for matrix B over main K dimension
+    size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
+    // The step for matrix B over N dimension
+    size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
+    // The step for matrix C over N dimension
+    size_t N0_step1 = brgCtxs0[brgIdx0].N;
+    const bool is_M_tail = m_blk < M_blk;
+
+    auto cur_M_blk = is_M_tail ? M_tail : M_blk;
+    if (brgCopyAKernel) {
+        // only copy the tailed data;
+        auto pCopyKernelIn = ptr_a + K0_step0 * ov::element::bf16.size();
+        auto pCopyKernelOut = ptr_scartch_a;
+
+        auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
+
+        ctx.current_M_blk = cur_M_blk;
+        ctx.zp_b_compensation_buffer_ptr = nullptr;
+        ctx.zp_a_compensation_result_ptr = nullptr;
+        ctx.zp_b_neg_value_ptr = nullptr;
+        ctx.zp_ab_comp_ptr = nullptr;
+        ctx.src = pCopyKernelIn;
+        ctx.tr_src = pCopyKernelOut;
+        ctx.current_K_start = 0;
+        ctx.current_K_blk = K % K_blk;
+
+        (*brgCopyAKernel)(&ctx);
+
+        ptr_a_tail = pCopyKernelOut;
+    }
+    for (size_t n = 0; n < 2; n++) {
+        for (size_t k = 0; k < 2; k++) {
+            size_t mIdx = is_M_tail ? 1 : 0;
+            auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
+
+            if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+                if (k) {
+                    callBrgemm(brgemmCtx,
+                            brgKernels[getBrgIdx(mIdx, k, n)],
+                            ptr_a_tail,
+                            ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
+                            ptr_c,
+                            wsp.data());
+                } else {
+                    callBrgemm(brgemmCtx,
+                            brgKernels[getBrgIdx(mIdx, k, n)],
+                            ptr_a,
+                            ptr_scartch_b + (k * K0_step1 + n * N0_step0) * ov::element::bf16.size(),
+                            ptr_c,
+                            wsp.data());
+                }
+            }
+        }
+    }
+}
+
 void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
     auto ptr_a = reinterpret_cast<uint8_t*>(a);
     auto ptr_b = reinterpret_cast<uint8_t*>(b);
@@ -267,26 +381,6 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* scratch_a, voi
     auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     auto dataType = ov::element::bf16;
     uint8_t* ptr_a_tail = nullptr;
-    auto print_ptr = [](const std::string& prefix, uint8_t* ptr, size_t stride) {
-        std::cout << prefix << "|";
-        for (size_t i = 0; i < 2; i++) {
-            for (size_t j = 0; j < 10; j++) {
-                bfloat16* data = reinterpret_cast<bfloat16*>(ptr + i * stride * 2);
-                std::cout << data[j] << ",";
-            }
-            std::cout << "|" << std::endl;
-        }
-    };
-    auto print_float = [](const std::string& prefix, float* ptr, size_t stride) {
-        std::cout << prefix << "|";
-        for (size_t i = 0; i < 2; i++) {
-            for (size_t j = 0; j < 10; j++) {
-                float* data = ptr + i * stride;
-                std::cout << data[j] << ",";
-            }
-            std::cout << std::endl;
-        }
-    };
     if (brgCopyBKernel) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
