@@ -9,16 +9,20 @@ def makeMap(commonPath, subPath=None):
     for item in items:
         item = item.replace('"', '')
         curPath = path.join(precomPath, item)
-        if subPath is not None:
+        if (subPath is not None and subPath):
             curPath = path.join(curPath, subPath)
         map[item] = curPath
-    print(json.dumps(map))
+    return json.dumps(map)
+
+
+def printMap(commonPath, subPath=None):
+    print(makeMap(commonPath, subPath))
 
 
 def mapBuilder(args):
     if "-path" not in args:
         raise CfgError("No 'path' for map builder provided")
     if "-subPath" in args:
-        makeMap(args["-path"], args["-subPath"])
+        printMap(args["-path"], args["-subPath"])
     else:
-        makeMap(args["-path"])
+        printMap(args["-path"])

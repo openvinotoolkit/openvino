@@ -88,6 +88,9 @@
         "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
         "passCmdList": true,
         "changeAppPath": true,
+        "generateMap": false,
+        "commonPath": "",
+        "subPath": "",
         "cashMap" : {}
     }
 }

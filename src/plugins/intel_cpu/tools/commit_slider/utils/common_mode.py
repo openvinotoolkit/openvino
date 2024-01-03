@@ -1,5 +1,6 @@
 from abc import ABC
 import utils.helpers as util
+import utils.map_builder as mapBuilder
 import json
 import os
 from enum import Enum
@@ -112,6 +113,11 @@ class Mode(ABC):
     def normalizeCfg(self, cfg):
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
+        cashCfg = cfg["cachedPathConfig"]
+        if (cashCfg["enabled"] and cashCfg["generateMap"]):
+            cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
+                cashCfg["commonPath"], cashCfg["subPath"]
+            )
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
