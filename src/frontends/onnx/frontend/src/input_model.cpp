@@ -4,10 +4,8 @@
 
 #include "input_model.hpp"
 
-#include <openvino/frontend/exception.hpp>
-#include <openvino/util/file_util.hpp>
-
-#include "ngraph/log.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 
