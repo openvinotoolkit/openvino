@@ -80,6 +80,21 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
         do_runtime_buffer_fusing = false;
     }
+
+    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
+    size_t concat_axis_index = concat_axis < 0 ? concat_axis + concat_params.get_output_layout().get_rank() : concat_axis;
+    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
+    // If static padding exists in non dyn_pad axis, returns false to avoid runtime optimized out.
+    if (is_runtime) {
+        for (size_t j = 0; j < layout::max_rank(); j++) {
+            if (j != concat_axis_index) {
+                if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
+                    || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
+                    return false;
+            }
+        }
+    }
+
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -105,9 +120,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     // Otherwise, use explicit concat instead.
     auto output_format = concat_params.get_output_layout().format;
     auto output_datatype = concat_params.get_output_layout().data_type;
-    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
 
-    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
     auto lower_padd_in_axis = concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
                                   pred_params[0].get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
@@ -197,18 +210,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             }
         }
         auto input_padd = pred.first->get_output_layout().data_padding;
-
-        // If static padding exists in non dyn_pad axis, returns false to avoid runtime optimized out.
-        if (is_runtime) {
-            auto is_dynamic_pad = input_padd.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
-            for (size_t j = 0; j < layout::max_rank(); j++) {
-                if (is_dynamic_pad[j] == 0) {
-                    if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
-                        || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
-                        return false;
-                }
-            }
-        }
 
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
