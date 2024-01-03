@@ -49,11 +49,16 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     loop_manager->get_loop_info(loop_id)->set_outer_splited_loop(true);
 }
 
-static void init_pipeline(pass::PassPipeline& pass_pipeline) {
-    pass_pipeline.register_pass<pass::InsertLoadStore>(vector_size);
-    pass_pipeline.register_pass<pass::ValidateLoops>();
-    pass_pipeline.register_pass<pass::InitLoops>();
-    pass_pipeline.register_pass<pass::InsertLoops>();
+static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pass::PassConfig>& config) {
+    pass::PassPipeline pipeline(config);
+    pipeline.register_pass<pass::InsertLoadStore>(vector_size);
+    pipeline.register_pass<pass::ValidateLoops>();
+    pipeline.register_pass<pass::InitLoops>();
+    pipeline.register_pass<pass::InsertLoops>();
+    pipeline.register_pass<pass::InsertTailLoop>();
+    pipeline.register_pass<pass::CleanupLoopOffsets>();
+    pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
+    pipeline.run(linear_ir);
 }
 
 static void validate(const LinearIR& linear_ir, const ref_map& reference) {
@@ -77,9 +82,11 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::CleanupLoopOffsets>();
+    config->disable<pass::InsertTailLoop>();
+    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -96,10 +103,10 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::CleanupLoopOffsets>();
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::InsertTailLoop>();
+    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -116,11 +123,9 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::InsertTailLoop>();
-    pass_pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::CleanupLoopOffsets>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -143,12 +148,7 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::InsertTailLoop>();
-    pass_pipeline.register_pass<pass::CleanupLoopOffsets>();
-    pass_pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
-    pass_pipeline.run(linear_ir);
+    apply_transformations(linear_ir, std::make_shared<pass::PassConfig>());
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;

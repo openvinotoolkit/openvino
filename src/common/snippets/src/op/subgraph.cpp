@@ -17,7 +17,6 @@
 #include "snippets/pass/set_softmax_ports.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
-#include "snippets/lowered/pass/validate_shapes.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -42,6 +41,8 @@
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
+#include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -380,7 +381,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
 void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input_shapes,
                                          const std::vector<ov::element::Type>& input_precisions,
                                          const std::vector<ov::element::Type>& output_precisions,
-                                         const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes) {
+                                         const std::vector<snippets::pass::Manager::PositionedPassBase>& backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
@@ -410,8 +411,8 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
 void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
                                             LoweringResult& lowering_result,
-                                            const lowered::pass::PassPipeline& backend_passes_pre_common,
-                                            const lowered::pass::PassPipeline& backend_passes_post_common) const {
+                                            const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                                            const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
@@ -423,61 +424,44 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
-    // We have to call MarkLoops before backend markup passes
-    // because these passes can update subtensor but not insert Loop (e.g. when loop increment is equal to the corresponding dim)
-    // If MarkLoops is called on such LIR, it inserts Eltwise-like loops which might not reflect backend expectations
-    // It should be fixed by ticket 113666
-    lowered::pass::PassPipeline markup_pipeline;
-    markup_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
-    markup_pipeline.run(linear_ir);
-
-    // Ticket: 113666
-    // TODO: Make pass pipeline with backend passes more flexible
-    backend_passes_pre_common.run(linear_ir);
-
-    lowered::pass::PassPipeline common_pipeline;
-    common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
-    common_pipeline.register_pass<lowered::pass::FuseLoops>();
-    common_pipeline.register_pass<lowered::pass::SplitLoops>();
-    common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
-    common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
-    common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
-    common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
-    common_pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
-    common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-
-    common_pipeline.register_pass<lowered::pass::ValidateShapes>();
-
-    common_pipeline.register_pass<lowered::pass::ValidateLoops>();
-    common_pipeline.register_pass<lowered::pass::InitLoops>();
-    common_pipeline.register_pass<lowered::pass::InsertLoops>();
-    common_pipeline.run(linear_ir);
-
-    backend_passes_post_common.run(linear_ir);
-
-    lowered::pass::PassPipeline final_pipeline;
-    final_pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
-    final_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
-    final_pipeline.register_pass<lowered::pass::PropagateLayout>();
-    final_pipeline.run(linear_ir);
+    lowered::pass::PassPipeline pipeline(lowered_pass_config);
+    pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
+    pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
+    pipeline.register_pass<lowered::pass::FuseLoops>();
+    pipeline.register_pass<lowered::pass::SplitLoops>();
+    pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
+    pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
+    pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
+    pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
+    pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
+    pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    pipeline.register_pass<lowered::pass::ValidateShapes>();
+    pipeline.register_pass<lowered::pass::ValidateLoops>();
+    pipeline.register_pass<lowered::pass::InitLoops>();
+    pipeline.register_pass<lowered::pass::InsertLoops>();
+    pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
+    pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
+    pipeline.register_pass<lowered::pass::PropagateLayout>();
+    pipeline.register_positioned_passes(lowered_backend_passes);
+    pipeline.run(linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
                                       const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions,
-                                      const std::vector<snippets::pass::Manager::PositionedPass>& data_flow_backend_passes,
-                                      const lowered::pass::PassPipeline& backend_passes_pre_common,
-                                      const lowered::pass::PassPipeline& backend_passes_post_common,
+                                      const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_backend_passes,
+                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
                                       size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
     convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
-    return generate_from_linear_ir(backend_passes_pre_common, backend_passes_post_common, compile_params);
+    return generate_from_linear_ir(lowered_pass_config, lowered_backend_passes, compile_params);
 }
 
-snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPipeline& backend_passes_pre_common,
-                                                     const lowered::pass::PassPipeline& backend_passes_post_common,
+snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                                                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& backed_passes,
                                                      const void* compile_params) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
@@ -489,7 +473,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
-    control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+    control_flow_transformations(linear_ir, lowering_result, lowered_pass_config, backed_passes);
 #ifdef SNIPPETS_DEBUG_CAPS
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
         lowered::pass::InsertPerfCount perf_count_pass;
