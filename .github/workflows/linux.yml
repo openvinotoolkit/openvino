@@ -65,6 +65,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
@@ -179,25 +180,17 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
-      - name: CMake configure - OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_REPO }}
-        run: |
-          mkdir build && cd build && cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin ..
-#          cmake \
-#            -DCPACK_GENERATOR=NPM \
-#            -DENABLE_SYSTEM_TBB=OFF \
-#            -UTBB* \
-#            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/js/node/bin \
-#            -S ${OPENVINO_REPO} \
-#            -B ${BUILD_DIR}
-
-      - name: Cmake build - OpenVINO JS API
-#        working-directory: ${{ env.BUILD_DIR }}
-        working-directory: ${{ env.OPENVINO_REPO }}/build
-        run: |
-          make --jobs=$(nproc --all) install
-          ls -la ${INSTALL_DIR}
-          ls -laR ${INSTALL_DIR}/js
+      - name: CMake configure, build and install - OpenVINO JS API
+        run:
+          cmake \
+            -DCPACK_GENERATOR=NPM \
+            -DENABLE_SYSTEM_TBB=OFF \
+            -UTBB* \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+          
+          cmake --build ${BUILD_DIR} --parallel
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -254,6 +247,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino js package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_js_package
+          path: ${{ env.INSTALL_DIR_JS }}
+          if-no-files-found: 'error'
+
       - name: Upload openvino developer package
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
@@ -294,6 +295,59 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  JS_API:
+    needs: [ Build, Smart_CI ]
+    defaults:
+      run:
+        shell: bash
+    runs-on: 'aks-linux-4-cores-16gb'
+    container:
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+    env:
+      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
+      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).
+
+    steps:
+      - name: Fetch OpenVINO JS sources
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            src/bindings/js
+          path: 'openvino'
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js" >> "$GITHUB_ENV"
+          echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
+
+      - name: Check Dir
+        continue-on-error: true
+        run: |
+          ls -laR $GITHUB_WORKSPACE
+          ls -laR openvino
+
+      - name: Download OpenVINO js package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_js_package
+          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+
+      - name: Check Dir 2
+        continue-on-error: true
+        run: |
+          ls -laR $GITHUB_WORKSPACE
+          ls -laR openvino
+
+      - name: Configure OpenVINO JS
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm i
+
+      - name: Test OpenVINO JS
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm test
 
   Conformance:
     needs: [ Build, Smart_CI ]
