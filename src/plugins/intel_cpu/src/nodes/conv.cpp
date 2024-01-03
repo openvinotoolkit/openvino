@@ -330,7 +330,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities = {
+    static std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
@@ -370,6 +370,14 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref_any,
         impl_desc_type::ref,
     };
+
+    priorities.erase(std::remove_if(priorities.begin(),
+                                    priorities.end(),
+                                    [](impl_desc_type type) {
+                                        return !isBrgConvAvailable() && (type == impl_desc_type::brgconv_avx2_1x1 ||
+                                                                         type == impl_desc_type::brgconv_avx2);
+                                    }),
+                     priorities.end());
 
     return priorities;
 }

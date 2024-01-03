@@ -206,9 +206,8 @@ void FullyConnected::getSupportedDescriptors() {
         if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
             outputDataType = memory::data_type::bf16;
         }
-        // W.A. WeightsDecompression not supported on avx2_vnni_2
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2) &&
-            weightsDataType == memory::data_type::u8) {
+        // TODO: Ticket CVS-122347 - support WeightsDecompression with bf16 inputDataType on avx2_vnni_2
+        if (useWeightsDecompressionImpl && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             inputDataType = outputDataType = memory::data_type::f32;
         }
     } else if (inputDataType == memory::data_type::f16) {
