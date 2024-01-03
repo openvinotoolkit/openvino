@@ -185,6 +185,7 @@ jobs:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           
           cmake --build ${BUILD_DIR} --parallel
+          
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
