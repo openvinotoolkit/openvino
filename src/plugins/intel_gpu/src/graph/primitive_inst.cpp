@@ -508,7 +508,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0] && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0]
+            && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
         _outputs[0] = nullptr;
         max_output_layout_size = 0;
     }
@@ -931,19 +932,15 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_shape = _impl_params->get_input_layout(1).get_shape();
     auto idx_rank = idx_shape.size();
 
-    // If input is empty tensor, optimized current gather inst
     if (_impl_params->get_input_layout(0).count() == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "            - Gather axis : " << axis << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
-        set_can_be_optimized(true);
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        set_can_be_optimized(false);
         return;
     }
 
     if (idx_rank != 1) {
         GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
+        set_can_be_optimized(false);
         return;
     }
 
@@ -1068,14 +1065,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             can_skip_execution = true;
-            // Set output memory using input memory if output memory is nullptr when current node is skpped for empty output tensor
-            if (_outputs[0] == nullptr) {
-                _outputs[0] = input_memory_ptr();
-                // set memories for multiple outputs
-                for (size_t i = 1; i < _impl_params->output_layouts.size(); i++) {
-                    _outputs.push_back(_outputs[0]);
-                }
-            }
         }
 
         if (_node->is_in_shape_of_subgraph()) {
