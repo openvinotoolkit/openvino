@@ -11,6 +11,9 @@
         "allBreaks" : "AllBreakVersions",
         "bruteForce" : "BruteForce"
     },
+    "utilMap" : {
+        "map_builder" : "mapBuilder"
+    },
     "extendBuildCommand" : false,
     "commandList" : [
         {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},

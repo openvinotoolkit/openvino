@@ -439,15 +439,16 @@ def safeClearDir(path, cfg):
     return
 
 
-def runUtility(args):
-    utilName = args.__dict__["utility"]
+def runUtility(cfg, args):
+    modName = args.__dict__["utility"]
     try:
         mod = importlib.import_module(
-            "utils.{un}".format(un=utilName))
+            "utils.{un}".format(un=modName))
+        utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
         utility(args.__dict__)
     except ModuleNotFoundError as e:
-        raise CfgError("No utility {} found".format(utilName))
+        raise CfgError("No utility {} found".format(modName))
 
 
 class CfgError(Exception):
@@ -497,6 +498,17 @@ def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
         )
     else:
         return map[keyName]
+
+
+def checkAndGetUtilityByName(cfg, utilName):
+    if not (utilName in cfg["utilMap"]):
+        raise CfgError(
+            "{utilName} is not registered in config".format(
+                utilName=utilName
+            )
+        )
+    else:
+        return cfg["utilMap"][utilName]
 
 
 def checkAndGetSubclass(clName, parentClass):

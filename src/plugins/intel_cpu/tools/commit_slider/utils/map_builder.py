@@ -15,7 +15,7 @@ def makeMap(commonPath, subPath=None):
     print(json.dumps(map))
 
 
-def map_builder(args):
+def mapBuilder(args):
     if "-path" not in args:
         raise CfgError("No 'path' for map builder provided")
     if "-subPath" in args:

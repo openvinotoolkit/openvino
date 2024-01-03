@@ -9,7 +9,7 @@ args, cfgData, customCfgPath = getParams()
 
 if args.__dict__["utility"] != "no_utility":
     from utils.helpers import runUtility
-    runUtility(args)
+    runUtility(cfgData, args)
 
 elif args.__dict__["isWorkingDir"]:
     # rerun script from work directory
