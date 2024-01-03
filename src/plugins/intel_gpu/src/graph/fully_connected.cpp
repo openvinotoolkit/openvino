@@ -211,6 +211,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
 
         // If input / output shape only have one dimension which is bigger than one except last dimension, preserve the index of aligned dimension.
         // ex) f16:bfyx:1x79x512:nopad -> f16:bfyx:1x80x512:nopad
+        // Supported cases which preserve the index of aligned dimension.
+        // * Input [1, M, K], Output [1, M, N], Batch M
+        // * Input [1, 1, M, K], Output [1, 1, M, N], Batch M
+        // TODO: support other case
+        // * Input [2, M, K, 1], Output [2, M, N, 1], Batch 2M
         size_t aligned_input_idx = 0;
         if (std::count_if(input_shape.begin(), input_shape.end()-1, [](size_t v){ return (v > 1); }) == 1) {
             for (size_t i = 0; i < (input_shape.size() - 1); i++) {
