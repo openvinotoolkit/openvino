@@ -92,9 +92,9 @@ std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel() const {
     const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
     const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
     const auto add = std::make_shared<ov::op::v1::Add>(parameter0, parameter1);
-    const auto buffer0 = std::make_shared<ov::snippets::op::Buffer>(add, static_cast<int32_t>(subtensor_buffer.size()));
+    const auto buffer0 = std::make_shared<ov::snippets::op::IntermediateMemoryBuffer>(add, static_cast<int32_t>(subtensor_buffer.size()));
     const auto relu = std::make_shared<ov::op::v0::Relu>(buffer0);
-    const auto buffer1 = std::make_shared<ov::snippets::op::Buffer>(relu, static_cast<int32_t>(subtensor_buffer.size()));
+    const auto buffer1 = std::make_shared<ov::snippets::op::IntermediateMemoryBuffer>(relu, static_cast<int32_t>(subtensor_buffer.size()));
     const auto exp = std::make_shared<ov::op::v0::Exp>(buffer1);
     const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(exp), ov::ParameterVector{parameter0, parameter1});
 
@@ -119,7 +119,7 @@ void MHABufferAllocationTest::MarkBrgemm(const std::shared_ptr<ov::snippets::op:
 }
 
 std::shared_ptr<ov::Model> MHABufferAllocationTest::GetModel() const {
-    const auto subtensor_scalar = std::vector<size_t>{1, 1};
+    const auto subtensor_scalar = std::vector<size_t>{1};
     const auto subtensor_eltwise = std::vector<size_t>{1, m_vector_size};
     const auto subtensor_brgemm = std::vector<size_t>{32, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
     const auto subtensor_softmax = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
@@ -187,7 +187,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHA
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(57344), // (Buffer before brgemm) + (between brgemms) + (after brgemm)
-                                 ::testing::Values(3)), // (Buffer before brgemm) + (between brgemms) + (after brgemm)
+                                 ::testing::Values(2)), // (Buffer before brgemm0 and after brgemm1) + (between brgemms)
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHABufferAllocationTest,

@@ -1,43 +1,38 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "subgraph.h"
 
+#include "common/primitive_hashing_utils.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/snippets/x64/cpu_generator.hpp"
+#include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-
-#include <vector>
-#include <algorithm>
-#include <array>
-
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-
-#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/core/rt_info.hpp"
-#include <ie_ngraph_utils.hpp>
-
-#include <snippets/op/subgraph.hpp>
-#include <snippets/lowered/pass/optimize_domain.hpp>
+#include "openvino/pass/visualize_tree.hpp"
+#include "shape_inference/custom/subgraph.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/hash.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
-#include "utils/cpu_utils.hpp"
-#include "emitters/x64/cpu_generator.hpp"
-#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
-#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
-#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
-#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
-#include "transformations/snippets/x64/pass/remove_converts.hpp"
-#include "transformations/snippets/x64/pass/enforce_precision.hpp"
-#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
-#include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
-#include "shape_inference/custom/subgraph.hpp"
-#include <common/primitive_hashing_utils.hpp>
-#include "snippets/pass/hash.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/shape_inference.hpp"
+#include "utils/cpu_utils.hpp"
 
-using namespace InferenceEngine;
+#include <algorithm>
+#include <array>
+#include <vector>
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -366,7 +361,10 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         output_precisions.push_back(p);
 
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
-    snippetAttrs.snippet->convert_body_to_linear_ir(std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
+    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+    snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
+                                                    std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
@@ -395,12 +393,26 @@ void Snippet::prepareParams() {
         return executor;
     };
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    execPtr = result.first;
-    if (!execPtr) {
-        OPENVINO_THROW("Executor is not created for node ", getName(), ".");
+    auto getOrCreateExecutor = [this, &key, &builder]() {
+        auto cache = context->getParamsCache();
+        auto result = cache->getOrCreate(key, builder);
+        execPtr = result.first;
+        if (!execPtr) {
+            OPENVINO_THROW("Executor is not created for node ", getName(), ".");
+        }
+    };
+
+#ifndef SNIPPETS_DEBUG_CAPS
+    getOrCreateExecutor();
+#else
+    snippets::lowered::Config config;
+    if (config.perf_count_mode == snippets::lowered::PerfCountMode::Disabled) {
+        getOrCreateExecutor();
+    } else {
+        // in case perf count is enabled, disable executor cache by default to not mix up perf counters for different subgraphs.
+        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
     }
+#endif
 }
 
 bool Snippet::needPrepareParams() const {
@@ -561,11 +573,6 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
     if (std::any_of(canonicalShape.begin(), canonicalShape.end(),
                     [](size_t x){return x == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION;}))
         OPENVINO_THROW("Snippets: Canonicalization returned dynamic shape in static pipeline");
-    snippetAttrs.snippet->set_min_parallel_work_amount(static_cast<size_t>(parallel_get_max_threads()));
-
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
-    snippetAttrs.snippet->set_min_jit_work_amount(256);
 
     // generate
     jit_snippets_compile_args jcp;

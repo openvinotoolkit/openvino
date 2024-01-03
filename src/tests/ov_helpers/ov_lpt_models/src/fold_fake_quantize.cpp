@@ -4,9 +4,10 @@
 
 #include "ov_lpt_models/fold_fake_quantize.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -21,7 +22,7 @@ std::shared_ptr<ov::Model> FoldFakeQuantizeFunction::getOriginal(
     const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto constant = std::make_shared<ov::opset1::Constant>(precision, constShape, constValues);
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         constant, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
     fakeQuantize->set_friendly_name("fakeQuantize");

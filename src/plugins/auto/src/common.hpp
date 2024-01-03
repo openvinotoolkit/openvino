@@ -18,7 +18,6 @@
 #include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/auto/properties.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
 #include "itt.hpp"
@@ -219,6 +218,7 @@ public:
     std::string                                    m_str_devices;
     unsigned int                                   m_model_priority = 0;
     ov::Any                                        m_performance_hint;
+    ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
     std::mutex                                     m_mutex;
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;

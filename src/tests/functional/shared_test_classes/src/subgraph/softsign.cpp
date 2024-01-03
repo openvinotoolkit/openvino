@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "shared_test_classes/subgraph/softsign.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -36,16 +36,16 @@ void SoftsignTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
+    auto abs = std::make_shared<ov::op::v0::Abs>(params[0]);
 
-    auto const_1 = ngraph::opset1::Constant::create(ngPrc, ngraph::Shape{}, {1});
-    auto const_neg_1 = ngraph::opset1::Constant::create(ngPrc, ngraph::Shape{}, {-1});
+    auto const_1 = ov::op::v0::Constant::create(ngPrc, ngraph::Shape{}, {1});
+    auto const_neg_1 = ov::op::v0::Constant::create(ngPrc, ngraph::Shape{}, {-1});
 
-    auto add = std::make_shared<ngraph::opset6::Add>(abs, const_1);
-    auto power = std::make_shared<ngraph::opset6::Power>(add, const_neg_1);
+    auto add = std::make_shared<ov::op::v1::Add>(abs, const_1);
+    auto power = std::make_shared<ov::op::v1::Power>(add, const_neg_1);
 
-    auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
+    auto mul = std::make_shared<ov::op::v1::Multiply>(power, params[0]);
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(mul) };
     function = std::make_shared<ngraph::Function>(results, params, "SoftSignTest");
 }
 
@@ -66,14 +66,14 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
-    auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
-    auto add = std::make_shared<ngraph::op::v1::Add>(abs, constant_0);
-    auto constant_1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
-    auto power = std::make_shared<ngraph::op::v1::Power>(add, constant_1);
-    auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
+    auto abs = std::make_shared<ov::op::v0::Abs>(params[0]);
+    auto constant_0 = ov::test::utils::deprecated::make_constant<float>(ngPrc, inputShape, { 1 });
+    auto add = std::make_shared<ov::op::v1::Add>(abs, constant_0);
+    auto constant_1 = ov::test::utils::deprecated::make_constant<float>(ngPrc, inputShape, { -1 });
+    auto power = std::make_shared<ov::op::v1::Power>(add, constant_1);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(power, params[0]);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(mul) };
     return std::make_shared<ngraph::Function>(results, params, "SoftSignTest");
 }
 }  // namespace SubgraphTestsDefinitions

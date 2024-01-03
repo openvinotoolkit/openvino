@@ -35,7 +35,7 @@ void ReluSplitReshape::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ov::op::v0::Relu>(params[0]);
     auto split_axis_op =
         std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(splitAxis)});
     auto split = std::make_shared<ov::op::v1::Split>(relu, split_axis_op, splitNum);
@@ -43,9 +43,9 @@ void ReluSplitReshape::SetUp() {
     auto shape = split->get_output_shape(0);
     shape[shape.size() - 2] *= 2;
     shape[shape.size() - 1] /= 2;
-    auto reshape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+    auto reshape_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
         ngraph::Shape{shape.size()}, shape);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(split->output(0), reshape_const, false);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(split->output(0), reshape_const, false);
 
     function = std::make_shared<ngraph::Function>(reshape, params, "ReluSplitReshape");
 }

@@ -13,50 +13,69 @@ namespace test {
 namespace utils {
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
-                                  const uint32_t range,
-                                  const double_t start_from,
-                                  const int32_t resolution,
-                                  const int seed) {
-    auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X)                                                             \
-    case X:                                                                 \
-        fill_data_random(tensor.data<element_type_traits<X>::value_type>(), \
-                         shape_size(shape),                                 \
-                         range,                                             \
-                         start_from,                                        \
-                         resolution,                                        \
-                         seed);                                             \
+                                  const InputGenerateData& inGenData) {
+    auto tensor = ov::Tensor(element_type, shape);
+
+#define CASE(X)                                                  \
+    case X:                                                      \
+        fill_data_random(tensor.data<fundamental_type_for<X>>(), \
+                         shape_size(shape),                      \
+                         inGenData.range,                        \
+                         inGenData.start_from,                   \
+                         inGenData.resolution,                   \
+                         inGenData.seed);                        \
         break;
+
     switch (element_type) {
-        CASE(ov::element::Type_t::boolean)
-        CASE(ov::element::Type_t::i8)
-        CASE(ov::element::Type_t::i16)
-        CASE(ov::element::Type_t::i32)
-        CASE(ov::element::Type_t::i64)
-        CASE(ov::element::Type_t::u8)
-        CASE(ov::element::Type_t::u16)
-        CASE(ov::element::Type_t::u32)
-        CASE(ov::element::Type_t::u64)
-        CASE(ov::element::Type_t::bf16)
-        CASE(ov::element::Type_t::f16)
-        CASE(ov::element::Type_t::f32)
-        CASE(ov::element::Type_t::f64)
+        CASE(ov::element::boolean)
+        CASE(ov::element::i8)
+        CASE(ov::element::i16)
+        CASE(ov::element::i32)
+        CASE(ov::element::i64)
+        CASE(ov::element::u8)
+        CASE(ov::element::u16)
+        CASE(ov::element::u32)
+        CASE(ov::element::u64)
+        CASE(ov::element::bf16)
+        CASE(ov::element::f16)
+        CASE(ov::element::f32)
+        CASE(ov::element::f64)
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
     case ov::element::Type_t::nf4:
         fill_data_random(static_cast<uint8_t*>(tensor.data()),
                          tensor.get_byte_size(),
-                         range,
-                         start_from,
-                         resolution,
-                         seed);
+                         inGenData.range,
+                         inGenData.start_from,
+                         inGenData.resolution,
+                         inGenData.seed);
+        break;
+    case ov::element::Type_t::string:
+        fill_random_string(static_cast<std::string*>(tensor.data()),
+                           tensor.get_size(),
+                           inGenData.range,
+                           inGenData.start_from,
+                           inGenData.seed);
         break;
     default:
         OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
+}
+
+// Legacy impl for contrig repo
+// todo: remove this after dependent repos clean up
+ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
+                                  const ov::Shape& shape,
+                                  const uint32_t range,
+                                  const double_t start_from,
+                                  const int32_t resolution,
+                                  const int seed) {
+    return create_and_fill_tensor(element_type,
+                                  shape,
+                                  ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
 }
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,

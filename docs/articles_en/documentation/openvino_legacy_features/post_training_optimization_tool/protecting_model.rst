@@ -1,8 +1,12 @@
 .. {#pot_ranger_README}
 
-Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision")
-===========================================================================================
+[Deprecated] Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision")
+================================================================================================================
 
+.. danger:: 
+
+   Post-training Optimization Tool has been deprecated since OpenVINO 2023.0. 
+   :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for post-training quantization instead.
 
 Introduction
 ####################
@@ -83,5 +87,4 @@ Additional Resources
 - Z. Chen, G. Li, and K. Pittabiraman, "A Low-cost Fault Corrector for Deep Neural Networks through Range Restriction", 2020. https://arxiv.org/abs/2003.13874
 - F. Geissler, Q. Syed, S. Roychowdhury,  A. Asgari, Y. Peng, A. Dhamasia, R. Graefe, K. Pattabiraman, and M. Paulitsch, "Towards a Safety Case for Hardware Fault Tolerance in Convolutional Neural Networks Using Activation Range Supervision", 2021. https://arxiv.org/abs/2108.07019
 
- @endsphinxdirective
 

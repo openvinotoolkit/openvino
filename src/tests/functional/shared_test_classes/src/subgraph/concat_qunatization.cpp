@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/concat_quantization.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 std::string ConcatQuantization::getTestCaseName(const testing::TestParamInfo<concatQuantizationParams>& obj) {
@@ -32,29 +34,29 @@ void ConcatQuantization::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 160})};
 
     std::vector<size_t> outFormShapes1 = { 1, 5, 32 };
-    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], pattern1, false);
 
-    auto tanh = std::make_shared<ngraph::opset1::Tanh>(reshape1);
+    auto tanh = std::make_shared<ov::op::v0::Tanh>(reshape1);
 
     std::vector<size_t> outFormShapes2 = { 1, 160 };
-    auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(tanh, pattern2, false);
-    auto scale = ngraph::builder::makeConstant<float>(ngPrc, outFormShapes2, {}, true);
-    //For ngraph::op::ScaleShift: Cannot cast ngraph node ScaleShift to CNNLayer!
-    auto scale_shift = std::make_shared<ngraph::opset1::Multiply>(reshape2, scale);
+    auto pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(tanh, pattern2, false);
+    auto scale = ov::test::utils::deprecated::make_constant<float>(ngPrc, outFormShapes2, {}, true);
+    //For ov::op::v0::ScaleShift: Cannot cast ngraph node ScaleShift to CNNLayer!
+    auto scale_shift = std::make_shared<ov::op::v1::Multiply>(reshape2, scale);
 
     std::vector<size_t> outFormShapes3 = { 5, 32 };
-    auto pattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes3);
-    auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(scale_shift, pattern3, false);
+    auto pattern3 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes3);
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(scale_shift, pattern3, false);
 
-    auto pattern4 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes3);
-    auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(tanh, pattern4, false);
+    auto pattern4 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes3);
+    auto reshape4 = std::make_shared<ov::op::v1::Reshape>(tanh, pattern4, false);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ reshape3, reshape4 }, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ reshape3, reshape4 }, 0);
     concat->set_friendly_name("concat");
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "ConcatQuantization");
 }
 }  // namespace SubgraphTestsDefinitions

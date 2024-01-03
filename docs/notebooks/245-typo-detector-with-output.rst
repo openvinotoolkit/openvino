@@ -43,43 +43,41 @@ The model has been pretrained on the
    -  `2. Converting the model to OpenVINO
       IR <#-converting-the-model-to-openvino-ir>`__
 
--  `Select inference device <#select-inference-device>`__
--  `1. Hugging Face Optimum Intel
-   library <#-hugging-face-optimum-intel-library>`__
+      -  `Select inference device <#select-inference-device>`__
 
-   -  `Load the model <#load-the-model>`__
-   -  `Load the tokenizer <#load-the-tokenizer>`__
+   -  `1. Hugging Face Optimum Intel
+      library <#-hugging-face-optimum-intel-library>`__
 
--  `2. Converting the model to OpenVINO
-   IR <#-converting-the-model-to-openvino-ir>`__
+      -  `Load the model <#load-the-model>`__
+      -  `Load the tokenizer <#load-the-tokenizer>`__
 
-   -  `Load the Pytorch model <#load-the-pytorch-model>`__
-   -  `Converting to OpenVINO IR <#converting-to-openvino-ir>`__
-   -  `Inference <#inference>`__
+   -  `2. Converting the model to OpenVINO
+      IR <#-converting-the-model-to-openvino-ir>`__
 
--  `Helper Functions <#helper-functions>`__
+      -  `Load the Pytorch model <#load-the-pytorch-model>`__
+      -  `Converting to OpenVINO IR <#converting-to-openvino-ir>`__
+      -  `Inference <#inference>`__
+
+   -  `Helper Functions <#helper-functions>`__
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio" "onnx>=1.11.0" "onnxruntime>=1.14.0" "transformers>=4.31.0"
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio" "onnx>=1.11.0" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.24.4 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.24.4 which is incompatible.
-    tensorflow 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.8.0 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.24.4 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Imports
+~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -93,14 +91,16 @@ Imports
 
 .. parsed-literal::
 
-    2023-10-31 00:01:48.550893: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-31 00:01:48.584584: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-12-07 00:04:25.014506: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-12-07 00:04:25.048142: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-31 00:01:49.140201: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-07 00:04:25.652741: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Methods 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Methods
+~~~~~~~
+
+
 
 The notebook provides two methods to run the inference of typo detector
 with OpenVINO runtime, so that you can experience both calling the API
@@ -108,8 +108,10 @@ of Optimum with OpenVINO Runtime included, and loading models in other
 frameworks, converting them to OpenVINO IR format, and running inference
 with OpenVINO Runtime.
 
-1. Using the `Hugging Face Optimum <https://huggingface.co/docs/optimum/index>`__ library 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+1. Using the `Hugging Face Optimum <https://huggingface.co/docs/optimum/index>`__ library
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
 
 The Hugging Face Optimum API is a high-level API that allows us to
 convert models from the Hugging Face Transformers library to the
@@ -117,8 +119,10 @@ OpenVINO™ IR format. Compiled models in OpenVINO IR format can be loaded
 using Optimum. Optimum allows the use of optimization on targeted
 hardware.
 
-2. Converting the model to OpenVINO IR 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+2. Converting the model to OpenVINO IR
+''''''''''''''''''''''''''''''''''''''
+
+
 
 The Pytorch model is converted to `OpenVINO IR
 format <https://docs.openvino.ai/latest/openvino_ir.html>`__. This
@@ -147,8 +151,10 @@ methods
 | inference with OpenVINO Runtime   |                                  |
 +-----------------------------------+----------------------------------+
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -177,8 +183,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-1. Hugging Face Optimum Intel library 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Hugging Face Optimum Intel library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For this method, we need to install the
 ``Hugging Face Optimum Intel library`` accelerated by OpenVINO
@@ -207,12 +215,12 @@ Import required model class
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/deepspeed.py:23: FutureWarning: transformers.deepspeed module is deprecated and will be removed in a future version. Please import deepspeed modules directly from transformers.integrations
-      warnings.warn(
 
 
-Load the model 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Load the model
+''''''''''''''
+
+
 
 From the ``OVModelForTokenCLassification`` class we will import the
 relevant pre-trained model. To load a Transformers model and convert it
@@ -238,8 +246,8 @@ your model.
 
     Framework not specified. Using pt to export to ONNX.
     Using the export variant default. Available variants are:
-    	- default: The default ONNX variant.
-    Using framework PyTorch: 1.13.1+cpu
+        - default: The default ONNX variant.
+    Using framework PyTorch: 2.1.1+cpu
 
 
 .. parsed-literal::
@@ -250,14 +258,15 @@ your model.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:75: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       op1 = operator(\*args, \*\*kwargs)
     Compiling the model to AUTO ...
-    Set CACHE_DIR to /tmp/tmpuz_oy32n/model_cache
 
 
-Load the tokenizer 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Load the tokenizer
+''''''''''''''''''
+
+
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model. Tokenization splits paragraphs and sentences into
@@ -362,14 +371,18 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.20258617401123047
+    Time elapsed: 0.1588735580444336
 
 
-2. Converting the model to OpenVINO IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2. Converting the model to OpenVINO IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Load the Pytorch model 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+Load the Pytorch model
+''''''''''''''''''''''
+
+
 
 Use the ``AutoModelForTokenClassification`` class to load the pretrained
 pytorch model.
@@ -389,8 +402,10 @@ pytorch model.
         model = AutoModelForTokenClassification.from_pretrained(model_id, config=config)
         model.save_pretrained(model_dir)
 
-Converting to OpenVINO IR 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Converting to OpenVINO IR
+'''''''''''''''''''''''''
+
+
 
 .. code:: ipython3
 
@@ -400,8 +415,10 @@ Converting to OpenVINO IR
     ov_model = ov.convert_model(model, example_input=dict(dummy_model_input))
     ov.save_model(ov_model, ov_model_path)
 
-Inference 
-'''''''''''''''''''''''''''''''''''''''''''''''''''
+Inference
+'''''''''
+
+
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The Core class from the ``openvino`` module is imported first.
@@ -415,8 +432,10 @@ the compiled model as it is needed for inference.
     compiled_model = core.compile_model(ov_model, device.value)
     output_layer = compiled_model.output(0)
 
-Helper Functions 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Helper Functions
+~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -590,5 +609,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.10554790496826172
+    Time elapsed: 0.10169100761413574
 

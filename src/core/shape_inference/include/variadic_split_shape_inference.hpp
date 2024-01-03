@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -50,9 +50,7 @@ std::vector<TRShape> shape_infer(const VariadicSplit* op,
                                   " axes");
             const auto axis_val = (*axis_values)[0];
             // Adjust split axis in case of negatives
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const int64_t axis = ov::normalize_axis(op, axis_val, data_shape.rank());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const int64_t axis = ov::util::normalize_axis(op, axis_val, data_shape.rank());
 
             if (auto split_lengths = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
                 // Adjust split lengths in case of negatives

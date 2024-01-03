@@ -6,7 +6,7 @@ import platform
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -64,7 +64,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         onnx_opset.version = 11
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
 
         #
         #   Create reference IR net
@@ -176,7 +176,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         onnx_opset.version = 11
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
 
         #
         #   Create reference IR net
@@ -234,8 +234,10 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122846')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122846, 122783, 126312')
     def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
                                  ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,

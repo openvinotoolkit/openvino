@@ -23,7 +23,7 @@
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include "openvino/core/node.hpp"
-#include <nodes/common/blocked_desc_creator.h>
+#include "nodes/common/blocked_desc_creator.h"
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "config.h"
@@ -207,6 +207,14 @@ public:
         return !hasEmptyInputTensors();
     }
 
+    enum class ConstantType {
+        Unknown,        // Unknown ConstantType is used before the constancy determination procedure run
+        Const,          // Node is placed in a constant subgraph
+        NoConst,        // Node is placed in a non-constant subgraph
+        StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the parent nodes' ConstantType.
+    };
+    ConstantType getConstantType() const;
+    void updateConstantType();
     bool isConstant();
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
@@ -526,7 +534,7 @@ public:
         return outputShapes[port];
     }
 
-    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+    const std::vector<MemoryPtr>& getInternalBlobs() const {
         return internalBlobs;
     }
 
@@ -599,14 +607,9 @@ protected:
         InPlace,
         NoInPlace
     };
-    enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst
-    };
     mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
-    std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
+    std::vector<MemoryPtr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
@@ -633,7 +636,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -723,8 +726,6 @@ private:
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
-    ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
     // Hold output scales
     std::vector<float> DQScales;
     // we cannot rely on per-NUMA weightCache for caching weights because:

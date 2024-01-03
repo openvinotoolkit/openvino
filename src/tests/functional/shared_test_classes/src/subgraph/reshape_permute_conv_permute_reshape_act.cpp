@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -13,7 +14,7 @@ std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvRes
     std::array<size_t, 4> input_shape;
     std::array<size_t, 2> kernel_shape;
     size_t output_channels;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
 
 
     std::tie(model_type, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
@@ -25,7 +26,7 @@ std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvRes
     results << "netPRC=" << model_type.get_type_name() << "_";
     results << "targetDevice=" << targetName;
     for (auto const& configItem : configuration) {
-        results << "_configItem=" << configItem.first << "_" << configItem.second;
+        results << "_configItem=" << configItem.first << "_" << configItem.second.as<std::string>();
     }
     return results.str();
 }
@@ -35,7 +36,7 @@ void ConvReshapeAct::SetUp() {
     std::array<size_t, 4> input_shape;
     std::array<size_t, 2> kernel_shape;
     size_t output_channels;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
 
     std::tie(model_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) = this->GetParam();
 
@@ -61,7 +62,7 @@ void ConvReshapeAct::SetUp() {
         ov::Shape{permute_in_order});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(reshape_in, permute_in_params);
 
-    auto conv = ngraph::builder::makeConvolution(permute_in, model_type, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv = ov::test::utils::make_convolution(permute_in, model_type, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
         ov::op::PadType::VALID, output_channels);
 
     auto permute_out_params = std::make_shared<ov::op::v0::Constant>(ov::element::i64,

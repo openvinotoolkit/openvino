@@ -3,13 +3,12 @@
 //
 
 #include "dnnl_extension_utils.h"
-
-#include "utils/general_utils.h"
-#include <oneapi/dnnl/dnnl.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "utils/general_utils.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include <oneapi/dnnl/dnnl.hpp>
 
 #include <vector>
 
@@ -68,7 +67,7 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
         case ov::element::undefined:
             return memory::data_type::undef;
         default: {
-            OPENVINO_THROW("The plugin does not support ", elementType.to_string(), " for use with oneDNN");
+            OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
         }
     }
 }

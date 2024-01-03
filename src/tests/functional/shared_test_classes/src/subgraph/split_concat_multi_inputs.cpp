@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_concat_multi_inputs.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -45,12 +45,12 @@ void SplitConcatMultiInputsTest::SetUp() {
 
     ngraph::OutputVector concatInputs = split->outputs();
 
-    auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInputs, 1);
 
     if (withFC) {
-        auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
+        auto mul_const = ov::test::utils::deprecated::make_constant<float>(ngPrc, { 10, inputShape[1] },
             ov::test::utils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
-        auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");
     } else {
         function = std::make_shared<ngraph::Function>(concat, params, "SplitConcatMultiInputs");

@@ -74,9 +74,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                         op_version = op_name.substr(pos + 1);
                         op_name = op_name.substr(0, pos);
                     }
-                    if (std::find(unique_ops[op_name].begin(),
-                                unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
-                        unique_ops.find(op_name) != unique_ops.end()) {
+                    if (unique_ops.find(op_name) != unique_ops.end() &&
+                        std::find(unique_ops[op_name].begin(), unique_ops[op_name].end(), op_version) !=
+                            unique_ops[op_name].end()) {
                         filled_info["op_name"] = op_name + "." + op_version;
                         continue;
                     }
@@ -122,9 +122,6 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
-    // todo: find the optimal way to find TEST_P instances
-    // inference + query_model + import_export
-    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_ref_tensor) = model_pair;
@@ -142,7 +139,7 @@ void ReadIRTest::SetUp() {
             if (!in_info.is_const) {
                 continue;
             }
-            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            ov::test::utils::set_const_ranges(in_info.ranges.min, in_info.ranges.max);
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
@@ -151,7 +148,7 @@ void ReadIRTest::SetUp() {
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
-            utils::ConstRanges::reset();
+            ov::test::utils::reset_const_ranges();
         }
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
@@ -195,20 +192,23 @@ void ReadIRTest::SetUp() {
         // Try to resolve missing info
         if (splittedFilename.size() > 2) {
             auto pos = splittedFilename[2].find('-');
-            std::string op_name = "", op_version = "opset";
+            std::string op_name = "", op_version = "";
             if (pos != std::string::npos) {
                 op_name = splittedFilename[2].substr(0, pos);
-                op_version += splittedFilename[2].substr(pos + 1);
-                if (ov::test::op_conformance::unique_ops.find(op_name) != ov::test::op_conformance::unique_ops.end() &&
-                    std::find(ov::test::op_conformance::unique_ops[op_name].begin(),
-                              ov::test::op_conformance::unique_ops[op_name].end(),
-                              op_version) != ov::test::op_conformance::unique_ops[op_name].end()) {
+                op_version = splittedFilename[2].substr(pos + 1);
+                if (unique_ops.find(op_name) != unique_ops.end() &&
+                    std::find(unique_ops[op_name].begin(),
+                              unique_ops[op_name].end(),
+                              op_version) != unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
+            } else if (splittedFilename.size() > 3 && splittedFilename[3] == "subgraph") {
+                pgLink->set_custom_field("opName", splittedFilename[1], true);
+                pgLink->set_custom_field("opSet", "subgraph", true);
             } else {
                 for (const auto& path_part : splittedFilename) {
-                    if (ov::test::op_conformance::unique_ops.find(path_part) != ov::test::op_conformance::unique_ops.end()) {
+                    if (unique_ops.find(path_part) != unique_ops.end()) {
                         op_name = path_part;
                         break;
                     }

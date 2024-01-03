@@ -64,7 +64,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer
-            if (buffer->is_intermediate_memory()) {
+            if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
                         static_cast<Reg>(num_results + num_parameters + buffer_id);
             }

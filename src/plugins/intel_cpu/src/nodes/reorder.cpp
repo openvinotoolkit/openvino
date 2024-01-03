@@ -3,24 +3,19 @@
 //
 
 #include "reorder.h"
-#include <memory>
-#include <string>
-#include <algorithm>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include "openvino/core/parallel.hpp"
-#include "utils/general_utils.h"
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-#include "nodes/common/reorder_prim.h"
-#include "convert.h"
-#include <common/primitive_hashing_utils.hpp>
-#include <shape_inference/shape_inference_pass_through.hpp>
-#include "executors/transpose_list.hpp"
 
-using namespace dnnl;
-using namespace InferenceEngine;
+#include "convert.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/reorder_prim.h"
+#include "openvino/core/parallel.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose_list.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -32,7 +27,7 @@ bool Reorder::isExecutable() const {
 
 Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
-    OPENVINO_THROW("Can't create reorder node from ngraph node");
+    THROW_CPU_NODE_ERR("could not create CPU node from Core node.");
 }
 
 Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
@@ -40,9 +35,9 @@ Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
     if (getChildEdges().empty())
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
 }
 
 void Reorder::initSupportedPrimitiveDescriptors() {
@@ -71,7 +66,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc());
         config.outConfs[0].setMemDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
     } else {
-        OPENVINO_THROW("Cannot initialize supported PDs for Reorder node with name `", getName(), "`");
+        THROW_CPU_NODE_ERR("could not initialize supported PDs.");
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
@@ -83,9 +78,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     }
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
-        OPENVINO_THROW("Reorder node with name: ",
-                       getName(),
-                       " doesn't support case when input and output shapes have different rank and dynamic");
+        THROW_CPU_NODE_ERR("doesn't support case when input and output shapes have different rank and dynamic.");
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (one_of(inShape.getRank(), 4u, 5u) &&
@@ -95,7 +88,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
                 config.outConfs[0].getMemDesc()->getPrecision() == ov::element::f32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             isNspc2NcspCase = true;
-        } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
+        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                    one_of(inShape.getRank(), 4u, 5u) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
@@ -180,11 +173,11 @@ void Reorder::prepareParams() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
+        THROW_CPU_NODE_ERR("has unallocated destination memory object.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory didn't allocate.");
+        THROW_CPU_NODE_ERR("has unallocated input memory object.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
     auto isSupportedDesc = [](const MemoryDesc& desc) {
         if (!desc.isDefined()) {
@@ -239,11 +232,11 @@ void Reorder::prepareParams() {
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            OPENVINO_THROW("Destination memory didn't allocate.");
+            THROW_CPU_NODE_ERR("has unallocated destination memory object.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            OPENVINO_THROW("Input memory didn't allocate.");
+            THROW_CPU_NODE_ERR("has unallocated input memory object.");
         if (getSelectedPrimitiveDescriptor() == nullptr)
-            OPENVINO_THROW("Preferable primitive descriptor is not set.");
+            THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
         createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->getData(),
                                dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->getData());
@@ -256,7 +249,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
                                      void* dstPtr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
@@ -301,7 +294,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
-        OPENVINO_THROW("Cannot create reorder primitive: unsupported reorder case");
+        THROW_CPU_NODE_ERR("could not create reorder primitive: unsupported reorder case.");
     }
     prim = result;
 
@@ -419,7 +412,7 @@ void Reorder::execute(dnnl::stream strm) {
         if (prim) {
             prim.execute(strm, primArgs);
         } else {
-            OPENVINO_THROW("Reorder node with name ", getName(), " doesn't have an initialized primitive");
+            THROW_CPU_NODE_ERR("doesn't have an initialized primitive.");
         }
     }
 }
@@ -448,11 +441,17 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
     }
 
     if (input.getDesc().isCompatible(output.getDesc())) {
-        auto srcPtr = static_cast<uint8_t*>(input.getData());
-        auto dstPtr = static_cast<uint8_t*>(output.getData());
+        if (input.getDesc().getPrecision() == element::string) {
+            auto srcPtr = reinterpret_cast<StringMemory::OvString *>(input.getData());
+            auto dstPtr = reinterpret_cast<StringMemory::OvString *>(output.getData());
+            std::copy(srcPtr, srcPtr + output.getShape().getElementsCount(), dstPtr);
+        } else {
+            auto srcPtr = static_cast<uint8_t*>(input.getData());
+            auto dstPtr = static_cast<uint8_t*>(output.getData());
 
-        auto copySize = output.getSize();
-        cpu_memcpy(dstPtr, srcPtr, copySize);
+            auto copySize = output.getSize();
+            cpu_memcpy(dstPtr, srcPtr, copySize);
+        }
     } else {
         dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;

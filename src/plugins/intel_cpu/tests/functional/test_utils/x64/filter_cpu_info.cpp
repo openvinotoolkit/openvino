@@ -4,7 +4,6 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/filter_cpu_info.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/general_utils.h"
@@ -41,17 +40,17 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
-        if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+        if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_sse42())
             continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+        if (selectedTypeStr.find("sse42") != std::string::npos && !ov::with_cpu_x86_sse42())
             continue;
-        if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
+        if (selectedTypeStr.find("avx") != std::string::npos && !ov::with_cpu_x86_avx())
             continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
+        if (selectedTypeStr.find("avx2") != std::string::npos && !ov::with_cpu_x86_avx2())
             continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
+        if (selectedTypeStr.find("avx512") != std::string::npos && !ov::with_cpu_x86_avx512f())
             continue;
-        if (selectedTypeStr.find("amx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512_core_amx())
+        if (selectedTypeStr.find("amx") != std::string::npos && !ov::with_cpu_x86_avx512_core_amx())
             continue;
 
         resCPUParams.push_back(param);

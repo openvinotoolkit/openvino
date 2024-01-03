@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/const_conv_concat.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -64,28 +66,28 @@ void ConstConvConcatTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {inputShape[0], inputChannels, 1,  inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  0.0f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes =  {1,  outputChannels * widthAfterConv };
 
     auto const_values = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -0.2f, 0.2f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
+    auto constant = ov::test::utils::deprecated::make_constant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{constant, conv}, 3);
 
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
                                                                       std::vector<size_t>{1,  2 * outputChannels * widthAfterConv });
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(concat, reshapePattern2, false);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(concat, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "ConstConvConcatTest");
     functionRefs = ngraph::clone_function(*function);

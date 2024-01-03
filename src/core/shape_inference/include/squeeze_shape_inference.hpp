@@ -6,6 +6,7 @@
 
 #include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -49,9 +50,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         if (arg_rank.is_static() && axes_shape.is_static()) {
             if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
                 // The values of `axes` input are known
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                normalize_axes(op, arg_rank.get_length(), *axes);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(op, arg_rank.get_length(), *axes);
                 unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input is a single element tensor which is unique by definition, deducing output rank
