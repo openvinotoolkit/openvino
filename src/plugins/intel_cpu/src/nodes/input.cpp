@@ -227,8 +227,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
-
-    constant = ConstantType::NoConst;
+    constant = ConstantType::StrictNoConst;
 
     constOp = ov::as_type_ptr<op::v0::Constant>(op);
     if (constOp) {
