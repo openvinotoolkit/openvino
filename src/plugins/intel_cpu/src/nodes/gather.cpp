@@ -179,6 +179,24 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
+
+    // short 1D vector fast executor (typical in shape infer subgraph)
+    execSpecialCase = nullptr;
+    if ((dataSrcRank == 1) && isDataShapeStat && isAxisInputConst && !constIndices.empty() && dataTypeSize == 4) {
+        const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
+        auto dim0 = dataShape.getDims()[0];
+        if (dim0 <= 64) {
+            execSpecialCase = [this]() {
+                auto mptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+                const auto* src = reinterpret_cast<const uint32_t*>(mptr->getData());
+                auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+                for (size_t i = 0; i < constIndices.size(); i++) {
+                    dst[i] = src[constIndices[i]];
+                }
+            };
+            return;
+        }
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -315,6 +333,11 @@ void Gather::prepareParams() {
 
 void Gather::execute(dnnl::stream strm) {
     if (isInPlace()) {
+        return;
+    }
+
+    if (execSpecialCase) {
+        execSpecialCase();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)

@@ -56,6 +56,8 @@ private:
     void initShortParams(threadExecParams& p, uint64_t start);
     void execReference();
 
+    std::function<void()> execSpecialCase;
+
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;
     bool isAxisInputConst = false;
