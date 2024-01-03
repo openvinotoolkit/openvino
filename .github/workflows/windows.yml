@@ -196,6 +196,8 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: CMake configure, build and install - OpenVINO JS API
+        if: ${{ 'false' }}
+        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
           
@@ -218,6 +220,8 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
+        if: ${{ 'false' }}
+        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@v3
         with:
           name: openvino_js_package
@@ -315,7 +319,8 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).
+    if: ${{ 'false' }}
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
       - name: Fetch OpenVINO JS sources
