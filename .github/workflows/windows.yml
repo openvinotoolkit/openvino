@@ -310,7 +310,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     defaults:
       run:
-        shell: bash
+        shell: pwsh
     runs-on: 'aks-win-4-cores-8gb'
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
@@ -341,6 +341,11 @@ jobs:
         run: npm i
 
       - name: Test OpenVINO JS
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm test
+
+      - name: Test OpenVINO JS (cmd)
+        shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
 
