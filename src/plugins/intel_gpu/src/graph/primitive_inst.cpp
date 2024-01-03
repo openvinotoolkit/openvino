@@ -1061,6 +1061,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
+        do_runtime_in_place_kv_cache();
+
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
@@ -1092,7 +1094,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
-        do_runtime_in_place_kv_cache();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
