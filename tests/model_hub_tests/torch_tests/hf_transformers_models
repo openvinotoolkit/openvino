@@ -209,7 +209,7 @@ krasserm/perceiver-io-mlm,perceiver-io-masked-language-model,skip,Load problem
 krasserm/perceiver-io-optical-flow,perceiver-io-optical-flow,skip,Load problem
 krasserm/perceiver-io-txt-clf-imdb,perceiver-io-text-classifier,skip,Load problem
 ksmcg/fan_small_12_p16_224,fan,skip,Load problem
-laion/clap-htsat-unfused,clap,skip,Load problem
+laion/clap-htsat-unfused,clap,xfail
 Langboat/ReGPT-125M-200G,re_gpt,skip,Load problem
 lengyue233/content-vec-best,hubert
 Lewislou/cellseg_sribd,cell_sribd,skip,Load problem
@@ -241,7 +241,7 @@ microsoft/beit-base-patch16-224-pt22k-ft22k,beit
 microsoft/biogpt,biogpt
 microsoft/conditional-detr-resnet-50,conditional_detr
 microsoft/deberta-base,deberta
-microsoft/git-large-coco,git,skip,Load problem
+microsoft/git-large-coco,git,xfail,Trace error
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlmv3-base,layoutlmv3
@@ -288,8 +288,8 @@ nlpconnect/vit-gpt2-image-captioning,vision-encoder-decoder
 OATML-Markslab/Tranception_Small,tranception,skip,Load problem
 OFA-Sys/chinese-clip-vit-base-patch16,chinese_clip
 openai/clip-vit-large-patch14,clip
-openai/jukebox-1b-lyrics,jukebox,skip,Load problem
-openai/whisper-medium,whisper,skip,Load problem
+openai/jukebox-1b-lyrics,jukebox,xfail,Trace error
+openai/whisper-medium,whisper,xfail,Trace error
 openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
 openmmlab/upernet-convnext-small,upernet
@@ -316,7 +316,7 @@ RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
-Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
+Salesforce/blip2-flan-t5-xl,blip-2,xfail,Trace error
 Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta
@@ -348,7 +348,7 @@ speechbrain/m-ctc-t-large,mctct
 Splend1dchan/wav2vec2-large-lv60_t5lephone-small_lna_bs64,speechmix,skip,Load problem
 stefan-it/bort-full,bort,skip,Load problem
 SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
-suno/bark,bark,skip,Load problem
+suno/bark,bark,xfail,Trace error
 surajnair/r3m-50,r3m,skip,Load problem
 susnato/clvp_dev,clvp,skip,Load problem
 Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
