@@ -11,6 +11,9 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -20,6 +23,7 @@
 #include "plugin.hpp"
 #include "properties.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "xml_parse_utils.h"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -44,12 +48,25 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
     // It may cause replacement of Constant by Parameter in such operations
     // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
     ov::pass::Manager manager;
+    auto pass_config = manager.get_pass_config();
     // leave handling of const precision to hardware according to its capability
     // especially for LLM with compressed weights
     // it's not recommend to do common constant folding, which will easily leads to OOM, or potential performance issues
     manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
+    pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            auto next_node = node->get_output_target_inputs(0).begin()->get_node();
+            if (is_type<ov::op::v0::Convert>(next_node)) {
+                next_node = next_node->get_output_target_inputs(0).begin()->get_node();
+            }
+            return !is_type<ov::op::v0::MatMul>(next_node) && !is_type<ov::op::v1::Subtract>(next_node);
+        });
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(model);
+    for (auto& node : model->get_ops()) {
+        ov::pass::enable_constant_folding(node);
+        ov::disable_keep_const_precision(node);
+    }
     ov::SupportedOpsMap query_model_result;
     bool user_set_affinities = false;
     // Get user defined affinity
