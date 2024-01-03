@@ -6,7 +6,6 @@
 
 #include <ie_common.h>
 #include <cpu_types.h>
-#include "ie_algorithm.hpp"
 #include "input.h"
 #include <node.h>
 #include <ov_optional.hpp>

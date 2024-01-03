@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_blob.h>
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"

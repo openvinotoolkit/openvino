@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <caseless.hpp>
 #include "executors/eltwise_list.hpp"
 
 namespace ov {

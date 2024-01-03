@@ -22,7 +22,6 @@
 #include "extension_mngr.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
-#include "ie_algorithm.hpp"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
