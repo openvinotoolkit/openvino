@@ -11,8 +11,40 @@
 
 - Make sure that all submodules are updated `git submodule update --init --recursive`
 - Create build dir `mkdir build && cd build`
-- To get binaries for openvinojs-node package run:
-  `cmake  -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin ..`
+- To configure binaries building run:
+
+  ### Linux x86
+  ```bash
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_FASTER_BUILD=ON \
+    -DCPACK_GENERATOR=NPM \
+    -DENABLE_SYSTEM_TBB=OFF -UTBB* \
+    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \ 
+    ..
+  ```
+
+  ### Linux ARM
+  ```bash
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_FASTER_BUILD=ON \
+    -DCPACK_GENERATOR=NPM \
+    -DENABLE_SYSTEM_TBB=OFF -UTBB* \
+    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \ 
+    -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-deprecated-declarations" \
+    -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_SAMPLES=OFF \
+    -DENABLE_WHEEL=OFF \
+    -DENABLE_PYTHON=OFF \
+    -DENABLE_INTEL_GPU=OFF \
+    -DENABLE_INTEL_GNA=OFF \
+    -DENABLE_MLAS_FOR_CPU=ON \
+    ..
+  ```
+
+- To get binaries for openvinojs-node package run compilation:
   `make --jobs=$(nproc --all) install`
 - Go to npm package folder `cd ../src/bindings/js/node`
 - Now you can install dependencies packages and transpile ts to js code. Run `npm install`
