@@ -227,6 +227,35 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfig,
                          {{LayoutType::ncsp, dataPrec}},
                           impl_desc_type::unknown);
+
+    // 1d short vector scatter update (data, indices, updates, axis)
+    if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
+        updateDim.size() <= 1 && indicesPrec == ov::element::i32 && dataPrec == ov::element::i32) {
+        auto length = srcDataDim[0];
+        auto indicesCnt = (indicesDim.size() == 0) ? 1 : indicesDim[0];
+        auto updateCnt = (updateDim.size() == 0) ? 1 : updateDim[0];
+        if (length <= 64 && updateCnt == indicesCnt) {
+            execSpecialCase = [this, length, updateCnt](){
+                auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+                auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+                auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
+                auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
+
+                int32_t *dstPtr = reinterpret_cast<int32_t*>(dstMemPtr->getData());
+                int32_t *srcPtr = reinterpret_cast<int32_t*>(srcMemPtr->getData());
+                int32_t *indicesPtr = reinterpret_cast<int32_t*>(indicesMemPtr->getData());
+                int32_t *updatePtr = reinterpret_cast<int32_t*>(updateMemPtr->getData());
+                for (size_t i = 0; i < length; i++) {
+                    dstPtr[i] = srcPtr[i];
+                }
+                indicesMemPtr->getShape().getDims();
+                for (size_t i = 0; i < updateCnt; i++) {
+                    dstPtr[indicesPtr[i]] = updatePtr[i];
+                }
+            };
+            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
+        }
+    }
 }
 
 bool ScatterUpdate::needPrepareParams() const {
@@ -264,6 +293,10 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
+    if (execSpecialCase) {
+        execSpecialCase();
+        return;
+    }
     auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();

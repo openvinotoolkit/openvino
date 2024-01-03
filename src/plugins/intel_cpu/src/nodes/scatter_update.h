@@ -53,6 +53,7 @@ private:
     ov::element::Type dataPrec, indicesPrec, axisPrec;
 
     std::string errorPrefix;
+    std::function<void()> execSpecialCase;
 };
 
 }   // namespace node
