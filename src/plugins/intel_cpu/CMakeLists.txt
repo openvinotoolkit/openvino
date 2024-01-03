@@ -32,12 +32,7 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    if(APPLE)
-        # Apple M1 / M2 is assumed
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-    else()
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
-    endif()
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
