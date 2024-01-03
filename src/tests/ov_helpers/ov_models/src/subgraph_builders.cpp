@@ -4,6 +4,7 @@
 
 #include "ov_models/subgraph_builders.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
@@ -243,7 +244,7 @@ std::shared_ptr<ov::Model> makeKSOFunction(std::vector<size_t> inputShape, ov::e
 
     auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
     auto convert = std::make_shared<ov::op::v0::Convert>(shapeOf, ngPrc);
-    auto newShape = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {1, 4, 1, 1});
+    auto newShape = ov::test::utils::deprecated::make_constant<int64_t>(ov::element::i64, {4}, {1, 4, 1, 1});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(convert, newShape, false);
     auto conv1 = ngraph::builder::makeConvolution(params[1],
                                                   ngPrc,

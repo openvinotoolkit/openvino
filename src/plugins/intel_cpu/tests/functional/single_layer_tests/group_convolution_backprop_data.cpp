@@ -249,8 +249,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] ==
-            InferenceEngine::PluginConfigParams::YES) {
+        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
             inType = outType = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
@@ -326,8 +325,7 @@ std::vector<fusingSpecificParams> fusingParamsSet{
     fusingScaleShift,
 };
 const ov::AnyMap cpuEmptyPluginConfig;
-const ov::AnyMap cpuBF16PluginConfig = {
-    {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
+const ov::AnyMap cpuBF16PluginConfig = {{ov::hint::inference_precision(ov::element::bf16)}};
 
 const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};

@@ -12,7 +12,9 @@
 #pragma once
 
 #ifdef _WIN32
-#    error "OpenCL VA-API interoperability is supported only on Linux-based platforms"
+#    if !defined(__MINGW32__) && !defined(__MINGW64__)
+#        error "OpenCL VA-API interoperability is supported only on Linux-based platforms"
+#    endif
 #endif
 
 #include <memory>
