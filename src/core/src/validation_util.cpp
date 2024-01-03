@@ -17,7 +17,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "ov_optional.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
 

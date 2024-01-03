@@ -56,6 +56,10 @@ static void save_original_input_precisions(const std::shared_ptr<ov::Node>& node
     }
 }
 
+static bool has_original_input_precision(const ov::Input<ov::Node>& input) {
+    return input.get_rt_info().count("original_precision") > 0;
+}
+
 static const ov::element::Type& get_original_input_precision(const ov::Input<ov::Node>& input) {
     return input.get_rt_info().at("original_precision").as<ov::element::Type>();
 }
@@ -66,6 +70,28 @@ static void remove_original_input_precision_attribute(ov::Input<ov::Node>& input
     if (it != rt_info.end()) {
         rt_info.erase(it);
     }
+}
+
+static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
+    bool restored = false;
+    if (ov::is_type<ov::op::v0::Convert>(node))
+        return restored;
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        auto input = node->input(i);
+        if (!has_original_input_precision(input))
+            continue;
+        const auto& original_type = get_original_input_precision(input);
+        remove_original_input_precision_attribute(input);
+        if (original_type != node->get_input_element_type(i)) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
+            ov::OutputVector replacements(1);
+            OPENVINO_ASSERT(convert->constant_fold(replacements, convert->input_values()));
+            replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
+            input.replace_source_output(replacements[0]);
+            restored = true;
+        }
+    }
+    return restored;
 }
 
 static void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node) {
@@ -94,7 +120,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node);
+        } else {
+            rewritten |= restore_original_input_precision(node);
         }
+
         if (rewritten) {
             node->validate_and_infer_types();
         }
@@ -134,26 +163,12 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 }
             }
 
-            bool needs_validate = false;
             // if CF was unsuccessful remove original precision attribute from inputs
-            for (size_t i = 0; i < original_node->get_input_size(); i++) {
-                auto input = original_node->input(i);
-                const auto& original_type = get_original_input_precision(input);
-                remove_original_input_precision_attribute(input);
-                if (original_type != original_node->get_input_element_type(i)) {
-                    auto convert = std::make_shared<op::v0::Convert>(original_node->input_value(i), original_type);
-                    OutputVector replacements(1);
-                    OPENVINO_ASSERT(convert->constant_fold(replacements, convert->input_values()));
-                    replacements[0].get_node()->set_friendly_name(
-                        original_node->get_input_node_ptr(i)->get_friendly_name());
-                    input.replace_source_output(replacements[0]);
-                    needs_validate = true;
-                }
-            }
-            if (needs_validate) {
+            bool restored = restore_original_input_precision(original_node);
+            if (restored) {
                 original_node->validate_and_infer_types();
+                rewritten = true;
             }
-            rewritten |= needs_validate;
         }
     }
 
