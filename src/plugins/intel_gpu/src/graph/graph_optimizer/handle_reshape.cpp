@@ -224,7 +224,7 @@ void handle_reshape::run(program& p) {
                 // in reshape stage we assume user provides the input vector in bfyx
 
                 // Check whether input reorder is required for format change
-                if (format::is_simple_data_format(input_layout.format)) {
+                if (!format::is_simple_data_format(input_layout.format)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
                                                                 cldnn::input_info(input_node.id(), input_port),
                                                                 target_format,
