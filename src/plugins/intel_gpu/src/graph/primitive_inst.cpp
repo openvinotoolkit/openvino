@@ -981,6 +981,40 @@ void primitive_inst::do_runtime_skip_gather() {
     set_can_be_optimized(true);
 }
 
+void primitive_inst::do_runtime_skip_permute() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_permute: " + id()));
+    if (!get_node().is_type<permute>()
+        || _impl_params->has_fused_primitives()
+        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
+
+    auto desc = _node->as<permute>().get_primitive();
+    auto& input_layout = _impl_params->input_layouts[0];
+    const auto& permute_order = desc->permute_order;
+    int32_t size = 1;
+    int32_t value = 0;
+    for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
+        int32_t order = static_cast<int32_t>(permute_order[i]);
+        int32_t dim = static_cast<int32_t>(input_layout.get_shape()[order]);
+        if (i != order) {
+            if (dim > value)
+                value = dim;
+            size *= dim;
+        }
+    }
+    if (size != value) {
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and value(" << value << ") are different" << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -1094,6 +1128,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
+        do_runtime_skip_permute();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));

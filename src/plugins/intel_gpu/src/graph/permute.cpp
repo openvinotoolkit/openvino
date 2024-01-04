@@ -137,7 +137,7 @@ void permute_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
-    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
+    _outputs[0] = input_memory_ptr();
     _mem_allocated = false;
 }
 

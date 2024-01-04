@@ -414,9 +414,9 @@ private:
     void run(program& p) override;
 };
 
-class dynamic_shape_gather_opts : public base_pass {
+class pre_dynamic_shape_opts : public base_pass {
 public:
-    dynamic_shape_gather_opts() : base_pass("dynamic_shape_gather_opts") {}
+    pre_dynamic_shape_opts() : base_pass("pre_dynamic_shape_opts") {}
 
 private:
     void run(program& p) override;
