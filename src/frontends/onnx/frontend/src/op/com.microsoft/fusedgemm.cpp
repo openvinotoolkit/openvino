@@ -27,7 +27,7 @@ OutputVector fusedgemm(const Node& node) {
     Output<ngraph::Node> input_b = inputs.at(1);
     Output<ngraph::Node> input_c;
 
-    if (num_inputs == 3 && !ngraph::op::is_null(inputs[2])) {
+    if (num_inputs == 3 && !ov::op::util::is_null(inputs[2])) {
         input_c = inputs.at(2);
     } else {
         input_c = default_opset::Constant::create(input_b.get_element_type(), ngraph::Shape{}, {0});

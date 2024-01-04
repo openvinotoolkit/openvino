@@ -46,7 +46,7 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
         const auto result_inputs = result->input_values();
         const bool is_dangling_result =
             std::all_of(result_inputs.begin(), result_inputs.end(), [](const Output<ngraph::Node>& node) -> bool {
-                return ngraph::op::is_null(node);
+                return ov::op::util::is_null(node);
             });
         if (is_dangling_result) {
             function->remove_result(result);
