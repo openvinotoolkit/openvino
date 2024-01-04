@@ -648,6 +648,8 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
 
             auto concat_axis_legacy = node.get_primitive()->concat_axis;
+            if (concat_axis_legacy < 0)
+                concat_axis_legacy = kv_out_layout.get_partial_shape().size() + concat_axis_legacy;
             if (concat_axis_legacy >= 2) {
                 auto spatial_axis = concat_axis_legacy - 2;
                 // Default and minimum number of dimensions is 4
