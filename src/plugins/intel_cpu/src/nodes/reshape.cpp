@@ -104,7 +104,8 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     bool canBeInPlace = true;
 
     // CVS-81059 : disable inPlace in following case since it won't be satisfied by framework
-    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant())
+    if ((!isConstant() && getParentEdgeAt(0)->getParent()->isConstant()) ||
+        (getParentEdgeAt(0)->getParent()->getChildEdges().size() != 1))
         canBeInPlace = false;
 
     NodeConfig config;
