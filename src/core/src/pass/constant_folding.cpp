@@ -13,6 +13,7 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -76,7 +77,6 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
     bool restored = false;
     if (ov::is_type<ov::op::v0::Convert>(node))
         return restored;
-    std::cout << __func__ << ":" << __LINE__ << " " << node << std::endl;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         auto input = node->input(i);
         if (!has_original_input_precision(input))
@@ -85,12 +85,18 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
         remove_original_input_precision_attribute(input);
         if (original_type != node->get_input_element_type(i)) {
             auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
-            std::cout << "convert " << convert << std::endl;
-            std::cout << "input " << node->input_value(i) << std::endl;
             ov::OutputVector replacements(1);
-            OPENVINO_ASSERT(convert->constant_fold(replacements, convert->input_values()));
-            replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
-            input.replace_source_output(replacements[0]);
+            bool ret = convert->constant_fold(replacements, convert->input_values());
+            if (ret) {
+                std::cout << "node " << node << std::endl;
+                std::cout << "convert " << convert << std::endl;
+                std::cout << "input " << node->input_value(i) << std::endl;
+                replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
+                input.replace_source_output(replacements[0]);
+            } else {
+                convert->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
+                input.replace_source_output(convert->output(0));
+            }
             restored = true;
         }
     }
