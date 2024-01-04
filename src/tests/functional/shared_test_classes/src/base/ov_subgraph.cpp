@@ -217,13 +217,14 @@ void SubgraphBaseTest::import_export() {
             std::stringstream strm;
             compiledModel.export_model(strm);
             ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
-            auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto importedFunction = importedModel.get_runtime_model()->clone();
+            const auto runtimeModel = compiledModel.get_runtime_model()->clone();
 
             auto comparator = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
                         .enable(FunctionsComparator::NAMES)
                         .enable(FunctionsComparator::CONST_VALUES);
-            auto res = comparator.compare(importedFunction, function);
+            auto res = comparator.compare(importedFunction, runtimeModel);
             if (!res.valid) {
                 throw std::runtime_error(res.message);
             }
@@ -259,7 +260,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
                 std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
                     inputNode = nextNodePtr;
                 }
             }

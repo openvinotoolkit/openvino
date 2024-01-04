@@ -13,7 +13,6 @@
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
@@ -21,7 +20,6 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/util/log.hpp"
 #include "utils/common.hpp"
 #include "utils/legacy_conversion_extension.hpp"
 

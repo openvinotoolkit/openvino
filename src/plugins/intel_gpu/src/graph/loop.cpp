@@ -312,7 +312,7 @@ void loop_inst::update_backedge_mapped_memory() {
                     memory::ptr backedge_mem;
                     if (output_mapping.empty()) {
                         // from and to primitives in backedge are connected directly
-                        if (backedge_to_prim == backedge_from_prim->dependencies().front().first) {
+                        if (backedge_to_prim.get() == backedge_from_prim->dependencies().front().first) {
                             backedge_mapping.initial_mem = initial_mem;
                             continue;
                         } else {
@@ -394,6 +394,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
                             << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
             out_mem_ptr = engine.allocate_memory(sliced_layout);
+            prim->set_output_layout(sliced_layout, internal_id.idx);
         }
 
         // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
@@ -536,7 +537,7 @@ void loop_inst::preprocess_backedge_memory() {
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
                             << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
         // Set backedge mode to SINGLE when backedge_from_prim has multiple users.
-        } else if ((output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first)
+        } else if ((output_mapping.empty() && backedge_to_prim.get() == backedge_from_prim->dependencies().front().first)
                 || (backedge_to_prim->get_users().size() > 1) ) {
             // SINGLE mode, from and to primitives in backedge are connected directly
             backedge_memory_mappings.emplace_back(
@@ -783,9 +784,11 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
                             ") should be same with sliced_mems.size(", sliced_mems.size(), ")");
     OPENVINO_ASSERT(concatenated_mem != nullptr, "concatenated_mem should not be nullptr");
 
-    auto elem_size = ov::element::Type(concatenated_mem->get_layout().data_type).size();
-    auto concat_mem_shape = concatenated_mem->get_layout().get_shape();
-    auto sliced_mem_shape = sliced_mems.front()->get_layout().get_shape();
+    auto concat_layout = concat_data_prim->get_output_layout(io_prim_map.external_id.idx);
+    auto sliced_layout = sliced_data_prim->get_output_layout(io_prim_map.internal_id.idx);
+    auto concat_mem_shape = concat_layout.get_shape();
+    auto sliced_mem_shape = sliced_layout.get_shape();
+    auto elem_size = ov::element::Type(concat_layout.data_type).size();
     const auto stride = io_prim_map.stride;
     const auto axis = io_prim_map.axis;
     const auto step = std::abs(stride);
@@ -801,15 +804,14 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
     }
 
     char* concat_data = reinterpret_cast<char*>(concatenated_mem->lock(stream, cldnn::mem_lock_type::read));
-
-    auto concate_layout = concatenated_mem->get_layout();
-    auto trait = format::traits(concate_layout.format);
-    if (format::is_blocked(concate_layout.format) || concate_layout.data_padding) {
+    auto dims = concat_mem_shape.size();
+    if (!format::is_default_format(concat_layout.format) || dims == 1 || concat_layout.data_padding) {
         // BE CAREFUL: ov::reference::split is extremely slow.
         // If we encounter any case where this code path is executed, we need to optimize it
         ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
     } else {
         const size_t part_length = concat_mem_shape.at(axis) / num_iters;
+        const size_t inner_axis = axis + 1;
         auto output_shape = concat_mem_shape;
         auto out_data = pointers_to_data.data();
         output_shape[axis] = part_length;
@@ -819,14 +821,16 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         auto& lb_at_axis = lower_bounds[axis];
         auto& ub_at_axis = upper_bounds[axis];
 
+        // Format of concat_layout is invalid here : No mixed order
         size_t continuous_size = 1;
-        auto dims_order = trait._order;
-        auto target_axis = std::find(dims_order.begin(), dims_order.end(), axis);
-        for (auto iter = target_axis + 1 ; iter != dims_order.end() ; ++iter) {
-            continuous_size *= ((output_shape.size() > *iter) ? output_shape[*iter] : 1);
+        for (auto iter = inner_axis ; iter < dims ; ++iter) {
+            continuous_size *= ((output_shape.size() > iter) ? output_shape[iter] : 1);
         }
+
+        // Set stride values of inner axes to get a continuous copy size
         auto strides = ov::Strides(lower_bounds.size(), 1);
-        strides[*(target_axis+1)] = continuous_size;
+        for (size_t iter = inner_axis; iter < dims ; ++iter)
+            strides[iter] = upper_bounds[iter];
 
         const auto strides_copy_size = elem_size * continuous_size;
         const auto out_last = std::next(out_data, num_iters);
@@ -834,12 +838,9 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
             auto dst_mem = *out_iter;
             auto slice_ranges = ov::coordinates::slice(concat_mem_shape, lower_bounds, upper_bounds, strides);
             for (const auto& range : slice_ranges) {
-                auto src_index = range.begin_index;
-                for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
-                    const auto src_mem = concat_data + src_index * elem_size;
-                    std::memcpy(dst_mem, src_mem, strides_copy_size);
-                    std::advance(dst_mem, strides_copy_size);
-                }
+                const auto src_mem = concat_data + range.begin_index * elem_size;
+                std::memcpy(dst_mem, src_mem, strides_copy_size);
+                std::advance(dst_mem, strides_copy_size);
             }
 
             lb_at_axis += part_length;
@@ -864,9 +865,11 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
                         ") should be less than the number of sliced_mems(", sliced_mems.size(), ")");
     OPENVINO_ASSERT(concatenated_mem != nullptr, "concatenated_mem should not be nullptr");
 
-    auto elem_size = ov::element::Type(concatenated_mem->get_layout().data_type).size();
-    auto concat_mem_shape = concatenated_mem->get_layout().get_shape();
-    auto sliced_mem_shape = sliced_mems.front()->get_layout().get_shape();
+    auto concat_layout = concat_data_prim->get_output_layout(io_prim_map.external_id.idx);
+    auto sliced_layout = sliced_data_prim->get_output_layout(io_prim_map.internal_id.idx);
+    auto concat_mem_shape = concat_layout.get_shape();
+    auto sliced_mem_shape = sliced_layout.get_shape();
+    auto elem_size = ov::element::Type(concat_layout.data_type).size();
     const auto stride = io_prim_map.stride;
     const auto axis = io_prim_map.axis;
     const auto step = std::abs(stride);

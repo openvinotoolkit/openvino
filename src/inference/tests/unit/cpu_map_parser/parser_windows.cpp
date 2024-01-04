@@ -33,6 +33,7 @@ struct WinCpuMapTestCase {
     int _numa_nodes;
     int _sockets;
     int _cores;
+    int _blocked_cores;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::string system_info;
@@ -56,6 +57,7 @@ public:
         int test_numa_nodes = 0;
         int test_sockets = 0;
         int test_cores = 0;
+        int test_blocked_cores = 0;
         unsigned long len = (unsigned long)(test_len / 2);
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
@@ -66,6 +68,7 @@ public:
                                      test_numa_nodes,
                                      test_sockets,
                                      test_cores,
+                                     test_blocked_cores,
                                      test_proc_type_table,
                                      test_cpu_mapping_table);
 
@@ -73,6 +76,7 @@ public:
         ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
+        ASSERT_EQ(test_data._blocked_cores, test_blocked_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
     }
@@ -83,6 +87,7 @@ WinCpuMapTestCase _2sockets_104cores_hyperthreading = {
     2,    // param[expected out]: total 2 numa nodes on this simulated platform
     2,    // param[expected out]: total 2 sockets on this simulated platform
     104,  // param[expected out]: total 104 CPU cores on this simulated platform
+    0,    // param[expected out]: total 0 processors on this simulated platform are blocked
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
@@ -697,6 +702,7 @@ WinCpuMapTestCase _2sockets_48cores_hyperthreading = {
     2,
     2,
     48,
+    0,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -987,6 +993,7 @@ WinCpuMapTestCase _2sockets_36cores_hyperthreading = {
     2,
     2,
     36,
+    0,
     {{72, 36, 0, 36, -1, -1}, {36, 18, 0, 18, 0, 0}, {36, 18, 0, 18, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1179,6 +1186,7 @@ WinCpuMapTestCase _2sockets_48cores = {
     2,
     2,
     48,
+    0,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1445,6 +1453,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set1 = {
     1,
     1,
     24,
+    0,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1555,6 +1564,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set2 = {
     1,
     1,
     24,
+    0,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1676,6 +1686,7 @@ WinCpuMapTestCase _1sockets_22cores_hyperthreading = {
     1,
     1,
     14,
+    2,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1763,6 +1774,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set1 = {
     1,
     1,
     14,
+    0,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1835,6 +1847,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set2 = {
     1,
     1,
     14,
+    0,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1914,6 +1927,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set3 = {
     1,
     1,
     14,
+    0,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1993,6 +2007,7 @@ WinCpuMapTestCase _1sockets_10cores_hyperthreading = {
     1,
     1,
     10,
+    0,
     {{12, 2, 8, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2055,6 +2070,7 @@ WinCpuMapTestCase _1sockets_6cores_hyperthreading_FMT7 = {
     1,
     1,
     6,
+    0,
     {{12, 6, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2128,11 +2144,44 @@ WinCpuMapTestCase _1sockets_6cores_hyperthreading_FMT7 = {
      "0000000000000000000000000000000000000000000000000000000000000000000000000ff0f000000000000"},
 };
 
+WinCpuMapTestCase _1sockets_4cores = {
+    4,
+    1,
+    1,
+    4,
+    0,
+    {{4, 4, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 1, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 1, -1},
+    },
+    {"03000000300000000000000000000000000000000000000000000000000001000f00000000000000000000000000000000000000300000000"
+     "00000000000000000000000000000000000000000000100010000000000000000000000000000000200000038000000010640000060000002"
+     "00000000000000000000000000000000000000000000000100000000000000000000000000000002000000380000000108400000800000010"
+     "00000000000000000000000000000000000000000000001000000000000000000000000000000020000003800000002104000000010000000"
+     "00000000000000000000000000000000000000000000030000000000000000000000000000000000000030000000000000000000000000000"
+     "00000000000000000000000010002000000000000000000000000000000020000003800000001064000006000000200000000000000000000"
+     "00000000000000000000000000020000000000000000000000000000000200000038000000010840000080000001000000000000000000000"
+     "00000000000000000000000000200000000000000000000000000000000000000300000000000000000000000000000000000000000000000"
+     "00000100040000000000000000000000000000000200000038000000010640000060000002000000000000000000000000000000000000000"
+     "00000000400000000000000000000000000000002000000380000000108400000800000010000000000000000000000000000000000000000"
+     "00000004000000000000000000000000000000020000003800000002104000000010000000000000000000000000000000000000000000000"
+     "000000c0000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000100080000000000"
+     "00000000000000000000020000003800000001064000006000000200000000000000000000000000000000000000000000000800000000000"
+     "00000000000000000000200000038000000010840000080000001000000000000000000000000000000000000000000000008000000000000"
+     "00000000000000000001000000300000000000000000000000000000000000000000000000000000000f00000000000000000000000000000"
+     "00400000050000000010001000000000000000000000000000000000000000000040400000000000000000000000000000000000000000000"
+     "000000000000000000000000000000000f00000000000000"},
+};
+
 WinCpuMapTestCase _1sockets_4cores_hyperthreading = {
     8,
     1,
     1,
     4,
+    0,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2171,6 +2220,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_1_FMT7 = {
     1,
     1,
     4,
+    0,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2209,6 +2259,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_2_FMT7 = {
     1,
     1,
     4,
+    0,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2247,6 +2298,7 @@ WinCpuMapTestCase _1sockets_2cores_hyperthreading_FMT7 = {
     1,
     1,
     2,
+    0,
     {{4, 2, 0, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2284,6 +2336,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          _1sockets_14cores_hyperthreading_set3,
                                          _1sockets_10cores_hyperthreading,
                                          _1sockets_6cores_hyperthreading_FMT7,
+                                         _1sockets_4cores,
                                          _1sockets_4cores_hyperthreading,
                                          _1sockets_4cores_hyperthreading_1_FMT7,
                                          _1sockets_4cores_hyperthreading_2_FMT7,

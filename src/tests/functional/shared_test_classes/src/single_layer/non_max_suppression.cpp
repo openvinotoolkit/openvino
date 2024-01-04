@@ -17,7 +17,7 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     InputPrecisions inPrecisions;
     int32_t maxOutBoxesPerClass;
     float iouThr, scoreThr, softNmsSigma;
-    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
     std::string targetDevice;
@@ -43,7 +43,8 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
-    result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+    auto boxEncodingStr = (boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER) ? "CENTER" : "CORNER";
+    result << "boxEncoding=" << boxEncodingStr << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -288,7 +289,7 @@ void NmsLayerTest::SetUp() {
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass;
     float iouThr, scoreThr, softNmsSigma;
-    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
     std::tie(inShapeParams,
@@ -332,11 +333,11 @@ void NmsLayerTest::SetUp() {
         function = std::make_shared<Function>(nms, params, "NMS");
     } else {
         auto nms_0_identity =
-            std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(outType, Shape{1}, {1}));
         auto nms_1_identity =
-            std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(1), ov::op::v0::Constant::create(ngPrc, Shape{1}, {1}));
         auto nms_2_identity =
-            std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(2), ov::op::v0::Constant::create(outType, Shape{1}, {1}));
         nms_0_identity->set_friendly_name("Multiply_0");
         nms_1_identity->set_friendly_name("Multiply_1");
         nms_2_identity->set_friendly_name("Multiply_2");
@@ -349,7 +350,7 @@ void Nms9LayerTest::SetUp() {
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass;
     float iouThr, scoreThr, softNmsSigma;
-    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+    ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
     std::tie(inShapeParams,

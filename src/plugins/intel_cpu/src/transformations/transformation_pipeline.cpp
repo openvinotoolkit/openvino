@@ -131,7 +131,7 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -252,14 +252,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
-    ov::element::TypeVector decompression_precisions{ov::element::u8};
-    // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
-    // Convert node doesn't support 4bit precisions -> fallback on constant folding
-    if (inferencePrecision == ov::element::f32) {
-        decompression_precisions.push_back(ov::element::u4);
-        decompression_precisions.push_back(ov::element::i4);
-        decompression_precisions.push_back(ov::element::nf4);
-    }
+    ov::element::TypeVector decompression_precisions{ov::element::u8,
+                                                     ov::element::u4,
+                                                     ov::element::i4,
+                                                     ov::element::nf4};
     // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
@@ -488,11 +484,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput1ToDetectionOutput8);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign3To9);
 
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseAndToLogicalAnd);
-    CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseNotToLogicalNot);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseOrToLogicalOr);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseXorToLogicalXor);
-
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
         CPU_SET_CALLBACK_COMMON(manager,
@@ -649,11 +640,14 @@ void Transformations::PostLpt() {
     CPU_SET_CALLBACK_COMMON(postLPTPassManager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
             if (node->get_input_size() >= 2) {
-                return node->get_input_element_type(1) == ov::element::i8 || node->get_input_element_type(1) == ov::element::u8;
+                return node->get_input_element_type(1) == ov::element::i8 ||
+                       node->get_input_element_type(1) == ov::element::u8 ||
+                       (ov::is_type<const ov::op::v0::FakeQuantize>(node) && !ov::is_type<const ov::op::v1::Transpose>(node->get_input_node_shared_ptr(0)));
             }
             return false;
         },
         MoveEltwiseUpThroughDataMov);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
 

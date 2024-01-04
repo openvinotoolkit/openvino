@@ -47,19 +47,19 @@ public:
     }
 
 protected:
-     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-          inputs.clear();
-          const auto& funcInputs = function->inputs();
-          for (size_t i = 0; i < funcInputs.size(); ++i) {
-              const auto& funcInput = funcInputs[i];
-              ov::Tensor tensor;
-              tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                               targetInputStaticShapes[i],
-                                                               80,
-                                                               0,
-                                                               8);
-              inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-          }
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::Tensor tensor;
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 80;
+            in_data.resolution = 8;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
     }
 
     void SetUp() override {
@@ -84,7 +84,7 @@ protected:
         auto variadicSplitOp = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
-        auto addOp = ov::test::utils::makeEltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
+        auto addOp = ov::test::utils::make_eltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(addOp)};

@@ -69,7 +69,7 @@ void PriorBoxLayerTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(imageShapes))};
 
-    ngraph::op::v8::PriorBox::Attributes attributes;
+    ov::op::v8::PriorBox::Attributes attributes;
     attributes.min_size = min_size;
     attributes.max_size = max_size;
     attributes.aspect_ratio = aspect_ratio;
@@ -84,16 +84,16 @@ void PriorBoxLayerTest::SetUp() {
     attributes.scale_all_sizes = scale_all_sizes;
     attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-    auto priorBox = std::make_shared<ngraph::op::v8::PriorBox>(
+    auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
+    auto priorBox = std::make_shared<ov::op::v8::PriorBox>(
         shape_of_1,
         shape_of_2,
         attributes);
 
     ov::pass::disable_constant_folding(priorBox);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBox)};
     function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
 }
 } // namespace LayerTestsDefinitions

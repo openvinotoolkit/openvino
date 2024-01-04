@@ -117,7 +117,7 @@ KERNEL(gemm_tiled_opt)(
 
     // Start pointers offsets
 #if !TRANSPOSE_INPUT0
-    const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0 + tile_m_offset * K;
+    const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0 + tile_m_offset * K_PADDED_IN0;
 #else // !TRANSPOSE_INPUT0
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0 + tile_m_offset;
 #endif // !TRANSPOSE_INPUT0
@@ -153,7 +153,13 @@ KERNEL(gemm_tiled_opt)(
         // Loading B tile
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
 #if IS_DYNAMIC
+#if HAS_DYNAMIC_N_PADDING
+            // In case of dynamic padding we can't guarantee memory access alignment for
+            // block reads (4 bytes), so use scattered read
+            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+#else
             b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+#endif
 #else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
@@ -162,7 +168,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // TILE_N_NOT_DIVISIBLE
 #endif // IS_DYNAMIC
 #if !TRANSPOSE_INPUT1
-            b_ptr += N;
+            b_ptr += N_PADDED;
 #else // !TRANSPOSE_INPUT1
             b_ptr += K;
 #endif // !TRANSPOSE_INPUT1
@@ -203,7 +209,13 @@ KERNEL(gemm_tiled_opt)(
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if !TRANSPOSE_INPUT0
 #if IS_DYNAMIC
-            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[dot_id * K + sglid] : BLOCK_READ_A(a_ptr, dot_id * K);
+#if HAS_DYNAMIC_K_PADDING
+            // In case of dynamic padding we can't guarantee memory access alignment for
+            // block reads (4 bytes), so use scattered read
+            A_FLOATN a_read = a_ptr[dot_id * K_PADDED_IN0 + sglid];
+#else
+            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[dot_id * K_PADDED_IN0 + sglid] : BLOCK_READ_A(a_ptr, dot_id * K);
+#endif
 #else // IS_DYNAMIC
 #if TILE_K_NOT_DIVISIBLE
             A_FLOATN a_read = a_ptr[dot_id * K + sglid];
@@ -273,13 +285,17 @@ KERNEL(gemm_tiled_opt)(
     if (TILE_K_NOT_DIVISIBLE) {
         // Loading leftovers of the matrix B
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
+#if HAS_DYNAMIC_N_PADDING
+            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+#else
             b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
-            b_ptr += N;
+#endif
+            b_ptr += N_PADDED;
         } // Loading leftovers of the matrix B end
 
         // Loading leftovers of the matrix A and tile C calculation
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
-            INPUT0_TYPE a_read = a_ptr[dot_id * K + sglid];
+            INPUT0_TYPE a_read = a_ptr[dot_id * K_PADDED_IN0 + sglid];
 
             unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
                 c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);

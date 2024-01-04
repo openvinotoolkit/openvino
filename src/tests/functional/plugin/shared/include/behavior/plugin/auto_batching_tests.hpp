@@ -14,6 +14,9 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -30,8 +33,8 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+        fn_ptrs = {ov::test::utils::make_single_conv(),
+                   ov::test::utils::make_multi_single_conv()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
@@ -57,11 +60,11 @@ protected:
             nets.push_back(CNNNetwork(fn_ptr));
         }
 
-        auto ie = InferenceEngine::Core();
+        auto ie = BehaviorTestsUtils::createIECoreWithTemplate();
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
-        std::vector<int> outElementsCount;
+        std::vector<std::size_t> outElementsCount;
 
         for (size_t i = 0; i < nets.size(); ++i) {
             auto net = nets[i];
@@ -91,7 +94,7 @@ protected:
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output->first);
                 outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
+                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), std::size_t(1),
                                         std::multiplies<size_t>()));
 
                 auto inf_req = exec_net_ref.CreateInferRequest();
@@ -148,8 +151,8 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
-                   ngraph::builder::subgraph::makeDetectionOutput()};
+        fn_ptrs = {ov::test::utils::make_detection_output(),
+                   ov::test::utils::make_detection_output()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {

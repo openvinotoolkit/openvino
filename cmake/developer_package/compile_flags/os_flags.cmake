@@ -32,11 +32,6 @@ macro(ov_disable_deprecated_warnings)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated}")
 endmacro()
 
-macro(disable_deprecated_warnings)
-    message(WARNING "'disable_deprecated_warnings' is deprecated, use 'ov_disable_deprecated_warnings' instead")
-    ov_disable_deprecated_warnings()
-endmacro()
-
 #
 # ov_deprecated_no_errors()
 #
@@ -214,16 +209,6 @@ function(ov_disable_all_warnings)
 endfunction()
 
 #
-# ie_enable_lto()
-#
-# Enables Link Time Optimization compilation
-#
-macro(ie_enable_lto)
-    message(WARNING "'ie_enable_lto' is deprecated, set 'INTERPROCEDURAL_OPTIMIZATION_RELEASE' target property instead")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endmacro()
-
-#
 # ov_add_compiler_flags(<flag1 [flag2 flag3 ...>])
 #
 # Adds compiler flags to C / C++ sources
@@ -233,11 +218,6 @@ macro(ov_add_compiler_flags)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
     endforeach()
-endmacro()
-
-macro(ie_add_compiler_flags)
-    message(WARNING "'ie_add_compiler_flags' is deprecated, use 'ov_add_compiler_flags' instead")
-    ov_add_compiler_flags(${ARGN})
 endmacro()
 
 #

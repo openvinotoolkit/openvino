@@ -65,9 +65,9 @@ EleutherAI/pythia-6.9b,gpt_neox
 facebook/bart-large-mnli,bart
 facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
-facebook/dinov2-base,dinov2,skip,Load problem
+facebook/dinov2-base,dinov2
 facebook/dpr-question_encoder-single-nq-base,dpr
-facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
+facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
@@ -168,7 +168,7 @@ HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
 huggingface/autoformer-tourism-monthly,autoformer,skip,Load problem
 huggingface/informer-tourism-monthly,informer,skip,Load problem
 huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip,Load problem
-HuggingFaceM4/tiny-random-idefics,idefics,skip,Load problem
+HuggingFaceM4/tiny-random-idefics,idefics,xfail,tracing error: Please check correctness of provided example_input (eval was correct but trace failed with incommatible tuples and tensors)
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
@@ -243,23 +243,23 @@ microsoft/conditional-detr-resnet-50,conditional_detr
 microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
-microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
+microsoft/layoutlmv2-base-uncased,layoutlmv2,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
-microsoft/speecht5_tts,speecht5,skip,Load problem
+microsoft/speecht5_tts,speecht5,xfail,Tracing error: hangs with no error (probably because of infinite while inside generate)
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
-microsoft/xclip-base-patch32,xclip,skip,Load problem
+microsoft/xclip-base-patch32,xclip
 microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
-MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
+MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer
 Mizuiro-sakura/luke-japanese-large-sentiment-analysis-wrime,luke
 mlml-chip/thyme2_colon_e2e,cnlpt,skip,Load problem
-mnaylor/mega-base-wikitext,mega,skip,Load problem
+mnaylor/mega-base-wikitext,mega,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 mohitsha/tiny-random-testing-bert2gpt2,encoder-decoder
 MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,deberta-v2
 MoritzLaurer/ernie-m-large-mnli-xnli,ernie_m
@@ -267,7 +267,7 @@ mrm8488/prunebert-base-uncased-finepruned-topK-squadv2,masked_bert,skip,Load pro
 muditb/headline_classifier,BertModel,skip,Load problem
 nanashi161382/clip-text-deprojector,clip_text_deprojector_model,skip,Load problem
 nateraw/vit-age-classifier,vit
-naver-clova-ocr/bros-base-uncased,bros,skip,Load problem
+naver-clova-ocr/bros-base-uncased,bros
 navervision/CompoDiff-Aesthetic,CompoDiff,skip,Load problem
 navervision/KELIP,kelip,skip,Load problem
 NCAI/NCAI-BERT,lean_albert,skip,Load problem
@@ -292,7 +292,7 @@ openai/jukebox-1b-lyrics,jukebox,skip,Load problem
 openai/whisper-medium,whisper,skip,Load problem
 openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
-openmmlab/upernet-convnext-small,upernet,skip,Load problem
+openmmlab/upernet-convnext-small,upernet
 openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
 OpenVINO/opt-125m-gptq,opt
 PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
@@ -317,7 +317,7 @@ sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
 Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
-Salesforce/blip-image-captioning-large,blip,skip,Load problem
+Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta
 sanchit-gandhi/enhanced_direct_s2st_en_to_es,speech-to-speech,skip,Load problem
@@ -325,7 +325,7 @@ sciki/finetune_tinybert,finetune-tinybert,skip,Load problem
 sebastian-hofstaetter/colbert-distilbert-margin_mse-T2-msmarco,ColBERT,skip,Load problem
 sebastian-hofstaetter/distilbert-cat-margin_mse-T2-msmarco,BERT_Cat,skip,Load problem
 sebastian-hofstaetter/idcm-distilbert-msmarco_doc,IDCM,skip,Load problem
-SenseTime/deformable-detr,deformable_detr,skip,Load problem
+SenseTime/deformable-detr,deformable_detr,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 shahules786/Reward-model-gptneox-410M,rm_gptneox_config,skip,Load problem
 shauray/Llava-Llama-2-7B-hf,llavallama,skip,Load problem
 shauray/ViTPose,vitpose,skip,Load problem
@@ -335,7 +335,7 @@ shikhartuli/flexibert-mini,flexibert,skip,Load problem
 shikras/shikra-7b-delta-v1-0708,shikra,skip,Load problem
 shi-labs/dinat-mini-in1k-224,dinat,xfail,Accuracy validation failed
 shi-labs/nat-mini-in1k-224,nat,xfail,Accuracy validation failed
-shi-labs/oneformer_ade20k_swin_large,oneformer,skip,Load problem
+shi-labs/oneformer_ade20k_swin_large,oneformer,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 shuqi/seed-encoder,seed_encoder,skip,Load problem
 sijunhe/nezha-cn-base,nezha
 sjiang1/codecse,roberta_for_cl,skip,Load problem

@@ -7,10 +7,12 @@
 #include <queue>
 #include <memory>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -183,12 +185,12 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
 }
 
 std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& reshape) {
-    auto constant = makeConstant(ov::element::i64, Shape({ reshape.values.size() }), reshape.values);
+    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ reshape.values.size() }), reshape.values);
     return std::make_shared<ov::opset1::Reshape>(data, constant->output(0), reshape.special_zero);
 }
 
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& transpose) {
-    auto constant = makeConstant(ov::element::i64, Shape({ transpose.values.size() }), transpose.values);
+    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ transpose.values.size() }), transpose.values);
     return std::make_shared<ov::opset1::Transpose>(data, constant->output(0));
 }
 
@@ -196,7 +198,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ov::element::Type constantType,
     const FakeQuantizeOnData& fqOnData) {
-    return ov::as_type_ptr<ov::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    return ov::as_type_ptr<ov::opset1::FakeQuantize>(ov::test::utils::make_fake_quantize(
         output,
         constantType,
         fqOnData.quantizationLevel,
@@ -256,7 +258,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     std::shared_ptr<Node> inputHighNode;
 
     if (subgraphOnConstantPath) {
-        const auto topConstant = ngraph::builder::makeConstant(constantPrecision, ov::Shape{1}, std::vector<float>(1, 0.f), false);
+        const auto topConstant = ov::test::utils::deprecated::make_constant(constantPrecision, ov::Shape{1}, std::vector<float>(1, 0.f), false);
         const auto convert = std::make_shared<ov::opset1::Convert>(topConstant, element::f32);
 
         const auto subtractMin = std::make_shared<ov::opset1::Subtract>(
@@ -279,7 +281,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
                 std::vector<float>{fqOnData.inputHighValues[0] / fqOnData.outputHighValues[0]}),
             subtractMax);
     } else {
-        inputLowNode = ngraph::builder::makeConstant(
+        inputLowNode = ov::test::utils::deprecated::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ? ov::Shape{} : fqOnData.constantShapes[0],
             fqOnData.inputLowValues,
@@ -288,7 +290,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
             inputLowNode = std::make_shared<ov::op::v0::Convert>(inputLowNode, ov::element::f32);
         }
 
-        inputHighNode = ngraph::builder::makeConstant(
+        inputHighNode = ov::test::utils::deprecated::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ?
                 ov::Shape{} :
@@ -300,7 +302,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
         }
     }
 
-    auto outputLowNode = ngraph::builder::makeConstant(
+    auto outputLowNode = ov::test::utils::deprecated::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
@@ -311,7 +313,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
         outputLowNode = std::make_shared<ov::op::v0::Convert>(outputLowNode, ov::element::f32);
     }
 
-    auto outputHighNode = ngraph::builder::makeConstant(
+    auto outputHighNode = ov::test::utils::deprecated::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
@@ -367,7 +369,7 @@ std::shared_ptr<Node> makeConvolution(
     if (weightsWithoutFQ) {
         weights = std::make_shared<ov::opset1::Constant>(weightsprecision, shape, std::vector<int>(ov::shape_size(shape), 100));
     } else {
-        weights = ngraph::builder::makeFakeQuantize(
+        weights = ov::test::utils::make_fake_quantize(
             std::make_shared<ov::opset1::Constant>(precision, shape, std::vector<float>(ov::shape_size(shape), 1.f)),
             precision,
             255,
