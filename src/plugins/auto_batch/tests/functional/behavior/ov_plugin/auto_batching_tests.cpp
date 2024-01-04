@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "auto_batching_tests.hpp"
+
+#include "behavior/plugin/auto_batching_tests.hpp"
 
 #include "behavior/plugin/configuration_tests.hpp"
-#include "openvino/runtime/properties.hpp"
 
 using namespace AutoBatchingTests;
 using namespace BehaviorTestsDefinitions;
@@ -48,12 +48,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_string,
                                                                                InferenceEngine::Parameter{"1000"}})),
                          DefaultConfigurationTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_uint,
-                         DefaultConfigurationTest,
-                         ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                              ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                                               InferenceEngine::Parameter{uint32_t(1000)}})),
-                         DefaultConfigurationTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AutoBatching_test_uint,
+    DefaultConfigurationTest,
+    ::testing::Combine(
+        ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_TEMPLATE),
+        ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(), InferenceEngine::Parameter{uint32_t(1000)}})),
+    DefaultConfigurationTest::getTestCaseName);
 
 }  // namespace
