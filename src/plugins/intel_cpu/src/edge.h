@@ -9,7 +9,6 @@
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
 
-#include <map>
 #include <memory>
 #include <vector>
 
