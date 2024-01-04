@@ -1422,8 +1422,8 @@ void Graph::CreateEdge(const NodePtr& parent,
                        int childPort) {
     assert(parentPort >= 0 && childPort >= 0);
     assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
-                       [&childPort](const EdgePtr& edge){
-                           return edge->getOutputNum() == childPort;
+                       [&childPort](const EdgeWeakPtr& edge){
+                           return edge.lock()->getOutputNum() == childPort;
                        }));
 
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
@@ -1440,7 +1440,7 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
 
 void Graph::AddNode(NodePtr node) {
     assert(node);
-    assert(std::none_of(graphNodes.begin(), graphNodes.end(), node));
+    assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
 
     graphNodes.push_back(node);
 }
