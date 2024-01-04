@@ -6,7 +6,6 @@
 
 #include "core/graph.hpp"
 #include "core/model.hpp"
-#include "ngraph/log.hpp"
 
 namespace ngraph {
 namespace onnx_import {

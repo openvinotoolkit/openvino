@@ -169,11 +169,20 @@ public:
 
     virtual ~Node() = default;
 
-    void addEdge(const EdgeWeakPtr& edge);
-    void removeEdge(const EdgeWeakPtr& edge);
+    // @todo the method is used when graph is "preconstructed" before creation of the actual graph object
+    // remove, as soon edges are added via Graph interface exclusively
+    static void addEdge(const EdgeWeakPtr& edge);
 
     virtual void cleanup();
     void remove();
+
+    void addParentEdge(const EdgeWeakPtr& edge) {
+        parentEdges.push_back(edge);
+    }
+
+    void addChildEdge(const EdgeWeakPtr& edge) {
+        childEdges.push_back(edge);
+    }
 
     const std::vector<EdgeWeakPtr> &getParentEdges() const noexcept {
         return parentEdges;

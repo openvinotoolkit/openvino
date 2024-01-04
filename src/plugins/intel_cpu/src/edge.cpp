@@ -5,7 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include "nodes/input.h"
 
 using namespace dnnl;
 namespace ov {
@@ -53,16 +52,16 @@ bool Edge::isDropped() const {
 }
 
 void Edge::drop() {
-    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
-
-        if (myself != list.end())
-            list.erase(myself);
+    auto dropFrom = [] (const Edge* edge, std::vector<EdgeWeakPtr> &edges) {
+        edges.erase(std::remove_if(edges.begin(), edges.end(),
+                                   [&edge] (EdgeWeakPtr _edge) {
+                                       return _edge.lock().get() == edge;
+                                   }),
+                    edges.end());
     };
 
-    _drop_from(getParent()->childEdges);
-    _drop_from(getChild()->parentEdges);
+    dropFrom(this, getParent()->childEdges);
+    dropFrom(this, getChild()->parentEdges);
 }
 
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
