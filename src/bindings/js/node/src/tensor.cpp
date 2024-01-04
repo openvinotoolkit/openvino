@@ -47,18 +47,6 @@ Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type)});
 }
 
-Napi::Object TensorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->tensor_prototype = ref;
-
-    exports.Set("Tensor", prototype);
-    return exports;
-}
-
 ov::Tensor TensorWrap::get_tensor() const {
     return this->_tensor;
 }
@@ -68,7 +56,7 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
-    const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
+    const auto prototype = env.GetInstanceData<AddonData>()->tensor;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");
     }

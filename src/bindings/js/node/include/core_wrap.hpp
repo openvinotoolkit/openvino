@@ -4,6 +4,7 @@
 #pragma once
 
 #include <napi.h>
+
 #include <thread>
 
 #include "async_reader.hpp"
@@ -23,10 +24,6 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript Core class.
      */
     static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Core class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     /**
      * @brief Reads a model synchronously.

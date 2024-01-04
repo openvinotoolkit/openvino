@@ -28,7 +28,7 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 
 Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
+    const auto prototype = env.GetInstanceData<AddonData>()->model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }

@@ -21,18 +21,6 @@ Napi::Function CoreWrap::get_class_constructor(Napi::Env env) {
                        });
 }
 
-Napi::Object CoreWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->core_prototype = ref;
-
-    exports.Set("Core", prototype);
-    return exports;
-}
-
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
     try {
         ReadModelArgs* args;
@@ -66,7 +54,7 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::Object& model,
                                          const Napi::String& device) {
-    const auto model_prototype = info.Env().GetInstanceData<AddonData>()->model_prototype;
+    const auto model_prototype = info.Env().GetInstanceData<AddonData>()->model;
     if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
         const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);

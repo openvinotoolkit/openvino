@@ -22,10 +22,6 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript PartialShape class.
      */
     static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino node-addon.
-     * It exports JavaScript PartialShape class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
 
     /**
      * @brief Creates JavaScript PartialShape object and wraps inside of it ov::PartialShape object.

@@ -36,11 +36,6 @@ public:
      */
     static Napi::Function get_class_constructor(Napi::Env env);
 
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Tensor class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
-
     ov::Tensor get_tensor() const;
     void set_tensor(const ov::Tensor& tensor);
     /**

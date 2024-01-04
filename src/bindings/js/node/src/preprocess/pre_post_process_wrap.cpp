@@ -30,7 +30,7 @@ Napi::Object PrePostProcessorWrap::init(Napi::Env env, Napi::Object exports) {
     const auto ref = new Napi::FunctionReference();
     *ref = Napi::Persistent(prototype);
     const auto data = env.GetInstanceData<AddonData>();
-    data->ppp_prototype = ref;
+    data->ppp= ref;
 
     exports.Set("PrePostProcessor", prototype);
     return exports;

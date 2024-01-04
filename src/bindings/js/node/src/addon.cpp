@@ -16,13 +16,11 @@
 #include "preprocess/preprocess.hpp"
 #include "tensor.hpp"
 
-typedef Napi::Function (*Prototype)(Napi::Env);
-
-void reg_class(Napi::Env env,
-               Napi::Object exports,
-               std::string class_name,
-               Prototype func,
-               Napi::FunctionReference* reference) {
+void init_class(Napi::Env env,
+                Napi::Object exports,
+                std::string class_name,
+                Prototype func,
+                Napi::FunctionReference* reference) {
     const auto& prototype = func(env);
 
     *reference = Napi::Persistent(prototype);
@@ -34,18 +32,18 @@ Napi::Object init_all(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();
     env.SetInstanceData<AddonData>(addon_data);
 
-    reg_class(env, exports, "Model", &ModelWrap::get_class_constructor, addon_data->model_prototype);
-    CoreWrap::init(env, exports);
-    CompiledModelWrap::init(env, exports);
-    InferRequestWrap::init(env, exports);
-    TensorWrap::init(env, exports);
-    Output<const ov::Node>::init(env, exports);
-    Output<ov::Node>::init(env, exports);
-    PartialShapeWrap::init(env, exports);
-    
+    init_class(env, exports, "Model", &ModelWrap::get_class_constructor, addon_data->model);
+    init_class(env, exports, "Core", &CoreWrap::get_class_constructor, addon_data->core);
+    init_class(env, exports, "CompiledModel", &CompiledModelWrap::get_class_constructor, addon_data->compiled_model);
+    init_class(env, exports, "InferRequest", &InferRequestWrap::get_class_constructor, addon_data->infer_request);
+    init_class(env, exports, "Tensor", &TensorWrap::get_class_constructor, addon_data->tensor);
+    init_class(env, exports, "Output", &Output<ov::Node>::get_class_constructor, addon_data->output);
+    init_class(env, exports, "ConstOutput", &Output<const ov::Node>::get_class_constructor, addon_data->const_output);
+    init_class(env, exports, "PartialShape", &PartialShapeWrap::get_class_constructor, addon_data->partial_shape);
+
     preprocess::init(env, exports);
     element::init(env, exports);
-    
+
     return exports;
 }
 

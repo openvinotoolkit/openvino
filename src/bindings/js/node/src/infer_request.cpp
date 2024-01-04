@@ -35,25 +35,13 @@ Napi::Function InferRequestWrap::get_class_constructor(Napi::Env env) {
                        });
 }
 
-Napi::Object InferRequestWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->infer_request_prototype = ref;
-
-    exports.Set("InferRequest", prototype);
-    return exports;
-}
-
 void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) {
     _infer_request = infer_request;
 }
 
 Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->infer_request_prototype;
+    const auto prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");
     }
