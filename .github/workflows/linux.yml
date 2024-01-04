@@ -300,7 +300,7 @@ jobs:
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
 
   Conformance:
     needs: [ Build, Smart_CI ]
