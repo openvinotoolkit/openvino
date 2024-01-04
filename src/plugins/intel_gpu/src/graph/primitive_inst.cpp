@@ -508,7 +508,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0] && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0]
+            && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
         _outputs[0] = nullptr;
         max_output_layout_size = 0;
     }
@@ -918,6 +919,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 void primitive_inst::do_runtime_skip_gather() {
     // Check pattern
     if (!get_node().is_type<gather>()
+        || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
@@ -930,8 +932,15 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_shape = _impl_params->get_input_layout(1).get_shape();
     auto idx_rank = idx_shape.size();
 
-    if (idx_rank > 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_shape.size() << std::endl;
+    if (_impl_params->get_input_layout(0).count() == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+
+    if (idx_rank != 1) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
+        set_can_be_optimized(false);
         return;
     }
 
@@ -1052,12 +1061,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
-        // Check successor reorder if layouts are same
-        // Need to set can_be_optimized for user reorder at predecessor because
-        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
-        do_runtime_skip_reorder();
-        do_runtime_skip_gather();
         do_runtime_in_place_kv_cache();
+
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
@@ -1083,6 +1088,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             update_shape_done_by_other = false; // reset
             return ev;
         }
+
+        // Check successor reorder if layouts are same
+        // Need to set can_be_optimized for user reorder at predecessor because
+        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
+        do_runtime_skip_reorder();
+        do_runtime_skip_gather();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));

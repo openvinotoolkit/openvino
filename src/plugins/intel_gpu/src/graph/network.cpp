@@ -731,6 +731,10 @@ void network::allocate_primitives() {
     for (auto const& node : po) {
         if (node->can_be_optimized() && !node->is_dynamic()) {
             auto opt_inst = _primitives.at(node->id());
+            // build deps when prim_inst does not update dependencies yet.
+            if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
+                opt_inst->build_deps();
+            }
             opt_inst->update_output_memory();
         }
     }
