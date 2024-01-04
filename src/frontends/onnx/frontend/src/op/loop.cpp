@@ -45,7 +45,7 @@ OutputVector loop(const Node& node) {
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_outputs = body_graph->get_ov_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
     // Infer loop body inputs' element type based on carried dependencies
