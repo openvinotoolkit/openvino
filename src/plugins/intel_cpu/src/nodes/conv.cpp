@@ -374,8 +374,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     priorities.erase(std::remove_if(priorities.begin(),
                                     priorities.end(),
                                     [](impl_desc_type type) {
-                                        return !isBrgConvAvailable() && (type == impl_desc_type::brgconv_avx2_1x1 ||
-                                                                         type == impl_desc_type::brgconv_avx2);
+                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
                                     }),
                      priorities.end());
 

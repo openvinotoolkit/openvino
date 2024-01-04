@@ -2199,7 +2199,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
-    if (!mayiuse(avx512_core) && !mayiuse(avx2_vnni_2)) {
+    if (!hasHardwareSupport(ov::element::bf16)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == ov::element::bf16)
