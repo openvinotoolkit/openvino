@@ -3,6 +3,7 @@
 //
 
 #include "core/graph_cache.hpp"
+
 #include "openvino/core/except.hpp"
 
 namespace ngraph {
