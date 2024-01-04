@@ -9,8 +9,11 @@
 
 namespace ov {
 namespace test {
-// Subgraph:
+//  These tests are designed for correctness of reshape's in-place implementation.
 /*
+ * Case 1:
+ * Subgraph
+ *
  *         params[0]   params[1]
  *             |          |
  * constant  shapeOf     /
@@ -22,7 +25,7 @@ namespace test {
  *                |
  *              result
  *
- *  This test is designed for correctness of reshape's in-place implementation.
+ 
  *
  *  Due to non-const target shape parameter (params[1]), reshape node
  *  is non-constant node even though the input tensor is constant node.
@@ -81,5 +84,52 @@ protected:
 TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantCheck) {
     run();
 }
+
+/* Case 2:
+ * Subgraph
+ *
+ *         params[0]   params[1]
+ *                \     /
+ *                 \   /
+ *                  add----result1
+ *                   |
+ *                reshape
+ *                   |
+ *                  MVN
+ *                   |
+ *                result2
+ *
+ *  If parent of reshape have more than one edges, reshape in place should be not applicable.
+ *  This is becuase multiple branches could change data on the same port, then pollute result each other.
+ */
+
+class InPlaceReshapeShareInputCheck : public SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        const auto rtPrc = ov::element::f32;
+        const ov::Shape inpShape = {1, 8, 16, 16};
+        targetStaticShapes = {{inpShape, inpShape}};
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape),
+                                   std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape)};
+        auto add = std::make_shared<ov::op::v1::Add>(params[0], params[1]);
+        auto res0 = std::make_shared<ov::op::v0::Result>(add);
+        std::vector<int> newShape = {1, 2, 64, 16};
+        auto targetShape = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(add, targetShape, false);
+        auto mvn = std::make_shared<ov::op::v6::MVN>(reshape,
+                                                     ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {2, 3}),
+                                                     true,
+                                                     0.1,
+                                                     ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto res1 = std::make_shared<ov::op::v0::Result>(mvn);
+        function = std::make_shared<ov::Model>(ov::ResultVector{res0, res1}, params, "reshape_share_input_check");
+    }
+};
+
+TEST_F(InPlaceReshapeShareInputCheck, smoke_CPU_InPlaceReshapeShareInputCheck) {
+    run();
+}
+
 }  // namespace test
 }  // namespace ov
