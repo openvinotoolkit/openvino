@@ -294,52 +294,13 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
-    name: JS API
+    name: OpenVINO JS API
     needs: [ Build, Smart_CI ]
-    defaults:
-      run:
-        shell: bash
-    runs-on: 'aks-linux-4-cores-16gb'
-    container:
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-    env:
-      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
-      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
-      NODE_VERSION: 18
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-
-    steps:
-      - name: Fetch OpenVINO JS sources
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            src/bindings/js
-          path: 'openvino'
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js" >> "$GITHUB_ENV"
-          echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
-
-      - name: Download OpenVINO js package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_js_package
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
-
-      - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Configure OpenVINO JS
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
-        run: npm i
-
-      - name: Test OpenVINO JS
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
-        run: npm test
+    uses: ./.github/workflows/job_openvino_js.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
 
   Conformance:
     needs: [ Build, Smart_CI ]
