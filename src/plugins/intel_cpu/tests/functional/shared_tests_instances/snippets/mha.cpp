@@ -5,6 +5,7 @@
 #include "snippets/mha.hpp"
 
 #include "common_test_utils/test_constants.hpp"
+#include "internal_properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 namespace ov {
@@ -44,9 +45,7 @@ static inline std::vector<std::vector<element::Type>> precision_bf16(size_t coun
 }
 
 static ov::AnyMap enable_callback() {
-    return ov::AnyMap({
-        {"SNIPPETS_MODE", "ENABLE"},
-    });
+    return ov::AnyMap({ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::ENABLE)});
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
