@@ -37,6 +37,11 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 
+#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "common/primitive_desc_iface.hpp"
+#endif
+
 #include "openvino/runtime/memory_solver.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
