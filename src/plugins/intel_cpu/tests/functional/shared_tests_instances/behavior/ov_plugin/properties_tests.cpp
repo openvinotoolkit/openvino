@@ -3,11 +3,9 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-
-#include <openvino/runtime/auto/properties.hpp>
+#include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 
@@ -15,16 +13,64 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCommon,
                          OVBasicPropertiesTestsP,
                          ::testing::Values(std::make_pair("openvino_intel_cpu_plugin", "CPU")));
 
-const std::vector<ov::AnyMap> cpu_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+auto cpu_properties = []() -> std::vector<ov::AnyMap> {
+    std::vector<ov::AnyMap> properties = {
+        {},
+        {ov::enable_profiling(true)},
+        {ov::enable_profiling(false)},
+        {ov::internal::exclusive_async_requests(true)},
+        {ov::internal::exclusive_async_requests(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(1)}},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::num_streams(ov::streams::AUTO)},
+        {ov::num_streams(8)},
+        // check that hints doesn't override customer value (now for streams and later for other config opts)
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
+    };
+#if (defined(__APPLE__) || defined(_WIN32))
+    auto numa_nodes = ov::get_available_numa_nodes();
+    auto core_types = ov::get_available_cores_types();
+    if (core_types.size() > 1) {
+        properties.push_back({{ov::internal::cpu_bind_thread.name(), "HYBRID_AWARE"}});
+    } else if (numa_nodes.size() > 1) {
+        properties.push_back({{ov::internal::cpu_bind_thread.name(), "NUMA"}});
+        properties.push_back({ov::num_streams(ov::streams::NUMA)});
+    } else {
+        properties.push_back({{ov::internal::cpu_bind_thread.name(), "NO"}});
+    }
+#else
+    auto core_types = ov::get_available_cores_types();
+    if (core_types.size() > 1) {
+        properties.push_back({{ov::internal::cpu_bind_thread.name(), "HYBRID_AWARE"}});
+    } else {
+        properties.push_back({{ov::internal::cpu_bind_thread.name(), "YES"}});
+    }
+#endif
+    return properties;
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(cpu_properties)),
+                                            ::testing::ValuesIn(cpu_properties())),
                          OVPropertiesTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> cpu_inproperties = {
+    {{ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY), {ov::hint::num_requests(-1)}},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     {ov::hint::num_requests.name(), "should be int"}},
+    {{ov::num_streams.name(), "OFF"}},
+    {{ov::internal::cpu_bind_thread.name(), "OFF"}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesIncorrectTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(cpu_inproperties)),
+                         OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> cpu_setcore_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),

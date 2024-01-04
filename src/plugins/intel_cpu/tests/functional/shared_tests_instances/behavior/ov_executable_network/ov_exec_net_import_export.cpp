@@ -3,8 +3,7 @@
 //
 #include "behavior/compiled_model/import_export.hpp"
 
-#include "ie_plugin_config.hpp"
-#include <common_test_utils/test_constants.hpp>
+#include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::behavior;
 namespace {

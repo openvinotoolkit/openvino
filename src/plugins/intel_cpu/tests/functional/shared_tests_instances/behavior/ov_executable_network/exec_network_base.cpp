@@ -3,7 +3,6 @@
 //
 
 #include "behavior/compiled_model/compiled_model_base.hpp"
-#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 namespace {
@@ -39,15 +38,4 @@ namespace {
                                      ::testing::ValuesIn(heteroConfigs)),
                              OVCompiledModelBaseTestOptional::getTestCaseName);
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::U8,
-            InferenceEngine::Precision::I16,
-            InferenceEngine::Precision::U16
-    };
-
-    const std::vector<ov::AnyMap> configSetPrc = {
-            {},
-            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
-    };
 }  // namespace

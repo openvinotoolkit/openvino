@@ -712,6 +712,10 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
             }
         }
         return res;
+    } else if (name == ov::internal::exclusive_async_requests.name()) {
+        return engConfig.exclusiveAsyncRequests;
+    } else if (name == ov::internal::cpu_bind_thread.name()) {
+        return engConfig.streamExecutorConfig._threadBindingType;
     }
     return get_ro_property(name, options);
 }
