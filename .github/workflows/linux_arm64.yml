@@ -223,10 +223,15 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ 'false' }} # 128446
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+          if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
-          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+          cmake \
+            -DCPACK_GENERATOR=NPM \
+            -DENABLE_SYSTEM_TBB=OFF -UTBB* \
+            -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_MLAS_FOR_CPU=ON \
+            -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           
           cmake --build ${BUILD_DIR} --parallel
           
@@ -298,8 +303,7 @@ jobs:
   JS_API:
     name: OpenVINO JS API
     needs: [ Build, Smart_CI ]
-    if: ${{ 'false' }} # 128446
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-16-cores-arm'
