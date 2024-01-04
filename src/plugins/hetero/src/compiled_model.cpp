@@ -42,9 +42,9 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
     // in some cases topology split is happening after constant subgraph.
     // It may cause replacement of Constant by Parameter in such operations
     // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
-    ov::pass::Manager manager;
+    /*ov::pass::Manager manager;
     manager.register_pass<ov::pass::ConstantFolding>();
-    manager.run_passes(model);
+    manager.run_passes(model);*/
 
     ov::SupportedOpsMap query_model_result;
     bool user_set_affinities = false;
