@@ -105,12 +105,8 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
-        std::vector<float> new_state_data;
-        for (int i = 0; i < element_count; i++) {
-            new_state_data.push_back(new_state_val);
-        }
-        ov::Tensor state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
-        std::memcpy(state_tensor.data(), new_state_data.data(), element_count * sizeof(float));
+        auto state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        std::fill_n(state_tensor.data<float>(), element_count, new_state_val);
         state.set_state(state_tensor);
     }
 
