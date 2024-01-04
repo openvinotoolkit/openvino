@@ -10,6 +10,7 @@
 
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -53,6 +54,68 @@ void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
         }
         ASSERT_EQ(expSize, actSize);
         ov::test::utils::compare(expected, actual, 1e-2f, relThreshold);
+}
+
+void compare(const std::shared_ptr<ov::op::v9::GenerateProposals> &node,
+             size_t port,
+             const ov::Tensor &expected,
+             const ov::Tensor &actual,
+             double absThreshold,
+             double relThreshold) {
+    // if (targetDevice != ov::test::utils::DEVICE_GPU) {
+    //     ov::test::utils::compare(expected, actual);
+    //     return;
+    // }
+
+    const auto outputsNum = expected.get_size();
+    ASSERT_EQ(outputsNum, 3);
+    ASSERT_EQ(outputsNum, actual.get_size());
+
+    //actual outputs 0 (rois) and 1 (roi_scores) may be padded with zeros
+    if (port < 2) {
+        const auto expectedNumRois = expected.get_shape()[0];
+        const auto actualNumRois = actual.get_shape()[0];
+        ASSERT_LE(expectedNumRois, actualNumRois);
+
+        const auto actualBuffer = static_cast<uint8_t*>(actual.data());
+        const auto expectedBuffer = static_cast<uint8_t*>(expected.data());
+        const auto outputSize = port == 0 ? 4 : 1;
+        auto outType = actual.get_element_type();
+
+        if (outType == ov::element::f32) {
+            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
+                                                       reinterpret_cast<const float*>(actualBuffer),
+                                                       expectedNumRois * outputSize,
+                                                       relThreshold,
+                                                       absThreshold);
+        } else {
+            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float16*>(expectedBuffer),
+                                                       reinterpret_cast<const float16*>(actualBuffer),
+                                                       expectedNumRois * outputSize,
+                                                       relThreshold,
+                                                       absThreshold);
+        }
+
+        if (expectedNumRois < actualNumRois) {
+            if (outType == ov::element::f32) {
+                const auto fBuffer = static_cast<const float*>(actual.data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == 0.0f)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << port;
+                }
+            } else {
+                const float16 zero{0};
+                const auto fBuffer = static_cast<const float16*>(actual.data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == zero)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << port;
+                }
+            }
+        }
+    } else {
+        // output 2 - rois_num
+        ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    }
 }
 
 namespace color_conversion {
