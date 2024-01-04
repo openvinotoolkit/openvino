@@ -66,11 +66,6 @@ private:
 
         ov::pass::Manager serializer;
 
-        // if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-        //     auto custom_opsets = std::make_shared<Extension>()->getOpSets();
-        //     serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "", custom_opsets);
-        // }
-
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
             std::string  xmlFile(pathAndName + ".xml");
             std::string  binFile("/dev/null"); // @todo make it crossplatform using dummy implementation of std::ostream

@@ -19,10 +19,10 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
-#include "openvino/core/extension.hpp"
 
 using namespace ov::threading;
 
@@ -386,7 +386,6 @@ using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 /**
  * @private
  */
-// using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
 using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
 
 /**

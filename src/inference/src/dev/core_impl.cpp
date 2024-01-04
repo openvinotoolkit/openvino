@@ -703,10 +703,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                // InferenceEngine::IExtensionPtr ext;
                 std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                // AddExtensionUnsafe(ext);
                 add_extensions_unsafe(ext);
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!

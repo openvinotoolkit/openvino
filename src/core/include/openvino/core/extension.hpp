@@ -28,21 +28,19 @@ public:
 
     virtual ~Extension();
 };
+}  // namespace ov
 
+#ifndef IE_CREATE_EXTENSION
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
  * @param vector of extensions
  */
-// OPENVINO_EXTENSION_C_API
-// void create_extensions(std::vector<Extension::Ptr>&);
-
-}  // namespace ov
-
-#ifndef IE_CREATE_EXTENSION
 OPENVINO_EXTENSION_C_API
 void create_extensions(std::vector<ov::Extension::Ptr>&);
+
 #    define IE_CREATE_EXTENSION create_extensions
+
 #endif
 
 /**
@@ -50,8 +48,8 @@ void create_extensions(std::vector<ov::Extension::Ptr>&);
  *
  * @param vector of extensions
  */
-#define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
-    OPENVINO_EXTENSION_C_API                                               \
-    void IE_CREATE_EXTENSION(std::vector<::ov::Extension::Ptr>& ext) { \
-        ext = extensions;                                                  \
+#define OPENVINO_CREATE_EXTENSIONS(extensions)                       \
+    OPENVINO_EXTENSION_C_API                                         \
+    void IE_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext) { \
+        ext = extensions;                                            \
     }
