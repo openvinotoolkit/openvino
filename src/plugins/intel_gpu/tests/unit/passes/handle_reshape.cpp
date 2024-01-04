@@ -283,3 +283,44 @@ TEST(handle_reshape, reshape_input_reorder) {
         ASSERT_EQ(expected, actual) << " i = " << i;
     }
 }
+
+TEST(handle_reshape, reshape_opt_out_layout_update) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { 1, 512, 30, 4 } });
+    auto weights1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 512, 512, 3, 3 } });
+    auto weights2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 512, 512, 2, 2 } });
+
+    topology topology;
+    topology.add(data("weights1", weights1));
+    topology.add(data("weights2", weights2));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(convolution("conv1", input_info("input"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false, ov::op::PadType::SAME_UPPER));
+    topology.add(activation("relu1", input_info("conv1"), activation_func::relu));
+    topology.add(pooling("pool", input_info("relu1"), pooling_mode::max, { 2, 1 }, { 2, 1 }));
+    topology.add(convolution("conv2", input_info("pool"), "weights2", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false, ov::op::PadType::SAME_UPPER));
+    topology.add(activation("relu2", input_info("conv2"), activation_func::relu));
+    topology.add(reshape("reshape", input_info("relu2"), false, {1,512,30}, {1,512,30}));
+    topology.add(permute("permute", input_info("reshape"), { 2, 0, 1 }));
+    topology.add(reorder("reorder", input_info("permute"), format::b_fs_yx_fsv16, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<handle_reshape>(*prog);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+
+    auto reshape_layout_in = prog->get_node("reshape").get_input_layouts()[0];
+    auto reshape_layout_out = prog->get_node("reshape").get_output_layout();
+
+    // The format should have default format(bfyx) for both input/output when properly handling reshape
+    ASSERT_EQ(reshape_layout_in.format, format::bfyx);
+    ASSERT_EQ(reshape_layout_out.format, format::bfyx);
+}
