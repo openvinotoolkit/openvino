@@ -6,9 +6,14 @@
 
 #include <istream>
 
-namespace ngraph {
-namespace onnx_common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 
 bool is_valid_model(std::istream& model);
-}  // namespace onnx_common
-}  // namespace ngraph
+
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

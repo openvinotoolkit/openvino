@@ -107,8 +107,7 @@ xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test da
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
-                                      "node->get_input_partial_shape(i), autob)' failed at "
-                                      "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
+                                      "node->get_input_partial_shape(i), autob)' failed at ")
 skip_issue_39658 = pytest.mark.skip(reason="RuntimeError: Tile operation has a form that is not supported."
                                            " z should be converted to TileIE operation.")
 
