@@ -33,7 +33,7 @@ public:
                                             std::end(a),
                                             std::begin(b),
                                             std::end(b),
-                                            [](const char& cha, const char& chb) {
+                                            [](const char cha, const char chb) {
                                                 return std::tolower(cha) < std::tolower(chb);
                                             });
     }
@@ -48,7 +48,7 @@ class CaselessEq {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
         return a.size() == b.size() &&
-               std::equal(std::begin(a), std::end(a), std::begin(b), [](const char& cha, const char& chb) {
+               std::equal(std::begin(a), std::end(a), std::begin(b), [](const char cha, const char chb) {
                    return std::tolower(cha) == std::tolower(chb);
                });
     }
@@ -60,7 +60,7 @@ public:
 template <class T>
 class CaselessHash : public std::hash<T> {
 public:
-    size_t operator()(T __val) const noexcept {
+    size_t operator()(const T& __val) const noexcept {
         T lc;
         std::transform(std::begin(__val), std::end(__val), std::back_inserter(lc), [](typename T::value_type ch) {
             return std::tolower(ch);
@@ -71,15 +71,6 @@ public:
 
 template <class Key, class Value>
 using caseless_unordered_map = std::unordered_map<Key, Value, CaselessHash<Key>, CaselessEq<Key>>;
-
-template <class Key, class Value>
-using caseless_unordered_multimap = std::unordered_multimap<Key, Value, CaselessHash<Key>, CaselessEq<Key>>;
-
-template <class Key, class Value>
-using caseless_map = std::map<Key, Value, CaselessLess<Key>>;
-
-template <class Key>
-using caseless_set = std::set<Key, CaselessLess<Key>>;
 
 }   // namespace intel_cpu
 }   // namespace ov
