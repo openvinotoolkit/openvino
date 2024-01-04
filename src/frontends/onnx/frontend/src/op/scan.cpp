@@ -126,7 +126,7 @@ OutputVector import_onnx_scan(const Node& node,
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_outputs = body_graph->get_ov_outputs();
     auto body_inputs = body_graph->get_ng_parameters();
 
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
