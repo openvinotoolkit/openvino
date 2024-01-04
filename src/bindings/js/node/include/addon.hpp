@@ -11,7 +11,7 @@ struct AddonData {
     Napi::FunctionReference* core_prototype;
     Napi::FunctionReference* const_output_prototype;
     Napi::FunctionReference* infer_request_prototype;
-    Napi::FunctionReference* model_prototype;
+    Napi::FunctionReference* model_prototype = new Napi::FunctionReference();
     Napi::FunctionReference* output_prototype;
     Napi::FunctionReference* partial_shape_prototype;
     Napi::FunctionReference* ppp_prototype;
