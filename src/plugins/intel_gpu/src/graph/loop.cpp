@@ -394,6 +394,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
                             << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
             out_mem_ptr = engine.allocate_memory(sliced_layout);
+            prim->set_output_layout(sliced_layout, internal_id.idx);
         }
 
         // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
