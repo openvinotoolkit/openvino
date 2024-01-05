@@ -237,7 +237,6 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     }
     m_internal_mem_max_size = dense_internal_desc->getCurrentMemSize() / dense_internal_desc->getPrecision().size();
     m_hidden_state_max_size = mem_desc->getCurrentMemSize() / mem_desc->getPrecision().size();
-    m_max_batch_size = size_B;
 }
 
 void VariableStateKVcache::reset_impl() {

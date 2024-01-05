@@ -130,10 +130,6 @@ public:
         m_hidden_state_max_size = max_size;
     }
 
-    size_t max_batch_size() const {
-        return m_max_batch_size;
-    }
-
 private:
     //ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
@@ -145,7 +141,6 @@ private:
     MemoryPtr m_hidden_state; // beam access table
     size_t m_internal_mem_max_size = 0;
     size_t m_hidden_state_max_size = 0;
-    size_t m_max_batch_size = 0;
 
     // this desc stores the internal prc and axis permutation
     BlockedMemoryDescPtr m_dense_internal_desc;
