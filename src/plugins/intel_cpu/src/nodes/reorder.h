@@ -17,7 +17,7 @@ namespace node {
 class Reorder : public Node {
 public:
     Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    Reorder(const std::string& name, const GraphContext::CPtr context);
+    Reorder(const MemoryDesc& input, const MemoryDesc& output, const std::string& name, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -33,15 +33,15 @@ public:
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
-        this->input = input.clone();
-        inputShapes.clear();
-        inputShapes.push_back(this->input->getShape());
+    // void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
+    //     this->input = input.clone();
+    //     inputShapes.clear();
+    //     inputShapes.push_back(this->input->getShape());
 
-        this->output = output.clone();
-        outputShapes.clear();
-        outputShapes.push_back(this->output->getShape());
-    }
+    //     this->output = output.clone();
+    //     outputShapes.clear();
+    //     outputShapes.push_back(this->output->getShape());
+    // }
 
     void setSrcPermutation(const std::vector<int> & src_perm) {
         this->src_permutation = src_perm;
