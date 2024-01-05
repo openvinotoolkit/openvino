@@ -214,7 +214,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
 // reconstruct the graph.)
 TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
     auto p0 = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto p1 = std::make_shared<op::Parameter>(element::i32, PartialShape{1, Dimension::dynamic(), 3});
+    auto p1 = std::make_shared<op::Parameter>(element::i32, PartialShape{1, ov::Dimension::dynamic(), 3});
 
     auto k = std::make_shared<op::Convert>(p1, element::f32);
     auto a = std::make_shared<op::v1::Add>(p0, k);

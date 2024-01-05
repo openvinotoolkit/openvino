@@ -9,7 +9,6 @@
 #include "core/graph.hpp"
 #include "core/model.hpp"
 #include "core/transform.hpp"
-#include "ngraph/file_util.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/util/file_util.hpp"
@@ -95,7 +94,7 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    Graph graph{file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
+    Graph graph{ov::util::get_directory(ov::util::get_absolute_file_path(model_path)),
                 model_proto,
                 mmap_cache,
                 std::move(extensions)};
@@ -109,7 +108,7 @@ std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPA
                                                     ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto graph = std::make_shared<Graph>(file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
+    auto graph = std::make_shared<Graph>(ov::util::get_directory(ov::util::get_absolute_file_path(model_path)),
                                          model_proto,
                                          mmap_cache,
                                          extensions);

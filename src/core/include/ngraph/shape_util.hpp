@@ -89,7 +89,7 @@ NGRAPH_API_DEPRECATED AXIS_VALUES inject_pairs(const AXIS_VALUES& axis_values,
 
 template <>
 NGRAPH_API_DEPRECATED NGRAPH_API PartialShape
-inject_pairs(const PartialShape& shape, std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs);
+inject_pairs(const PartialShape& shape, std::vector<std::pair<size_t, ov::Dimension>> new_axis_pos_value_pairs);
 
 // Add a new value at a particular axis position
 template <typename AXIS_VALUES, typename AXIS_VALUE>

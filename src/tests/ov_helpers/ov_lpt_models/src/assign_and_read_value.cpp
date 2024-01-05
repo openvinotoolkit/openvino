@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
     add->set_friendly_name("output");
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ as_type_ptr<ov::op::Sink>(assign) };
+    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
     return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
 }
 
@@ -112,7 +112,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
     add->set_friendly_name("output");
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ as_type_ptr<ov::op::Sink>(assign) };
+    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
     return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
 }
 
@@ -178,7 +178,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
     add->set_friendly_name("output");
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ as_type_ptr<ov::op::Sink>(assign) };
+    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
     return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
 }
 

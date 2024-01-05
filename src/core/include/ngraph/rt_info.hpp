@@ -18,7 +18,6 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/core/rt_info.hpp"
 
 namespace ngraph {

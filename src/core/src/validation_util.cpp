@@ -21,6 +21,7 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
+using ov::Dimension;
 
 Strides conv_default_strides(const Node* /* node */,
                              const PartialShape& data_batch_shape,

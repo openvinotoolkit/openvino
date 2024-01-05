@@ -355,7 +355,7 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
 // Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
 std::shared_ptr<ngraph::Node> raw_mask(const Output<ngraph::Node>& mask_index,
-                                       Dimension::value_type mask_rank,
+                                       ov::Dimension::value_type mask_rank,
                                        const element::Type_t& type) {
     std::shared_ptr<ngraph::Node> mask = std::make_shared<default_opset::Convert>(mask_index, type);
     mask = std::make_shared<default_opset::Convert>(mask, type);

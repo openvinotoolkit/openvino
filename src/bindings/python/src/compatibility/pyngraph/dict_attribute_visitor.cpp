@@ -23,7 +23,7 @@ util::DictAttributeDeserializer::DictAttributeDeserializer(
 
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
     if (m_attributes.contains(name)) {
-        if (const auto& a = ngraph::as_type<
+        if (const auto& a = ov::as_type<
                 ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(
                 &adapter)) {
             std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> input_descs;
@@ -65,7 +65,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph
                 }
             }
             a->set(input_descs);
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
+        } else if (const auto& a = ov::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> output_descs;
             const py::dict& output_desc = m_attributes[name.c_str()].cast<py::dict>();
@@ -96,7 +96,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph
             }
             a->set(output_descs);
         } else if (const auto& a =
-                       ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                       ov::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
             ngraph::op::v5::Loop::SpecialBodyPorts special_body_ports;
             const py::dict& special_ports_dict = m_attributes[name.c_str()].cast<py::dict>();
             special_body_ports.body_condition_output_idx =
@@ -104,8 +104,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph
             special_body_ports.current_iteration_input_idx =
                 special_ports_dict["current_iteration_input_idx"].cast<int64_t>();
             a->set(special_body_ports);
-        } else if (const auto& a =
-                       ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
             std::string variable_id = m_attributes[name.c_str()].cast<std::string>();
             if (!m_variables.count(variable_id)) {
                 m_variables[variable_id] = std::make_shared<ngraph::Variable>(
