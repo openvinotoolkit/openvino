@@ -16,35 +16,39 @@ OutputVector translate_div_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Div"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
-    bool m_pythondiv = false;
-
-    // Check if the element type is a integer
-    if (x.get_element_type().is_integral_number()) {
+    // Check if the element type is a signed integer
+    if (x.get_element_type().is_integral_number() && x.get_element_type().is_signed()) {
         // prepare auxiliary zero constants of the same type as the inputs
-        auto zero = make_shared<v0::Constant>(element::i32, Shape{}, 0)->output(0);
-        zero = make_shared<v1::ConvertLike>(zero, x);
+        auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
 
+        // compute the modulus of x and y
         auto mod_result = make_shared<v1::Mod>(x, y);
-        auto mod_non_zero = make_shared<v1::NotEqual>(mod_result, zero);
+        // compute a mask to get positions of non-zero values of mod result
+        auto mod_non_zero = make_shared<v1::NotEqual>(mod_result, const_zero);
 
-        auto divide = make_shared<v1::Divide>(x, y, m_pythondiv);
-        auto div_is_neg = make_shared<v1::Less>(divide, zero);
+        // compute the division of x and y
+        auto divide = make_shared<v1::Divide>(x, y);
+        // compute a mask to get positions of negative values of division result
+        auto div_is_neg = make_shared<v1::Less>(divide, const_zero);
 
-        // generate a boolean mask of elements for non-zero values of Mod result and negative values of Divide result
+        // compute a boolean mask of elements for non-zero values of Mod result and negative values of Divide result
         auto mask = make_shared<v1::LogicalAnd>(mod_non_zero, div_is_neg);
 
+        // prepare auxiliary one constants of the same type as the inputs
+        auto const_one = create_same_type_const_scalar<int32_t>(x, 1);
         // add 1 to the divide result
-        auto one = make_shared<v0::Constant>(element::i32, Shape{}, 1)->output(0);
-        one = make_shared<v1::ConvertLike>(one, x);
-        auto add_result = make_shared<v1::Add>(divide, one);
+        auto add_result = make_shared<v1::Add>(divide, const_one);
 
-        // select elements based on the mask
+        // select division results based on the mask
+        // - perform floor division for non-negative values.
+        // - round negative values to the nearest zero.
         auto div = make_shared<v1::Select>(mask, add_result, divide);
         set_node_name(node.get_name(), div);
         return div->outputs();
     } else {
-        // for other cases
-        auto div = make_shared<v1::Divide>(x, y, m_pythondiv);
+        // for other cases (non-signed-integer types)
+        // compute regular division of x and y
+        auto div = make_shared<v1::Divide>(x, y);
         set_node_name(node.get_name(), div);
         return div->outputs();
     }
