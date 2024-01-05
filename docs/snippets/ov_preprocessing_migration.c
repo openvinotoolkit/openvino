@@ -145,11 +145,3 @@ int main_new() {
     return 0;
 }
 
-int main_old() {
-    {
-    //! [c_api_ppp]
-    // No preprocessing related interfaces provided by C API 1.0
-    //! [c_api_ppp]
-    }
-    return 0;
-}

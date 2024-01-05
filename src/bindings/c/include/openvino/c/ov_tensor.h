@@ -22,7 +22,7 @@
 typedef struct ov_tensor ov_tensor_t;
 
 /**
- * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
+ * @brief Constructs Tensor using element type, shape and external host ptr.
  * @ingroup ov_tensor_c_api
  * @param type Tensor element type
  * @param shape Tensor shape
