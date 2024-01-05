@@ -53,7 +53,7 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
                                                 axes);
 
     // ------ Optional inputs ------
-    if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3))) {
+    if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
         auto bias = ng_inputs.at(3);
         auto split_bias = ov::op::util::split(bias, 2, 1);
         m_map[OpInput::B] = std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
@@ -68,13 +68,13 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
             default_opset::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
             b_shape);
     }
-    if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4))) {
+    if (ng_inputs.size() > 4 && !ov::op::util::is_null(ng_inputs.at(4))) {
         m_map[OpInput::SEQ_LENGTHS] = ng_inputs.at(4);
     } else {
         m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Broadcast>(seq_length_node, batch_size_node);
     }
     // The initial value of the hidden.
-    if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5))) {
+    if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
         m_map[OpInput::INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
     } else {
         auto init_h_shape = std::make_shared<default_opset::Concat>(
