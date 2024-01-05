@@ -19,7 +19,7 @@ JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decode
 
     if (params.outputs_num == 2) {
         jit.AddConstants({
-            MakeJitConstant("SECOND_OUTPUT_EXIST", 1),
+            MakeJitConstant("LEGACY_MULTIPLE_OUTPUTS", 1),
             MakeJitConstant("N_", inp.Batch().v),
             MakeJitConstant("T_", inp.Feature().v)
         });

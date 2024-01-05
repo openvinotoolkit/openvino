@@ -42,7 +42,7 @@ JitConstants CTCGreedyDecoderKernelRef::GetJitConstants(const ctc_greedy_decoder
     auto jit = CTCGreedyDecoderKernelBase::GetJitConstants(params, dispatchData);
 
     if (params.use_multiple_outputs) {
-        jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
+        jit.AddConstant(MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1));
     }
 
     return jit;
