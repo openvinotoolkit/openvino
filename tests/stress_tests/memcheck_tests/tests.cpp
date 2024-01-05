@@ -109,7 +109,7 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
         unsigned int nireq = nstreams;
         auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
         ie_api_wrapper->load_plugin(device);
-        ie_api_wrapper->set_config(device, "THROUGHPUT_STREAMS", nstreams);
+        ie_api_wrapper->set_config(device, ov::AnyMap{ov::num_streams(nstreams)});
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(device);
         try {
