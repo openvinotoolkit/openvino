@@ -857,17 +857,11 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         return result;
     };
 
-    // 1. beam table for current pastkv
+    // 1. check beam idx if it's valid
     auto* table = beam_idx.data<int32_t>();
-    PlainTensor cur_beam_table(true);
-    cur_beam_table.resize<int32_t>({B, L0});
-    // beam table is same for both k,v state
     for (size_t i = 0; i < B; i++) {
         OPENVINO_ASSERT(static_cast<size_t>(table[i]) < B_state, "beam_idx[", i, "]=", table[i],
             " should less than batch of previous pastkv: ", B_state);
-        std::memcpy(&cur_beam_table.at<int32_t>({i}),
-                    &old_beam_table_k.at<int32_t>({static_cast<size_t>(table[i])}),
-                    sizeof(int32_t) * L0);
     }
 
     // 2. resize pastkv
@@ -893,7 +887,8 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             old_past_k = old_past_k.permute(order);
             old_past_v = old_past_v.permute(order);
             parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
-                auto b_kv = static_cast<size_t>(cur_beam_table.at<int32_t>({b, m}));
+                auto idx = static_cast<size_t>(table[b]);
+                auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
                 memcpy(&new_pastk.at<char>({b, h, m}),
                        &old_past_k.at<char>({b_kv, h, m}),
                        S * old_past_k.m_element_size);
