@@ -4,6 +4,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -176,7 +177,10 @@ public:
         const auto& indices_et = model_inputs[1].get_element_type();
         const auto& indices_shape = targetInputStaticShapes[1];
         const size_t batch_size = data_shape[0];
-        auto indices_tensor = ov::test::utils::create_and_fill_tensor(indices_et, indices_shape, batch_size, 0);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = batch_size;
+        auto indices_tensor = ov::test::utils::create_and_fill_tensor(indices_et, indices_shape, in_data);
 
         if (indices_et == ov::element::i32) {
             auto* indices_data = indices_tensor.data<int32_t>();
@@ -201,8 +205,8 @@ protected:
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
 
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "DISABLE"});
+        if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
         }
     }
 };

@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -31,9 +31,7 @@ static bool can_be_fused(const std::shared_ptr<op::util::PadBase>& pad,
     if (!node)
         return false;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto pad_value_const = ov::get_constant_from_source(pad_value_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto pad_value_const = ov::util::get_constant_from_source(pad_value_node);
     if (!pad_value_const)
         return false;
     auto pad_value = pad_value_const->cast_vector<float>()[0];

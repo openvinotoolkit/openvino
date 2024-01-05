@@ -9,9 +9,28 @@
 namespace ov {
 namespace test {
 namespace utils {
+struct InputGenerateData {
+    double start_from = 0;
+    uint32_t range = 10;
+    int32_t resolution = 1;
+    int32_t seed = 1;
+
+    InputGenerateData(double _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int32_t _seed = 1)
+        : start_from(_start_from),
+          range(_range),
+          resolution(_resolution),
+          seed(_seed){};
+};
+
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
-                                  const uint32_t range = 10,
+                                  const InputGenerateData& inGenData = InputGenerateData(0, 10, 1, 1));
+
+// Legacy impl for contrig repo
+// todo: remove this after dependent repos clean up
+ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
+                                  const ov::Shape& shape,
+                                  const uint32_t range,
                                   const double_t start_from = 0,
                                   const int32_t resolution = 1,
                                   const int seed = 1);

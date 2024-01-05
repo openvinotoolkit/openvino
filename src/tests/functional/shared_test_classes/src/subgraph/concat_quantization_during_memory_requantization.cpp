@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/concat_quantization_during_memory_requantization.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ConcatQuantDuringMemoryRequantTest::getTestCaseName(const testing::TestParamInfo<ConcatQuantDuringMemoryRequantTuple>& obj) {
@@ -38,30 +39,32 @@ namespace SubgraphTestsDefinitions {
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
 
-        auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
-        auto mem_1_read = std::make_shared<ngraph::opset3::ReadValue>(mem_1_const, "memory_1");
+        auto mem_1_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
+        auto mem_1_read = std::make_shared<ov::op::v3::ReadValue>(mem_1_const, "memory_1");
 
-        auto concat_1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_1_read, input[0] }, 1);
+        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ mem_1_read, input[0] }, 1);
         // Revert concat names to set the needed order of scale factors calculation
         concat_1->set_friendly_name("concat2");
-        auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
+        auto split_axis_op_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split_1 = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{inputSize, hiddenSize});
+        auto split_1 = std::make_shared<ov::op::v1::VariadicSplit>(concat_1, split_axis_op_1, num_split_1);
 
-        auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
+        auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
                                                                 ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
-        auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
-        auto mem_1_write = std::make_shared<ngraph::opset3::Assign>(mul, "memory_1");
+        auto mul = ov::test::utils::make_eltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mem_1_write = std::make_shared<ov::op::v3::Assign>(mul, "memory_1");
 
-        auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
-        auto mem_2_read = std::make_shared<ngraph::opset3::ReadValue>(mem_2_const, "memory_2");
+        auto mem_2_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
+        auto mem_2_read = std::make_shared<ov::op::v3::ReadValue>(mem_2_const, "memory_2");
 
-        auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_read, mul }, 1);
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ mem_2_read, mul }, 1);
         // Revert concat names to set the needed order of scale factors calculation
         concat_2->set_friendly_name("concat1");
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
-        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op, 2);
+        auto split_axis_op_2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op_2, 2);
 
-        auto mem_2_write = std::make_shared<ngraph::opset3::Assign>(split_2->output(0), "memory_2");
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
+        auto mem_2_write = std::make_shared<ov::op::v3::Assign>(split_2->output(0), "memory_2");
+        auto sigm = std::make_shared<ov::op::v0::Sigmoid>(split_2->output(1));
 
         mem_1_write->add_control_dependency(mem_1_read);
         sigm->add_control_dependency(mem_1_write);
@@ -85,20 +88,23 @@ namespace SubgraphTestsDefinitions {
 
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
 
-        auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
-        auto concat_1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_1_const, input[0] }, 1);
-        auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
+        auto mem_1_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
+        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ mem_1_const, input[0] }, 1);
 
-        auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
+        auto split_axis_op_1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto num_split_1 = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{inputSize, hiddenSize});
+        auto split_1 = std::make_shared<ov::op::v1::VariadicSplit>(concat_1, split_axis_op_1, num_split_1);
+
+        auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
                                                                 ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
-        auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto mul = ov::test::utils::make_eltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
-        auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
-        auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
-        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op, 2);
+        auto mem_2_const = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);
+        auto split_axis_op_2 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op_2, 2);
 
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
+        auto sigm = std::make_shared<ov::op::v0::Sigmoid>(split_2->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "concat_quant_during_memory_requant_nomemory");
     }

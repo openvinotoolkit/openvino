@@ -13,9 +13,9 @@ namespace LayerTestsDefinitions {
 
 using GridSampleParams = std::tuple<InferenceEngine::SizeVector,                                      // Data shape
                                     InferenceEngine::SizeVector,                                      // Grid shape
-                                    decltype(ngraph::op::v9::GridSample::Attributes::align_corners),  // Align corners
-                                    decltype(ngraph::op::v9::GridSample::Attributes::mode),           // Mode
-                                    decltype(ngraph::op::v9::GridSample::Attributes::padding_mode),   // Padding mode
+                                    decltype(ov::op::v9::GridSample::Attributes::align_corners),  // Align corners
+                                    decltype(ov::op::v9::GridSample::Attributes::mode),           // Mode
+                                    decltype(ov::op::v9::GridSample::Attributes::padding_mode),   // Padding mode
                                     InferenceEngine::Precision,                                       // Data precision
                                     InferenceEngine::Precision,                                       // Grid precision
                                     std::string>;                                                     // Device name

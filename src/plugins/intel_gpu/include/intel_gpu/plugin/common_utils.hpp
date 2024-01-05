@@ -7,6 +7,7 @@
 #include <ostream>
 #include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -101,6 +102,10 @@ inline void ForceExit() {
               << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
     std::_Exit(-1);
 }
+
+void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream);
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
 
 }  // namespace intel_gpu
 

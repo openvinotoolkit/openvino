@@ -15,6 +15,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
@@ -53,26 +54,26 @@ void OutputLayers::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
     const float k = 1.f;
-    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
         input->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
     fakeQuantizeOnActivations->set_friendly_name("fakeQuantizeOnActivations");
 
-    const auto weights = ngraph::opset1::Constant::create(
+    const auto weights = ov::op::v0::Constant::create(
         ngPrecision,
         ngraph::Shape{ inputShape[1ul], inputShape[1ul], 1ul, 1ul },
         std::vector<float>(inputShape[1ul] * inputShape[1ul], 1ul));
     weights->set_friendly_name("weights");
-    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
         weights, ngPrecision, 256ul, { 1ul },
         { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k });
     fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::opset1::Convolution>(
+    std::shared_ptr<ov::op::v1::Convolution> convolution = std::make_shared<ov::op::v1::Convolution>(
         fakeQuantizeOnActivations,
         fakeQuantizeOnWeights,
         ngraph::Strides{ 1ul, 1ul },
@@ -82,8 +83,8 @@ void OutputLayers::SetUp() {
     convolution->set_friendly_name("convolution");
 
     ngraph::ResultVector results {
-        std::make_shared<ngraph::opset1::Result>(convolution),
-        std::make_shared<ngraph::opset1::Result>(fakeQuantizeOnActivations)
+        std::make_shared<ov::op::v0::Result>(convolution),
+        std::make_shared<ov::op::v0::Result>(fakeQuantizeOnActivations)
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");

@@ -42,8 +42,8 @@ public:
           addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation) {}
 
     TestTransformationParams params;
-    ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant actual;
-    ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant expected;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant actual;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant expected;
     ov::element::Type expectedFakeQuantizeOnDataPrecision;
     std::map<ov::element::Type, ngraph::builder::subgraph::DequantizationOperations> expectedValues;
     // add not precision preserved operation to set output precision for FakeQuantize

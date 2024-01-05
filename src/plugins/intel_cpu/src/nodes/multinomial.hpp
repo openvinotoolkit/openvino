@@ -7,8 +7,7 @@
 #include <random>
 #include <string>
 
-#include "ie_common.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "node.h"
 
 namespace ov {
@@ -21,7 +20,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    std::string getPrimitiveDescriptorType() const override;
 
     bool created() const override;
 

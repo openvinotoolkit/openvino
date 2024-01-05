@@ -4,36 +4,34 @@
 
 #include "interpolate.h"
 
-#include "fake_quantize.h"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "dnnl_extension_utils.h"
 #include "eltwise.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "fake_quantize.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/static_shape.hpp"
+#include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "openvino/core/parallel.hpp"
-#include <algorithm>
-
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include "common/cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset11.hpp>
-#include <shape_inference/static_shape.hpp>
-#include <shape_inference/shape_inference.hpp>
-#include <ie_ngraph_utils.hpp>
-#include "utils/cpu_utils.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -1626,18 +1624,18 @@ bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
-inline SizeVector getBlockND(const SizeVector& shape) {
+inline VectorDims getBlockND(const VectorDims& shape) {
     int shapeRank = shape.size();
-    SizeVector blockND(shapeRank + 1, 1);
+    VectorDims blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i+1];
     }
     return blockND;
 }
 // w/hw/ncw/nchw/ncdhw to ncdhw
-inline SizeVector to5Dim(SizeVector casesDim) {
+inline VectorDims to5Dim(VectorDims casesDim) {
     size_t caseSize = casesDim.size();
-    SizeVector dim5(5, 1lu);
+    VectorDims dim5(5, 1lu);
     dim5[4] = casesDim[caseSize - 1];
     if (caseSize > 1) {
         dim5[3] = casesDim[caseSize - 2];
@@ -2426,10 +2424,10 @@ void Interpolate::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims)
     attr.set_post_ops(ops);
 }
 
-SizeVector Interpolate::getPaddedInputShape(const VectorDims &srcDims,
+VectorDims Interpolate::getPaddedInputShape(const VectorDims &srcDims,
                                                       const std::vector<int> &padBegin,
                                                       const std::vector<int> &padEnd) {
-    SizeVector paddedShape;
+    VectorDims paddedShape;
     int dataRank = srcDims.size();
     for (int i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
@@ -2481,8 +2479,8 @@ void Interpolate::execute(dnnl::stream strm) {
             int padB3 = interpAttrs.padBegin[dimSize - 2];
             int padB4 = interpAttrs.padBegin[dimSize - 1];
 
-            SizeVector inShapeBlock = getBlockND(srcDim5d);
-            SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
+            VectorDims inShapeBlock = getBlockND(srcDim5d);
+            VectorDims inShapePadBlock = getBlockND(srcDimPad5d);
 
             if (interpAttrs.layout == InterpolateLayoutType::planar) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
@@ -2841,7 +2839,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void Interpolate::InterpolateExecutorBase::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                         const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2961,7 +2959,7 @@ void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord, float scal
     }
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                                 const std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
@@ -3074,7 +3072,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const SizeVector& 
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d,
                                             const std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -3165,7 +3163,7 @@ std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float ma
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void Interpolate::InterpolateExecutorBase::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
@@ -3249,7 +3247,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     return 0.0f;
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblPillow(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];

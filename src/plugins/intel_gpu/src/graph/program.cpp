@@ -601,6 +601,9 @@ void program::pre_optimize_graph(bool is_internal) {
     // Call shape_of subgraphs markup second time to update newely added nodes after graph
     // optimization passes
     apply_opt_pass<mark_shape_of_subgraphs>(true);
+
+    // Set gathers that might be skipped at runtime as can_be_optimized.
+    apply_opt_pass<dynamic_shape_gather_opts>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -739,6 +742,47 @@ void program::add_split_outputs() {
 program::nodes_ordering& program::get_processing_order() { return processing_order; }
 
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
+
+const std::vector<primitive_id>& program::get_allocating_order(bool forced_update) {
+    if (!forced_update && allocating_order.size() > 0)
+        return allocating_order;
+
+    std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
+    auto& po = get_processing_order();
+    for (auto node : po) {
+        nodes_to_allocate.push_back(get_node_ptr(node->id()));
+    }
+
+    std::sort(nodes_to_allocate.begin(),
+            nodes_to_allocate.end(),
+            [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                    auto lhs_layout = lhs->get_output_layout();
+                    auto rhs_layout = rhs->get_output_layout();
+                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
+                        lhs_layout.set_tensor(lhs_layout.get_tensor());
+                    }
+                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
+                        rhs_layout.set_tensor(rhs_layout.get_tensor());
+                    }
+
+                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
+                        return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
+                    }
+
+                    if (rhs_layout.is_dynamic())
+                        return true;
+                    if (lhs_layout.is_dynamic())
+                        return false;
+
+                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
+            });
+
+    for (auto const& node : nodes_to_allocate) {
+        allocating_order.emplace_back(node->id());
+    }
+
+    return allocating_order;
+}
 
 void program::prepare_memory_dependencies() {
     if (!_config.get_property(ov::intel_gpu::enable_memory_pool))
@@ -1217,19 +1261,17 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
-void program::dump_program(const char* stage,
-                           bool with_full_info,
-                           std::function<bool(program_node const&)> const& filter) const {
+void program::dump_program(const char* stage, bool with_full_info) const {
     std::string path = get_dir_path(_config);
     if (path.empty() || !with_full_info) {
         return;
     }
 
     std::ofstream graph(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".graph");
-    dump_graph_init(graph, *this, filter);
+    dump_graph_init(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".info");
-    dump_graph_info(graph, *this, filter);
+    dump_graph_info(graph, *this);
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".order");
     dump_graph_processing_order(graph, *this);
@@ -1743,12 +1785,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    get_processing_order().save(ob);
+    processing_order.save(ob);
 
     {
         auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
-        for (auto& node : get_processing_order()) {
+        for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
@@ -1788,6 +1830,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << make_data(&p_info.runtime_precision, sizeof(data_types));
         ob << p_info.is_cpu;
         ob << p_info.exec_id;
+    }
+
+    ob << allocating_order.size();
+    for (auto const& node_id : allocating_order) {
+        ob << node_id;
     }
 }
 
@@ -1855,8 +1902,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+    _loaded_from_cache = true;
 
-    get_processing_order().load(ib, *this);
+    processing_order.load(ib, *this);
 
     {
         auto& kernels_cache = get_kernels_cache();
@@ -1923,5 +1971,14 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         primitive_info p_info(original_id, type_id, c_dependencies, c_users, c_fused_ids,
                               output_layout, layout_str, kernel_id, runtime_precision, is_cpu, exec_id);
         prim_info.emplace_back(p_info);
+    }
+
+    size_t allocating_order_size;
+    ib >> allocating_order_size;
+    allocating_order.clear();
+    for (size_t i = 0; i < allocating_order_size; i++) {
+        primitive_id node_id;
+        ib >> node_id;
+        allocating_order.emplace_back(node_id);
     }
 }

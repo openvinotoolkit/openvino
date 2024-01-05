@@ -1,13 +1,17 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-namespace InferenceEngine {
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
+
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -55,6 +59,15 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         x = _mm512_mask_blend_epi32(mask, nan, x);                     // Check NaN before converting back to bf16
         _mm512_mask_cvtepi32_storeu_epi16(addr, mask_addr, x);
     }
+
+    inline __m512 mm512_uni_loadu_ps(ov::float16* a) {
+        auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(a));
+        return _mm512_cvtph_ps(vec_f16);
+    }
+    inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
+        __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
+    }
 #endif
 
 #ifdef HAVE_AVX2
@@ -87,6 +100,16 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), bf16_o);
     }
 
+    inline __m256 mm256_uni_loadu_ps(ov::float16* a) {
+        auto vec_f16 = _mm_loadu_si128(reinterpret_cast<__m128i*>(a));
+        auto o = _mm256_cvtph_ps(vec_f16);
+        return o;
+    }
+    inline void mm256_uni_storeu_ps(ov::float16* a,  __m256 v) {
+        __m128i vec_f16 = _mm256_cvtps_ph(v, 0);
+        _mm_storeu_si128(reinterpret_cast<__m128i *>(a), vec_f16);
+    }
+
     inline void hsum(__m256& x) {
         __m256 y;                             // x:  0 1 2 3   4 5 6 7
         y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
@@ -101,4 +124,4 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov
