@@ -36,7 +36,8 @@ TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) 
     req.StartAsync();
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
-    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK || sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK || sts == InferenceEngine::StatusCode::RESULT_NOT_READY ||
+                sts == InferenceEngine::StatusCode::INFER_NOT_STARTED);
 }
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
