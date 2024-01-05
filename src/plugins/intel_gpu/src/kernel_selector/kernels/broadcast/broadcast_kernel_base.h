@@ -34,9 +34,10 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    JitConstants GetJitConstants(const broadcast_params& params) const;
-    static DispatchData SetDefault(const broadcast_params& params);
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    virtual JitConstants GetJitConstants(const broadcast_params& params) const;
+    virtual DispatchData SetDefault(const broadcast_params& params) const;
+    virtual KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    std::string GetInputBlockND(const broadcast_params& params) const;
 };
 }  // namespace kernel_selector

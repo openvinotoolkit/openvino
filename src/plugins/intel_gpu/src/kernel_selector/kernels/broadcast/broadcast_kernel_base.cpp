@@ -15,7 +15,7 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
     return jit;
 }
 
-BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcast_params& params) {
+BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcast_params& params) const {
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
@@ -31,7 +31,7 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
     return dispatchData;
 }
 
-static std::string GetInputBlockND(const broadcast_params& params) {
+std::string BroadcastKernelBase::GetInputBlockND(const broadcast_params& params) const {
     const auto& input = params.inputs[0];
 
     std::stringstream s;
@@ -77,7 +77,7 @@ static std::string GetInputBlockND(const broadcast_params& params) {
 }
 
 void BroadcastKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const broadcast_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
