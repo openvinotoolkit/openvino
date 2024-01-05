@@ -985,6 +985,7 @@ void primitive_inst::do_runtime_skip_permute() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_permute: " + id()));
     // Check pattern
     if (!get_node().is_type<permute>()
+        || is_output()
         || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
@@ -1015,7 +1016,7 @@ void primitive_inst::do_runtime_skip_permute() {
         set_can_be_optimized(false);
         return;
     }
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
+    std::cout << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);

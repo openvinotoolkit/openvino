@@ -38,7 +38,8 @@ void pre_dynamic_shape_opts::run(program& p) {
         });
         program_helpers::do_for_types<permute>(*node, [](permute_node& node){
             auto impl_params = node.get_kernel_impl_params();
-            if (node.has_fused_primitives() ||
+            if (node.is_output() ||
+                node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
