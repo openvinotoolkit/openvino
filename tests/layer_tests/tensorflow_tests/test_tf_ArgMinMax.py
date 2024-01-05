@@ -19,7 +19,8 @@ class TestArgMinMax(CommonTFLayerTest):
         input_shape = inputs_info['input']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['input'] = rng.integers(-8, 8, input_shape).astype(self.input_type)
+        # Because unstable sorting is chosen by default, input tensor with unrepeated elements should be generated.
+        inputs_data['input'] = rng.choice(np.product(input_shape), size=input_shape, replace=False).astype(self.input_type)
         return inputs_data
 
     def create_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type):
