@@ -292,7 +292,7 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
     // if it just initialized, its shape is equal to [tensor_array_size, 1, ..., 1]
     // otherwise, it is equal to [tensor_array_size, <element shape>]
     auto tensor_array = node.get_input(3);
-    bool dynamic_size = false;
+    bool dynamic_size = true;
 
     // reshape index to have it of [1] shape
     auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
