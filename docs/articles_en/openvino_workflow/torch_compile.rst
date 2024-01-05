@@ -20,7 +20,7 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 
 
 How to Use
-#################
+####################
 
 To use ``torch.compile``, you need to add an import statement and define one of the two available backends:
 
@@ -68,20 +68,56 @@ To use ``torch.compile``, you need to add an import statement and define one of 
          :align: center
 
 
-Environment Variables
-+++++++++++++++++++++++++++
 
-* **OPENVINO_TORCH_BACKEND_DEVICE**: enables selecting a specific hardware device to run the application. 
-  By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting 
-  this variable to GPU.0, for example, will make the application use the integrated graphics processor instead.
-* **OPENVINO_TORCH_MODEL_CACHING**: enables saving the optimized model files to a hard drive, after the first application run.
-  This makes them available for the following application executions, reducing the first-inference latency.
-  By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
-* **OPENVINO_TORCH_CACHE_DIR**: enables defining a custom directory for the model files (if model caching set to ``True``).
-  By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory. 
+Options
+++++++++++++++++++++
+
+You can use a dictionary with options for ``torch.compile`` to set the backend device, 
+enable model caching, set the cache directory etc. See the example below:
+
+.. code-block:: python
+
+   model = torch.compile(model, backend="openvino", options = {"device" : "CPU", "model_caching" : True})
+
+You can also set OpenVINO specific configuration options by adding them as a dictionary under ``config`` key in ``options``:
+
+.. code-block:: python
+
+   opts = {"device" : "CPU", "config" : {"PERFORMANCE_HINT" : "LATENCY"}}
+   model = torch.compile(model, backend="openvino", options=opts)
+
+Below is a list of available options:
+
+* ``device`` - enables selecting a specific hardware device to run the application. 
+  By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications 
+  on CPU. If you set this variable to ``GPU.0``, for example, the application will 
+  use the integrated graphics processor instead.
+* ``model_caching`` - enables saving the optimized model files to a hard drive, 
+  after the first application run. This makes them available for the following 
+  application executions, reducing the first-inference latency. By default, this 
+  variable is set to ``False``. Set it to ``True`` to enable caching.
+* ``cache_dir`` - enables defining a custom directory for the model files (if 
+  ``model_caching`` is set to ``True``). By default, the OpenVINO IR is saved 
+  in the cache sub-directory, created in the application's root directory.
+* Any OpenVINO configuration option. For details, refer to the :ref:`OpenVINO Advanced Features <openvino-advanced-features>`.
+
+.. important::
+   
+   ``device``, ``model_caching``, and ``cache_dir`` have replaced options that were available in the previous release:
+
+   .. dropdown:: Click to view the previous options.
+      
+      * ``OPENVINO_TORCH_BACKEND_DEVICE`` - enables selecting a specific hardware device to run the application. 
+        By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting 
+        this variable to ``GPU.0``, for example, will make the application use the integrated graphics processor instead.
+      * ``OPENVINO_TORCH_MODEL_CACHING``- enables saving the optimized model files to a hard drive, after the first application run.
+        This makes them available for the following application executions, reducing the first-inference latency.
+        By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
+      * ``OPENVINO_TORCH_CACHE_DIR``- enables defining a custom directory for the model files (if ``model_caching`` is set to ``True``).
+        By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory. 
 
 Windows support
-++++++++++++++++++++++++++
++++++++++++++++++++++
 
 Currently, PyTorch does not support ``torch.compile`` feature on Windows officially. However, it can be accessed by running
 the below instructions:
