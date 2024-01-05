@@ -20,6 +20,11 @@
     -DENABLE_FASTER_BUILD=ON \
     -DCPACK_GENERATOR=NPM \
     -DENABLE_SYSTEM_TBB=OFF -UTBB* \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_SAMPLES=OFF \
+    -DENABLE_WHEEL=OFF \
+    -DENABLE_PYTHON=OFF \
+    -DENABLE_INTEL_GPU=OFF \
     -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
     ..
   ```
@@ -28,18 +33,16 @@
   ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
+    -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
     -DENABLE_FASTER_BUILD=ON \
     -DCPACK_GENERATOR=NPM \
     -DENABLE_SYSTEM_TBB=OFF -UTBB* \
-    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
-    -DCMAKE_CXX_FLAGS="-Wno-deprecated -Wno-deprecated-declarations" \
-    -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
     -DENABLE_TESTS=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_WHEEL=OFF \
     -DENABLE_PYTHON=OFF \
     -DENABLE_INTEL_GPU=OFF \
-    -DENABLE_MLAS_FOR_CPU=ON \
+    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
     ..
   ```
 
