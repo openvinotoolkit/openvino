@@ -528,6 +528,13 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
 }
 
 ElementType SubgraphBaseTest::get_default_imp_precision_type(ElementType type) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return type;
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    return type;
+#endif
+#if defined(OPENVINO_ARCH_X86_64)
     const std::string key = ov::hint::inference_precision.name();
     const std::string KEY_ENFORCE_BF16 = "ENFORCE_BF16";
     // if is not float
@@ -552,7 +559,8 @@ ElementType SubgraphBaseTest::get_default_imp_precision_type(ElementType type) {
         }
     }
 
-     return type;
+    return type;
+#endif
 }
 }  // namespace test
 }  // namespace ov
