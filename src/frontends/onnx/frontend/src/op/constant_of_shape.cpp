@@ -28,7 +28,7 @@ OutputVector constant_of_shape(const onnx_import::Node& node) {
     }
     const auto& inputs = node.get_ng_inputs();
     if (inputs.size() == 0 || common::is_failsafe_node(inputs[0].get_node_shared_ptr()) ||
-        ngraph::op::is_null(inputs[0])) {
+        ov::op::util::is_null(inputs[0])) {
         return {constant_value};
     }
     return {std::make_shared<default_opset::Broadcast>(constant_value, inputs[0])};

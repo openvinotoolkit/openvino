@@ -60,7 +60,7 @@ OutputVector conv(const Node& node,
                                                              auto_pad_type);
 
     // no bias param
-    if (ngraph::op::is_null(bias)) {
+    if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();

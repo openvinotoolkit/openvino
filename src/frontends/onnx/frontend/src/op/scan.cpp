@@ -165,7 +165,7 @@ namespace set_1 {
 OutputVector scan(const Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
-    OPENVINO_ASSERT(ngraph::op::is_null(node.get_ng_inputs().at(0)),
+    OPENVINO_ASSERT(ov::op::util::is_null(node.get_ng_inputs().at(0)),
                     node.get_description(),
                     " ONNX Scan-8 `sequence_lens` input is not supported. ");
     return import_onnx_scan(node, 1, 1, "directions");

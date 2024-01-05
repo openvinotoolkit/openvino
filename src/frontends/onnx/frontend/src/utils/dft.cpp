@@ -48,7 +48,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
-    bool dft_length_provided = !ngraph::op::is_null(length);
+    bool dft_length_provided = !ov::op::util::is_null(length);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::Output<ov::Node> result;

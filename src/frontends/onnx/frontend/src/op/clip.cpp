@@ -38,7 +38,7 @@ OutputVector clip(const Node& node) {
 
     // If second input is provided, assign to min input, otherwise set lowest
     // numeric limit of data type as min input.
-    if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
+    if (inputs.size() > 1 && !ov::op::util::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -48,7 +48,7 @@ OutputVector clip(const Node& node) {
 
     // If third input is provided, assign to max input, otherwise set maximum
     // numeric limit of data type as max input.
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2))) {
+    if (inputs.size() == 3 && !ov::op::util::is_null(inputs.at(2))) {
         max = inputs.at(2);
     } else {
         OPENVINO_SUPPRESS_DEPRECATED_START

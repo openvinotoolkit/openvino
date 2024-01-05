@@ -57,7 +57,7 @@ OutputVector loop(const Node& node) {
     // optional inputs
     Output<ngraph::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
-    if (ngraph::op::is_null(ng_inputs.at(0)) ||
+    if (ov::op::util::is_null(ng_inputs.at(0)) ||
         (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
          ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
@@ -67,8 +67,8 @@ OutputVector loop(const Node& node) {
         trip_count = ng_inputs.at(0);
     }
 
-    Output<ngraph::Node> termination_cond;                           // true means that first interation should be run
-    if (ngraph::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
+    Output<ngraph::Node> termination_cond;                             // true means that first interation should be run
+    if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&

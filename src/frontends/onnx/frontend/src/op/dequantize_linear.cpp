@@ -21,7 +21,7 @@ namespace onnx_import {
 namespace op {
 namespace detail {
 std::shared_ptr<ngraph::Node> get_zero_point(const OutputVector& inputs) {
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+    if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& zero_point = inputs[2];
 
         if (zero_point.get_element_type() != element::f32) {

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <core/graph_cache.hpp>
-#include <ngraph/except.hpp>
+#include "core/graph_cache.hpp"
+
+#include "openvino/core/except.hpp"
 
 namespace ngraph {
 namespace onnx_import {
-void GraphCache::emplace_node(const std::string& name, Output<ngraph::Node>&& node) {
+void GraphCache::emplace_node(const std::string& name, Output<ov::Node>&& node) {
     m_graph_cache_map[name] = std::move(node);
 }
 
@@ -18,7 +19,7 @@ void GraphCache::remove_node(const std::string& name) {
     }
 }
 
-Output<ngraph::Node> GraphCache::get_node(const std::string& name) const {
+Output<ov::Node> GraphCache::get_node(const std::string& name) const {
     try {
         return m_graph_cache_map.at(name);
     } catch (const std::out_of_range&) {

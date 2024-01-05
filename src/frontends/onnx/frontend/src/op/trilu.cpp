@@ -25,7 +25,7 @@ OutputVector trilu(const Node& node) {
     if (rank.is_static()) {
         CHECK_VALID_NODE(node, rank.get_length() >= 2, "Trilu first input's rank must be >= 2");
     }
-    bool is_k_available = num_inputs == 2 && !ngraph::op::is_null(inputs[1]);
+    bool is_k_available = num_inputs == 2 && !ov::op::util::is_null(inputs[1]);
     if (is_k_available) {
         CHECK_VALID_NODE(node, inputs[1].get_partial_shape().compatible({}), "Trilu second input must be a scalar");
     }
