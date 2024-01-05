@@ -67,6 +67,14 @@ public:
         return m_switch_marker;
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 2,
+                                      "[TensorFlow Frontend] internal error: Switch expects two inputs");
+        auto switch_node = std::make_shared<Switch>(inputs[0], inputs[1], m_switch_marker, m_decoder);
+        switch_node->set_attrs(get_attrs());
+        return switch_node;
+    }
+
 private:
     uint32_t m_switch_marker;
 };

@@ -47,6 +47,12 @@ public:
         return m_data.as<std::vector<std::string>>()[0];
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto string_constant_node = std::make_shared<StringConstant>(m_data, m_decoder);
+        string_constant_node->set_attrs(get_attrs());
+        return string_constant_node;
+    }
+
 private:
     ov::Any m_data;
     ov::Shape m_shape;

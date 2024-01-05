@@ -48,7 +48,7 @@ public:
         return m_decoder;
     }
 
-private:
+protected:
     std::shared_ptr<DecoderBase> m_decoder;
 };
 }  // namespace tensorflow

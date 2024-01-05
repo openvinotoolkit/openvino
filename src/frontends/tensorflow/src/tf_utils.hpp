@@ -105,10 +105,12 @@ bool propagate_conditional_flow(const ov::OutputVector& ov_inputs,
 void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& copy_to);
 
 // create Loop operation corresponding to TensorFlow While operation
-std::shared_ptr<ov::op::v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
-                                                           const std::shared_ptr<ov::Model>& body_model,
-                                                           const std::shared_ptr<ov::Model>& cond_model,
-                                                           const ov::OutputVector& ov_inputs);
+std::shared_ptr<ov::op::v5::Loop> create_loop_for_tf_while(
+    const std::string& while_node_name,
+    const std::shared_ptr<ov::Model>& body_model,
+    const std::shared_ptr<ov::Model>& cond_model,
+    const ov::OutputVector& ov_inputs,
+    const std::shared_ptr<ov::Model>& prior_cond_model = nullptr);
 
 // inject a graph by given inputs and return outputs of the injected graph
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,

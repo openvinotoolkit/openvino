@@ -311,10 +311,7 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
     conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
-    all_fallback_operations = [
-        # corresponds to TF1 While operation
-        "LoopCond", "Enter", "NextIteration", "Exit", "Switch", "Merge",
-    ]
+    all_fallback_operations = []
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
         # no match for the fallback by unsupported operation
         return False
