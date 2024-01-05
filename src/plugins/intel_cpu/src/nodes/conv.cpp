@@ -122,7 +122,7 @@ public:
 
         auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
             auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
-            child->addEdge(edge);
+            Node::addEdge(edge);
             edges.push_back(edge);
             nodesSet.insert(parent);
             nodesSet.insert(child);
@@ -335,6 +335,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
         impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
         impl_desc_type::brgconv_avx512_amx_1x1,
         impl_desc_type::brgconv_avx512_amx,
         impl_desc_type::jit_avx512_amx_dw,
@@ -1542,7 +1543,28 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getOutputShapeAtPort(0));
+        // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just change
+        // ranged min value to 1 to meet this case.
+        // For example:
+        // Output shape = {1, 160, {128, 256}, {128, 256}}
+        // Sum input shape = {1, 160, 1, 1}
+        // Update sum shape to {1, 160, {1, 256}, {1, 256}}
+        auto shape = getOutputShapeAtPort(0);
+        auto sumShape = getInputShapeAtPort(getParentEdges().size() - 1);
+        Shape finalShape = shape;
+        if (shape.getRank() == sumShape.getRank()) {
+            auto sumDims = sumShape.getDims();
+            auto minDims = shape.getMinDims();
+            auto maxDims = shape.getMaxDims();
+            for (size_t i = 0; i < maxDims.size(); i++) {
+                if ((maxDims[i] > minDims[i]) && sumDims[i] == 1) {
+                    minDims[i] = 1;
+                }
+            }
+            finalShape = Shape(minDims, maxDims);
+        }
+
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), finalShape);
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
 }

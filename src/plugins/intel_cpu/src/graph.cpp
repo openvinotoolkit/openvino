@@ -5,7 +5,6 @@
 #include "graph.h"
 
 #include <algorithm>
-#include <fstream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -16,37 +15,33 @@
 #include <utility>
 #include <vector>
 
-#include "common/primitive_desc.hpp"
-#include "common/primitive_desc_iface.hpp"
-#include "dnnl_extension_utils.h"
-#include "extension_mngr.h"
+#include "edge.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
-#include "ie_algorithm.hpp"
 #include "infer_request.h"
 #include "itt.h"
-#include "low_precision/low_precision.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
-#include "nodes/fullyconnected.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
-#include "nodes/subgraph.h"
 #include "nodes/memory.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/op/ops.hpp"
-#include "precision_utils.h"
-#include "transformations/utils/utils.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+
+#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "common/primitive_desc_iface.hpp"
+#endif
 
 #include "openvino/runtime/memory_solver.hpp"
 
@@ -138,7 +133,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     for (const auto& op : model->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
-        graphNodes.push_back(node);
+        AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const std::string name = get_port_name(ov::Output<ov::Node>(op, 0), is_legacy_api);
             inputNodesMap[name] = node;
@@ -158,9 +153,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
             auto parentOp = op->get_input_node_shared_ptr(port);
             auto parentNode = op2node[parentOp];
 
-            EdgePtr edge(new Edge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
-            node->addEdge(edge);
-            graphEdges.push_back(edge);
+            CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));
         }
 
         if (!one_of(op->get_type_info(),
@@ -183,10 +176,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
                                                                         nodeName, "Result", context);
-        EdgePtr edge(new Edge(parentNode, outNode, port, 0));
-        outNode->addEdge(edge);
-        graphEdges.push_back(edge);
-        graphNodes.push_back(outNode);
+        CreateEdge(parentNode, outNode, port, 0);
+        AddNode(outNode);
     }
 
     auto hasSubgraphConsumers = [](const NodePtr& node) -> bool {
@@ -1426,14 +1417,33 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
     }
 }
 
+void Graph::CreateEdge(const NodePtr& parent,
+                       const NodePtr& child,
+                       int parentPort,
+                       int childPort) {
+    assert(parentPort >= 0 && childPort >= 0);
+    assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
+                        [&childPort](const EdgeWeakPtr& edge){
+                            return edge.lock()->getOutputNum() == childPort;
+                        }));
+
+    auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
+
+    parent->addChildEdge(edge);
+    child->addParentEdge(edge);
+    graphEdges.push_back(edge);
+}
+
 void Graph::RemoveEdge(const EdgePtr& edge) {
-    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
-        if ((*it) == edge) {
-            edge->drop();
-            graphEdges.erase(it);
-            return;
-        }
-    }
+    edge->drop();
+    graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
+}
+
+void Graph::AddNode(NodePtr node) {
+    assert(node);
+    assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
+
+    graphNodes.push_back(node);
 }
 
 void Graph::DropNode(const NodePtr &node) {
@@ -1447,7 +1457,6 @@ void Graph::DropNode(const NodePtr &node) {
         if (!parent) continue;
 
         const int inNum = p_edge->getInputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
 
         for (size_t j = 0; j < children.size(); j++) {
@@ -1457,12 +1466,8 @@ void Graph::DropNode(const NodePtr &node) {
             if (!child) continue;
 
             const int outNum = c_edge->getOutputNum();
-            c_edge->drop();
             RemoveEdge(c_edge);
-
-            EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
-            graphEdges.push_back(newEdge);
-            parent->addEdge(newEdge);
+            CreateEdge(parent, child, inNum, outNum);
             if (child->getConstantType() != Node::ConstantType::Unknown) {
                 child->updateConstantType();
             }
@@ -1488,7 +1493,6 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         if (!parent) continue;
 
         const int inNum = p_edge->getInputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
 
         for (size_t j = 0; j < children.size(); j++) {
@@ -1498,12 +1502,8 @@ void Graph::DropDWConvNode(const NodePtr &node) {
             if (!child) continue;
 
             const int outNum = c_edge->getOutputNum();
-            c_edge->drop();
             RemoveEdge(c_edge);
-
-            EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
-            graphEdges.push_back(newEdge);
-            parent->addEdge(newEdge);
+            CreateEdge(parent, child, inNum, outNum);
         }
     }
 
@@ -1515,44 +1515,25 @@ void Graph::DropDWConvNode(const NodePtr &node) {
 
         const int inNum = p_edge->getInputNum();
         const int portCandidate = p_edge->getOutputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
         const int outNum = parentConv->parentEdges.size();
 
-        EdgePtr newEdge(new Edge(parent, parentConv, inNum, outNum));
-        graphEdges.push_back(newEdge);
-        parent->addEdge(newEdge);
         parentConv->inputShapes.push_back(node->getInputShapeAtPort(portCandidate));
+        CreateEdge(parent, parentConv, inNum, outNum);
     }
     parentConv->outputShapes[0] = node->getOutputShapeAtPort(0);
 }
 
 void Graph::RemoveDroppedNodes() {
-    auto& nodes = this->GetNodes();
-
-    auto it = nodes.begin();
-
-    while (it != nodes.end()) {
-        if ((*it)->isDropped()) {
-            it = nodes.erase(it);
-        } else {
-            it++;
-        }
-    }
+    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(),
+                                    [](const NodePtr& node){ return node->isDropped(); }),
+                     graphNodes.end());
 }
 
 void Graph::RemoveDroppedEdges() {
-    auto& edges = this->GetEdges();
-
-    auto it = edges.begin();
-
-    while (it != edges.end()) {
-        if ((*it)->isDropped()) {
-            it = edges.erase(it);
-        } else {
-            it++;
-        }
-    }
+    graphEdges.erase(std::remove_if(graphEdges.begin(), graphEdges.end(),
+                                    [](const EdgePtr& node){ return node->isDropped(); }),
+                     graphEdges.end());
 }
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
@@ -1599,16 +1580,10 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
 }
 
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
-    EdgePtr beforeNode(new Edge(parent, node, parentPort, 0));
-    EdgePtr afterNode(new Edge(node, child, 0, childPort));
-
-    // Add edge for beforeNode
-    beforeNode->getChild()->parentEdges.push_back(beforeNode);
-    parent->childEdges.push_back(beforeNode);
-
-    // Add edge for afterNode
-    afterNode->getParent()->childEdges.push_back(afterNode);
-    child->parentEdges.push_back(afterNode);
+    CreateEdge(parent, node, parentPort, 0);
+    CreateEdge(node, child, 0, childPort);
+    node->updateConstantType();
+    AddNode(node);
 
     if (initNode) {
         node->getSupportedDescriptors();
@@ -1619,10 +1594,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->initOptimalPrimitiveDescriptor();
     }
 
-    graphEdges.push_back(beforeNode);
-    graphEdges.push_back(afterNode);
-    graphNodes.push_back(node);
-    node->updateConstantType();
     return true;
 }
 
