@@ -99,7 +99,7 @@ class Mode(ABC):
         canReduce, newList = util.getReducedInterval(list, cfg)
         if canReduce:
             if (self.traversal.isComparative() and
-                self.mode.checkIfListBordersDiffer(newList, cfg) or
+                self.checkIfListBordersDiffer(newList, cfg) or
                 not self.traversal.isComparative()):
                 self.commonLogger.info(
                     "Initial interval reduced to cashed {c1}..{c2}".format(
@@ -273,9 +273,9 @@ class Mode(ABC):
                 # try to reduce interval by cashed borders
                 canReduce, newList = util.getReducedInterval(curList, cfg)
                 if canReduce:
-                    if (self.traversal.isComparative() and
+                    if (self.isComparative() and
                         self.mode.checkIfListBordersDiffer(newList, cfg) or
-                        not self.traversal.isComparative()):
+                        not self.isComparative()):
                         self.mode.commonLogger.info(
                             "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
                                 c1=curList[0], c2=curList[-1],
