@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/plugin/ov_auto_batching_tests.hpp"
+#include "behavior/ov_plugin/auto_batching_tests.hpp"
 #include "openvino/runtime/properties.hpp"
 
 

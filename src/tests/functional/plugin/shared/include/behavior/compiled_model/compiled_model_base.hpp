@@ -654,12 +654,10 @@ public:
         std::ostringstream result;
         result << "ConvertType=" << convert_type.get_type_name() << "_";
         result << "targetDevice=" << target_device << "_";
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-                result << "_";
-            }
+        for (auto& configItem : configuration) {
+            result << "configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+            result << "_";
         }
         return result.str();
     }

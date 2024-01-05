@@ -27,12 +27,6 @@ using AutoBatchTwoNetsParams = std::tuple<
 class AutoBatching_Test : public OVPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
 public:
-    void SetUp() override {
-        std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ov::test::utils::make_single_conv(),
-                   ov::test::utils::make_multi_single_conv()};
-    };
-
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
         size_t streams, requests, batch;
         bool use_get_tensor;
@@ -50,6 +44,12 @@ protected:
     size_t num_batch;
     std::vector<std::shared_ptr<ov::Model>> fn_ptrs;
 
+    void SetUp() override {
+        std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = this->GetParam();
+        fn_ptrs = {ov::test::utils::make_single_conv(),
+                   ov::test::utils::make_multi_single_conv()};
+    };
+
     void TestAutoBatch() {
         auto core = ov::test::utils::PluginCache::get().core();
 
@@ -61,7 +61,7 @@ protected:
         for (size_t i = 0; i < fn_ptrs.size(); ++i) {
             auto model = fn_ptrs[i];
             auto inputs = model->inputs();
-            for (auto n : inputs) {
+            for (auto const & n : inputs) {
                 n.get_node()->set_output_type(0, ov::element::f32, n.get_shape());
             }
             ov::AnyMap config;
@@ -83,7 +83,7 @@ protected:
 
             auto network_outputs = model->outputs();
             ASSERT_EQ(network_outputs.size(), 1) << " Auto-Batching tests use networks with single output";
-            auto output = *network_outputs.begin();
+            auto const & output = network_outputs[0];
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output);
                 outElementsCount.push_back(
@@ -98,11 +98,10 @@ protected:
                 irs_ref.push_back(inf_req_ref);
 
                 std::vector<ov::Tensor> inData;
-                for (auto input : inputs) {
+                for (auto const & input : inputs) {
                     auto tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
                     if (use_get_tensor)
-                        memcpy(reinterpret_cast<void *>(inf_req.get_tensor(input).data()),
-                               reinterpret_cast<const void *>(tensor.data()), tensor.get_byte_size());
+                        memcpy(inf_req.get_tensor(input).data(), tensor.data(), tensor.get_byte_size());
                     else
                         inf_req.set_tensor(input, tensor);
 
@@ -118,13 +117,12 @@ protected:
             }
         }
 
-        const int niter = 1;
-        for (int i = 0; i < niter; i++) {
-            for (auto ir : irs) {
+        {
+            for (auto& ir : irs) {
                 ir.second.start_async();
             }
 
-            for (auto ir : irs) {
+            for (auto& ir : irs) {
                 ir.second.wait();
             }
         }
@@ -141,7 +139,7 @@ protected:
 class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
-        std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = this->GetParam();
+        std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = GetParam();
         fn_ptrs = {ov::test::utils::make_detection_output(),
                    ov::test::utils::make_detection_output()};
     };
