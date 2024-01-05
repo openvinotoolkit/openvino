@@ -5,8 +5,8 @@
 #include "op/com.microsoft/attention.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/builder/split.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ov_models/ov_builders/split.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -122,7 +122,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // head_size = hidden_size / num_heads
         head_size = std::make_shared<default_opset::Divide>(hidden_size, num_heads_node);
         // split the node into 3 even parts Q, K, V with shape (batch_size, sequence_len, hidden_size)
-        split = ngraph::builder::opset1::split(node, 3, 2);
+        split = ov::op::util::split(node, 3, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         auto new_shape =
             std::make_shared<default_opset::Concat>(NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
@@ -141,7 +141,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // Q: (batch_size, sequence_len, qkv_hidden_sizes[0])
         // K: (batch_size, sequence_len, qkv_hidden_sizes[1])
         // V: (batch_size, sequence_len, qkv_hidden_sizes[2])
-        split = ngraph::builder::opset1::split(node, qkv_hidden_sizes, 2);
+        split = ov::op::util::split(node, qkv_hidden_sizes, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         for (size_t i = 0; i < split.size(); i++) {
             auto new_shape = std::make_shared<default_opset::Concat>(
@@ -355,7 +355,7 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
 // Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
 std::shared_ptr<ngraph::Node> raw_mask(const Output<ngraph::Node>& mask_index,
-                                       Dimension::value_type mask_rank,
+                                       ov::Dimension::value_type mask_rank,
                                        const element::Type_t& type) {
     std::shared_ptr<ngraph::Node> mask = std::make_shared<default_opset::Convert>(mask_index, type);
     mask = std::make_shared<default_opset::Convert>(mask, type);
@@ -383,7 +383,7 @@ std::shared_ptr<ngraph::Node> raw_mask(const Output<ngraph::Node>& mask_index,
 }
 
 bool is_past_input_available(const OutputVector& op_inputs) {
-    return op_inputs.size() > 4 && !ngraph::op::is_null(op_inputs[4]);
+    return op_inputs.size() > 4 && !ov::op::util::is_null(op_inputs[4]);
 }
 
 NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional) {
@@ -410,7 +410,7 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
     if (unidirectional) {
         std::tie(attention_mask, bin_mask) = unidirectional_mask(type, seq_len, all_seq_len, past_seq_len);
     }
-    if (op_inputs.size() > 3 && !ngraph::op::is_null(op_inputs[3])) {
+    if (op_inputs.size() > 3 && !ov::op::util::is_null(op_inputs[3])) {
         const auto& mask_index = op_inputs[3];
         NGRAPH_CHECK(mask_index.get_element_type() == element::i32, "'mask_index' type must be int32");
         auto batch_size = get_dimensions(input_shape, {0});
@@ -455,7 +455,7 @@ std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
         // (2, batch_size, num_heads, past_sequence_length + sequence_length, head_size)
         // so we need to split it into two parts, remove first dimension from each part and concatenate first part
         // with current K and second part with current V
-        const auto split = ngraph::builder::opset1::split(past, 2, 0);
+        const auto split = ov::op::util::split(past, 2, 0);
         const auto past_K = std::make_shared<default_opset::Squeeze>(split[0], zero);
         K = std::make_shared<default_opset::Concat>(NodeVector{past_K, K}, 2);
         const auto past_V = std::make_shared<default_opset::Squeeze>(split[1], zero);
@@ -477,7 +477,7 @@ std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
     // (Q x K' + mask) / sqrt(head_size)
     softmax_input = std::make_shared<default_opset::Divide>(softmax_input, sqrt);
     // handle 'extra_add' input
-    if (op_inputs.size() > 5 && !ngraph::op::is_null(op_inputs[5])) {
+    if (op_inputs.size() > 5 && !ov::op::util::is_null(op_inputs[5])) {
         NGRAPH_CHECK(!is_past_input_available(op_inputs),
                      "Cannot use both 'past' and 'extra_add' inputs in the same node");
         const auto& extra_add = op_inputs[5];

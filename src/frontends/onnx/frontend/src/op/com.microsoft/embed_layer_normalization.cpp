@@ -30,7 +30,7 @@ OutputVector embed_layer_normalization(const Node& node) {
     const auto zero = default_opset::Constant::create(element::i32, Shape{1}, {0});
     std::shared_ptr<ngraph::Node> input = std::make_shared<default_opset::Gather>(word_embeddings, input_ids, zero, 0);
     // add position embeddings
-    if (num_nodes > 8 && !ngraph::op::is_null(nodes[8])) {
+    if (num_nodes > 8 && !ov::op::util::is_null(nodes[8])) {
         // if we have position_ids
         const auto& position_ids = nodes[8];
         const auto gathered_position_embeddings =
@@ -51,8 +51,8 @@ OutputVector embed_layer_normalization(const Node& node) {
         input = std::make_shared<default_opset::Add>(input, gathered_position_embeddings);
     }
     // add segment embeddings if available
-    if (!ngraph::op::is_null(segment_ids)) {
-        NGRAPH_CHECK(!ngraph::op::is_null(segment_embeddings),
+    if (!ov::op::util::is_null(segment_ids)) {
+        NGRAPH_CHECK(!ov::op::util::is_null(segment_embeddings),
                      "segment_ids provided, but segment_embedding input is missing");
         NGRAPH_CHECK(nodes[1].get_element_type() == element::i32, "segment_ids must have int32 type");
         auto gathered_segment_embeddings =
@@ -75,7 +75,7 @@ OutputVector embed_layer_normalization(const Node& node) {
 
     // compute mask_index output
     std::shared_ptr<ngraph::Node> mask_index;
-    if (num_nodes > 7 && !ngraph::op::is_null(nodes[7])) {
+    if (num_nodes > 7 && !ov::op::util::is_null(nodes[7])) {
         NGRAPH_CHECK(nodes[7].get_element_type() == element::i32, "mask must have int32 type");
         auto axis = default_opset::Constant::create(element::i32, Shape{}, {1});
         mask_index = std::make_shared<default_opset::ReduceSum>(nodes[7], axis, false);
