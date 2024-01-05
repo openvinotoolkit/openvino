@@ -88,12 +88,13 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
             ov::OutputVector replacements(1);
             bool ret = convert->constant_fold(replacements, convert->input_values());
             if (ret) {
-                std::cout << "node " << node << std::endl;
-                std::cout << "convert " << convert << std::endl;
-                std::cout << "input " << node->input_value(i) << std::endl;
                 replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
                 input.replace_source_output(replacements[0]);
             } else {
+                std::cout << "COULDN'T CONSTANTFOLD\n";
+                std::cout << "node " << node << std::endl;
+                std::cout << "convert " << convert << std::endl;
+                std::cout << "input " << node->input_value(i) << std::endl;
                 convert->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
                 input.replace_source_output(convert->output(0));
             }
