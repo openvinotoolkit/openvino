@@ -25,7 +25,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        // Create CNNNetwork from ngrpah::Function
+        // Create model
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
 
@@ -62,7 +62,7 @@ protected:
     size_t streamExecutorNumber;
 
     void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ie_infer_request;
+        api_entity = ov::test::utils::ov_entity::ov_infer_request;
     }
 
     inline ov::InferRequest createInferRequestWithConfig() {
