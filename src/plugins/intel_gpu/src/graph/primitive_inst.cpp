@@ -508,8 +508,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0]
-            && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+    if ((_node->is_type<gather>() || _node->is_type<permute>()) && !can_be_optimized() && _outputs[0]
+        && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
         _outputs[0] = nullptr;
         max_output_layout_size = 0;
     }
@@ -1016,7 +1016,7 @@ void primitive_inst::do_runtime_skip_permute() {
         set_can_be_optimized(false);
         return;
     }
-    std::cout << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);
