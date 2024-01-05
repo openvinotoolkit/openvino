@@ -174,21 +174,11 @@ public:
             state.reset();
         }
     }
-    void set_state_max_batch(size_t batch_size) {
-        for (auto&& state : inferRequest.query_state()) {
-            auto tensor = state.get_state();
-            ov::Shape shape = tensor.get_shape();
-            shape.front() = batch_size;
-            state.set_state(ov::Tensor{tensor.get_element_type(), shape});
-        }
-    }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
         prepare();
         std::vector<ov::Tensor> outputs;
-        auto batch = targetStaticShapes[1][0][0];
-        // set batch of state to max batch size
-        set_state_max_batch(batch);
+
         for (int idx = 0; idx < static_cast<int>(targetStaticShapes.size()); idx++) {
             auto& shapes = targetStaticShapes[idx];
             generate(idx, shapes, targetStaticShapes[idx > 0 ? idx - 1 : 0][0][0]);
