@@ -61,7 +61,7 @@ static bool has_original_input_precision(const ov::Input<ov::Node>& input) {
     return input.get_rt_info().count("original_precision") > 0;
 }
 
-static const ov::element::Type& get_original_input_precision(const ov::Input<ov::Node>& input) {
+static ov::element::Type get_original_input_precision(const ov::Input<ov::Node>& input) {
     return input.get_rt_info().at("original_precision").as<ov::element::Type>();
 }
 
@@ -81,7 +81,7 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
         auto input = node->input(i);
         if (!has_original_input_precision(input))
             continue;
-        const auto& original_type = get_original_input_precision(input);
+        const auto original_type = get_original_input_precision(input);
         remove_original_input_precision_attribute(input);
         if (original_type != node->get_input_element_type(i)) {
             auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
@@ -178,6 +178,17 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             if (restored) {
                 original_node->validate_and_infer_types();
                 rewritten = true;
+            }
+        }
+    }
+
+    for (auto node : model->get_ordered_ops()) {
+        for (auto it : node->get_rt_info()) {
+            OPENVINO_ASSERT(it.first != "requires_precision_conversion");
+        }
+        for (auto&& input : node->inputs()) {
+            for (auto it : input.get_rt_info()) {
+                OPENVINO_ASSERT(it.first != "original_precision");
             }
         }
     }
