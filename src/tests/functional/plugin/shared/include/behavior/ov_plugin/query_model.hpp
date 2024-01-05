@@ -39,6 +39,14 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
     }
 }
 
+TEST_P(OVClassModelTestP, DISABLED_ImportModelWithNullContextThrows) {
+    //Test is disabled until CVS-128924 is fixed
+    ov::Core ie = createCoreWithTemplate();
+    ov::RemoteContext context;
+    std::istringstream stream("None");
+    ASSERT_THROW(ie.import_model(stream, context, {}), InferenceEngine::Exception);
+}
+
 TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
     ov::Core ie = createCoreWithTemplate();
 

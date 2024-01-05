@@ -173,6 +173,9 @@ TEST(OVClassBasicTest, smoke_createDefault) {
 
 TEST_P(OVClassBasicTestP, registerExistingPluginThrows) {
     ov::Core ie = createCoreWithTemplate();
+    try {
+        ie.register_plugin(pluginName, target_device);
+    } catch (...) {}
     ASSERT_THROW(ie.register_plugin(pluginName, target_device), ov::Exception);
 }
 
