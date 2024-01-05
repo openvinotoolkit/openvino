@@ -137,6 +137,8 @@ void permute_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     _outputs[0] = input_memory_ptr();
     _mem_allocated = false;
 }

@@ -967,7 +967,7 @@ void primitive_inst::do_runtime_skip_gather() {
         mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), _network.get_stream());
         for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
             if (idx_data[i] != i) {
-                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 set_can_be_optimized(false);
                 return;
             }
@@ -983,29 +983,35 @@ void primitive_inst::do_runtime_skip_gather() {
 
 void primitive_inst::do_runtime_skip_permute() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_permute: " + id()));
+    // Check pattern
     if (!get_node().is_type<permute>()
+        || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
-
     auto desc = _node->as<permute>().get_primitive();
-    auto& input_layout = _impl_params->input_layouts[0];
+    auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
+
+    // Check runtime shape
+    // Optimize when the largest value among the acutal dim values in case where the permute order
+    // is different from the shape index is equal to the multiplied value
     int32_t size = 1;
-    int32_t value = 0;
+    int32_t max_value = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
         int32_t order = static_cast<int32_t>(permute_order[i]);
-        int32_t dim = static_cast<int32_t>(input_layout.get_shape()[order]);
+        int32_t dim = static_cast<int32_t>(input_shape[order]);
         if (i != order) {
-            if (dim > value)
-                value = dim;
+            if (dim > max_value)
+                max_value = dim;
             size *= dim;
         }
     }
-    if (size != value) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and value(" << value << ") are different" << std::endl;
+    // If the largest value and total size are different, can_be_optimized needs to be reset
+    if (size != max_value) {
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value << ") are different" << std::endl;
         set_can_be_optimized(false);
         return;
     }

@@ -42,6 +42,8 @@ void pre_dynamic_shape_opts::run(program& p) {
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
+            // TODO: For now, all permutes with dynamic shape are applied.
+            //       A more detailed pattern will need to be applied later
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);
                 GPU_DEBUG_TRACE_DETAIL << "[pre_dynamic_shape_opts] : " << node.id() << "can_be_optimized" << std::endl;
