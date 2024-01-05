@@ -122,7 +122,7 @@ public:
 
         auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
             auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
-            child->addEdge(edge);
+            Node::addEdge(edge);
             edges.push_back(edge);
             nodesSet.insert(parent);
             nodesSet.insert(child);
@@ -335,6 +335,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
         impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
         impl_desc_type::brgconv_avx512_amx_1x1,
         impl_desc_type::brgconv_avx512_amx,
         impl_desc_type::jit_avx512_amx_dw,

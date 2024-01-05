@@ -47,7 +47,7 @@ OutputVector qlinear_conv(const Node& node) {
                                           1,
                                           node)[0];
 
-    if (!ngraph::op::is_null(B)) {
+    if (!ov::op::util::is_null(B)) {
         B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),
                                                std::make_shared<opset6::Multiply>(x_scale, w_scale))
                 ->output(0);
