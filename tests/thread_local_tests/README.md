@@ -17,13 +17,13 @@ To build the tests, you need to have OpenVINO™ installed or build from source.
 Before build the tests, open a terminal, set OpenVINO™ environment, and after that
 run the commands below:
 ``` bash
-source <OpenVINO_install_dir>/setupvars.sh
+<OpenVINO_install_dir>/setupvars.bat
 mkdir build && cd build
-cmake .. && cmake --build . -j8
+cmake .. && cmake --build . --config Release -j8
 ```
 
 ### Running Tests
 
 ``` bash
-\test\Release\ov_thread_local_test.exe
+.\test\Release\ov_thread_local_test.exe
 ```
