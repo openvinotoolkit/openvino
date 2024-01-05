@@ -988,7 +988,8 @@ void primitive_inst::do_runtime_skip_permute() {
         || is_output()
         || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
-        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
+        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
+        || (get_user_insts().size() == 1 && get_users().front()->is_type<concatenation>() && get_user_insts().front()->can_be_optimized()))
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
@@ -1016,7 +1017,7 @@ void primitive_inst::do_runtime_skip_permute() {
         set_can_be_optimized(false);
         return;
     }
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized :)" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);
