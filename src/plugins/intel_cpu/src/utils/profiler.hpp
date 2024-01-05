@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#define OV_CPU_WITH_PROFILER
-#ifdef OV_CPU_WITH_PROFILER
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 #    include <atomic>
 #    include <chrono>
@@ -51,7 +51,7 @@ struct chromeTrace {
     int fake_tid;
     uint64_t ts;
     chromeTrace(std::ostream& os, int fake_tid) : os(os), fake_tid(fake_tid) {}
-    void addCompleteEvent(std::string name, std::string cat, uint64_t start, uint64_t dur) {
+    void addCompleteEvent(std::string name, std::string cat, double start, double dur) {
         // chrome tracing will show & group-by to name, so we use cat as name
         os << "{\"ph\": \"X\", \"name\": \"" << cat << "\", \"cat\":\"" << name << "\","
            << "\"pid\": " << fake_tid << ", \"tid\": 0,"
@@ -62,10 +62,13 @@ struct chromeTrace {
 struct TscCounter {
     uint64_t tsc_ticks_per_second;
     uint64_t tsc_ticks_base;
-    uint64_t tsc_to_usec(uint64_t tsc_ticks) const {
-        return (tsc_ticks - tsc_ticks_base) * 1000000 / tsc_ticks_per_second;
+    double tsc_to_usec(uint64_t tsc_ticks) const {
+        return (tsc_ticks - tsc_ticks_base) * 1000000.0 / tsc_ticks_per_second;
     }
-    TscCounter() {
+    double tsc_to_usec(uint64_t tsc_ticks0, uint64_t tsc_ticks1) const {
+        return (tsc_ticks1 - tsc_ticks0) * 1000000.0 / tsc_ticks_per_second;
+    }
+    void init() {
         static std::once_flag flag;
         std::call_once(flag, [&]() {
             uint64_t start_ticks = __rdtsc();
@@ -137,6 +140,7 @@ struct ProfilerFinalizer {
     int register_manager(ProfilerBase* pthis) {
         std::lock_guard<std::mutex> guard(g_mutex);
         std::stringstream ss;
+        tsc.init();
         auto serial_id = totalProfilerManagers.fetch_add(1);
         ss << "[OV_CPU_PROFILE] #" << serial_id << "(" << pthis << ") : is registed." << std::endl;
         std::cout << ss.str();
@@ -182,7 +186,7 @@ public:
             ct.addCompleteEvent(d.name,
                                 d.cat,
                                 tsc.tsc_to_usec(d.start),
-                                tsc.tsc_to_usec(d.end) - tsc.tsc_to_usec(d.start));
+                                tsc.tsc_to_usec(d.start, d.end));
         }
         all_data.clear();
         std::cout << "[OV_CPU_PROFILE] #" << serial << "(" << this << ") finalize: dumpped " << data_size << std::endl;
