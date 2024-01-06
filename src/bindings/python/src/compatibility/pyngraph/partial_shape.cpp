@@ -11,8 +11,8 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/dimension.hpp"  // ngraph::Dimension
-#include "ngraph/shape.hpp"      // ngraph::Shape
+#include "ngraph/shape.hpp"             // ngraph::Shape
+#include "openvino/core/dimension.hpp"  // ov::Dimension
 #include "pyngraph/partial_shape.hpp"
 
 namespace py = pybind11;
@@ -26,16 +26,16 @@ void regclass_pyngraph_PartialShape(py::module m) {
     shape.doc() = "ngraph.impl.PartialShape wraps ngraph::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
-        return ngraph::PartialShape(std::vector<ngraph::Dimension>(dimensions.begin(), dimensions.end()));
+        return ngraph::PartialShape(std::vector<ov::Dimension>(dimensions.begin(), dimensions.end()));
     }));
     shape.def(py::init<const std::initializer_list<size_t>&>());
     shape.def(py::init<const std::vector<size_t>&>());
-    shape.def(py::init<const std::initializer_list<ngraph::Dimension>&>());
-    shape.def(py::init<const std::vector<ngraph::Dimension>&>());
+    shape.def(py::init<const std::initializer_list<ov::Dimension>&>());
+    shape.def(py::init<const std::vector<ov::Dimension>&>());
     shape.def(py::init<const ngraph::Shape&>());
     shape.def(py::init<const ngraph::PartialShape&>());
 
-    shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ngraph::Dimension());
+    shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ov::Dimension());
 
     shape.def_property_readonly("is_dynamic",
                                 &ngraph::PartialShape::is_dynamic,
@@ -163,7 +163,7 @@ void regclass_pyngraph_PartialShape(py::module m) {
               )");
     shape.def(
         "get_dimension",
-        [](const ngraph::PartialShape& self, size_t index) -> ngraph::Dimension {
+        [](const ngraph::PartialShape& self, size_t index) -> ov::Dimension {
             return self[index];
         },
         py::arg("index"),

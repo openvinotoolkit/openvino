@@ -131,7 +131,7 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -640,11 +640,14 @@ void Transformations::PostLpt() {
     CPU_SET_CALLBACK_COMMON(postLPTPassManager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
             if (node->get_input_size() >= 2) {
-                return node->get_input_element_type(1) == ov::element::i8 || node->get_input_element_type(1) == ov::element::u8;
+                return node->get_input_element_type(1) == ov::element::i8 ||
+                       node->get_input_element_type(1) == ov::element::u8 ||
+                       (ov::is_type<const ov::op::v0::FakeQuantize>(node) && !ov::is_type<const ov::op::v1::Transpose>(node->get_input_node_shared_ptr(0)));
             }
             return false;
         },
         MoveEltwiseUpThroughDataMov);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
 

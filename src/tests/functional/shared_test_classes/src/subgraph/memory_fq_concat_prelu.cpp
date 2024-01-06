@@ -5,6 +5,9 @@
 #include "shared_test_classes/subgraph/memory_fq_concat_prelu.hpp"
 #include <type_traits>
 
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 template<typename T>
@@ -97,10 +100,10 @@ void MemoryFqConcatPrelu::SetUp() {
     for (auto&& shape : inputs) {
         input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto memory_read = ov::test::utils::deprecated::make_constant<size_t>(ngPrc, {inputs[0]}, {0});
     auto read = std::make_shared<ov::op::v3::ReadValue>(memory_read, "variable1");
-    auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
-    auto fake = ngraph::builder::makeFakeQuantize(fake_constatnt, ngPrc,
+    auto fake_constatnt = ov::test::utils::deprecated::make_constant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto fake = ov::test::utils::make_fake_quantize(fake_constatnt, ngPrc,
         std::get<0>(fake_quantize_params),
         std::get<1>(fake_quantize_params),
         std::get<2>(fake_quantize_params),

@@ -14,7 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/dimension.hpp"
 #include "openvino/core/rank.hpp"
 
 namespace ngraph {

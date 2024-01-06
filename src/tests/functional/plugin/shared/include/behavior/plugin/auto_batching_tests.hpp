@@ -60,11 +60,11 @@ protected:
             nets.push_back(CNNNetwork(fn_ptr));
         }
 
-        auto ie = InferenceEngine::Core();
+        auto ie = BehaviorTestsUtils::createIECoreWithTemplate();
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
-        std::vector<int> outElementsCount;
+        std::vector<std::size_t> outElementsCount;
 
         for (size_t i = 0; i < nets.size(); ++i) {
             auto net = nets[i];
@@ -94,7 +94,7 @@ protected:
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output->first);
                 outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
+                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), std::size_t(1),
                                         std::multiplies<size_t>()));
 
                 auto inf_req = exec_net_ref.CreateInferRequest();

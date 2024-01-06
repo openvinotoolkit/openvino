@@ -23,7 +23,7 @@
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include "openvino/core/node.hpp"
-#include <nodes/common/blocked_desc_creator.h>
+#include "nodes/common/blocked_desc_creator.h"
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "config.h"
@@ -169,11 +169,20 @@ public:
 
     virtual ~Node() = default;
 
-    void addEdge(const EdgeWeakPtr& edge);
-    void removeEdge(const EdgeWeakPtr& edge);
+    // @todo the method is used when graph is "preconstructed" before creation of the actual graph object
+    // remove, as soon edges are added via Graph interface exclusively
+    static void addEdge(const EdgeWeakPtr& edge);
 
     virtual void cleanup();
     void remove();
+
+    void addParentEdge(const EdgeWeakPtr& edge) {
+        parentEdges.push_back(edge);
+    }
+
+    void addChildEdge(const EdgeWeakPtr& edge) {
+        childEdges.push_back(edge);
+    }
 
     const std::vector<EdgeWeakPtr> &getParentEdges() const noexcept {
         return parentEdges;
@@ -207,6 +216,14 @@ public:
         return !hasEmptyInputTensors();
     }
 
+    enum class ConstantType {
+        Unknown,        // Unknown ConstantType is used before the constancy determination procedure run
+        Const,          // Node is placed in a constant subgraph
+        NoConst,        // Node is placed in a non-constant subgraph
+        StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the parent nodes' ConstantType.
+    };
+    ConstantType getConstantType() const;
+    void updateConstantType();
     bool isConstant();
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
@@ -599,11 +616,6 @@ protected:
         InPlace,
         NoInPlace
     };
-    enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst
-    };
     mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<MemoryPtr> internalBlobs;
@@ -633,7 +645,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const InferenceEngine::SizeVector& dims) const;
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -723,8 +735,6 @@ private:
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
-    ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
     // Hold output scales
     std::vector<float> DQScales;
     // we cannot rely on per-NUMA weightCache for caching weights because:
