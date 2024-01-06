@@ -198,7 +198,8 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     replace_all(shape_str, " ", "");
                     leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
-                                << "_" << shape_str;
+                                << "_" << shape_str
+                                << "_" << (ptr->getSize() > 0 ? ptr->getData() : "MemoryStub::getData()");
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -281,6 +282,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto n = edge->getParent();
             os << comma;
             os << node_id(*edge->getParent());
+            auto ptr = edge->getMemoryPtr();
+            if (ptr) {
+                os << "_" << (ptr->getSize() > 0 ? ptr->getData() : "MemoryStub::getData()");
+            }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
             comma = ",";
