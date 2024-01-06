@@ -42,6 +42,10 @@ public:
         OPENVINO_THROW("Unexpected call MemoryStub::getData()");
     }
 
+    bool hasActualMemory() const override {
+        return false;
+    }
+
     size_t getSize() const override {
         return 0;
     }
