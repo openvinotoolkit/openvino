@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/log_softmax.hpp"
+#include "validation_util.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -29,9 +29,7 @@ static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8:
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputs[0],
@@ -45,9 +43,7 @@ static void CreateLogSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     std::string layerName = layer_type_name_ID(op);
     std::string layerNameSoftmax = layer_type_name_ID(op) + "_softmax";
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputs[0],

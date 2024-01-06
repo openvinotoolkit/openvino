@@ -27,11 +27,9 @@ class PerformanceModeValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto mode = v.as<ov::hint::PerformanceMode>();
-        OPENVINO_SUPPRESS_DEPRECATED_START
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
                mode == ov::hint::PerformanceMode::THROUGHPUT ||
                mode == ov::hint::PerformanceMode::LATENCY;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 

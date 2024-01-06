@@ -7,10 +7,10 @@
 #include <vector>
 #include <memory>
 
-#include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
+#include "openvino/runtime/properties.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
@@ -74,8 +74,8 @@ protected:
             }
             std::map<std::string, std::string> config;
             if (target_device.find("GPU") != std::string::npos) {
-                config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config["INFERENCE_PRECISION_HINT"] = "f32";
+                config[ov::num_streams.name()] = std::to_string(num_streams);
+                config[ov::hint::inference_precision.name()] = "f32";
             }
 
             if (target_device.find("CPU") != std::string::npos) {

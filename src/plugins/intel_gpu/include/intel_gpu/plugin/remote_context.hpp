@@ -8,13 +8,7 @@
 # define NOMINMAX
 #endif
 
-#ifdef _WIN32
-# include <gpu/gpu_context_api_dx.hpp>
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#else
-# include <gpu/gpu_context_api_va.hpp>
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
-#endif
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -74,6 +68,12 @@ private:
 
     ov::AnyMap properties;
 };
+
+inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(ptr._ptr);
+    OPENVINO_ASSERT(casted, "[GPU] Invalid remote context type. Can't cast to ov::intel_gpu::RemoteContext type");
+    return casted;
+}
 
 }  // namespace intel_gpu
 }  // namespace ov

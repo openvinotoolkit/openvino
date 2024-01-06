@@ -35,7 +35,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/einsum_decomposition.hpp"
@@ -463,9 +463,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        ov::normalize_axes(mvn.get(), out_rank, mvn_axes);
-                        OPENVINO_SUPPRESS_DEPRECATED_END
+                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
