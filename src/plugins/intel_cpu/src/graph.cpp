@@ -29,6 +29,7 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/memory.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "utils/debug_capabilities.h"
@@ -36,6 +37,11 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+
+#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "common/primitive_desc_iface.hpp"
+#endif
 
 #include "openvino/runtime/memory_solver.hpp"
 
@@ -1417,9 +1423,9 @@ void Graph::CreateEdge(const NodePtr& parent,
                        int childPort) {
     assert(parentPort >= 0 && childPort >= 0);
     assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
-                       [&childPort](const EdgePtr& edge){
-                           return edge->getOutputNum() == childPort;
-                       }));
+                        [&childPort](const EdgeWeakPtr& edge){
+                            return edge.lock()->getOutputNum() == childPort;
+                        }));
 
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
 
@@ -1435,7 +1441,7 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
 
 void Graph::AddNode(NodePtr node) {
     assert(node);
-    assert(std::none_of(graphNodes.begin(), graphNodes.end(), node));
+    assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
 
     graphNodes.push_back(node);
 }
