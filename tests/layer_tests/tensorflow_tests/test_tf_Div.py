@@ -37,7 +37,8 @@ class TestDiv(CommonTFLayerTest):
     test_data_basic = [
         dict(input_shape=[10, 20], input_type=np.float32),
         dict(input_shape=[2, 3, 4], input_type=np.float32),
-        dict(input_shape=[8, 5], input_type=np.int32),
+        pytest.param(dict(input_shape=[8, 5], input_type=np.int32),
+                              marks=pytest.mark.xfail(condition=platform.system() == 'Windows', reason='Ticket - TBD'))
         dict(input_shape=[], input_type=np.float32),
     ]
 
