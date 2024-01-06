@@ -862,7 +862,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     if(!ret.empty())
         return ret;
 
-    OPENVINO_THROW("Cannot get unsupport property: ", name);
+    OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
