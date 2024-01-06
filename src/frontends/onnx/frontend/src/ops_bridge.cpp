@@ -580,6 +580,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Pad", 1, pad);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
