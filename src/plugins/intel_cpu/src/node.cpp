@@ -203,6 +203,7 @@ Node::Node(const std::string& type, const std::string& name, const GraphContext:
 }
 
 void Node::addEdge(const EdgeWeakPtr& edge) {
+    // dummy
     auto edgePtr = edge.lock();
     if (!edgePtr)
         return;
