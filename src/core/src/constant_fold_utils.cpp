@@ -125,7 +125,7 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
     if (type_relaxed) {
         for (size_t i = 0; i < cloned_node->get_input_size(); i++) {
-            if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
+            if (std::find(unsupported_types.begin(), unsupported_types.end(), type_relaxed->get_origin_input_type(i)) !=
                 unsupported_types.end()) {
                 type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
             }
