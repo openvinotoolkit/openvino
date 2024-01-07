@@ -7,7 +7,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/rdft.hpp"
 #include "openvino/op/irdft.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 #include <intel_gpu/plugin/common_utils.hpp>
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -36,9 +36,7 @@ void createDft(ProgramBuilder& p,
     if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
         --axis_correction;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::normalize_axes(op.get(), axis_correction, axes);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::util::normalize_axes(op.get(), axis_correction, axes);
 
     std::vector<int64_t> signal_size;
     if (op->get_input_size() == 3) {
