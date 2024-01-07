@@ -75,8 +75,11 @@ static void remove_original_input_precision_attribute(ov::Input<ov::Node>& input
 
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
     bool restored = false;
-    if (ov::is_type<ov::op::v0::Convert>(node))
+    if (ov::is_type<ov::op::v0::Convert>(node)) {
+        auto input = node->input(0);
+        remove_original_input_precision_attribute(input);
         return restored;
+    }
     for (size_t i = 0; i < node->get_input_size(); i++) {
         auto input = node->input(i);
         if (!has_original_input_precision(input))
