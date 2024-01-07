@@ -5,6 +5,8 @@
 #include "pass_manager.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
+#include "kv_cache_inst.h"
+#include "gemm_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -46,6 +48,10 @@ void pre_dynamic_shape_opts::run(program& p) {
             // TODO: For now, all permutes with dynamic shape are applied.
             //       A more detailed pattern will need to be applied later
             if (node.is_dynamic()) {
+                if (node.get_dependency(0).is_type<kv_cache>())
+                    return;
+                if (node.get_dependency(0).is_type<gemm>())
+                    return;
                 // If the user is concatenation, priority should be given to in place concat optimization at runtime
                 if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1)
                     return;
