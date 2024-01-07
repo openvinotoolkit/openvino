@@ -6,6 +6,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/assign_base.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
@@ -27,6 +28,9 @@ bool ov::util::node_requires_precision_conversion(const std::shared_ptr<const ov
     }
     // ConvertLike has constant_fold function but doesn't have has_evaluate function
     if (ov::is_type<ov::op::v1::ConvertLike>(node)) {
+        return false;
+    }
+    if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
         return false;
     }
     const auto unsupported_types = ov::util::unsupported_types();
