@@ -3,7 +3,7 @@ Monodepth Estimation with OpenVINO
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
-`here <https://docs.openvino.ai/2023.0/omz_models_model_midasnet.html>`__.
+`here <https://docs.openvino.ai/2023.3/omz_models_model_midasnet.html>`__.
 
 .. figure:: https://user-images.githubusercontent.com/36741649/127173017-a0bbcf75-db24-4d2c-81b9-616e04ab7cd9.gif
    :alt: monodepth

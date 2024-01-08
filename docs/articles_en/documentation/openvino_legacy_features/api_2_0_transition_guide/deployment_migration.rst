@@ -82,7 +82,7 @@ Then, the tools can be used by commands like:
 
 
 Installation of any other dependencies is not required. For more details on the installation steps, see the 
-`Install OpenVINO Development Tools <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_dev_tools.html>`__ prior to OpenVINO 2023.1.
+`Install OpenVINO Development Tools <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_install_dev_tools.html>`__ prior to OpenVINO 2023.1.
 
 Interface Changes for Building C/C++ Applications
 #################################################

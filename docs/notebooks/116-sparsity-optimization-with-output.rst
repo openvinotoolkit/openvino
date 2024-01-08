@@ -12,7 +12,7 @@ datasets <https://huggingface.co/datasets/sst2>`__ using
 `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__. It
 demonstrates the inference performance advantage on 4th Gen Intel® Xeon®
 Scalable Processors by running it with `Sparse Weight
-Decompression <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_CPU.html#sparse-weights-decompression>`__,
+Decompression <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#sparse-weights-decompression>`__,
 a runtime option that seizes model sparsity for efficiency. The notebook
 consists of the following steps:
 
@@ -394,6 +394,6 @@ For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
 -  `Deployment Optimization
-   Guide <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
+   Guide <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
 -  `Inference Request
-   API <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__
+   API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__

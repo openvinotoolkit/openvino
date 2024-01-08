@@ -178,7 +178,7 @@ Convert the original model to OpenVINO IR Format
 To convert the original model to OpenVINO IR with ``FP16`` precision,
 use model conversion API. The models are saved inside the current
 directory. For more information on how to convert models, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
