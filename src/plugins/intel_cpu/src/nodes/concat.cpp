@@ -343,6 +343,7 @@ void Concat::prepareParams() {
         }
     }
 
+    execSpecialCase = nullptr;
     if (outputShape.size() == 1 && outputStrides[0] == 1 && outputShape[0] <= 64 && elemSize == 4) {
         // output is small 1d vector (which is typical in shape inference subgraph),
         // in this case, inputs are also small 1d vector and single thread naive impl is faster

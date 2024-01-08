@@ -229,24 +229,25 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
                           impl_desc_type::unknown);
 
     // 1d short vector scatter update (data, indices, updates, axis)
+    execSpecialCase = nullptr;
     if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
         updateDim.size() <= 1 && indicesPrec == ov::element::i32 && dataPrec == ov::element::i32) {
-        auto length = srcDataDim[0];
-        if (length <= 64) {
-            execSpecialCase = [this, length](){
+        if (srcDataDim[0] <= 64) {
+            execSpecialCase = [this]() {
                 auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
                 auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
                 auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
                 auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
-                int32_t *dstPtr = reinterpret_cast<int32_t*>(dstMemPtr->getData());
-                int32_t *srcPtr = reinterpret_cast<int32_t*>(srcMemPtr->getData());
-                int32_t *indicesPtr = reinterpret_cast<int32_t*>(indicesMemPtr->getData());
-                int32_t *updatePtr = reinterpret_cast<int32_t*>(updateMemPtr->getData());
-                for (size_t i = 0; i < length; i++) {
+                int32_t* dstPtr = reinterpret_cast<int32_t*>(dstMemPtr->getData());
+                int32_t* srcPtr = reinterpret_cast<int32_t*>(srcMemPtr->getData());
+                int32_t* indicesPtr = reinterpret_cast<int32_t*>(indicesMemPtr->getData());
+                int32_t* updatePtr = reinterpret_cast<int32_t*>(updateMemPtr->getData());
+                auto srcLength = srcMemPtr->getStaticDims()[0];
+                for (size_t i = 0; i < srcLength; i++) {
                     dstPtr[i] = srcPtr[i];
                 }
-                auto updateDims = updateMemPtr->getShape().getDims();
+                auto updateDims = updateMemPtr->getStaticDims();
                 auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
                 for (size_t i = 0; i < updateCnt; i++) {
                     dstPtr[indicesPtr[i]] = updatePtr[i];
