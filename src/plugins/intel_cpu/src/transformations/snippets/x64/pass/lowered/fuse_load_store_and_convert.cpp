@@ -25,13 +25,15 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
     const auto load = ov::as_type_ptr<snippets::op::Load>(load_expr->get_node());
     if (!load ||
         ov::is_type<snippets::op::LoadReshape>(load_expr->get_node()) ||
-        ov::is_type<snippets::op::BroadcastLoad>(load_expr->get_node()) ||
-        convert_expr->get_loop_ids() != load_expr->get_loop_ids())
+        ov::is_type<snippets::op::BroadcastLoad>(load_expr->get_node()))
         return false;
 
     const auto consumers = input_connector->get_consumers();
     if (consumers.size() != 1)
         return false;
+
+    OPENVINO_ASSERT(convert_expr->get_loop_ids() == load_expr->get_loop_ids(),
+                "The pair of Load and Convert expressions must be in the same loops!");
 
     const auto& parent_source = load_expr->get_input_port_connector(0)->get_source();
     const auto parent_output = parent_source.get_expr()->get_node()->output(parent_source.get_index());
@@ -46,7 +48,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
     }
 
-    convert_it = linear_ir.replace_node(load_convert, {load_expr, convert_expr});
+    convert_it = linear_ir.replace_with_node(load_convert, {load_expr, convert_expr});
 
     return true;
 }
@@ -66,9 +68,11 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
     const auto store_input = *(consumers.begin());
     const auto& store_expr = store_input.get_expr();
     const auto store = ov::as_type_ptr<snippets::op::Store>(store_expr->get_node());
-    if (!store ||
-        convert_expr->get_loop_ids() != store_expr->get_loop_ids())
+    if (!store)
         return false;
+
+    OPENVINO_ASSERT(convert_expr->get_loop_ids() == store_expr->get_loop_ids(),
+                    "The pair of Convert and Store expressions must be in the same loops!");
 
     const auto& parent_source = convert_expr->get_input_port_connector(0)->get_source();
     const auto parent_output = parent_source.get_expr()->get_node()->output(parent_source.get_index());
@@ -83,7 +87,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
     }
 
-    convert_it = linear_ir.replace_node(store_convert, {convert_expr, store_expr});
+    convert_it = linear_ir.replace_with_node(store_convert, {convert_expr, store_expr});
 
     return true;
 }

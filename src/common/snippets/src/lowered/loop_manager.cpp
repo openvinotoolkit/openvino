@@ -204,6 +204,25 @@ std::vector<size_t> LinearIR::LoopManager::get_common_outer_loops(const Expressi
     return std::vector<size_t>(rhs_ids.cbegin(), rhs_ids.cbegin() + idx);
 }
 
+std::vector<size_t> LinearIR::LoopManager::get_common_outer_loops(const std::vector<ExpressionPtr>& exprs) {
+    OPENVINO_ASSERT(!exprs.empty(), "Failed to find common outer loops for set of expressions: there no expressions");
+
+    auto get_first_diff_id_idx = [](const std::vector<size_t>& lhs, const std::vector<size_t>& rhs) {
+        size_t idx = 0;
+        while (idx < std::min(lhs.size(), rhs.size()) && lhs[idx] == rhs[idx]) {
+            idx++;
+        }
+        return idx;
+    };
+
+    const auto& first_loop_ids = exprs.front()->get_loop_ids();
+    size_t common_idx = 0;
+    for (size_t i = 1; i < exprs.size(); ++i) {
+        common_idx = std::min(common_idx, get_first_diff_id_idx(first_loop_ids, exprs[i]->get_loop_ids()));
+    }
+    return std::vector<size_t>(first_loop_ids.cbegin(), first_loop_ids.cbegin() + common_idx);
+}
+
 void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             size_t loop_id,
                                             LinearIR::constExprIt &loop_begin_pos,
@@ -503,7 +522,7 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const LoopPort& act
     is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
 }
 
-void LinearIR::LoopManager::update_loop_ports_by_inserted_expr(const ExpressionPtr& expr) {
+void LinearIR::LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     auto output_ports = expr->get_output_ports();
     for (size_t i = 0; i < expr->get_input_count(); ++i) {
         const auto& source = expr->get_input_port_connector(i)->get_source();

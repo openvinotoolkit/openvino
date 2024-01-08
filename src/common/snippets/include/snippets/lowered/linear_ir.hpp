@@ -178,7 +178,7 @@ public:
     exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
                        const constExprIt& place, const std::set<ExpressionPort>& consumers = {});
     /**
-     * @brief Replace one `new_node` expression with a set of other expressions.
+     * @brief Replace the several existing expressions with the one new expression that contains `new_node`.
      *        Calls the helper `insert_node` and performs substitution: removes `old_exprs`.
      *        Also the helper move consumers from last expression in `old_exprs` to the new expression.
      *        Notes:
@@ -193,16 +193,38 @@ public:
      * @param place before this place expression will be inserted
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs, const std::vector<size_t>& loop_ids,
-                        const constExprIt& place);
+    exprIt replace_with_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs, const std::vector<size_t>& loop_ids,
+                             const constExprIt& place);
     /**
-     * @brief Replace one `new_node` expression with a set of other expressions that are in the same loops.
+     * @brief Replace the several existing expressions with the one new expression that contains `new_node` that are in the same loops.
      *        Insert new expression on the place of last `old_exprs`
      * @param new_node the target node
      * @param old_exprs the sequence of removable expressions
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs);
+    exprIt replace_with_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs);
+    /**
+     * @brief Replace the several existing expressions with the one new expression.
+     *        The helper move consumers from last expression in `old_exprs` to the new expression.
+     *        Notes:
+     *         - The helper supports only the sequence of `old_exprs`.
+     *           It means that consumers of the expression in seq are expressions from this sequence (except of the last expr)
+     *           and all sources of the `old_exprs` must be expression from this seq as well or must be source of `new_inputs`
+     *        - The helpers updates LoopPorts of the corresponding loops using information about removable expressions
+     * @param new_expr the new expr
+     * @param old_exprs the sequence of removable expressions
+     * @param place before this place expression will be inserted
+     * @return new expression iterator in LinearIR
+     */
+    exprIt replace_with_expr(const ExpressionPtr& new_expr, const std::vector<ExpressionPtr>& old_exprs, const constExprIt& place);
+    /**
+     * @brief Replace the several existing expressions with the one new expression that are in the same loops.
+     *        Insert new expression on the place of last `old_exprs`
+     * @param new_expr the new expr
+     * @param old_exprs the sequence of removable expressions
+     * @return new expression iterator in LinearIR
+     */
+    exprIt replace_with_expr(const ExpressionPtr& new_expr, const std::vector<ExpressionPtr>& old_exprs);
 
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
@@ -222,6 +244,8 @@ private:
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
     // Default ctor - can be called only from Linear IR initialization as default way
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model = nullptr);
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
+                                    const std::vector<size_t>& loop_ids, bool update_loop_ports, const std::vector<std::set<ExpressionPort>>& consumers = {});
 
     void register_expression(const ExpressionPtr& expr, bool io_allowed = false);
     void unregister_expression(const ExpressionPtr& expr);
