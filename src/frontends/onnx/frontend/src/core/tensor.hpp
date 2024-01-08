@@ -14,6 +14,7 @@
 #include "onnx_common/utils.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
@@ -29,39 +30,13 @@ namespace onnx_import {
 // generated wrappers.
 using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type());
 
-namespace error {
-namespace tensor {
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct invalid_data_type : ov::Exception {
-    explicit invalid_data_type(TensorProto_DataType type) : ov::Exception{"invalid data type"} {}
-};
-
-struct unsupported_data_type : ov::Exception {
-    explicit unsupported_data_type(TensorProto_DataType type) : ov::Exception{"unsupported data type"} {}
-};
-
-struct unspecified_name : ov::Exception {
-    unspecified_name() : ov::Exception{"tensor has no name specified"} {}
-};
-
-struct unspecified_data_type : ov::Exception {
-    unspecified_data_type() : ov::Exception{"tensor has no data type specified"} {}
-};
-
-struct data_type_undefined : ov::Exception {
-    data_type_undefined() : ov::Exception{"data type is not defined"} {}
-};
-
-struct segments_unsupported : ov::Exception {
-    segments_unsupported() : ov::Exception{"loading segments not supported"} {}
-};
-
-struct shape_doesnt_match_data_size : ov::Exception {
-    shape_doesnt_match_data_size() : ov::Exception{"tensor shape doesn't match data size"} {}
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
-}  // namespace tensor
-}  // namespace error
+#define ONNX_INVALID_DATA_TYPE(data_type, expected) \
+    OPENVINO_THROW("Invalid data type ", ONNX_NAMESPACE::TensorProto_DataType_Name(data_type), " expected: ", expected)
+#define ONNX_UNSUPPORTED_DATA_TYPE(data_type, expected)                  \
+    OPENVINO_THROW("Unsupported data type ",                             \
+                   ONNX_NAMESPACE::TensorProto_DataType_Name(data_type), \
+                   " expected: ",                                        \
+                   expected)
 
 namespace detail {
 namespace {
@@ -137,28 +112,28 @@ public:
     template <typename T>
     std::vector<T> get_data() const {
         if (m_tensor_proto->has_segment()) {
-            throw error::tensor::segments_unsupported{};
+            FRONT_END_THROW("Loading segments isn't supported");
         }
-        throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
+        ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(), "[nothing expected]");
     }
 
     const std::string& get_name() const {
         if (!m_tensor_proto->has_name()) {
-            throw error::tensor::unspecified_name{};
+            FRONT_END_THROW("Tensor has no specified name");
         }
         return m_tensor_proto->name();
     }
 
     Type get_type() const {
         if (!m_tensor_proto->has_data_type()) {
-            throw error::tensor::unspecified_data_type{};
+            FRONT_END_THROW("Tensor has no specified data type");
         }
         return static_cast<Type>(m_tensor_proto->data_type());
     }
 
-    const element::Type& get_ng_type() const {
+    const element::Type& get_ov_type() const {
         if (!m_tensor_proto->has_data_type()) {
-            throw error::tensor::unspecified_data_type{};
+            FRONT_END_THROW("Tensor has no specified data type");
         }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
@@ -188,9 +163,11 @@ public:
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return element::bf16;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED:
-            throw error::tensor::data_type_undefined{};
+            FRONT_END_THROW("Data type is Undefined");
         default:
-            throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
+            ONNX_UNSUPPORTED_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, UINT32, UINT64");
         }
     }
 
@@ -198,39 +175,41 @@ public:
         return m_tensor_proto->data_type();
     }
 
-    std::shared_ptr<ov::op::v0::Constant> get_ng_constant() const {
+    std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const {
         if (m_tensor_proto->has_segment()) {
-            throw error::tensor::segments_unsupported{};
+            FRONT_END_THROW("Loading segments isn't supported");
         }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-            return make_ng_constant<char>(element::boolean);
+            return make_ov_constant<char>(element::boolean);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return make_ng_constant<float>(element::f32);
+            return make_ov_constant<float>(element::f32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return make_ng_constant<ov::float16>(element::f16);
+            return make_ov_constant<ov::float16>(element::f16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return make_ng_constant<double>(element::f64);
+            return make_ov_constant<double>(element::f64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-            return make_ng_constant<int8_t>(element::i8);
+            return make_ov_constant<int8_t>(element::i8);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-            return make_ng_constant<int16_t>(element::i16);
+            return make_ov_constant<int16_t>(element::i16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-            return make_ng_constant<int32_t>(element::i32);
+            return make_ov_constant<int32_t>(element::i32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-            return make_ng_constant<int64_t>(element::i64);
+            return make_ov_constant<int64_t>(element::i64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-            return make_ng_constant<uint8_t>(element::u8);
+            return make_ov_constant<uint8_t>(element::u8);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-            return make_ng_constant<uint16_t>(element::u16);
+            return make_ov_constant<uint16_t>(element::u16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-            return make_ng_constant<uint32_t>(element::u32);
+            return make_ov_constant<uint32_t>(element::u32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-            return make_ng_constant<uint64_t>(element::u64);
+            return make_ov_constant<uint64_t>(element::u64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return make_ng_constant<ov::bfloat16>(element::bf16);
+            return make_ov_constant<ov::bfloat16>(element::bf16);
         default:
-            throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
+            ONNX_UNSUPPORTED_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, UINT32, UINT64");
         }
     }
 
@@ -240,7 +219,7 @@ private:
                                           std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
                                           std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ng_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         size_t data_size = get_data_size();
         if (has_external_data()) {
@@ -255,16 +234,15 @@ private:
                     std::make_shared<ov::op::v0::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
             }
             if (constant->get_byte_size() != ov::shape_size(m_shape) * type.size()) {
-                throw error::invalid_external_data(
-                    "The size of the external data file does not match the byte size of an initializer '" + get_name() +
-                    "' in the model");
+                FRONT_END_THROW("The size of the external data file does not match the byte size of an initializer '" +
+                                get_name() + "' in the model");
             }
         } else if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, get_data_ptr());
         } else if (data_size == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
-            throw error::tensor::shape_doesnt_match_data_size{};
+            FRONT_END_THROW("Tensor shape doesn't match data size");
         }
 
         if (m_tensor_proto->has_name()) {
@@ -278,7 +256,7 @@ private:
                                           !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
                                           !std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ng_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
         auto data_size = data.size();
@@ -287,7 +265,7 @@ private:
         } else if (data_size == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
-            throw error::tensor::shape_doesnt_match_data_size{};
+            FRONT_END_THROW("Tensor shape doesn't match data size");
         }
         if (m_tensor_proto->has_name()) {
             constant->set_friendly_name(get_name());
@@ -329,7 +307,7 @@ private:
         case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
-        throw error::tensor::invalid_data_type{m_tensor_proto->data_type()};
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
     }
 
     size_t get_data_size() const {
@@ -348,7 +326,7 @@ private:
         case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data_size();
         }
-        throw error::tensor::invalid_data_type{m_tensor_proto->data_type()};
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
     }
 
     const ONNX_NAMESPACE::TensorProto* m_tensor_proto;
