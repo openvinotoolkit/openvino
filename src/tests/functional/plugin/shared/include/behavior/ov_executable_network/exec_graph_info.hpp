@@ -16,9 +16,9 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-typedef std::tuple<ov::element::Type,  // Element type
-                   std::string,        // Device name
-                   ov::AnyMap          // Config
+typedef std::tuple<ov::element::Type_t,  // Element type
+                   std::string,          // Device name
+                   ov::AnyMap            // Config
                    >
     OVExecGraphImportExportTestParams;
 
