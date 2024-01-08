@@ -6,7 +6,7 @@
 
 #include <fstream>
 #if defined(__MINGW32__) || defined(__MINGW64__)
-#include <filesystem>
+#    include <filesystem>
 #endif
 #include <vector>
 
