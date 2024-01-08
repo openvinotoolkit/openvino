@@ -6,7 +6,7 @@ param (
     [string]$python_version
 )
 
-$Env:INTEL_OPENVINO_DIR = $( Get-Location )
+$Env:INTEL_OPENVINO_DIR = Split-Path $MyInvocation.MyCommand.Path
 
 ## OpenCV
 #if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
