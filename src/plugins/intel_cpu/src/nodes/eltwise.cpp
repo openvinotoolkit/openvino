@@ -2244,6 +2244,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         if (outputPrecision == ov::element::bf16 || hasBF16)
             OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support BF16 precision on this target.");
     }
+#if defined(OV_CPU_WITH_ACL)
+    const bool useJit = false;
+#endif
 #elif defined(OPENVINO_ARCH_ARM64)
     const bool useJit = canUseOptimizedImpl &&
                         executors::aarch64::JitEltwiseExecutor::isSupported(this, getAlpha(), getBeta(), getGamma());
@@ -2487,7 +2490,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 
 #if defined (OV_CPU_WITH_ACL)
-    //if (!useJit) {
+    if (useAcl || useJit) {
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
 
     auto addDesc = [&initDesc, &useJit](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
@@ -2507,11 +2510,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
     }
 
-    canUseJitExecutor = !supportedPrimitiveDescriptors.empty() && useJit;
-    canUseAclExecutor = !canUseJitExecutor;
+    canUseAclExecutor = !supportedPrimitiveDescriptors.empty() && !useJit;
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    //}
+    }
 #endif
 
     if (isChannelsFirstApplicable)
