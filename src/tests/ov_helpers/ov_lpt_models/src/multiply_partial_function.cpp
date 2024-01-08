@@ -69,10 +69,10 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(multiply) };
 
     ov::ParameterVector inputs;
-    if (is_type<ov::opset1::Parameter>(branchNodes1.input)) {
+    if (ov::is_type<ov::opset1::Parameter>(branchNodes1.input)) {
         inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes1.input));
     }
-    if (is_type<ov::opset1::Parameter>(branchNodes2.input)) {
+    if (ov::is_type<ov::opset1::Parameter>(branchNodes2.input)) {
         inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes2.input));
     }
 

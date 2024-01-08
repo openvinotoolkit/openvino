@@ -19,7 +19,6 @@
 #include <core/graph.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/visibility.hpp>
 #include <onnx_import/core/node.hpp>
 #include <openvino/op/util/framework_node.hpp>
 
