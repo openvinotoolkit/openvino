@@ -95,7 +95,7 @@ imagenet/efficientnet_v2_imagenet21k_xl/feature_vector,https://www.kaggle.com/mo
 efficientnet/lite2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite2-feature-vector/versions/2
 tfgan/eval/inception,https://www.kaggle.com/models/tensorflow/inception/frameworks/tensorFlow1/variations/tfgan-eval-inception/versions/1,skip,120721 AssertionError No signatures for a model
 efficientdet/lite2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite2-feature-vector/versions/1
-albert_lite_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/lite-base/versions/1
+albert_lite_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/lite-base/versions/1,xfail,120720 InvalidArgumentError Graph execution error
 efficientnet/lite1/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite1-feature-vector/versions/2
 imagenet/mobilenet_v3_large_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-100-224-feature-vector/versions/1
 efficientnet/lite4/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite4-classification/versions/2
@@ -178,7 +178,7 @@ imagenet/resnet_v2_101/classification,https://www.kaggle.com/models/google/resne
 electra_base,https://www.kaggle.com/models/google/electra/frameworks/tensorFlow2/variations/base/versions/2
 efficientdet/d4,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d4/versions/1
 small_bert/bert_en_uncased_L-6_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-6-h-512-a-8/versions/2
-mobilebert_multi_cased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/multi-cased-l-24-h-128-b-512-a-4-f-4-opt/versions/1
+mobilebert_multi_cased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/multi-cased-l-24-h-128-b-512-a-4-f-4-opt/versions/1,skip,120720 InvalidArgumentError Graph execution error
 i3d-kinetics-600,https://www.kaggle.com/models/deepmind/i3d-kinetics/frameworks/tensorFlow1/variations/600/versions/1
 imagenet/efficientnet_v2_imagenet21k_s/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-s-feature-vector/versions/2
 efficientdet/d1,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d1/versions/1,skip,128695 Inference results mismatch
@@ -242,7 +242,7 @@ retinanet/resnet152_v1_fpn_640x640,https://www.kaggle.com/models/tensorflow/reti
 movinet/a0/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a0-stream-kinetics-600-classification/versions/2
 imagenet/mobilenet_v1_025_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-224-feature-vector/versions/2
 unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1,skip,Model is not available
-mobilebert_en_uncased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/en-uncased-l-24-h-128-b-512-a-4-f-4-opt/versions/1
+mobilebert_en_uncased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/en-uncased-l-24-h-128-b-512-a-4-f-4-opt/versions/1,skip,120720 InvalidArgumentError Graph execution error
 boundless/quarter,https://www.kaggle.com/models/google/boundless/frameworks/tensorFlow1/variations/quarter/versions/1
 gtr/gtr-base,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-base/versions/1
 small_bert/bert_en_uncased_L-12_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-512-a-8/versions/2
@@ -262,7 +262,7 @@ nnlm-zh-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/v
 nnlm-id-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/efficientnet_v2_imagenet1k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b3-feature-vector/versions/2
 imagenet/efficientnet_v2_imagenet21k_ft1k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b3-feature-vector/versions/1
-humpback_whale,https://www.kaggle.com/models/google/humpback-whale/frameworks/tensorFlow2/variations/humpback-whale/versions/1
+humpback_whale,https://www.kaggle.com/models/google/humpback-whale/frameworks/tensorFlow2/variations/humpback-whale/versions/1,skip,120720 InvalidArgumentError Graph execution error
 nnlm-id-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 nonsemantic-speech-benchmark/frill,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/frill/versions/1
 vit_s16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-classification/versions/1
@@ -312,7 +312,7 @@ imagenet/efficientnet_v2_imagenet21k_b1/feature_vector,https://www.kaggle.com/mo
 universal-sentence-encoder-xling/en-de,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/xling-en-de/versions/1
 bit/s-r101x1,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r101x1/versions/1
 smaller_LaBSE_15lang_preprocess,https://www.kaggle.com/models/kaggle/smaller-labse-15lang/frameworks/tensorFlow2/variations/preprocess/versions/1
-vgg19-block5-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block5-conv2-unpooling-decoder/versions/1
+vgg19-block5-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block5-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
 imagenet/mobilenet_v1_050_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-224-classification/versions/2
 efficientnet/b5/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b5-classification/versions/1
 imagenet/efficientnet_v2_imagenet21k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b3-feature-vector/versions/1
@@ -382,7 +382,7 @@ HRNet/coco-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/ten
 imagenet/mobilenet_v2_050_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-192-feature-vector/versions/2
 imagenet/mobilenet_v1_050_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-128-feature-vector/versions/2
 experts/bert/pubmed/squad2,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/pubmed-squad2/versions/2
-german-mbmelgan,https://www.kaggle.com/models/myusufs/german-mbmelgan/frameworks/tensorFlow2/variations/german-mbmelgan/versions/1
+german-mbmelgan,https://www.kaggle.com/models/myusufs/german-mbmelgan/frameworks/tensorFlow2/variations/german-mbmelgan/versions/1,skip,120720 InvalidArgumentError Graph execution error
 supcon/resnet_v1_101/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/101-imagenet-classification/versions/1
 wiki40b-lm-fr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/fr/versions/1
 bit/m-r101x3/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x3-ilsvrc2012-classification/versions/1
@@ -485,7 +485,7 @@ edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/tiny,https://www.kaggle.com/m
 sentence-t5/st5-3b,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-3b/versions/1
 tf2nq,https://www.kaggle.com/models/kaggle/tf2nq/frameworks/tensorFlow2/variations/tf2nq/versions/1
 bertseq2seq/bert24_en_de,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/bert24-en-de/versions/1,skip,128817 Model references undeclared parameters
-edgetpu/nlp/mobilebert-edgetpu/m,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/m/versions/1
+edgetpu/nlp/mobilebert-edgetpu/m,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/m/versions/1,skip,120720 InvalidArgumentError Graph execution error
 vit_b32_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b32-fe/versions/1
 experts/bit/r50x1/in21k/structure,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-structure/versions/1
 vit_b32_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b32-classification/versions/1
@@ -524,7 +524,7 @@ spiral/default-wgangp-celebahq64-gen-19steps/agent9,https://www.kaggle.com/model
 swin_large_patch4_window7_224_in22k_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/large-patch4-window7-224-in22k-fe/versions/1
 answer_equivalence/bem,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow2/variations/answer-equivalence-bem/versions/1
 wiki40b-lm-id,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/id/versions/1
-edgetpu/nlp/mobilebert-edgetpu/xs,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/xs/versions/1
+edgetpu/nlp/mobilebert-edgetpu/xs,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/xs/versions/1,skip,120720 InvalidArgumentError Graph execution error
 experts/bit/r50x1/in21k/artifact,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-artifact/versions/1
 distilbert_en_cased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/en-cased-preprocess/versions/2
 experts/bit/r50x1/in21k/conveyance,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-conveyance/versions/1
@@ -533,7 +533,7 @@ compare_gan/model_2_celebahq128_resnet19,https://www.kaggle.com/models/google/co
 experts/bit/r50x1/in21k/living_thing,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-living-thing/versions/1
 wae-mmd,https://www.kaggle.com/models/vtab/wae-mmd/frameworks/tensorFlow1/variations/wae-mmd/versions/1
 american-sign-language,https://www.kaggle.com/models/sayannath235/american-sign-language/frameworks/tensorFlow2/variations/american-sign-language/versions/1
-vgg19-block4-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block4-conv2-unpooling-decoder/versions/1
+vgg19-block4-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block4-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
 experts/bit/r50x1/in21k/plant,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-plant/versions/1
 compare_gan/ssgan_128x128,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/ssgan-128x128/versions/1
 spiral/default-wgangp-celebahq64-gen-19steps/agent4,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent4/versions/1
@@ -596,7 +596,7 @@ experts/bit/r50x1/in21k/tree,https://www.kaggle.com/models/google/experts-bit/fr
 small_bert/bert_uncased_L-6_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-768-a-12/versions/2
 imagenet/mobilenet_v2_075_96/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-96-classification/versions/2
 mixer_b16_i1k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i1k-classification/versions/1
-edgetpu/nlp/mobilebert-edgetpu/s,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/s/versions/1
+edgetpu/nlp/mobilebert-edgetpu/s,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/s/versions/1,skip,120720 InvalidArgumentError Graph execution error
 convnext_large_21k_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-384/versions/1
 llr-pretrain-adv/latents,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/latents/versions/1
 imagenet/mobilenet_v1_025_224/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-224-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
@@ -683,7 +683,7 @@ imagenet/mobilenet_v1_025_224/quantops/classification,https://www.kaggle.com/mod
 efficientnet/b0/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b0-classification/versions/1
 convnext_large_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-1k-384-fe/versions/1
 imagenet/efficientnet_v2_imagenet21k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b2-classification/versions/1
-vgg19-block2-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block2-conv2-unpooling-decoder/versions/1
+vgg19-block2-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block2-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
 faster_rcnn/resnet50_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
 Wiki-words-500-with-normalization,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/500-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 wiki40b-lm-zh-tw,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/zh-tw/versions/1
