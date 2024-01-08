@@ -433,7 +433,8 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
 shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
                                               const shared_ptr<Model>& body_model,
                                               const shared_ptr<Model>& cond_model,
-                                              const OutputVector& ov_inputs) {
+                                              const OutputVector& ov_inputs,
+                                              const shared_ptr<Model>& prior_cond_model) {
     size_t input_size = ov_inputs.size();
     // inject condition body graph prior to Loop node
     // to check condition before to start iterations
@@ -449,7 +450,20 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     }
     cond_model->validate_nodes_and_infer_types();
 
-    auto cond_prior = cond_model->clone();
+    if (prior_cond_model) {
+        auto prior_cond_params = prior_cond_model->get_parameters();
+        FRONT_END_GENERAL_CHECK(
+            input_size == prior_cond_params.size(),
+            "[TensorFlow Frontend] internal error: mismatch number of inputs to While and a number of "
+            "inputs in a conditional graph");
+        for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
+            prior_cond_params[input_ind]->set_element_type(ov_inputs[input_ind].get_element_type());
+            prior_cond_params[input_ind]->set_partial_shape(ov_inputs[input_ind].get_partial_shape());
+        }
+        prior_cond_model->validate_nodes_and_infer_types();
+    }
+    auto cond_prior = prior_cond_model ? prior_cond_model : cond_model->clone();
+
     ov::OutputVector ov_outputs;
     inject_body_model(cond_prior, while_node_name + "/cond", ov_inputs, ov_outputs);
     FRONT_END_GENERAL_CHECK(
@@ -475,14 +489,17 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     for (size_t param_ind = 0; param_ind < body_results.size(); ++param_ind) {
         cond_params[param_ind]->output(0).replace(body_results[param_ind]->input_value(0));
     }
+    auto body_condition_output_idx = body_results.size();
+    // body_results may contain less nodes than body_params that means back edge exists not for all body_params
+    for (size_t param_ind = body_condition_output_idx; param_ind < input_size; ++param_ind) {
+        cond_params[param_ind]->output(0).replace(body_params[param_ind]->output(0));
+    }
 
     // update body model with the new result that corresponds to execution condition
     FRONT_END_GENERAL_CHECK(
         cond_results.size() == 1 && cond_results[0],
         "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
-    auto body_condition_output_idx = body_results.size();
     body_model->add_results(cond_results);
-
     // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
     for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
         body_params[input_ind]->set_element_type(ov_inputs[input_ind].get_element_type());

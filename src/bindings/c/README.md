@@ -29,7 +29,7 @@ OpenVINO C API has the following structure:
  * [src](./src) contains the implementations of all C APIs.
  * [tests](./tests) contains all tests for OpenVINO C APIs. [Learn more](./docs/how_to_write_unit_test.md).
 
-> **NOTE**:  Using API 2.0 is strongly recommended. Legacy API (for C) [header file](./include/c_api/ie_c_api.h), [source file](./src/ie_c_api.cpp), [unit test](./tests/ie_c_api_test.cpp) are also included in the component, but the legacy API is no longer extended. 
+> **NOTE**:  Using API 2.0 is strongly recommended. Legacy API (for C) has been removed from 2024.0. 
 
 ## Tutorials
 

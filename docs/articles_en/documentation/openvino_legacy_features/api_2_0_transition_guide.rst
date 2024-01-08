@@ -91,7 +91,7 @@ To understand the differences between Inference Engine API and API 2.0, see the 
 - **New behavior** implemented in 2022.1 assumes full model alignment with the framework:
 
   - Model Conversion API preserves input element types and order of dimensions (layouts), and stores tensor names from the original models.
-  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, TensorFlow (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), ONNX, PaddlePaddle, etc.).
+  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, TensorFlow, ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names for addressing, which is the standard approach among the compatible model frameworks.
   - API 2.0 can also address input and output tensors by the index. Some model formats like ONNX are sensitive to the input and output order, which is preserved by OpenVINO 2022.1.
 

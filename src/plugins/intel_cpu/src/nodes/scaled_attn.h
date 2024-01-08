@@ -3,14 +3,9 @@
 //
 
 #pragma once
-#include <ie_common.h>
-#include <node.h>
-#include <memory_state.h>
 
-#include <memory>
-#include <string>
-#include <vector>
-
+#include "memory_state.h"
+#include "node.h"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
 
