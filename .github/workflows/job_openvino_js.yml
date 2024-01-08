@@ -58,4 +58,4 @@ jobs:
 
       - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
-        run: npm test
+        run: npm run test
