@@ -148,5 +148,4 @@ offering.
 |   OpenVINO™ Integration with TensorFlow is longer supported, as OpenVINO now features a 
     native TensorFlow support, significantly enhancing user experience with no need for 
     explicit model conversion. 
-|   :doc:`Learn more <openvino_docs_MO_DG_TensorFlow_Frontend>`
 

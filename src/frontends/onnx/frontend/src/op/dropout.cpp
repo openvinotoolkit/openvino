@@ -40,7 +40,7 @@ OutputVector dropout(const Node& node) {
     // seed attribute and ratio input are ignored because traning mode is not
     // supported anyway
     bool training_mode = false;  // default value
-    if (ng_inputs.size() > 2 && !ngraph::op::is_null(ng_inputs.at(2))) {
+    if (ng_inputs.size() > 2 && !ov::op::util::is_null(ng_inputs.at(2))) {
         CHECK_VALID_NODE(node,
                          ov::op::util::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
                          "Non-constant training_mode input is not supported.");
