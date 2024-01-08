@@ -10,7 +10,9 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = { ngraph::element::f32 };
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
+};
 
 //transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {

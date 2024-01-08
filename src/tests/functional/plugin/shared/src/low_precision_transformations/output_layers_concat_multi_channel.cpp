@@ -31,8 +31,8 @@ std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChann
 
 std::string OutputLayersConcatMultiChannel::getTestCaseName(
     const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ov::element::Type netPrecision;
+    ov::Shape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
@@ -57,15 +57,13 @@ std::string OutputLayersConcatMultiChannel::getTestCaseName(
 void OutputLayersConcatMultiChannel::SetUp() {
     rel_threshold = 0.05;
 
-    InferenceEngine::SizeVector inputShape1;
-    InferenceEngine::Precision netPrecision;
+    ov::Shape inputShape1;
+    ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+    std::tie(ngPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
     const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
     init_input_shapes({ov::PartialShape(inputShape1), ov::PartialShape(inputShape1)});
-
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");

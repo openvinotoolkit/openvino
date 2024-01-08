@@ -40,13 +40,13 @@ protected:
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
-        const InferenceEngine::Precision precision,
-        const InferenceEngine::SizeVector& inputShapes,
+        const ov::element::Type precision,
+        const ov::Shape& inputShapes,
         const std::string& targetDevice,
         const ov::pass::low_precision::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
-        const ngraph::element::Type precision,
+        const ov::element::Type precision,
         const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ov::pass::low_precision::LayerTransformation::Params& params);
@@ -68,8 +68,8 @@ protected:
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ov::element::Type,
+    ov::Shape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 

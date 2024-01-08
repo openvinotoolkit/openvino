@@ -23,8 +23,8 @@
 namespace LayerTestsDefinitions {
 
 std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ov::element::Type netPrecision;
+    ov::Shape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
@@ -49,10 +49,10 @@ std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<Lay
 void OutputLayersConcat::SetUp() {
     abs_threshold = 4.1;
 
-    InferenceEngine::SizeVector inputShape1;
-    InferenceEngine::Precision netPrecision;
+    ov::Shape inputShape1;
+    ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+    std::tie(ngPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
     init_input_shapes({
                               ov::PartialShape(inputShape1),
@@ -63,8 +63,6 @@ void OutputLayersConcat::SetUp() {
                                                                                               static_cast<ov::Dimension::value_type>(inputShape1[3])
                                                                                       }))
                       });
-
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");

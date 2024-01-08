@@ -57,17 +57,17 @@ std::string LayerTransformation::toString(const ov::pass::low_precision::LayerTr
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(
-    const InferenceEngine::Precision precision,
-    const InferenceEngine::SizeVector& inputShapes,
+    const ov::element::Type precision,
+    const ov::Shape& inputShapes,
     const std::string& targetDevice,
     const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
-    result << precision.name() << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << toString(params);
+    result << precision << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << toString(params);
     return result.str();
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(
-    const ngraph::element::Type precision,
+    const ov::element::Type precision,
     const ngraph::PartialShape& inputShapes,
     const std::string& targetDevice,
     const ov::pass::low_precision::LayerTransformation::Params& params) {

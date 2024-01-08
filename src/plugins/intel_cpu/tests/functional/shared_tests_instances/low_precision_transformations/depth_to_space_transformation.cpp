@@ -12,8 +12,7 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ov::element::Type> precisions = {
-    ov::element::f32,
-    // ov::element::f16
+        ov::element::f32
 };
 
 const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
