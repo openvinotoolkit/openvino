@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <onednn/dnnl.h>
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
-
 #include "node.h"
+#include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
 
 #include <array>

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include "cpu/x64/jit_generator.hpp"
 
 #include "snippets/snippets_isa.hpp"

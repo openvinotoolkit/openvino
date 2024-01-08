@@ -3,8 +3,8 @@
 //
 
 #include "weights_cache.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
-#include <ie_system_conf.h>
 #include <memory>
 
 namespace ov {

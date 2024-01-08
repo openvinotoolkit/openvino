@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstring>
-#include "ie_api.h"
 #include "openvino/core/parallel.hpp"
 #include "onednn/dnnl.h"
 

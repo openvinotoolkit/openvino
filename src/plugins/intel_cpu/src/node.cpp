@@ -4,7 +4,6 @@
 
 #include "node.h"
 
-#include "caseless.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
 #include "dnnl_debug.h"

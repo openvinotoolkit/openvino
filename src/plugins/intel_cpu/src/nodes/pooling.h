@@ -4,15 +4,10 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <string>
-#include <memory>
-#include <vector>
 #include "common/dnnl_executor.h"
-
 #include "executors/pooling_list.hpp"
+#include "node.h"
+#include "oneapi/dnnl/dnnl.hpp"
 
 namespace ov {
 namespace intel_cpu {

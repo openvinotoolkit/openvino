@@ -6,7 +6,7 @@
 
 #include "cpu_streams_calculation.hpp"
 #include "openvino/core/parallel.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 namespace intel_cpu {

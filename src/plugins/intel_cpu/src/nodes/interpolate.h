@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include "executors/interpolate.hpp"
 #include "executors/interpolate_list.hpp"
+#include "node.h"
 
 #define MAX_INPUT_INTERPOLATE 8
 

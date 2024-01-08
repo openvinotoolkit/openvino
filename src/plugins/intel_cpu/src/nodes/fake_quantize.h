@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <common/primitive_attr.hpp>
+#include "common/primitive_attr.hpp"
+#include "node.h"
 
-#include <string>
-#include <memory>
-#include <vector>
 #include <utility>
 
 namespace ov {
