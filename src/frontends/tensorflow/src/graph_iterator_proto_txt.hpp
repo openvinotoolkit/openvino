@@ -6,7 +6,7 @@
 
 #include <fstream>
 #if defined(__MINGW32__) || defined(__MINGW64__)
-#include <filesystem>
+#    include <filesystem>
 #endif
 
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -24,7 +24,7 @@ public:
     template <typename T>
     GraphIteratorProtoTxt(const std::basic_string<T>& path) : GraphIteratorProto() {
 #if defined(__MINGW32__) || defined(__MINGW64__)
-		std::ifstream pbtxt_stream(std::filesystem::path(path), std::ios::in);
+        std::ifstream pbtxt_stream(std::filesystem::path(path), std::ios::in);
 #else
         std::ifstream pbtxt_stream(path, std::ios::in);
 #endif
