@@ -2,19 +2,19 @@ Automatic Device Selection with OpenVINO™
 =========================================
 
 The `Auto
-device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
+devices <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
 
 Next, if dedicated accelerators are available, these devices are
 preferred (for example, integrated and discrete
-`GPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__).
-`CPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
+`GPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__).
+`CPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
 is used as the default “fallback device”. Keep in mind that AUTO makes
 this selection only once, during the loading of a model.
 
@@ -122,7 +122,7 @@ with ``ov.compile_model`` or serialized for next usage with
 ``ov.save_model``.
 
 For more information about model conversion API, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -361,9 +361,9 @@ completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
 For more information, refer to the `Performance
-Hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
+Hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
 section of `Automatic Device
-Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 article.
 
 Class and callback definition 
