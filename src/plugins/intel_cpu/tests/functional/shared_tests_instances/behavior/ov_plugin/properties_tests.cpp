@@ -16,6 +16,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCommon,
 auto cpu_properties = []() -> std::vector<ov::AnyMap> {
     std::vector<ov::AnyMap> properties = {
         {},
+        {ov::hint::enable_cpu_pinning(true)},
+        {ov::hint::enable_cpu_pinning(false)},
         {ov::enable_profiling(true)},
         {ov::enable_profiling(false)},
         {ov::internal::exclusive_async_requests(true)},
@@ -29,25 +31,11 @@ auto cpu_properties = []() -> std::vector<ov::AnyMap> {
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
     };
-#if (defined(__APPLE__) || defined(_WIN32))
+
     auto numa_nodes = ov::get_available_numa_nodes();
-    auto core_types = ov::get_available_cores_types();
-    if (core_types.size() > 1) {
-        properties.push_back({{ov::internal::cpu_bind_thread.name(), "HYBRID_AWARE"}});
-    } else if (numa_nodes.size() > 1) {
-        properties.push_back({{ov::internal::cpu_bind_thread.name(), "NUMA"}});
+    if (numa_nodes.size() > 1) {
         properties.push_back({ov::num_streams(ov::streams::NUMA)});
-    } else {
-        properties.push_back({{ov::internal::cpu_bind_thread.name(), "NO"}});
     }
-#else
-    auto core_types = ov::get_available_cores_types();
-    if (core_types.size() > 1) {
-        properties.push_back({{ov::internal::cpu_bind_thread.name(), "HYBRID_AWARE"}});
-    } else {
-        properties.push_back({{ov::internal::cpu_bind_thread.name(), "YES"}});
-    }
-#endif
     return properties;
 };
 
@@ -63,7 +51,7 @@ const std::vector<ov::AnyMap> cpu_inproperties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      {ov::hint::num_requests.name(), "should be int"}},
     {{ov::num_streams.name(), "OFF"}},
-    {{ov::internal::cpu_bind_thread.name(), "OFF"}},
+    {{ov::hint::enable_cpu_pinning.name(), "OFF"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
