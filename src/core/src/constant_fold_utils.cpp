@@ -6,6 +6,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/assign_base.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
@@ -27,6 +28,9 @@ bool ov::util::node_requires_precision_conversion(const std::shared_ptr<const ov
     }
     // ConvertLike has constant_fold function but doesn't have has_evaluate function
     if (ov::is_type<ov::op::v1::ConvertLike>(node)) {
+        return false;
+    }
+    if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
         return false;
     }
     const auto unsupported_types = ov::util::unsupported_types();
@@ -121,7 +125,10 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
     if (type_relaxed) {
         for (size_t i = 0; i < cloned_node->get_input_size(); i++) {
-            type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
+            if (std::find(unsupported_types.begin(), unsupported_types.end(), type_relaxed->get_origin_input_type(i)) !=
+                unsupported_types.end()) {
+                type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
+            }
         }
         for (size_t i = 0; i < cloned_node->get_output_size(); i++) {
             if (std::find(unsupported_types.begin(),
