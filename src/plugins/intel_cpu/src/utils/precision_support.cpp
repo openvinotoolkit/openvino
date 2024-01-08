@@ -14,7 +14,8 @@ bool hasHardwareSupport(const ov::element::Type& precision) {
     switch (precision) {
     case ov::element::f16: {
 #if defined(OPENVINO_ARCH_X86_64)
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             return true;
         return false;
 #elif defined(OV_CPU_ARM_ENABLE_FP16)
@@ -25,7 +26,8 @@ bool hasHardwareSupport(const ov::element::Type& precision) {
     }
     case ov::element::bf16: {
 #if defined(OPENVINO_ARCH_X86_64)
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             return true;
         return false;
 #else

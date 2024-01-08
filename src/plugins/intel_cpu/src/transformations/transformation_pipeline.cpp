@@ -283,7 +283,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         };
 
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
 #if defined(OV_CPU_ARM_ENABLE_FP16)
         if (inferencePrecision != ov::element::f16)
@@ -518,9 +518,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
     using namespace ov::pass::low_precision;
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-    //Only enable conv/group conv signed input on AMX platform.
+    // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
     std::vector<ov::element::Type> input0LowPrecisionList;
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
         input0LowPrecisionList = {ov::element::u8, ov::element::i8};
     } else {
         input0LowPrecisionList = {ov::element::u8};
