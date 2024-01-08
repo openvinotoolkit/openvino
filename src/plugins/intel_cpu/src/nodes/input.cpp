@@ -218,22 +218,21 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
-            op::v0::Parameter::get_type_info_static(),
-            op::v0::Constant::get_type_info_static(),
-            op::v0::Result::get_type_info_static(),
-            op::v3::ReadValue::get_type_info_static(),
-            op::v6::ReadValue::get_type_info_static()))
+                op::v0::Parameter::get_type_info_static(),
+                op::v0::Constant::get_type_info_static(),
+                op::v0::Result::get_type_info_static(),
+                op::v3::ReadValue::get_type_info_static(),
+                op::v6::ReadValue::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
-
-    constant = ConstantType::NoConst;
-
     constOp = ov::as_type_ptr<op::v0::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();
+    } else {
+        constant = ConstantType::StrictNoConst;
     }
 }
 

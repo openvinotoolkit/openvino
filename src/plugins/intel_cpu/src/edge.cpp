@@ -51,19 +51,6 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::drop() {
-    auto dropFrom = [] (const Edge* edge, std::vector<EdgeWeakPtr> &edges) {
-        edges.erase(std::remove_if(edges.begin(), edges.end(),
-                                   [&edge] (EdgeWeakPtr _edge) {
-                                       return _edge.lock().get() == edge;
-                                   }),
-                    edges.end());
-    };
-
-    dropFrom(this, getParent()->childEdges);
-    dropFrom(this, getChild()->parentEdges);
-}
-
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
     if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
