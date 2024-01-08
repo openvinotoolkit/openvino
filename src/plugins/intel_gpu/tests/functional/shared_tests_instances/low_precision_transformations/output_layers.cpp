@@ -11,8 +11,8 @@ using namespace LayerTestsDefinitions;
 using namespace ov::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
