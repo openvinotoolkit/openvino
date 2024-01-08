@@ -776,3 +776,18 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
         model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, GatherWithStringParams) {
+    { model = convert_model("gather_with_string_table/gather_with_string_table.pb"); }
+    {
+        auto string_const =
+            make_shared<Constant>(element::string,
+                                  Shape{3},
+                                  std::vector<std::string>{"First sentence", "Second sentence sentence", "Third"});
+        auto param_inds = make_shared<Parameter>(element::i32, Shape{2, 3, 5});
+        auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+
+        auto gather = make_shared<Gather>(string_const, param_inds, axis);
+        model_ref = make_shared<Model>(OutputVector{gather}, ParameterVector{param_inds});
+    }
+}
