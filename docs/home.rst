@@ -14,7 +14,7 @@ OpenVINO 2023.2
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.2
+   OpenVINO 2023.3
 
    .. raw:: html
 
