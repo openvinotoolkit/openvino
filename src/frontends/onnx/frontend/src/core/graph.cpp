@@ -11,7 +11,6 @@
 
 #include "core/transform.hpp"
 #include "core/value_info.hpp"
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
@@ -148,7 +147,7 @@ Graph::Graph(const std::string& model_dir,
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
             Tensor tensor = Tensor{initializer_tensor, m_model_dir, m_mmap_cache};
-            std::shared_ptr<default_opset::Constant> ov_constant;
+            std::shared_ptr<ov::op::v0::Constant> ov_constant;
             // For each initializer create a Constant node and store it in cache
             try {
                 ov_constant = tensor.get_ov_constant();
@@ -165,7 +164,7 @@ Graph::Graph(const std::string& model_dir,
         }
     }
 
-    // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
+    // Process all ONNX graph inputs, convert them to OV nodes and store in cache
     for (const auto& input : m_model->get_graph().input()) {
         // Check if a Constant node was already created from an initializer
         if (m_cache->contains(input.name())) {
@@ -183,7 +182,7 @@ void Graph::convert_to_ov_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
     std::map<std::string, uint64_t> op_statistics;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
             op_statistics[node_proto.op_type()]++;
@@ -287,7 +286,7 @@ void Graph::decode_to_framework_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
     std::map<std::string, uint64_t> op_statistics;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
             op_statistics[node_proto.op_type()]++;

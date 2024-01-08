@@ -8,7 +8,7 @@
 #    define NGRAPH_LEGACY_HEADER_INCLUDED
 #    ifdef _MSC_VER
 #        pragma message( \
-            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+                "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 #    else
 #        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 #    endif
@@ -17,11 +17,11 @@
 #include <cstddef>
 #include <string>
 
-#include "ngraph/deprecated.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ONNX_NAMESPACE {
 // forward declaration

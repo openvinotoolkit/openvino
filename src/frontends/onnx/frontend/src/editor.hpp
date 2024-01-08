@@ -9,15 +9,13 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "ngraph/deprecated.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ov {
@@ -109,7 +107,7 @@ public:
     /// \param input_values A collection of pairs {input_name: new_input_values} used to
     ///                     update the ONNX model. Initializers already existing are
     ///                     overwritten.
-    void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
+    void set_input_values(const std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>& input_values);
 
     /// \brief Changes the name of given tensor.
     ///
