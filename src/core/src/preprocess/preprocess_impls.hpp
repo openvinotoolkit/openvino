@@ -40,7 +40,7 @@ class InputModelInfo::InputModelInfoImpl : public ModelInfoImpl {};
 class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {
 public:
     void set_color_format(const ColorFormat& color_format, const std::vector<std::string>& sub_names = {}) {
-        OPENVINO_ASSERT (color_format == ColorFormat::RGB || color_format == ColorFormat::BGR);
+        OPENVINO_ASSERT(color_format == ColorFormat::RGB || color_format == ColorFormat::BGR);
         m_color_format = color_format;
         m_planes_sub_names = sub_names;
         m_color_format_set = true;

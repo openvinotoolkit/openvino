@@ -706,7 +706,8 @@ void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
                 auto res = reverse_channels({node}, nullptr, context);
                 context.color_format() = dst_format;
-                return std::make_tuple(std::get<0>(res)[0], std::get<1>(res));;
+                return std::make_tuple(std::get<0>(res)[0], std::get<1>(res));
+                ;
             }
             OPENVINO_ASSERT(false,
                             "Source color format '",
