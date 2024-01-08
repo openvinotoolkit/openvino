@@ -33,7 +33,9 @@
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    if !defined(__MINGW32__) && !defined(__MINGW64__)
+#        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    endif
 #else
 #    include <dirent.h>
 #    include <dlfcn.h>
