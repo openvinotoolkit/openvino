@@ -119,7 +119,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...2" << std::endl;
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...3" << std::endl;
-    ov::AnyMap config = {};
+    ov::AnyMap config;
     config[ov::num_streams.name()] = streams;
     std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...4" << std::endl;
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);

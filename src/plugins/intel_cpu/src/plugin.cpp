@@ -561,12 +561,15 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     transformations.UpToLpt();
 
+    std::cout << "Engine::compile_model - transformations.UpToLpt " << std::endl;
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
     }
 
     conf.readProperties(config, modelType);
+    std::cout << "Engine::compile_model - conf.readProperties " << std::endl;
     calculate_streams(conf, cloned_model);
+    std::cout << "Engine::compile_model - calculate_streams " << std::endl;
 
     transformations.PostLpt();
     transformations.Snippets();
