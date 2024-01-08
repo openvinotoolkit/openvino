@@ -414,9 +414,9 @@ private:
     void run(program& p) override;
 };
 
-class pre_dynamic_shape_opts : public base_pass {
+class mark_runtime_skippable_nodes : public base_pass {
 public:
-    pre_dynamic_shape_opts() : base_pass("pre_dynamic_shape_opts") {}
+    mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
 
 private:
     void run(program& p) override;

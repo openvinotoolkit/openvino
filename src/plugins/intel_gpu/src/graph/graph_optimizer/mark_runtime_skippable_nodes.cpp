@@ -11,7 +11,7 @@
 
 using namespace cldnn;
 
-void pre_dynamic_shape_opts::run(program& p) {
+void mark_runtime_skippable_nodes::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node = *itr++;
@@ -35,7 +35,7 @@ void pre_dynamic_shape_opts::run(program& p) {
                 || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
                 // May be skipepd
                 node.can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[pre_dynamic_shape_opts] : " << node.id() << "can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << "can_be_optimized" << std::endl;
             }
         });
         program_helpers::do_for_types<permute>(*node, [](permute_node& node){
@@ -50,13 +50,11 @@ void pre_dynamic_shape_opts::run(program& p) {
             if (node.is_dynamic()) {
                 if (node.get_dependency(0).is_type<kv_cache>())
                     return;
-                if (node.get_dependency(0).is_type<gemm>())
-                    return;
                 // If the user is concatenation, priority should be given to in place concat optimization at runtime
                 if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1)
                     return;
                 node.can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[pre_dynamic_shape_opts] : " << node.id() << "can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << "can_be_optimized" << std::endl;
             }
         });
     }

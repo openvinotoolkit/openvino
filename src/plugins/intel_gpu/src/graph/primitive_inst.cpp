@@ -507,11 +507,17 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if ((_node->is_type<gather>() || _node->is_type<permute>()) && !can_be_optimized() && _outputs[0]
-        && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-        _outputs[0] = nullptr;
-        max_output_layout_size = 0;
+    if (_node->is_type<gather>() || _node->is_type<permute>()) {
+        // For the nodes which can be optimized at runtime, input memory is used as output memory
+        // So there is no need to reallocate output memory
+        if (can_be_optimized())
+            return ev;
+        // Clear out memory if if was previously reused, but now primitive can't be optimized
+        if (!can_be_optimized() && _outputs[0] && dep_memory_ptr(0)
+            && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+            _outputs[0] = nullptr;
+            max_output_layout_size = 0;
+        }
     }
 
     // update layout to ensure that it repsects paddings for correct allocation size
@@ -988,8 +994,7 @@ void primitive_inst::do_runtime_skip_permute() {
         || is_output()
         || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
-        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
-        || (get_user_insts().size() == 1 && get_users().front()->is_type<concatenation>() && get_user_insts().front()->can_be_optimized()))
+        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;

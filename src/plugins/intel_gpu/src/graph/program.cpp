@@ -602,8 +602,8 @@ void program::pre_optimize_graph(bool is_internal) {
     // optimization passes
     apply_opt_pass<mark_shape_of_subgraphs>(true);
 
-    // Set gathers that might be skipped at runtime as can_be_optimized.
-    apply_opt_pass<pre_dynamic_shape_opts>();
+    // Mark operations that might be skipped at runtime as can_be_optimized.
+    apply_opt_pass<mark_runtime_skippable_nodes>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
