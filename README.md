@@ -171,10 +171,13 @@ See [How to build OpenVINO](./docs/dev/build.md) to get more information about t
 See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502) for good first issues.
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
+
+Visit [Intel DevHub Discord server](https://discord.gg/wPuqAujS) if you need help or wish to talk to OpenVINO developers. You can go to the channel dedicated to Good First Issue support if you are working on a task.
+
 ## Take the issue
 If you wish to be assigned to an issue please add a comment with `.take` command.  
 
-## Get a support
+## Get support
 
 Report questions, issues and suggestions, using:
 
