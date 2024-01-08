@@ -5,8 +5,23 @@ import os
 import re
 import sys
 
-# do not print messages from TensorFlow
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+def run_in_ci():
+    if "CI" in os.environ and os.environ["CI"].lower() == "true":
+        return True
+
+    if "TF_BUILD" in os.environ and len(os.environ["TF_BUILD"]):
+        return True
+
+    if "JENKINS_URL" in os.environ and len(os.environ["JENKINS_URL"]):
+        return True
+
+    return False
+
+
+if not run_in_ci():
+    # execute check only in CI when the code is productized
+    exit(0)
 
 if len(sys.argv) < 3:
     error_message = "Run in the following format: check_supported_ops.py op_table.cpp supported_ops.md"
