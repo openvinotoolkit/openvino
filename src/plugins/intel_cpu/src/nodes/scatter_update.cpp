@@ -232,10 +232,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
         updateDim.size() <= 1 && indicesPrec == ov::element::i32 && dataPrec == ov::element::i32) {
         auto length = srcDataDim[0];
-        auto indicesCnt = (indicesDim.size() == 0) ? 1 : indicesDim[0];
-        auto updateCnt = (updateDim.size() == 0) ? 1 : updateDim[0];
-        if (length <= 64 && updateCnt == indicesCnt) {
-            execSpecialCase = [this, length, updateCnt](){
+        if (length <= 64) {
+            execSpecialCase = [this, length](){
                 auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
                 auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
                 auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
@@ -248,7 +246,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
                 for (size_t i = 0; i < length; i++) {
                     dstPtr[i] = srcPtr[i];
                 }
-                indicesMemPtr->getShape().getDims();
+                auto updateDims = updateMemPtr->getShape().getDims();
+                auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
                 for (size_t i = 0; i < updateCnt; i++) {
                     dstPtr[indicesPtr[i]] = updatePtr[i];
                 }
