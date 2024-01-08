@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/constant.hpp"
+#include "validation_util.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -22,14 +22,10 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::normalize_axes(op.get(), inputRank, axes);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axes(op.get(), inputRank, axes);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axes.push_back(ov::normalize_axis(op.get(), i, inputRank));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axes.push_back(ov::util::normalize_axis(op.get(), i, inputRank));
         }
     }
     return axes;

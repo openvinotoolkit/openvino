@@ -86,7 +86,8 @@ struct kv_cache_impl : typed_primitive_impl_ocl<kv_cache> {
             auto& stream = instance.get_network().get_stream();
 
             stream.enqueue_barrier();
-            return variable.get_memory()->copy_from(stream, instance.output_memory(0), false);
+            auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
+            return variable.get_memory()->copy_from(stream, *out, false);
         }
     }
 

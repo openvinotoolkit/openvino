@@ -4,24 +4,19 @@
 
 #include "scaled_attn.h"
 
-#include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
-
-#include <algorithm>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <string>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-#include <vector>
-
-#include "openvino/core/parallel.hpp"
+#include "common/arbitrary_order_desc_creator.h"
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <openvino/op/scaled_dot_product_attention.hpp>
-#include "common/arbitrary_order_desc_creator.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/util/common_util.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/plain_tensor.hpp"
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -32,8 +27,11 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::Extensions::Cpu::XARCH;
+#include <algorithm>
+#include <string>
+#include <vector>
+
+using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 

@@ -247,3 +247,58 @@ class TestMul(CommonTFLayerTest):
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+
+
+class TestComplexMul(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
+        assert 'param_real_1' in inputs_info
+        assert 'param_imag_1' in inputs_info
+        assert 'param_real_2' in inputs_info
+        assert 'param_imag_2' in inputs_info
+        param_real_shape_1 = inputs_info['param_real_1']
+        param_imag_shape_1 = inputs_info['param_imag_1']
+        param_real_shape_2 = inputs_info['param_real_2']
+        param_imag_shape_2 = inputs_info['param_imag_2']
+        inputs_data = {}
+        inputs_data['param_real_1'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag_1'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real_2'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
+        inputs_data['param_imag_2'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
+        return inputs_data
+
+    def create_complex_mul_net(self, input_shape):
+        import tensorflow as tf
+        tf.compat.v1.reset_default_graph()
+        # Create the graph and model
+        with tf.compat.v1.Session() as sess:
+            param_real1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real_1')
+            param_imag1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag_1')
+            param_real2 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real_2')
+            param_imag2 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag_2')
+            complex1 = tf.raw_ops.Complex(real=param_real1, imag=param_imag1)
+            complex2 = tf.raw_ops.Complex(real=param_real2, imag=param_imag2)
+            mul = tf.raw_ops.Mul(x=complex1, y=complex2, name="complex_mul")
+            real = tf.raw_ops.Real(input=mul)
+            img = tf.raw_ops.Imag(input=mul)
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_data_basic = [
+        dict(input_shape=[]),
+        dict(input_shape=[2]),
+        dict(input_shape=[1, 3]),
+        dict(input_shape=[2, 3, 4]),
+        dict(input_shape=[3, 4, 5, 6]),
+    ]
+    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_complex_mul(self, params, ie_device, precision, ir_version, temp_dir,
+                               use_new_frontend, use_old_api):
+        self._test(
+            *self.create_complex_mul_net(**params),
+            ie_device, precision, ir_version, temp_dir=temp_dir,
+            use_new_frontend=use_new_frontend, use_old_api=use_old_api)

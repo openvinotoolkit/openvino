@@ -12,8 +12,6 @@
 #    endif
 #endif
 
-#include "ngraph/visibility.hpp"
-
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_IMPORTER_API
 #else

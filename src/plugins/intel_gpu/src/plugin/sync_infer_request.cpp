@@ -43,13 +43,8 @@ inline bool can_use_usm_host(const cldnn::engine& engine) {
     return can_use_usm;
 }
 
-inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
-    std::string name;
-    // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
-    // plus sometimes it will get empty tensor name.
-    if (!is_legacy_api) {
-        name = {};
-    }
+inline std::string get_port_name(const ov::Output<const ov::Node>& port) {
+    std::string name = {};
     if (name.empty()) {
         bool is_input = ov::op::util::is_parameter(port.get_node());
         if (is_input) {
@@ -112,8 +107,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
     , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
     , m_use_external_queue(m_graph->use_external_queue()) {
-    bool is_legacy_api = !compiled_model->is_new_api();
-    init_mappings(is_legacy_api);
+    init_mappings();
     allocate_inputs();
     allocate_outputs();
     allocate_states();
@@ -153,14 +147,13 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::set_tensor");
-    const auto& compiled_model = std::static_pointer_cast<const CompiledModel>(get_compiled_model());
-    const auto name = get_port_name(port, !compiled_model->is_new_api());
+    const auto name = get_port_name(port);
     const auto& shape = port.get_partial_shape();
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port: \'", name, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "[GPU] Mismtach tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
-    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0},
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with name: ",
                     name,
                     ", because model input (shape=",
@@ -224,8 +217,7 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     bool is_input = ov::op::util::is_parameter(port.get_node());
-    const auto& compiled_model = std::static_pointer_cast<const CompiledModel>(get_compiled_model());
-    const auto name = get_port_name(port, !compiled_model->is_new_api());
+    const auto name = get_port_name(port);
     if (is_input) {
         OPENVINO_ASSERT(m_user_inputs.count(name) == 1, "[GPU] Input tensor with name ", name, " is not found");
         return { m_user_inputs.at(name).ptr, nullptr };
@@ -351,8 +343,8 @@ void SyncInferRequest::wait() {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (host): " << output_tensor->data() << std::endl;
         }
 
-        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || output_tensor_wrapper.actual_size >= output_memory->size(),
-                        "[GPU] Output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
+        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic || output_tensor_wrapper.actual_size >= output_memory->size(),
+                        "[GPU] Output port is static and output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
                         "than required (", output_memory->size(), ")");
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
@@ -371,6 +363,8 @@ void SyncInferRequest::wait() {
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
                 if (usm_host_tensor && output_memory)
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+                else if (!is_remote && output_memory)
+                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
 
                 if (need_reallocate) {
                     auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), *m_shape_predictor);
@@ -807,13 +801,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(const std::strin
     return network->set_output_memory(internal_name, output_memory);
 }
 
-void SyncInferRequest::init_mappings(bool is_legacy_api) {
+void SyncInferRequest::init_mappings() {
     for (const auto& in : get_inputs()) {
-        auto port_name = get_port_name(in, is_legacy_api);
+        auto port_name = get_port_name(in);
         m_input_ports_map[port_name] = in;
     }
     for (const auto& out : get_outputs()) {
-        auto port_name = get_port_name(out, is_legacy_api);
+        auto port_name = get_port_name(out);
         m_output_ports_map[port_name] = out;
         m_output_names_map[port_name] = m_graph->out_name_to_internal(port_name);
     }

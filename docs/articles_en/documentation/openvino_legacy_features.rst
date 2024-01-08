@@ -82,7 +82,7 @@ offering.
     than the remaining ones, their support has been discontinued. Converting them to the
     ONNX format is a possible way of retaining them in the OpenVINO-based pipeline.
 |   :doc:`See the previous conversion instructions <mxnet_caffe_kaldi>`
-|   :doc:`See the currently supported frameworks <Supported_Model_Formats>`
+|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
 
 
 | **Post-training Optimization Tool (POT)**
@@ -148,5 +148,4 @@ offering.
 |   OpenVINO™ Integration with TensorFlow is longer supported, as OpenVINO now features a 
     native TensorFlow support, significantly enhancing user experience with no need for 
     explicit model conversion. 
-|   :doc:`Learn more <openvino_docs_MO_DG_TensorFlow_Frontend>`
 
