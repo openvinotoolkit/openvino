@@ -138,3 +138,27 @@ class TestAddLists(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_add(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestAddBool(PytorchLayerTest): 
+
+    def _prepare_input(self):
+        return (np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool),)
+
+    def create_model(self):
+
+        class aten_add(torch.nn.Module):
+            def __init__(self):
+                super(aten_add, self).__init__()
+
+            def forward(self, x):
+                x = x.to(torch.bool)
+                return torch.add(x, x)  
+        ref_net = None
+
+        return aten_add(), ref_net, "aten::add"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_add(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
