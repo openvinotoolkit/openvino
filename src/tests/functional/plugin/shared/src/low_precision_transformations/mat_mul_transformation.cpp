@@ -60,7 +60,7 @@ void MatMulTransformation::SetUp() {
 }
 
 void MatMulTransformation::run() {
-    //SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LayerTransformation::run();
 

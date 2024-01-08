@@ -56,7 +56,7 @@ void SpaceToBatchTransformation::run() {
 }
 
 TEST_P(SpaceToBatchTransformation, CompareWithRefImpl) {
-    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

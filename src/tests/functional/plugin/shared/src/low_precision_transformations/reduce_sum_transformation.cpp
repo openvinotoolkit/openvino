@@ -65,7 +65,7 @@ void ReduceSumTransformation::run() {
 }
 
 TEST_P(ReduceSumTransformation, CompareWithRefImpl) {
-    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

@@ -116,7 +116,7 @@ void ElementwiseBranchSelectionTransformation::run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
-    //SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 
