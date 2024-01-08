@@ -9,7 +9,7 @@ namespace {
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
 };
 const ov::AnyMap empty_property = {};
@@ -33,7 +33,7 @@ TEST_P(OVExecGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
 
     for (const auto& op : exec_graph->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
-        auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
         ASSERT_NE(rtInfo.end(), it);
         auto opType = it->second.as<std::string>();
 

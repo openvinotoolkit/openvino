@@ -1,35 +1,32 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
-
-#include <fstream>
-
-#include <exec_graph_info.hpp>
-#include <openvino/pass/serialize.hpp>
-#include <ie_ngraph_utils.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-
-#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+
+#include <fstream>
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-typedef std::tuple<
-        ov::element::Type_t,                // Element type
-        std::string,                        // Device name
-        ov::AnyMap                          // Config
-> OVExecGraphImportExportTestParams;
+typedef std::tuple<ov::element::Type,  // Element type
+                   std::string,        // Device name
+                   ov::AnyMap          // Config
+                   >
+    OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
                                     public OVCompiledNetworkTestBase {
     public:
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
-        ov::element::Type_t elementType;
+        ov::element::Type elementType;
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(elementType, targetDevice, configuration) = obj.param;
@@ -66,7 +63,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    ov::element::Type_t elementType;
+    ov::element::Type elementType;
     std::shared_ptr<ov::Model> function;
 };
 
@@ -139,13 +136,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
 
     // Create a simple function
     {
-        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{param});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
 
@@ -179,13 +175,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
 
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ov::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
 
@@ -363,11 +358,11 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_NO_THROW(importedExecNet.output("concat1").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat2").get_node());
 
-    const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::u32 ||
-                            elementType == ngraph::element::i64 ||
-                            elementType == ngraph::element::u64 ? ngraph::element::i32 : ngraph::element::f32;
-    const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
+    const auto outputType = elementType == ov::element::i32 || elementType == ov::element::u32 ||
+                                    elementType == ov::element::i64 || elementType == ov::element::u64
+                                ? ov::element::i32
+                                : ov::element::f32;
+    const auto inputType = elementType == ov::element::f16 ? ov::element::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
     EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
@@ -386,12 +381,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
 
     // Create a simple function
     {
-        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
     compiled_model = core->compile_model(function, target_device, configuration);
@@ -428,13 +423,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
 
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ov::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
@@ -496,9 +490,9 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op1"]->getPrecision());
 }
 
-typedef std::tuple<ov::element::Type_t,  // Element type
-                   ov::Shape,            // Shape
-                   std::string           // Device name
+typedef std::tuple<ov::element::Type,  // Element type
+                   ov::Shape,          // Shape
+                   std::string         // Device name
                    >
     OVExecGraphUniqueNodeNamesTestParams;
 
@@ -529,7 +523,7 @@ public:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShape))};
         auto split_axis_op =
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
