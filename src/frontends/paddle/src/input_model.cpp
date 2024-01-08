@@ -6,7 +6,7 @@
 
 #include <fstream>
 #if defined(__MINGW32__) || defined(__MINGW64__)
-#include <filesystem>
+#    include <filesystem>
 #endif
 #include <queue>
 
@@ -295,7 +295,8 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
 #if defined(__MINGW32__) || defined(__MINGW64__)
-            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)), std::ios::in | std::ifstream::binary);
+            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)),
+                             std::ios::in | std::ifstream::binary);
 #else
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
 #endif
