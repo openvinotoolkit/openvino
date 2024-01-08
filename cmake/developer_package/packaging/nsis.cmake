@@ -122,6 +122,7 @@ macro(ov_define_component_include_rules)
     # scripts
     unset(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_SETUPVARS_PWSH_EXCLUDE_ALL)
 endmacro()
 
 ov_define_component_include_rules()

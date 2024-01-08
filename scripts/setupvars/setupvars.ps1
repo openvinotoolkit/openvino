@@ -8,19 +8,6 @@ param (
 
 $Env:INTEL_OPENVINO_DIR = Split-Path $MyInvocation.MyCommand.Path
 
-## OpenCV
-#if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
-#   call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-#   goto :opencv_done
-#)
-#
-#if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
-#   call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
-#   goto :opencv_done
-#)
-#:opencv_done
-#
-
 $Env:InferenceEngine_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
 $Env:ngraph_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
 $Env:OpenVINO_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
@@ -69,6 +56,8 @@ if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")
 # Add libs directories to the PATH
 $Env:PATH = "$Env:OPENVINO_LIB_PATHS;$Env:PATH"
 
+Write-Host "[setupvars] OpenVINO environment initialized"
+
 # Check if Python is installed
 $PYTHON_VERSION_MAJOR = 3
 $MIN_REQUIRED_PYTHON_VERSION_MINOR = 8
@@ -81,8 +70,9 @@ try
 }
 catch
 {
-    Write-Host "Error: Python is not installed. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
-    Exit 1
+    Write-Host "Warning: Python is not installed. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
+    # Python is not mandatory so we can safely exit with 0
+    Exit 0
 }
 
 # Check Python version if user did not pass -python_version
@@ -98,8 +88,9 @@ else
 
 if (-not ($PYTHON_VERSION_MAJOR -eq $installed_python_version_major -and $installed_python_version_minor -ge $MIN_REQUIRED_PYTHON_VERSION_MINOR -and $installed_python_version_minor -le $MAX_SUPPORTED_PYTHON_VERSION_MINOR))
 {
-    Write-Host "Unsupported Python version $installed_python_version_major.$installed_python_version_minor. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
-    Exit 1
+    Write-Host "Warning: Unsupported Python version $installed_python_version_major.$installed_python_version_minor. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
+    # Python is not mandatory so we can safely exit with 0
+    Exit 0
 }
 
 
@@ -110,17 +101,18 @@ try
 }
 catch
 {
-    Write-Host "Error: Cannot determine installed Python bitness"
-    Exit 1
+    Write-Host "Warning: Cannot determine installed Python bitness"
+    # Python is not mandatory so we can safely exit with 0
+    Exit 0
 }
 
 if ($python_bitness -ne "64")
 {
-    Write-Host "Unsupported Python bitness. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
-    Exit 1
+    Write-Host "Warning: Unsupported Python bitness. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
+    # Python is not mandatory so we can safely exit with 0
+    Exit 0
 }
-
 
 $Env:PYTHONPATH = "$Env:INTEL_OPENVINO_DIR/python;$Env:INTEL_OPENVINO_DIR/python/python3;$Env:PYTHONPATH"
 
-Write-Host "[setupvars.bat] OpenVINO environment initialized"
+Write-Host "[setupvars] OpenVINO Python environment initialized"
