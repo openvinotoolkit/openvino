@@ -96,7 +96,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         auto get_block_size_k = [=](const size_t K) {
             if (element_type_b != ov::element::f32)
                 return K;
-            return 512ul;//K > 1024 ? 1024 : K > 512 ? 512 : K;
+            return K > 1024 ? 1024 : K > 512 ? 512 : K;
         };
         auto get_block_size_n = [=](const size_t N) {
             return element_type_b != ov::element::f32 ? N : 64;

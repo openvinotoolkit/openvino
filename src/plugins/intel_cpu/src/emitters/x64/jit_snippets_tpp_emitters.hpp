@@ -119,7 +119,7 @@ protected:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
-#define DEBUG_TPP_EMITTERS
+//#define DEBUG_TPP_EMITTERS
 class UnaryEltwiseTppEmitter : public EltwiseTppEmitter {
 public:
     UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,

@@ -170,7 +170,8 @@ class NopEmitter : public jit_emitter {
 public:
     NopEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                dnnl::impl::cpu::x64::cpu_isa_t isa,
-               const ov::snippets::lowered::ExpressionPtr& expr);
+               const ov::snippets::lowered::ExpressionPtr& expr,
+               emitter_in_out_map emitter_type = gpr_to_gpr);
 
     size_t get_inputs_num() const override {return 0;}
 

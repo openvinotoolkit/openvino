@@ -353,8 +353,11 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ov::snippets::pass::MatMulToBrgemm);
         SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "MatMulToBrgemm"), pass::EnforcePrecision, element::f32, element::bf16);
     }
-    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
-    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
+    const char* tpp_mode_env(getenv("DISABLE_TPP"));
+    if (!tpp_mode_env || std::string(tpp_mode_env) != "TRUE") {
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
+    }
     SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
@@ -504,14 +507,15 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
-    std::cerr << "DOM: ";
-    for (auto d : dom)
-        std::cerr << d << " ";
-    std::cerr << "\n" << std::flush;
+    // std::cerr << "DOM: ";
+    // for (auto d : dom)
+    //     std::cerr << d << " ";
+    // std::cerr << "\n" << std::flush;
 //    int64_t indexes[] = {0, 0, 0, 0, 0};
 //    jit_snippets_call_args call_args;
 //    update_ptrs(call_args, inMemPtrs, outMemPtrs);
 //    callable(indexes, &call_args);
+    const auto start = std::chrono::high_resolution_clock::now();
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
@@ -520,6 +524,8 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             callable(indexes, &call_args);
 //            std::cerr << d0 << " "<< d1<< " "<< d2 << " "<< d3 << " "<< d4 << "\n" << std::flush;
         });
+    const auto stop = std::chrono::high_resolution_clock::now();
+    std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() << "\n" << std::flush;
 }
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {

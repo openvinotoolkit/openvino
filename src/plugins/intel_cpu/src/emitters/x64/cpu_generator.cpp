@@ -47,6 +47,17 @@ namespace ov {
         return e_type::get_supported_precisions(n); \
     } \
 }
+// Create Nop emitter that has the same in_out_type as the original one
+// #define CREATE_NOP_SNIPPETS_EMITTER(e_type, ...) { \
+//     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+//         auto original = std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);\
+//         auto emitter_type = original->get_in_out_type();\
+//         return std::make_shared<NopEmitter>(h.get(), isa, expr, emitter_type);\
+//     }, \
+//     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+//         return e_type::get_supported_precisions(n); \
+//     } \
+// }
 
 #define CREATE_CPU_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -56,6 +67,17 @@ namespace ov {
         return e_type::get_supported_precisions(n); \
     } \
 }
+// Create Nop emitter that has the same in_out_type as the original one
+// #define CREATE_NOP_CPU_EMITTER(e_type) { \
+//     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+//         auto original = std::make_shared<e_type>(h.get(), isa, expr->get_node());\
+//         auto emitter_type = original->get_in_out_type();\
+//         return std::make_shared<NopEmitter>(h.get(), isa, expr, emitter_type);\
+//     }, \
+//     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+//         return e_type::get_supported_precisions(n); \
+//     } \
+// }
 
 #define CREATE_UNDEFINED_EMITTER(node_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \

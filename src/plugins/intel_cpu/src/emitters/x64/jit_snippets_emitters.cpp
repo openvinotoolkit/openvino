@@ -441,8 +441,9 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-NopEmitter::NopEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+NopEmitter::NopEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr, emitter_in_out_map emitter_type)
+    : jit_emitter(h, isa) {
+    in_out_type_ = emitter_type;
 }
 
 ParameterEmitter::ParameterEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
