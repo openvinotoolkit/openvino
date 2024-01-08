@@ -177,7 +177,7 @@ public:
     /**
      * @brief Initialize new nodes which has been connected into graph
      */
-    void AddNodes(const std::vector<NodePtr>& new_nodes, bool initNode = false);
+    void InitNewNodes(const std::vector<NodePtr>& new_nodes);
 
     std::shared_ptr<ov::Model> dump() const;
 
@@ -226,10 +226,10 @@ protected:
 
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
     void InitGraph();
-    void InitNodes();
-    void InitDescriptors();
-    void ResolveInplaceDirections();
-    void InitOptimalPrimitiveDescriptors();
+    void InitNodes(const std::vector<NodePtr>& nodes);
+    void InitDescriptors(const std::vector<NodePtr>& nodes);
+    void ResolveInplaceDirections(const std::vector<NodePtr>& nodes);
+    void InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes);
     void ResolveEdgeConflicts();
     bool ProcessDynNodes();
     void Allocate();

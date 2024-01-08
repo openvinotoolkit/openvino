@@ -222,16 +222,16 @@ void Graph::InitGraph() {
     GraphOptimizer optimizer;
 
     SortTopologically();
-    InitNodes();
+    InitNodes(graphNodes);
 
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
 
-    InitDescriptors();
+    InitDescriptors(graphNodes);
 
-    ResolveInplaceDirections();
+    ResolveInplaceDirections(graphNodes);
 
-    InitOptimalPrimitiveDescriptors();
+    InitOptimalPrimitiveDescriptors(graphNodes);
 
     ResolveEdgeConflicts();
 
@@ -256,19 +256,19 @@ void Graph::InitGraph() {
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
-void Graph::InitNodes() {
+void Graph::InitNodes(const std::vector<NodePtr>& nodes) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
-    for (auto &node : graphNodes) {
+    for (auto &node : nodes) {
         node->init();
         if (node->getConstantType() == Node::ConstantType::Unknown)
             node->updateConstantType();
     }
 }
 
-void Graph::InitDescriptors() {
+void Graph::InitDescriptors(const std::vector<NodePtr>& nodes) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
-    for (auto &node : graphNodes) {
+    for (auto &node : nodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
@@ -298,25 +298,25 @@ void Graph::InitDescriptors() {
 #endif
     }
 
-    for (auto &node : graphNodes) {
+    for (auto &node : nodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
         DEBUG_LOG("Select optimal primitive descriptors for node: ", node->getName());
         node->selectOptimalPrimitiveDescriptor();
     }
 }
 
-void Graph::ResolveInplaceDirections() {
+void Graph::ResolveInplaceDirections(const std::vector<NodePtr>& nodes) {
      OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
 
-    for (auto& node : graphNodes) {
+    for (auto& node : nodes) {
         resolveInPlaceDirection(node);
     }
 }
 
 
-void Graph::InitOptimalPrimitiveDescriptors() {
+void Graph::InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
-    for (auto &node : graphNodes) {
+    for (auto &node : nodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
         node->initOptimalPrimitiveDescriptor();
@@ -1612,34 +1612,20 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
 }
 
 void Graph::InitNewNodes(const std::vector<NodePtr>& new_nodes) {
-    for (auto& node : new_nodes) {
-        node->init();
-        if (node->getConstantType() == Node::ConstantType::Unknown)
-            node->updateConstantType();
-    }
-
-    for (auto& node : new_nodes) {
-        node->getSupportedDescriptors();
-        node->initSupportedPrimitiveDescriptors();
-        node->filterSupportedPrimitiveDescriptors();
-        node->selectOptimalPrimitiveDescriptor();
-    }
-    for (auto& node : new_nodes) {
-        resolveInPlaceDirection(node);
-    }
-    for (auto& node : new_nodes) {
-        node->initOptimalPrimitiveDescriptor();
-    }
+    InitNodes(new_nodes);
+    InitDescriptors(new_nodes);
+    ResolveInplaceDirections(new_nodes);
+    InitOptimalPrimitiveDescriptors(new_nodes);
 }
 
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
     CreateEdge(parent, node, parentPort, 0);
     CreateEdge(node, child, 0, childPort);
 
+    AddNode(node);
+
     if (initNode)
         InitNewNodes({node});
-
-    AddNode(node);
     return true;
 }
 

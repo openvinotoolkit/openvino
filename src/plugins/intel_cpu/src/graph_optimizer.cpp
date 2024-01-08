@@ -2544,13 +2544,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         reorder_layout->setOptimized(isOptimized);
         reorder_layout->setSrcPermutation(srcPerm);
 
-        auto connect = [&](const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port) {
-            auto new_edge = std::make_shared<Edge>(parent, child, pr_port, ch_port);
-            graph.GetEdges().push_back(new_edge);
-            parent->addEdge(new_edge);
-        };
-
-        connect(parentParentNode, reorder_layout, parentParenPort, 0);
+        graph.CreateEdge(parentParentNode, reorder_layout, parentParenPort, 0);
 
         // case 2
         auto reorder_last = reorder_layout;
@@ -2562,11 +2556,11 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             reorder_last->setDescs(*reorderOutDesc, *finalDesc);
             reorder_last->setOptimized(false);
             reorder_last->setSrcPermutation(srcPerm);
-            connect(reorder_layout, reorder_last, 0, 0);
+            graph.CreateEdge(reorder_layout, reorder_last, 0, 0);
         }
 
         for (auto& cc : reorderChildren)
-            connect(reorder_last, cc.first, 0, cc.second);
+            graph.CreateEdge(reorder_last, cc.first, 0, cc.second);
 
         // initialize and add nodes into graph
         std::vector<NodePtr> new_nodes;
@@ -2574,7 +2568,9 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         if (reorder_last != reorder_layout) {
             new_nodes.push_back(reorder_last);
         }
-        graph.AddNodes(new_nodes, true);
+        for (auto node : new_nodes)
+            graph.AddNode(node);
+        graph.InitNewNodes(new_nodes);
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
