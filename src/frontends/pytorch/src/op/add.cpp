@@ -23,11 +23,25 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     auto rhs = context.get_input(1);
     auto dtype0 = context.get_input_type(0);
     auto dtype1 = context.get_input_type(1);
+    
+    // Checking for boolean inputs
+    if (dtype0.is<type::boolean>() || dtype1.is<type::boolean>()) {
+        if (dtype0.is<type::boolean>()) {
+            lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, element::i64));
+            dtype0 = element::i64;  
+        }
+        if (dtype1.is<type::boolean>()) {
+            rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, element::i64));
+            dtype1 = element::i64;  
+        }
+    }
+    
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
         // aten::add.t(t[] a, t[] b) -> t[]
         // Case when two lists gets concatenated
         FRONT_END_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
+    
     if (inplace) {
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
             rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
