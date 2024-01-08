@@ -9,10 +9,6 @@ from sys import platform
 import openvino as ov
 import openvino.runtime.opset12 as ops
 
-import ngraph as ng
-from ngraph.impl import Function
-import openvino.inference_engine as ie
-
 
 def get_dynamic_model():
     param = ops.parameter(ov.PartialShape([-1, -1]), name="input")
@@ -41,19 +37,6 @@ def get_advanced_model():
     return ov.Model([split.output(0), relu.output(0), split.output(2)], [data, data1], "model")
 
 
-def get_ngraph_model(input_shape = None, input_dtype=np.float32):
-    if input_shape is None:
-        input_shape = [1, 3, 32, 32]
-    param = ng.opset11.parameter(input_shape, input_dtype, name="data")
-    relu = ng.opset11.relu(param, name="relu")
-    func = Function([relu], [param], "test_model")
-    caps = ng.Function.to_capsule(func)
-    net = ie.IENetwork(caps)
-
-    assert net is not None
-    return net
-
-
 def get_image(shape = (1, 3, 32, 32), dtype = "float32"):
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
@@ -68,16 +51,12 @@ def get_path_to_extension_library():
     return library_path
 
 
-def get_path_to_model(input_shape = None, is_old_api=False):
+def get_path_to_model(input_shape = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     path_to_xml = tempfile.NamedTemporaryFile(suffix="_model.xml").name
-    if is_old_api:
-        net = get_ngraph_model(input_shape, input_dtype=np.int64)
-        net.serialize(path_to_xml)
-    else:
-        model = get_model(input_shape)
-        ov.serialize(model, path_to_xml)
+    model = get_model(input_shape)
+    ov.serialize(model, path_to_xml)
     return path_to_xml
 
 
