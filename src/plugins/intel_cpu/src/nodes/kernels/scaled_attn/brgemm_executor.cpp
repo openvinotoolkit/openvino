@@ -285,7 +285,7 @@ void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
+void brgemmExecutor::executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
     auto ptr_a = reinterpret_cast<uint8_t*>(a);
     auto ptr_b = reinterpret_cast<uint8_t*>(b);
     auto ptr_c = reinterpret_cast<uint8_t*>(c);
@@ -293,27 +293,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
     auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     auto dataType = ov::element::bf16;
     uint8_t* ptr_a_tail = nullptr;
-    // if (brgCopyBKernel) {
-    //     for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
-    //         auto N_stride = b_transposed ? ldb : 1;
-    //         auto pCopyKernel0In = ptr_b + nb * N_blk * dataType.size() * N_stride;
-    //         auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brg0VnniFactor * dataType.size();
 
-    //         auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
-
-    //         const bool is_N_tail = (N - nb * N_blk < N_blk);
-    //         ctx.current_N_blk = is_N_tail ? N_tail : N_blk;
-    //         ctx.src = pCopyKernel0In;
-    //         ctx.tr_src = pCopyKernel0Out;
-    //         ctx.compensation_ptr = nullptr;
-    //         ctx.zp_a_compensation_ptr = nullptr;
-    //         ctx.zp_a_neg_value_ptr = nullptr;
-    //         ctx.current_K_start = 0;
-    //         ctx.current_K_iters = K;
-
-    //         (*brgCopyBKernel)(&ctx);
-    //     }
-    // }
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
     size_t K0_step0 = brgCtxs0[brgIdx0].K;
@@ -323,7 +303,6 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
     size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
     // The step for matrix C over N dimension
     size_t N0_step1 = brgCtxs0[brgIdx0].N;
-    const bool is_M_tail = m_blk < M_blk;
 
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
@@ -350,6 +329,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
     for (size_t n = 0; n < 2; n++) {
         for (size_t k = 0; k < 2; k++) {
             size_t mIdx = is_M_tail ? 1 : 0;
+            printf("select M idx %ld\n", mIdx);
             auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
 
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {

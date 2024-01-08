@@ -281,14 +281,16 @@ public:
 };
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
+    InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool hasShapeOf;
+    ElementType qkvType;
+    std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+    if (qkvType== ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    if (configuration[ov::hint::inference_precision.name()] == ov::element::bf16) {
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 5);
-    } else {
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    }
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
@@ -303,10 +305,10 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
     {// inputShapes ChatGLM, greedy search
      {
          // L1, B, H, S
-         {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
-         {{-1, 1, 2, 64}, {{10, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {20, 1, 2, 64}, {1, 1, 2, 64}}},
+         {{-1, 1, 8, 64}, {{33, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{33, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
          // L0, B, H, S
-         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {10, 1, 2, 64}, {11, 1, 2, 64}, {12, 1, 2, 64}, {32, 1, 2, 64}}},
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {10, 1, 2, 64}, {11, 1, 2, 64}, {12, 1, 2, 64}, {13, 1, 2, 64}}},
      },
      // transposeOrder
      {1, 2, 0, 3}},
@@ -322,10 +324,11 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
      {1, 2, 0, 3}},
 }};
 
-// TODO: BF16 test is disabled due to CI machine limitation
+static std::vector<ElementType> runtimePrecs = {ElementType::f32, ElementType::bf16};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::ValuesIn(runtimePrecs),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);

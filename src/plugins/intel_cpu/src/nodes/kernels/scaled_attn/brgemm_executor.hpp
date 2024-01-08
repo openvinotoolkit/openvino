@@ -26,7 +26,7 @@ public:
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
     // execute m_blk
-    void executeGemm(size_t m_blk, void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+    void executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
 
     void copy_buffer_a();
     void copy_buffer_b(void* b, void* scratch_b);

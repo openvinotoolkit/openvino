@@ -63,6 +63,19 @@ bool ScaledDotProductAttentionKey::operator==(const ScaledDotProductAttentionKey
     return retVal;
 }
 
+inline uint8_t* get_attn_mask_ptr(const PlainTensor& attention_mask, size_t b, size_t h) {
+    auto attn_mask_prec = attention_mask.get_precision();
+    uint8_t* attn_mask_ptr = nullptr;
+
+    if (attn_mask_prec == ov::element::f32) {
+        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
+    } else {
+        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<bfloat16>({b, h, 0, 0}, true));
+    }
+
+    return attn_mask_ptr;
+}
+
 // default implementation: reference
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
@@ -250,7 +263,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
           qk_scratch_b(true),
           wv_scratch_a(true),
           wv_scratch_b(true) {}
-    void prepare_multiquery_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
+
+    void prepare_multiquery_prim(dnnl::stream strm,
+                                 PlainTensor& query,
+                                 PlainTensor& present_key,
+                                 bool has_out_transpose) {
         auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
             dnnl::memory::dims dnnl_dims(dims.size());
             for (size_t i = 0; i < dims.size(); i++)
@@ -279,8 +296,18 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
         weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
         out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, head_size}), qkv_dt, tag::abcd);
+
         size_t ldc_index = 2;
-        brgemmKey wv_key = {q_len, head_size, kv_len, kv_len, present_key.stride(2), out_md.get_strides()[ldc_index], false};
+        if (has_out_transpose) {
+            ldc_index = 1;
+        }
+        brgemmKey wv_key = {q_len,
+                            head_size,
+                            kv_len,
+                            kv_len,
+                            present_key.stride(2),
+                            static_cast<size_t>(out_md.get_strides()[ldc_index]),
+                            false};
 
         auto wv_result = cache->getOrCreate(wv_key, builder);
         if (!wv_result.first) {
@@ -298,7 +325,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
-            fp32_out.resize<float>({B, H, q_len, head_size});
+            if (has_out_transpose) {
+                fp32_out.resize<float>({B, q_len, H, head_size});
+            } else {
+                fp32_out.resize<float>({B, H, q_len, head_size});
+            }
         }
         return;
     }
@@ -382,11 +413,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
+            bool is_m_tail = m_cnt < m_block_size;
+            printf("m_start %ld m_end %ld mcnt %ld is_m_tail %d\n", m_start, m_end, m_cnt, is_m_tail);
             size_t tid = parallel_get_thread_num();
             bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
             bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* c_ptr = &score.at<float>({b, h, m_start, 0});
+            std::cout << "cal qk" << std::endl;
             qk_gemm_ptr->executeGemm(m_cnt,
+                                     is_m_tail,
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
@@ -399,12 +434,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 if (alibi_mask.size(2) > 1)
                     alibi_stride = alibi_mask.stride(2);
             }
-            float* attn_mask_ptr = nullptr;
+            auto attn_mask_prec = attention_mask.get_precision();
+            uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = &attention_mask.at<float>({b, h, 0, 0}, true);
+                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2);
+                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
@@ -425,59 +461,27 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
+                             attn_mask_prec,
                              precision_of<T>::value);
             }
             bfloat16* w_ptr = &weight.at<bfloat16>({b, h, m_start, 0});
             bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
-            float* fp32_out_ptr = &fp32_out.at<float>({b, h, m_start, 0});
+            float* fp32_out_ptr =
+                has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
+            std::cout << "cal wv" << std::endl;
             wv_gemm_ptr->executeGemm(m_cnt,
+                                    is_m_tail,
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
                                      &wv_scratch_a.at<bfloat16>({tid, 0}),
                                      &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
         });
-        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}), &output_emb.at<bfloat16>({0, 0, 0, 0}),
-            ov::element::f32, ov::element::bf16, B * H * q_len * head_size);
-    }
-    void exec_multiquery_qk(PlainTensor& query, PlainTensor& present_key) {
-        const auto B = query.size(0);
-        const auto H = query.size(1);
-        const auto q_len = query.size(2);
-        const auto Hk = present_key.size(1);
-        const auto kv_len = present_key.size(2);
-        size_t h_each_group_len = H / Hk;
-        PlainTensor score;
-        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        parallel_for2d(B, H, [&](size_t b, size_t h) {
-            size_t tid = parallel_get_thread_num();
-            bfloat16* q_ptr = &query.at<bfloat16>({b, h, 0, 0});
-            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
-            float* c_ptr = &score.at<float>({b, h, 0, 0});
-            qk_gemm_ptr->executeGemm(q_ptr, k_ptr, c_ptr, nullptr, &qk_scratch_b.at<bfloat16>({tid, 0}));
-        });
-    }
-
-    void exec_multiquery_wv(PlainTensor& present_value, PlainTensor& output_emb) {
-        const auto B = present_value.size(0);
-        const auto H = output_emb.size(1);
-        const auto q_len = output_emb.size(2);
-        const auto head_size = output_emb.size(3);
-        const auto Hk = present_value.size(1);
-        const auto kv_len = present_value.size(2);
-        size_t h_each_group_len = H / Hk;
-        PlainTensor weight;
-        weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
-        parallel_for2d(B, H, [&](size_t b, size_t h) {
-            size_t tid = parallel_get_thread_num();
-            bfloat16* w_ptr = &weight.at<bfloat16>({b, h, 0, 0});
-            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
-            float* c_ptr = &fp32_out.at<float>({b, h, 0, 0});
-            wv_gemm_ptr->executeGemm(w_ptr, v_ptr, c_ptr, &wv_scratch_a.at<bfloat16>({tid, 0}), &wv_scratch_b.at<bfloat16>({tid, 0}));
-        });
-        // gemm_bf16bf16f32 --> bf16
-        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}), &output_emb.at<bfloat16>({0, 0, 0, 0}),
-            ov::element::f32, ov::element::bf16, B * H *q_len * head_size);
+        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}),
+                    &output_emb.at<bfloat16>({0, 0, 0, 0}),
+                    ov::element::f32,
+                    ov::element::bf16,
+                    B * H * q_len * head_size);
     }
 
     void exec_qk(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
@@ -529,7 +533,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             d_scale = 1.0f / sqrt(head_size);
 
         if (is_multi_query) {
-            prepare_multiquery_prim(strm, query, present_key);
+            prepare_multiquery_prim(strm, query, present_key, has_out_transpose);
             exec_multiquery(query,
                             present_key,
                             present_value,
@@ -553,15 +557,24 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t m) {
             // apply attention mask & sofmax
             auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+            uint8_t* attn_mask_ptr = nullptr;
+            auto attn_mask_prec = attention_mask.get_precision();
+            auto attn_mask_stride = 0;
+            if (attention_mask) {
+                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
+                if (attention_mask.size(2) > 1)
+                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
+            }
             attn_softmax(&score.at<float>({b, h, m, 0}),
                          &weight.at<T>({b, h, m, 0}),
                          d_scale,
                          alibi_mask ? &alibi_mask.at<float>({b, h, m, 0}, true) : nullptr,
-                         attention_mask ? &attention_mask.at<float>({b, h, m, 0}, true) : nullptr,
+                         attn_mask_ptr + m * attn_mask_stride,
                          causal_mask ? &causal_mask.at<uint8_t>({b, h, m, 0}, true) : nullptr,
                          select_nfltmax_at_0,
                          ncausal,
                          kv_len,
+                         attn_mask_prec,
                          precision_of<T>::value);
         });
 
@@ -644,12 +657,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                 if (alibi_mask.size(2) > 1)
                     alibi_stride = alibi_mask.stride(2);
             }
-            float* attn_mask_ptr = nullptr;
+            auto attn_mask_prec = attention_mask.get_precision();
+            uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = &attention_mask.at<float>({b, h, 0, 0}, true);
+                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2);
+                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
@@ -705,6 +719,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
+                             attn_mask_prec,
                              ov::element::f32);
             }
             mlas_sgemm("N",
@@ -926,7 +941,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
                 ov::element::u8, getInputShapeAtPort(nextPortIdx)));
         } else {
             config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-                ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+                rtPrecision, getInputShapeAtPort(nextPortIdx)));
         }
         nextPortIdx++;
     }
