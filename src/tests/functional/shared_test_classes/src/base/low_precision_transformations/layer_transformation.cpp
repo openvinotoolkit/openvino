@@ -86,7 +86,7 @@ std::string LayerTransformation::getRuntimePrecision(const std::string& layerNam
         if (name == layerName) {
             const auto& rtInfo = op->get_rt_info();
             const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", name);
             return it->second.as<std::string>();
         }
     }
@@ -103,12 +103,12 @@ std::string LayerTransformation::getRuntimePrecisionByType(const std::string& la
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 
-        IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
+        OPENVINO_ASSERT(typeIt != rtInfo.end(), "Layer is not found for type: ", layerType);
 
         auto type = typeIt->second.as<std::string>();
         if (type == layerType) {
             const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
+            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", type);
             return it->second.as<std::string>();
         }
     }
@@ -140,14 +140,14 @@ std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::strin
         const auto& rtInfo = op->get_rt_info();
 
         const auto& nameIt = rtInfo.find("originalLayersNames");
-        IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
+        OPENVINO_ASSERT(nameIt != rtInfo.end(), "originalLayersNames is not found for node: ", layerName);
         const auto fusedName = parse(nameIt->second.as<std::string>());
         if (fusedName.find(layerName) == fusedName.end()) {
             continue;
         }
 
         const auto& it = rtInfo.find("runtimePrecision");
-        IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
+        OPENVINO_ASSERT(it != rtInfo.end(), "runtimePrecision is not found for node: ", layerName);
         const auto rtPrecisionPtr = it->second.as<std::string>();
         return rtPrecisionPtr;
     }
