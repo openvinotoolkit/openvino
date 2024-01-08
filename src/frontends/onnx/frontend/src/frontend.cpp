@@ -14,7 +14,6 @@
 
 #include <fstream>
 #include <input_model.hpp>
-#include <onnx_import/onnx.hpp>
 #include <onnx_import/onnx_utils.hpp>
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
@@ -31,9 +30,11 @@
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
+using namespace ov::frontend::onnx::common;
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
@@ -182,18 +183,25 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = ngraph::onnx_common::is_valid_model(model_stream);
+        const bool is_valid_model = ::ov::frontend::onnx::common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
-        return ngraph::onnx_common::is_valid_model(*stream);
+        return is_valid_model(*stream);
     }
 
     return false;
 }
+
+namespace {
+const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
+const ngraph::onnx_import::LegacyConversionExtension::Ptr get_legacy_conversion_extension() {
+    return legacy_conversion_extension;
+}
+}  // namespace
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
@@ -212,7 +220,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
         m_other_extensions.push_back(legacy_ext);
         std::call_once(has_legacy_extension, [this] {
-            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+            m_extensions.conversions.push_back(get_legacy_conversion_extension());
         });
     }
 }

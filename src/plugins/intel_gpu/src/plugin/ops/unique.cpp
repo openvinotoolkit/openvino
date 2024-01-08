@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/constant.hpp"
+#include "validation_util.hpp"
 
 #include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -23,9 +23,7 @@ void CreateUniqueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v10::Unique
         auto axis_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(axis_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axis_constant->cast_vector<int64_t>().at(0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        axis = ov::util::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
         flattened = false;
     }
 

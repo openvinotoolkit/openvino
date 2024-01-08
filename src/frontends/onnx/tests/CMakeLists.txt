@@ -11,12 +11,9 @@ ov_deprecated_no_errors()
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
-    TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
-    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
-    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${TEST_MODEL_ZOO}/onnx/unit_test.manifest"
-    SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
+)
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
@@ -48,9 +45,8 @@ endif()
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `frontends/tests/onnx` directory
-# 3) Include "util/test_control.hpp" in your cpp file
-# 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
+# 3) Include "util/test_control.hpp" and "onnx_utils.hpp" in your cpp file
+# 4) add the line `static string s_manifest = onnx_backend_manifest("${MANIFEST}");` to your cpp file
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 

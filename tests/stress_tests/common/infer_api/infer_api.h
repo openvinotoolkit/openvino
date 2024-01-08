@@ -28,7 +28,7 @@ public:
 
     virtual void set_input_params(const std::string &model) = 0;
 
-    virtual void set_config(const std::string &device, const std::string &property, int nstreams) = 0;
+    virtual void set_config(const std::string &device, const ov::AnyMap &properties) = 0;
 
     virtual unsigned int get_property(const std::string &name) = 0;
 };
@@ -55,7 +55,7 @@ public:
 
     void set_input_params(const std::string &model) override;
 
-    void set_config(const std::string &device, const std::string &property, int nstreams) override;
+    void set_config(const std::string &device, const ov::AnyMap &properties) override;
 
     unsigned int get_property(const std::string &name) override;
 

@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "caseless.hpp"
+#include "utils/caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -254,7 +254,7 @@ enum class Algorithm {
     ColorConvertI420toBGR,
 };
 
-extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;
+extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_name_tbl;
 
 Type TypeFromName(const std::string& type);
 

@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "ngraph/log.hpp"
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
@@ -31,6 +30,7 @@
 #include "op/bitshift.hpp"
 #include "op/bitwise_and.hpp"
 #include "op/bitwise_or.hpp"
+#include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
@@ -356,6 +356,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
     REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
+    REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
