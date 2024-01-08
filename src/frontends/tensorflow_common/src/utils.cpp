@@ -28,11 +28,6 @@ void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     }
     for (size_t idx = 0; idx < outputs.size(); ++idx) {
         set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
-        // if (node_name.find(':') == std::string::npos) {
-        //     set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
-        // } else {
-        //     set_out_name({node_name}, outputs[idx]);
-        // }
     }
 }
 
