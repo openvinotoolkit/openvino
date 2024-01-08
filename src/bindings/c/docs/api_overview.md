@@ -449,7 +449,7 @@ This struct represents OpenVINO entity and allows you to manipulate with plugins
 
 - `ov_status_e ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model)`
 
-  - Description: Reads models from IR / PyTorch / ONNX / PDPD / TF / TFLite formats to create ov_model_t.
+  - Description: Reads models from IR / ONNX / PDPD / TF / TFLite formats to create ov_model_t.
     You can create as many ov_model_t as you need and use them simultaneously (up to the limitation of the hardware resources).
 
   - Parameters:
