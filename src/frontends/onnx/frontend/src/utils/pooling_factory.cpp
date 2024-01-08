@@ -9,6 +9,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils/convpool.hpp"
 
 namespace ngraph {
@@ -17,8 +18,8 @@ namespace pooling {
 
 namespace {
 std::shared_ptr<default_opset::Constant> transposition_axis_order(const Rank& input_rank) {
-    NGRAPH_CHECK(input_rank.is_static(),
-                 "Generating column-major MaxPool results is supported only for inputs with static rank.");
+    FRONT_END_GENERAL_CHECK(input_rank.is_static(),
+                            "Generating column-major MaxPool results is supported only for inputs with static rank.");
 
     const auto rank = static_cast<size_t>(input_rank.get_length());
 
