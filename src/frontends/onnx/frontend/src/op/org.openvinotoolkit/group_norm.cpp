@@ -8,6 +8,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
@@ -18,7 +19,8 @@ namespace op {
 namespace set_1 {
 OutputVector group_norm(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 3, "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
+    FRONT_END_GENERAL_CHECK(inputs.size() == 3,
+                            "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
 
     auto data = inputs[0];
     auto scale = inputs[1];
