@@ -195,7 +195,7 @@ jobs:
         run: |
           cmake \
             -DCPACK_GENERATOR=NPM \
-            -DENABLE_SYSTEM_TBB=OFF -UTBB* \
+            -DENABLE_SYSTEM_TBB=OFF \
             -DENABLE_INTEL_GPU=OFF \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}

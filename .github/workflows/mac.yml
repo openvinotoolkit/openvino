@@ -192,15 +192,18 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ 'false' }} # 128446
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        run:
-          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: |
+          cmake \
+            -DCPACK_GENERATOR=NPM \
+            -DENABLE_SYSTEM_TBB=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
           
           cmake --build ${{ env.BUILD_DIR }} --parallel
           
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-
       #
       # Upload build artifacts
       #
@@ -222,8 +225,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
-        if: ${{ 'false' }} # 128446
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@v3
         with:
           name: openvino_js_package
@@ -241,8 +243,7 @@ jobs:
   JS_API:
     name: OpenVINO JS API
     needs: [ Build, Smart_CI ]
-    if: ${{ 'false' }} # 128446
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'macos-13'
