@@ -33,7 +33,8 @@ public:
         CPU& cpu = cpu_info();
         cpu._org_proc_type_table = test_data._proc_type_table;
         cpu._proc_type_table = test_data._proc_type_table;
-        cpu._numa_nodes = test_data._proc_type_table.size() > 1 ? test_data._proc_type_table.size() - 1 : 1;
+        cpu._numa_nodes =
+            test_data._proc_type_table.size() > 1 ? static_cast<int>(test_data._proc_type_table.size()) - 1 : 1;
 
         ov::threading::IStreamsExecutor::Config config{"make default multi threads test", test_data._num_streams};
         auto streamsConfig = ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(config);
