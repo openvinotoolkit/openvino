@@ -204,6 +204,58 @@ void inline fill_data_random(T* pointer,
     }
 }
 
+template <>
+void inline fill_data_random(ov::float16* pointer,
+                             std::size_t size,
+                             const uint32_t range,
+                             double_t start_from,
+                             const int32_t k,
+                             const int seed) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<ov::float16>(start_from);
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;  // range with respect to k
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<ov::float16>::is_signed) {
+        start_from = 0;
+    }
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<ov::float16>(start_from + static_cast<double>(random.Generate(k_range)) / k);
+    }
+}
+
+template <>
+void inline fill_data_random(ov::bfloat16* pointer,
+                             std::size_t size,
+                             const uint32_t range,
+                             double_t start_from,
+                             const int32_t k,
+                             const int seed) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<ov::bfloat16>(start_from);
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;  // range with respect to k
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<ov::bfloat16>::is_signed) {
+        start_from = 0;
+    }
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<ov::bfloat16>(start_from + static_cast<double>(random.Generate(k_range)) / k);
+    }
+}
+
 /** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
  *
  *  This function generates and fills a blob of a certain precision, with a
