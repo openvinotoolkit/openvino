@@ -72,7 +72,9 @@ OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
                                             "greater_or_equal_expanded.onnx"});
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
-    EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    // After operation translation was implemented - check it doesn't apply
+    EXPECT_FALSE(result.is_ok) << result.error_message;
 }
 
 // Disabled, ticket: #81976
