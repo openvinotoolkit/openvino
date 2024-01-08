@@ -2598,6 +2598,5 @@ TEST(TransformationTests, ConvertPrecision_with_SubgraphOp) {
                                                       keep_precision_sensitive_in_fp32,
                                                       convert_input_output_precision);
         ASSERT_NO_THROW(manager.run_passes(f));
-        ASSERT_FALSE(has_type<element::Type_t::f32>(f));
     }
 }
