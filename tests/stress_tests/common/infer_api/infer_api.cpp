@@ -55,9 +55,8 @@ void InferAPI2::change_batch_size(int multiplier, int cur_iter) {
     }
 }
 
-void InferAPI2::set_config(const std::string &device, const std::string &property, int nstreams) {
-    config[device + "_" + property] = std::to_string(nstreams);
-    ie.set_property(device, config);
+void InferAPI2::set_config(const std::string &device, const ov::AnyMap& properties) {
+    ie.set_property(device, properties);
 }
 
 unsigned int InferAPI2::get_property(const std::string &name) {

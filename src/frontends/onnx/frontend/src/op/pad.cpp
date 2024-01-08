@@ -74,7 +74,7 @@ OutputVector pad(const Node& node) {
     Output<ngraph::Node> padding_begin;
     Output<ngraph::Node> padding_end;
 
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+    if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
@@ -82,7 +82,7 @@ OutputVector pad(const Node& node) {
 
     if (ngraph::op::is_constant(pads.get_node())) {
         std::vector<std::int64_t> pads_vector =
-            ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
+            ov::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
         std::size_t const half_size = pads_vector.size() / 2;
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);

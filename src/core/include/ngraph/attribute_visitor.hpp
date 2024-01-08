@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "ngraph/partial_shape.hpp"
-#include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 
