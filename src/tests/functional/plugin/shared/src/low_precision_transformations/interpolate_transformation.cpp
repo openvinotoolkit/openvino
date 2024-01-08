@@ -49,7 +49,6 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void InterpolateTransformation::SetUp() {
-    //SetRefMode(LayerTestsUtils::RefMode::IE);
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     interpAttributes attributes;

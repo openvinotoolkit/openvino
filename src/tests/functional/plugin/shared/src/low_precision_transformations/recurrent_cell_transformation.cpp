@@ -76,10 +76,6 @@ void RecurrentCellTransformation::SetUp() {
 void RecurrentCellTransformation::run() {
     LayerTransformation::run();
 
-#if 0
-    if (!executableNetwork)
-        return;
-#endif
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
