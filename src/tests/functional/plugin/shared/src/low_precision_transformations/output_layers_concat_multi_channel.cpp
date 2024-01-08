@@ -62,7 +62,7 @@ void OutputLayersConcatMultiChannel::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(ngPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
-    const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
+    const ov::Shape inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
     init_input_shapes({ov::PartialShape(inputShape1), ov::PartialShape(inputShape1)});
 
     const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));

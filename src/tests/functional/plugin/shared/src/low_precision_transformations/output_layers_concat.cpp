@@ -73,7 +73,7 @@ void OutputLayersConcat::SetUp() {
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     ASSERT_EQ(4ul, inputShape1.size()) << "unexpected input layout";
-    const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
+    const ov::Shape inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
 

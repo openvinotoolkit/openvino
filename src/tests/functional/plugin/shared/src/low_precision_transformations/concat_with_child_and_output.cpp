@@ -14,9 +14,6 @@
 #include "ov_models/builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams>& obj) {
