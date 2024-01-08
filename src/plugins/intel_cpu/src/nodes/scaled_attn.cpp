@@ -998,7 +998,7 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     OPENVINO_ASSERT(B == B_state, "beam idx batch: ", B, " is not equal to batch of state: ", B_state);
     OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
-    if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
+    if (is_reset || B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
 
         auto new_hidden_state_k = std::make_shared<Memory>(getEngine(), mem_desc);
@@ -1121,7 +1121,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     OPENVINO_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
     OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
-    if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
+    if (is_reset || B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = {B, H, (L0 + L1) * 2, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
             Shape(reverse(new_shape)),
