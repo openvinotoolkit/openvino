@@ -5,9 +5,10 @@
 #include "ov_lpt_models/subtract.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -20,7 +21,7 @@ namespace subgraph {
         const float k = 50.f;
 
         const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
-        const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+        const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
             input, precision, 256ul, { 1ul },
             { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
 
@@ -32,7 +33,7 @@ namespace subgraph {
 
         const auto convolution = std::make_shared<ov::opset1::Convolution>(
             fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
-            ngraph::builder::makeFakeQuantize(weights, precision, 256ul, { 1ul }, { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }),
+            ov::test::utils::make_fake_quantize(weights, precision, 256ul, { 1ul }, { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }),
             ov::Strides{ 1, 1 },
             ov::CoordinateDiff{ 0, 0 },
             ov::CoordinateDiff{ 0, 0 },

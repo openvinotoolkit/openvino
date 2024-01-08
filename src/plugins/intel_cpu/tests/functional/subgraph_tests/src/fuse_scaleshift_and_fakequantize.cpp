@@ -5,6 +5,8 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "openvino/util/common_util.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -29,10 +31,10 @@ public:
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
-                << "_Scale=" << ngraph::vector_to_string(scaleShift.first)
-                << "_Shift=" << ngraph::vector_to_string(scaleShift.second) << "_Intervals=";
+                << "_Scale=" << ov::util::vector_to_string(scaleShift.first)
+                << "_Shift=" << ov::util::vector_to_string(scaleShift.second) << "_Intervals=";
         for (const auto& vecInt : quantizeIntervals) {
-            results << ngraph::vector_to_string(vecInt) << ",";
+            results << ov::util::vector_to_string(vecInt) << ",";
         }
 
         results << "targetDevice=" << targetName;
@@ -59,7 +61,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
-        const auto quantize = ngraph::builder::makeFakeQuantize(multiply,
+        const auto quantize = ov::test::utils::make_fake_quantize(multiply,
                                                                 inputPrecision,
                                                                 256,
                                                                 inConstShape,

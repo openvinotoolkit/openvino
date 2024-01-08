@@ -5,6 +5,9 @@
 #include "shared_test_classes/subgraph/memory_fq_concat_prelu.hpp"
 #include <type_traits>
 
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+
 namespace SubgraphTestsDefinitions {
 
 template<typename T>
@@ -97,10 +100,10 @@ void MemoryFqConcatPrelu::SetUp() {
     for (auto&& shape : inputs) {
         input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
-    auto read = std::make_shared<ngraph::opset3::ReadValue>(memory_read, "variable1");
-    auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
-    auto fake = ngraph::builder::makeFakeQuantize(fake_constatnt, ngPrc,
+    auto memory_read = ov::test::utils::deprecated::make_constant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto read = std::make_shared<ov::op::v3::ReadValue>(memory_read, "variable1");
+    auto fake_constatnt = ov::test::utils::deprecated::make_constant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto fake = ov::test::utils::make_fake_quantize(fake_constatnt, ngPrc,
         std::get<0>(fake_quantize_params),
         std::get<1>(fake_quantize_params),
         std::get<2>(fake_quantize_params),
@@ -108,8 +111,8 @@ void MemoryFqConcatPrelu::SetUp() {
         std::get<4>(fake_quantize_params),
         std::get<5>(fake_quantize_params));
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{read, fake, input[0]}, 1);
-    auto prelu_constant = ngraph::op::Constant::create(ngPrc, {1}, {-2});
-    auto prelu = std::make_shared<ngraph::opset1::PRelu>(concat, prelu_constant);
+    auto prelu_constant = ov::op::v0::Constant::create(ngPrc, {1}, {-2});
+    auto prelu = std::make_shared<ov::op::v0::PRelu>(concat, prelu_constant);
 
     auto begin = std::get<0>(strided_slice_params);
     auto end = std::get<1>(strided_slice_params);
@@ -130,8 +133,8 @@ void MemoryFqConcatPrelu::SetUp() {
                                                             std::vector<int64_t>{},
                                                             std::vector<int64_t>{});
 
-    auto assign = std::make_shared<ngraph::opset3::Assign>(slice, "variable1");
-    auto result = std::make_shared<ngraph::opset1::Result>(prelu);
+    auto assign = std::make_shared<ov::op::v3::Assign>(slice, "variable1");
+    auto result = std::make_shared<ov::op::v0::Result>(prelu);
     assign->add_control_dependency(read);
     result->add_control_dependency(assign);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "memory_fq_concat_prelu");

@@ -2,28 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/normalize_l2.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace LayerTestsDefinitions;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
-using NormalizeL2LayerCPUTestParamSet = std::tuple<
-        InputShape,                         // input shape
-        ElementType,                        // input element type
-        std::vector<int64_t>,               // axes
-        float,                              // eps
-        ngraph::op::EpsMode,                // eps_mode
-        CPUSpecificParams,
-        fusingSpecificParams>;
+using NormalizeL2LayerCPUTestParamSet = std::tuple<InputShape,            // input shape
+                                                   ElementType,           // input element type
+                                                   std::vector<int64_t>,  // axes
+                                                   float,                 // eps
+                                                   ov::op::EpsMode,       // eps_mode
+                                                   CPUSpecificParams,
+                                                   fusingSpecificParams>;
 
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -33,7 +27,7 @@ public:
         ElementType inType;
         std::vector<int64_t> axes;
         float eps;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(shapes, inType, axes, eps, epsMode, cpuParams, fusingParams) = obj.param;
@@ -60,7 +54,7 @@ protected:
         ElementType inType;
         std::vector<int64_t> axes;
         float eps;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(shapes, inType, axes, eps, epsMode, cpuParams, fusingParams) = this->GetParam();
@@ -88,15 +82,19 @@ protected:
         }
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
-                tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, -5, 7, 222);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -5;
+                in_data.range = 10;
+                in_data.resolution = 7;
+                in_data.seed = 222;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
@@ -329,6 +327,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

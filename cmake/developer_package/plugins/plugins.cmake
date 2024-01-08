@@ -135,9 +135,6 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
-                install(TARGETS ${OV_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
-                        COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()
@@ -165,11 +162,6 @@ function(ov_add_plugin)
         set(${OV_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${OV_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
         set(${OV_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${OV_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
     endif()
-endfunction()
-
-function(ie_add_plugin)
-    message(WARNING "'ie_add_plugin' is deprecated. Please, use 'ov_add_plugin'")
-    ov_add_plugin(${ARGN})
 endfunction()
 
 #
@@ -261,14 +253,6 @@ macro(ov_register_plugins)
     if(BUILD_SHARED_LIBS AND ENABLE_PLUGINS_XML)
         ov_register_in_plugins_xml(${ARGN})
     endif()
-endmacro()
-
-#
-# ie_register_plugins()
-#
-macro(ie_register_plugins)
-    message(WARNING "'ie_register_plugins' is deprecated. Please, use 'ov_register_plugins'")
-    ov_register_plugins(${ARGN})
 endmacro()
 
 #

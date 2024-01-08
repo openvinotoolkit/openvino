@@ -8,8 +8,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_layouts.h"
 #include "general_utils.h"
 #include "precision_support.h"
 
@@ -84,11 +82,6 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims &firstInputDim
         }
     }
     return true;
-}
-
-inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
-    const auto dims = td.getDims();
-    return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
 }
 
 /**

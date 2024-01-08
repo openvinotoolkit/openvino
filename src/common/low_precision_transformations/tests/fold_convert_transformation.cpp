@@ -54,8 +54,8 @@ public:
             output->set_friendly_name("output");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
-                ngraph::ParameterVector{ input },
+                ov::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
+                ov::ParameterVector{ input },
                 "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);

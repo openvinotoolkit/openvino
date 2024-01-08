@@ -1,11 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
-#include <openvino/op/util/fft_base.hpp>
 
 #include "openvino/core/axis_vector.hpp"
+#include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -72,9 +74,7 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
     const int64_t axis_correction = (fft_kind == FFTKind::RealInput) ? input_rank : (input_rank - 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::normalize_axes(op, axis_correction, axes);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::util::normalize_axes(op, axis_correction, axes);
 
     auto axes_set = AxisSet(std::vector<size_t>(axes.begin(), axes.end()));
     NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "Each axis must be unique.");

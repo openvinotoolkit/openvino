@@ -79,8 +79,6 @@ endforeach()
 set(PACKAGE_PREFIX_DIR ${_ie_package_prefix_dir})
 unset(_ie_package_prefix_dir)
 
-set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_OV_INCLUDE_DIR@")
-
 check_required_components(${CMAKE_FIND_PACKAGE_NAME})
 
 if(_ie_need_package_name_reset)

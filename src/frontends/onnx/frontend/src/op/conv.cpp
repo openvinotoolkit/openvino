@@ -10,10 +10,10 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
@@ -60,7 +60,7 @@ OutputVector conv(const Node& node,
                                                              auto_pad_type);
 
     // no bias param
-    if (ngraph::op::is_null(bias)) {
+    if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();

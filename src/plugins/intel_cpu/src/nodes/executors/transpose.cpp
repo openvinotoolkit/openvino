@@ -9,27 +9,25 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace InferenceEngine;
-
 TransposeExecutor::TransposeExecutor(const ExecutorContext::CPtr context) : context(context) {}
 
 jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& params) {
     jit_permute_config_params jcp = {};
-    SizeVector src_block_order = params.src_block_order;
-    SizeVector src_block_strides(params.src_block_dims.size(), 1);
-    SizeVector dst_block_strides(params.dst_block_dims.size(), 1);
+    VectorDims src_block_order = params.src_block_order;
+    VectorDims src_block_strides(params.src_block_dims.size(), 1);
+    VectorDims dst_block_strides(params.dst_block_dims.size(), 1);
     for (int i = params.src_block_dims.size() - 2; i >= 0; i--)
         src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
     for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
 
-    SizeVector new_dst_block_strides = dst_block_strides;
-    SizeVector new_dst_block_order = params.dst_block_order;
-    SizeVector new_dst_block_dims = params.dst_block_dims;
-    SizeVector new_src_block_strides(dst_block_strides.size());
-    SizeVector mask(dst_block_strides.size());
+    VectorDims new_dst_block_strides = dst_block_strides;
+    VectorDims new_dst_block_order = params.dst_block_order;
+    VectorDims new_dst_block_dims = params.dst_block_dims;
+    VectorDims new_src_block_strides(dst_block_strides.size());
+    VectorDims mask(dst_block_strides.size());
 
-    SizeVector tmp_order;
+    VectorDims tmp_order;
     for (size_t i = 0; i < params.dst_block_order.size(); i++) {
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
     }
@@ -63,10 +61,10 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         mask[pos] = 1;
     }
 
-    SizeVector sorted_src_strides;
-    SizeVector sorted_dst_strides;
-    SizeVector sorted_order;
-    SizeVector sorted_dst_dims;
+    VectorDims sorted_src_strides;
+    VectorDims sorted_dst_strides;
+    VectorDims sorted_order;
+    VectorDims sorted_dst_dims;
 
     //  support dynamic batch
     int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));

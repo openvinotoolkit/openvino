@@ -4,6 +4,8 @@
 
 #include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/activation_fq.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -64,14 +66,14 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-        auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
+        auto act = ov::test::utils::make_activation(params[0], ngPrc, activationType);
 
-        auto FQNode = ngraph::builder::makeFakeQuantize(act, ngraph::element::f32, levels[0], constShape[0],
+        auto FQNode = ov::test::utils::make_fake_quantize(act, ngraph::element::f32, levels[0], constShape[0],
                                                         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
-        auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);
+        auto FQ = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(FQNode);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FQ)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(FQ)};
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
     }
 

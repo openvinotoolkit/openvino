@@ -30,6 +30,14 @@ public:
 
         set_output_type(0, data_type, data_shape);
     }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 1,
+                                      "[TensorFlow Frontend] internal error: Exit expects one input");
+        auto exit_node = std::make_shared<Exit>(inputs[0], m_decoder);
+        exit_node->set_attrs(get_attrs());
+        return exit_node;
+    }
 };
 
 }  // namespace tensorflow

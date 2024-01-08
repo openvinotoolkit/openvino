@@ -4,9 +4,10 @@
 
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -24,7 +25,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
             fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
     if (fakeQuantizeOnActivations != nullptr) {
@@ -53,7 +54,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
         maxPool, //fqOnData.empty() ? input : fakeQuantizeOnActivations,
         fqOnWeights.empty() ?
             weights->output(0) :
-            ngraph::builder::makeFakeQuantize(
+            ov::test::utils::make_fake_quantize(
                 weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
                 fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
         ov::Strides(rankLength - 2, 1ul),
@@ -209,7 +210,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
         if (multiplyAfter) {
             const auto& O = lastOperation->get_shape()[1];
             std::vector<float> weights_val(O, 1);
-            auto constant = op::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
+            auto constant = ov::opset1::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
             lastOperation = std::make_shared<ov::opset1::Multiply>(lastOperation, constant);
         }
     } else {

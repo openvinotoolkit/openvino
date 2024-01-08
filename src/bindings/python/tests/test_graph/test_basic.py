@@ -25,6 +25,7 @@ from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
 from openvino.runtime.utils.types import get_element_type
+from tests.utils.helpers import generate_model_with_memory
 
 
 def test_graph_api():
@@ -143,6 +144,8 @@ def test_convert_to_bool(destination_type, input_data):
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64),
+        pytest.param(Type.f32, (-8, 8), np.int32, np.float32),
+        pytest.param(Type.f64, (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -315,30 +318,22 @@ def test_clone_model():
     assert isinstance(model_original, Model)
 
     # Make copies of it
-    with pytest.deprecated_call():
-        model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone()
     model_copy3 = deepcopy(model_original)
 
-    assert isinstance(model_copy1, Model)
     assert isinstance(model_copy2, Model)
     assert isinstance(model_copy3, Model)
 
     # Make changes to the copied models' inputs
-    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy3.reshape({"A": [3, 3], "B": [3, 3]})
 
     original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
-    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
     model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
     model_copy3_shapes = [single_input.get_shape() for single_input in model_copy3.inputs]
 
-    assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
     assert original_model_shapes != model_copy3_shapes
-    assert model_copy1_shapes == model_copy2_shapes
-    assert model_copy1_shapes == model_copy3_shapes
     assert model_copy2_shapes == model_copy3_shapes
 
 
@@ -554,23 +549,18 @@ def test_multiple_outputs():
 
 
 def test_sink_model_ctor():
-    input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ops.read_value(input_data, "var_id_667", np.float32, [2, 2])
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
     assert ["Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
-    assert model.get_output_element_type(0) == input_data.get_element_type()
+    assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
     assert list(model.get_output_shape(0)) == [2, 2]
     assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(model.get_parameters()) == 1

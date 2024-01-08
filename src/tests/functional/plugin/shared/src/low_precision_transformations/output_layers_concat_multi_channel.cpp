@@ -15,6 +15,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
@@ -82,32 +83,32 @@ void OutputLayersConcatMultiChannel::SetUp() {
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1->output(0), ngPrecision, 256ul, { 1ul });
+    const auto fakeQuantize1 = ov::test::utils::make_fake_quantize(input1->output(0), ngPrecision, 256ul, { 1ul });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     ASSERT_EQ(4ul, inputShape1.size()) << "unexpected input layout";
     const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2->output(0), ngPrecision, 256ul, { 1ul });
+    const auto fakeQuantize2 = ov::test::utils::make_fake_quantize(input2->output(0), ngPrecision, 256ul, { 1ul });
     fakeQuantize2->set_friendly_name("fakeQuantize2");
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
+    const std::shared_ptr<ov::op::v0::Concat> concat = std::make_shared<ov::op::v0::Concat>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0)}, 1);
     concat->set_friendly_name("concat");
 
-    auto const1 = ngraph::opset1::Constant::create(ngPrecision, ngraph::Shape{ 1, 1, 1, 1 }, { 1 });
-    std::shared_ptr<ngraph::opset1::Add> convolution = std::make_shared<ngraph::opset1::Add>(concat, const1);
+    auto const1 = ov::op::v0::Constant::create(ngPrecision, ngraph::Shape{ 1, 1, 1, 1 }, { 1 });
+    std::shared_ptr<ov::op::v1::Add> convolution = std::make_shared<ov::op::v1::Add>(concat, const1);
     convolution->set_friendly_name("convolution");
 
     ngraph::ResultVector results {
-        std::make_shared<ngraph::opset1::Result>(concat),
-        std::make_shared<ngraph::opset1::Result>(convolution),
-        std::make_shared<ngraph::opset1::Result>(fakeQuantize2)
+        std::make_shared<ov::op::v0::Result>(concat),
+        std::make_shared<ov::op::v0::Result>(convolution),
+        std::make_shared<ov::op::v0::Result>(fakeQuantize2)
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");

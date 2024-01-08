@@ -129,14 +129,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // avoid parsing of checkpoints here
     if (variants[0].is<std::string>()) {
         std::string model_path = variants[0].as<std::string>();
-        if (ov::util::ends_with(model_path, ".pb") && GraphIteratorProto::is_supported(model_path)) {
+        if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
-        } else if (ov::util::ends_with(model_path, ".meta") && GraphIteratorMeta::is_supported(model_path)) {
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
             return true;
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
@@ -161,15 +161,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (ov::util::ends_with(model_path, std::wstring(L".pb")) && GraphIteratorProto::is_supported(model_path)) {
+        if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format with a path in Unicode
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
-        } else if (ov::util::ends_with(model_path, std::wstring(L".meta")) &&
-                   GraphIteratorMeta::is_supported(model_path)) {
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
             return true;
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
@@ -395,11 +394,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::stringstream exception_message;
     for (const auto& failure : failures) {
+        auto exception_str = "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                             " operation with a message:\n" + failure.second + "\n";
+        exception_message << exception_str;
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            m_telemetry->send_event("error_info",
+                                    ov::util::filter_lines_by_prefix(exception_str, "[TensorFlow Frontend] "));
         }
-        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
-                                 " operation with a message:\n" + failure.second + "\n";
     }
 
     if (m_telemetry) {
@@ -452,9 +453,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -475,9 +479,12 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }

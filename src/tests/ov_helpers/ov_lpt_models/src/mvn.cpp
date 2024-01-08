@@ -7,6 +7,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -33,7 +34,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
                 std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
                 normalizeVariance,
                 1e-9,
-                op::MVNEpsMode::INSIDE_SQRT);
+                ov::op::MVNEpsMode::INSIDE_SQRT);
     }
     mvn->set_friendly_name("output");
     auto& rtInfo = mvn->get_rt_info();
@@ -51,7 +52,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
     float k = 50.f;
 
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
         input, precision, 256ul, { 1ul },
         { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
     const auto mvn = std::make_shared<ov::op::v0::MVN>(fakeQuantizeOnActivations, reductionAxes, normalizeVariance);
@@ -78,7 +79,7 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
     std::shared_ptr<Node> mvn;
     if (opset_version == 2) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MVN>>(
-            op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
+            ov::op::v0::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
             dequantizationAfter.empty() ? precision : element::f32);
     } else if (opset_version == 6) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
@@ -86,7 +87,7 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
                 std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
                 normalizeVariance,
                 1e-9,
-                op::MVNEpsMode::INSIDE_SQRT),
+                ov::op::MVNEpsMode::INSIDE_SQRT),
             dequantizationAfter.empty() ? precision : element::f32);
     }
     auto& rtInfo = mvn->get_rt_info();

@@ -6,7 +6,9 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
+#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
 #include "snippets/op/kernel.hpp"
 
@@ -25,8 +27,17 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
         return get_op_reg_type(op);
     };
     lowered::pass::PassPipeline lowered_pipeline;
+    // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
+    //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
+    //       assigned registers as the corresponding ops in the main body.
+    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
+    //       (this might happen if tail loop and main loop have different increments)
+    //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
+    //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 
@@ -66,10 +77,14 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::Buffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
-        std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
-        std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
+        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::RankNormalization>(op)
+#ifdef SNIPPETS_DEBUG_CAPS
+        || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
+        || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
+#endif
+        )
         return gpr2gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
