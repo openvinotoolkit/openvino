@@ -16,8 +16,8 @@
 
 namespace LayerTestsDefinitions {
 std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape  inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape  inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
@@ -32,8 +32,8 @@ std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<Sp
 
 void SplitTransformation::SetUp() {
     abs_threshold = 1.0;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();

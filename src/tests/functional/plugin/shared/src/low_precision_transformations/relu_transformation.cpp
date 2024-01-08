@@ -16,8 +16,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<ReluTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -34,8 +34,8 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
 
 void ReluTransformation::SetUp() {
     abs_threshold = 1.0;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 

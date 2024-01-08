@@ -18,8 +18,8 @@
 namespace LayerTestsDefinitions {
 
 std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
@@ -29,8 +29,8 @@ std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo
 
 void SubtractTransformation::SetUp() {
     abs_threshold = 0.1;
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 

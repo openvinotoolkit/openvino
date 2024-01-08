@@ -21,8 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
@@ -37,8 +37,8 @@ void ConvolutionQDqTransformation::SetUp() {
     rel_threshold = 0.1;
     abs_threshold = 12.8;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();

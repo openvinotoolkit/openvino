@@ -22,8 +22,8 @@
 namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, ov::Shape> shapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
@@ -47,8 +47,8 @@ void NormalizeL2Transformation::SetUp() {
     rel_threshold = 0.1;
     abs_threshold = 0.1;
 
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
-    ngraph::element::Type precision;
+    std::pair<ov::PartialShape, ov::Shape> shapes;
+    ov::element::Type precision;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
@@ -59,7 +59,7 @@ void NormalizeL2Transformation::SetUp() {
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
-        ngraph::element::u8,
+        ov::element::u8,
         axes,
         fuseMultiply,
         shift);

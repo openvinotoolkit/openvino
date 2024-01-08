@@ -29,8 +29,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
 }
 
 std::string InterpolateTransformation::getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
+    ov::element::Type precision;
+    std::pair<ov::PartialShape, ov::Shape> shapes;
     std::string targetDevice;
     interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
@@ -49,8 +49,8 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void InterpolateTransformation::SetUp() {
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
+    ov::element::Type precision;
+    std::pair<ov::PartialShape, ov::Shape> shapes;
     interpAttributes attributes;
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
 

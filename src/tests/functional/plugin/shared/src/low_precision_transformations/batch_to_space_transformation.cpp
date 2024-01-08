@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 
 std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<BatchToSpaceTransformationParams>& obj) {
-    ngraph::element::Type input_type;
+    ov::element::Type input_type;
     std::string target_device;
     BatchToSpaceTransformationParam param;
     std::tie(input_type, target_device, param) = obj.param;
@@ -27,7 +27,7 @@ std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParam
 void BatchToSpaceTransformation::SetUp() {
     abs_threshold = 1.1;
 
-    ngraph::element::Type input_type;
+    ov::element::Type input_type;
     BatchToSpaceTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();
 

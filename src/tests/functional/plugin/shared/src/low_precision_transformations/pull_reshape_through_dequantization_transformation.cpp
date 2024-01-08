@@ -21,11 +21,11 @@
 namespace LayerTestsDefinitions {
 
 std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::Shape elementwiseConstantShapes;
+    ov::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
 
@@ -44,10 +44,10 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 void PullReshapeThroughDequantizationTransformation::SetUp() {
     abs_threshold = 1.0e-3;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::Shape elementwiseConstantShapes;
+    ov::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();
 

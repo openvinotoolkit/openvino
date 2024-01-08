@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ElementwiseBranchSelectionTestValues param;
@@ -48,8 +48,8 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
 }
 
 void ElementwiseBranchSelectionTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ElementwiseBranchSelectionTestValues param;
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();

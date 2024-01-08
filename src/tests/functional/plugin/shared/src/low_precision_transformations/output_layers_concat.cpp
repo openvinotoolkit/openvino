@@ -64,7 +64,7 @@ void OutputLayersConcat::SetUp() {
                                                                                       }))
                       });
 
-    const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ov::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = ov::test::utils::make_fake_quantize(
@@ -74,7 +74,7 @@ void OutputLayersConcat::SetUp() {
 
     ASSERT_EQ(4ul, inputShape1.size()) << "unexpected input layout";
     const ov::Shape inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
-    const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = ov::test::utils::make_fake_quantize(
@@ -83,13 +83,13 @@ void OutputLayersConcat::SetUp() {
     fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const std::shared_ptr<ov::op::v0::Concat> concat = std::make_shared<ov::op::v0::Concat>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0)}, 1);
+        ov::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0)}, 1);
     concat->set_friendly_name("concat");
 
     const float k = 1.f;
     const auto weights = ov::op::v0::Constant::create(
         ngPrecision,
-        ngraph::Shape{ inputShape1[1ul] + inputShape2[1ul], inputShape1[1ul] + inputShape2[1ul], 1ul, 1ul },
+        ov::Shape{ inputShape1[1ul] + inputShape2[1ul], inputShape1[1ul] + inputShape2[1ul], 1ul, 1ul },
         std::vector<float>((inputShape1[1ul] + inputShape2[1ul]) * (inputShape1[1ul] + inputShape2[1ul]), 1ul));
     weights->set_friendly_name("weights");
     const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
@@ -100,19 +100,19 @@ void OutputLayersConcat::SetUp() {
     const std::shared_ptr<ov::op::v1::Convolution> convolution = std::make_shared<ov::op::v1::Convolution>(
         concat->output(0),
         fakeQuantizeOnWeights,
-        ngraph::Strides{ 1ul, 1ul },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1ul, 1ul });
+        ov::Strides{ 1ul, 1ul },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1ul, 1ul });
     convolution->set_friendly_name("convolution");
 
-    ngraph::ResultVector results {
+    ov::ResultVector results {
         std::make_shared<ov::op::v0::Result>(concat),
         std::make_shared<ov::op::v0::Result>(convolution),
         std::make_shared<ov::op::v0::Result>(fakeQuantize2)
     };
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector { input1, input2 }, "OutputLayersHandling");
 }
 
 TEST_P(OutputLayersConcat, CompareWithRefImpl) {

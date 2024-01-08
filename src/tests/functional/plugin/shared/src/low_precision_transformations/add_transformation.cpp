@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< AddTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     AddTestValues param;
@@ -55,8 +55,8 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
 void AddTransformation::SetUp() {
     abs_threshold = 1.1;
     rel_threshold = 3;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     AddTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 

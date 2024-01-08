@@ -23,8 +23,8 @@ namespace LayerTestsDefinitions {
 
 std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
@@ -38,8 +38,8 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
 
 void FuseConvertTransformation::SetUp() {
     abs_threshold = 0.01;
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();

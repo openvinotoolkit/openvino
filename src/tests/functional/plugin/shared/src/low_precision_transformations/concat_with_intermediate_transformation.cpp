@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithIntermediateTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;
@@ -46,14 +46,14 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 void ConcatWithIntermediateTransformation::SetUp() {
     abs_threshold = 0.1;
 
-    ngraph::element::Type ngPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type ngPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
 
-    ngraph::PartialShape inputShape1 = inputShape;
+    ov::PartialShape inputShape1 = inputShape;
     if (inputShape1[2].is_static() && transparentIntermediate) {
         inputShape1[2] = inputShape1[2].get_length() - 2;
     }
@@ -68,8 +68,8 @@ void ConcatWithIntermediateTransformation::SetUp() {
         ngPrecision,
         inputShape,
         transparentIntermediate,
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
 }
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {

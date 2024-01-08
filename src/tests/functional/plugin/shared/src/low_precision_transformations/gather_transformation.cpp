@@ -16,7 +16,7 @@
 namespace LayerTestsDefinitions {
 
 std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<GatherTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     GatherTransformationTestValues testValues;
     int opset_version;
@@ -33,7 +33,7 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
 }
 
 void GatherTransformation::SetUp() {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     GatherTransformationTestValues testValues;
     int opset_version;
     std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();

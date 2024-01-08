@@ -20,7 +20,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
@@ -41,7 +41,7 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
 void MatMulWithConstantTransformation::SetUp() {
     abs_threshold = 1.0e-3;
 
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
 
@@ -64,7 +64,7 @@ void MatMulWithConstantTransformation::run() {
     const auto params = std::get<2>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);

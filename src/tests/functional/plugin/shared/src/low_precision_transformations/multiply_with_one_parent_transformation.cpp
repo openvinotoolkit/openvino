@@ -16,8 +16,8 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyWithOneParentTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     MultiplyWithOneParentTransformationValues values;
 
@@ -31,8 +31,8 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 void MultiplyWithOneParentTransformation::SetUp() {
     rel_threshold = 0.01f;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();

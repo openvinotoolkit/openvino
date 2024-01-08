@@ -16,8 +16,8 @@
 namespace LayerTestsDefinitions {
 
 std::string PReluTransformation::getTestCaseName(const testing::TestParamInfo<PReluTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -33,8 +33,8 @@ std::string PReluTransformation::getTestCaseName(const testing::TestParamInfo<PR
 
 
 void PReluTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 

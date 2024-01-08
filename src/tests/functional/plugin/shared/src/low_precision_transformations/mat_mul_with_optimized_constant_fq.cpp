@@ -22,8 +22,8 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, ngraph::PartialShape> shapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
@@ -43,8 +43,8 @@ void MatMulWithOptimizedConstantFq::SetUp() {
     rel_threshold = 0.01;
     abs_threshold = 2.1;
 
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+    ov::element::Type precision;
+    std::pair<ov::PartialShape, ngraph::PartialShape> shapes;
     ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();

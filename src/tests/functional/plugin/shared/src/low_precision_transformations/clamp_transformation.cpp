@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ClampTransformationParam param;;
@@ -31,8 +31,8 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
 void ClampTransformation::SetUp() {
     abs_threshold = 1.1;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ClampTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();

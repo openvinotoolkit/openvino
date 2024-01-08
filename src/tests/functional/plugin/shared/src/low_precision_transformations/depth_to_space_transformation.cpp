@@ -35,8 +35,8 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
         {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
@@ -50,8 +50,8 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
 }
 
 void DepthToSpaceTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();

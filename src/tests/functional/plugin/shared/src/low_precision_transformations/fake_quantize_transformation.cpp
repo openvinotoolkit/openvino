@@ -18,8 +18,8 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
@@ -35,8 +35,8 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
 void FakeQuantizeTransformation::SetUp() {
     abs_threshold = 1.0e-3;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
     bool isConvertOnConstants;
@@ -62,7 +62,7 @@ void FakeQuantizeTransformation::run() {
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
 

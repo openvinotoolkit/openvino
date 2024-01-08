@@ -16,7 +16,7 @@
 namespace LayerTestsDefinitions {
 
 std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
@@ -31,7 +31,7 @@ std::string TransposeTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void TransposeTransformation::SetUp() {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
 

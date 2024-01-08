@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
@@ -38,12 +38,12 @@ void ConcatTransformation::SetUp() {
     abs_threshold = 0.1;
     rel_threshold = 4.2;
 
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type precision;
+    ov::PartialShape inputShape;
+    ov::element::Type precision;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    std::vector<ngraph::PartialShape> inputs;
+    std::vector<ov::PartialShape> inputs;
     if (testValues.input_constant1 == nullptr) {
         inputs.push_back(inputShape);
     }

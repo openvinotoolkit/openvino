@@ -31,7 +31,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 
 std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
@@ -48,7 +48,7 @@ std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<
 }
 void SqueezeTransformation::SetUp() {
     abs_threshold = 0.2;
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
 

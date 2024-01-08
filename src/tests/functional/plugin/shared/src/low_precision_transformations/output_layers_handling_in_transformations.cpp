@@ -41,7 +41,7 @@ void OutputLayers::SetUp() {
 
     init_input_shapes(ov::PartialShape(inputShape));
 
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ngPrecision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
     const float k = 1.f;
@@ -52,7 +52,7 @@ void OutputLayers::SetUp() {
 
     const auto weights = ov::op::v0::Constant::create(
         ngPrecision,
-        ngraph::Shape{ inputShape[1ul], inputShape[1ul], 1ul, 1ul },
+        ov::Shape{ inputShape[1ul], inputShape[1ul], 1ul, 1ul },
         std::vector<float>(inputShape[1ul] * inputShape[1ul], 1ul));
     weights->set_friendly_name("weights");
     const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
@@ -63,18 +63,18 @@ void OutputLayers::SetUp() {
     std::shared_ptr<ov::op::v1::Convolution> convolution = std::make_shared<ov::op::v1::Convolution>(
         fakeQuantizeOnActivations,
         fakeQuantizeOnWeights,
-        ngraph::Strides{ 1ul, 1ul },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1ul, 1ul });
+        ov::Strides{ 1ul, 1ul },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1ul, 1ul });
     convolution->set_friendly_name("convolution");
 
-    ngraph::ResultVector results {
+    ov::ResultVector results {
         std::make_shared<ov::op::v0::Result>(convolution),
         std::make_shared<ov::op::v0::Result>(fakeQuantizeOnActivations)
     };
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector { input }, "OutputLayersHandling");
 }
 
 TEST_P(OutputLayers, CompareWithRefImpl) {

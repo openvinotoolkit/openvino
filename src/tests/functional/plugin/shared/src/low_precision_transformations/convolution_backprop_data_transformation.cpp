@@ -13,9 +13,9 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, bool> inputShape;
-    ngraph::Shape outputShape;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, bool> inputShape;
+    ov::Shape outputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
@@ -34,9 +34,9 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     rel_threshold = 3.1;
     abs_threshold = 800.1;
 
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;
-    ngraph::Shape outputShape;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, bool> inputShapeAndHandling;
+    ov::Shape outputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
@@ -48,7 +48,7 @@ void ConvolutionBackpropDataTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    ngraph::Shape weightsShape(4, 1ul);
+    ov::Shape weightsShape(4, 1ul);
     weightsShape[0] = inputShape[1].get_length();
     weightsShape[1] = inputShape[1].get_length() / 2;
 

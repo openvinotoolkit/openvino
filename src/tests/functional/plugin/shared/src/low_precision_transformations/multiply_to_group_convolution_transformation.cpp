@@ -23,8 +23,8 @@ namespace LayerTestsDefinitions {
 
 std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::element::Type precision;
-    ngraph::PartialShape shape;
+    ov::element::Type precision;
+    ov::PartialShape shape;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = obj.param;
@@ -40,8 +40,8 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const test
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = this->GetParam();
 
@@ -61,7 +61,7 @@ void MultiplyToGroupConvolutionTransformation::run() {
     const auto param = std::get<3>(GetParam());
     const auto actualPrecision = getRuntimePrecision(param.layerName);
     auto expectedPrecision = param.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);

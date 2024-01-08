@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInfo<ReduceSumTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
@@ -33,8 +33,8 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 void ReduceSumTransformation::SetUp() {
     abs_threshold = 4.1;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();

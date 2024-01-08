@@ -20,8 +20,8 @@ ReduceMeanOperation::ReduceMeanOperation(const std::vector<int64_t>& constantVal
 }
 
 std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
@@ -44,8 +44,8 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 
 void ReduceMeanTransformation::SetUp() {
     abs_threshold = 4.1;
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();

@@ -18,8 +18,8 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     MultiplyTestValues param;
@@ -53,8 +53,8 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 void MultiplyTransformation::SetUp() {
     abs_threshold = 0.1;
 
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
@@ -64,7 +64,7 @@ void MultiplyTransformation::SetUp() {
         inputShape1[3] = 1;
     }
 
-    ngraph::PartialShape inputShape2;
+    ov::PartialShape inputShape2;
     if (param.secondInputIsConstant) {
         inputShape2 = {};
     } else {
@@ -97,15 +97,15 @@ void MultiplyTransformation::run() {
 
     const auto params = std::get<3>(GetParam());
 
-    auto to_string = [](const ngraph::element::Type& precision) -> std::string {
+    auto to_string = [](const ov::element::Type& precision) -> std::string {
         switch (precision) {
-            case ngraph::element::f32: {
+            case ov::element::f32: {
                 return "f32";
             }
-            case ngraph::element::i8: {
+            case ov::element::i8: {
                 return "i8";
             }
-            case ngraph::element::u8: {
+            case ov::element::u8: {
                 return "u8";
             }
             default: {

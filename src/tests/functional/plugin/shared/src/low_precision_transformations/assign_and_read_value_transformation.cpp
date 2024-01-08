@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 std::string AssignAndReadValueTransformation::getTestCaseName(const testing::TestParamInfo<AssignAndReadValueTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     size_t opset;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -28,8 +28,8 @@ std::string AssignAndReadValueTransformation::getTestCaseName(const testing::Tes
 }
 
 void AssignAndReadValueTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     size_t opset;
     ov::pass::low_precision::LayerTransformation::Params params;
     AssignAndReadValueTransformationParam param;

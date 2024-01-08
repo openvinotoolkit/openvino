@@ -35,7 +35,7 @@ class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
 
-    static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
+    static std::pair<float, float> getQuantizationInterval(const ov::element::Type precision);
 
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
 
@@ -47,7 +47,7 @@ protected:
 
     static std::string getTestCaseNameByParams(
         const ov::element::Type precision,
-        const ngraph::PartialShape& inputShapes,
+        const ov::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ov::pass::low_precision::LayerTransformation::Params& params);
 
@@ -60,7 +60,7 @@ protected:
     // get runtime precision by operation friendly name which can be fused
     std::string getRuntimePrecisionByFusedName(const std::string& layerName);
 
-    std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
+    std::map<std::string, ov::Node::RTMap> getRuntimeInfo();
 
     void init_input_shapes(const ov::PartialShape& shape);
 

@@ -22,7 +22,7 @@
 namespace LayerTestsDefinitions {
 
 std::string FullyConnectedTransformation::getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -41,7 +41,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 void FullyConnectedTransformation::SetUp() {
     abs_threshold = 0.6;
 
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     MatMulShapes shapes;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();

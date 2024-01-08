@@ -21,8 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionTransformationParam param;
@@ -40,8 +40,8 @@ void ConvolutionTransformation::SetUp() {
     rel_threshold = 1.0e+10;
     abs_threshold = 1.4;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -62,7 +62,7 @@ void ConvolutionTransformation::run() {
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);

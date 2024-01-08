@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -42,8 +42,8 @@ void ConcatWithSplitTransformation::SetUp() {
     abs_threshold = 0.1;
     rel_threshold = 4.2;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();

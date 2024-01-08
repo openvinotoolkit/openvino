@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
@@ -30,8 +30,8 @@ std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing:
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
     rel_threshold = 0.5f;
     abs_threshold = 1.0;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();

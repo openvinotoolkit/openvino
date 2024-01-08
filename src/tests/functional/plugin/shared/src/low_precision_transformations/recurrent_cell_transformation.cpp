@@ -19,9 +19,9 @@
 namespace LayerTestsDefinitions {
 
 std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
-    ngraph::element::Type netPrecision;
-    std::vector<ngraph::PartialShape> activationsShape;
-    std::vector<ngraph::Shape> weightsShape;
+    ov::element::Type netPrecision;
+    std::vector<ov::PartialShape> activationsShape;
+    std::vector<ov::Shape> weightsShape;
     std::string targetDevice;
     RecurrentCellTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -39,9 +39,9 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 void RecurrentCellTransformation::SetUp() {
     abs_threshold = 0.01;
 
-    ngraph::element::Type precision;
-    std::vector<ngraph::PartialShape> activations_shapes;
-    std::vector<ngraph::Shape> weights_shapes;
+    ov::element::Type precision;
+    std::vector<ov::PartialShape> activations_shapes;
+    std::vector<ov::Shape> weights_shapes;
     RecurrentCellTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
 
@@ -79,7 +79,7 @@ void RecurrentCellTransformation::run() {
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);

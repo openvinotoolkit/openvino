@@ -20,10 +20,10 @@
 
 namespace LayerTestsDefinitions {
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
+    std::pair<ov::PartialShape, ov::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
     std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = obj.param;
@@ -47,9 +47,9 @@ void GroupConvolutionTransformation::SetUp() {
     rel_threshold = 0.1;
     abs_threshold = 0.1;
 
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
+    std::pair<ov::PartialShape, ov::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
     std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = this->GetParam();
@@ -78,7 +78,7 @@ void GroupConvolutionTransformation::run() {
     if (!param.layerName.empty()) {
         const auto actualPrecision = getRuntimePrecisionByType(param.layerName);
         auto expectedPrecision = param.expectedKernelType;
-        if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
             expectedPrecision = "FP16";
         }
         EXPECT_EQ(actualPrecision, expectedPrecision);

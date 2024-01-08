@@ -20,8 +20,8 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -42,8 +42,8 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
 void MatMulTransformation::SetUp() {
     abs_threshold = 2.7;
     rel_threshold = 3.2;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 

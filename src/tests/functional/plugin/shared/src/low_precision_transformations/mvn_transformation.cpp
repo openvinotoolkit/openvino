@@ -23,10 +23,10 @@ namespace LayerTestsDefinitions {
 
 std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    ngraph::AxisSet reductionAxes;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = obj.param;
 
@@ -38,9 +38,9 @@ std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNT
 
 void MVNTransformation::SetUp() {
     abs_threshold = 0.1;
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
-    ngraph::AxisSet reductionAxes;
+    ov::PartialShape shape;
+    ov::element::Type precision;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
 

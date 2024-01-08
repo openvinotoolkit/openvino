@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReshapeTransformationParam param;
@@ -34,7 +34,7 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
 }
 
 void ReshapeTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
+    ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReshapeTransformationParam param;
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();

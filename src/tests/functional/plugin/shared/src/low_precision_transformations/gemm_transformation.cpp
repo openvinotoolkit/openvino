@@ -22,8 +22,8 @@
 namespace LayerTestsDefinitions {
 
 std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
@@ -34,15 +34,15 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
 void GemmTransformation::SetUp() {
     abs_threshold = 17;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     init_input_shapes({ inputShape, inputShape });
 
-    const float low = 0.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
-    const float high = 255.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
+    const float low = 0.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 0.f : -128.f;
+    const float high = 255.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 255.f : 127.f;
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,

@@ -22,8 +22,8 @@
 namespace LayerTestsDefinitions {
 
 std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
@@ -39,8 +39,8 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
 
 void TransposeAfterMatMulTransformation::SetUp() {
     abs_threshold = 0.6;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;

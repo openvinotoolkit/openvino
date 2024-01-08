@@ -17,8 +17,8 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -35,8 +35,8 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const tes
 void ConcatWithDifferentChildrenTransformation::SetUp() {
     abs_threshold = 0.1;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     ConcatWithDifferentChildrenTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
