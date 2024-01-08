@@ -8,6 +8,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
+#include "openvino/frontend/exception.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -16,7 +17,7 @@ namespace op {
 namespace set_1 {
 OutputVector pow(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
+    FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
 
     auto base = inputs[0];
     auto exponent = inputs[1];

@@ -15,6 +15,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 
@@ -221,10 +222,10 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
-    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                 "The QuantizeLinear op expects 2 required and one optional "
-                 "input. Got: ",
-                 inputs.size());
+    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+                            "The QuantizeLinear op expects 2 required and one optional "
+                            "input. Got: ",
+                            inputs.size());
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];

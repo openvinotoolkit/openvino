@@ -11,6 +11,7 @@
 #include "exceptions.hpp"
 #include "ngraph/node.hpp"
 #include "op/identity.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -35,9 +36,9 @@ std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node) {
     if (node.get_ng_inputs().size() > 1) {
         const auto reduction_axes = node.get_ng_inputs().at(1);
         const auto reduction_axes_rank = reduction_axes.get_partial_shape().rank();
-        NGRAPH_CHECK(reduction_axes.get_partial_shape().is_static(),
-                     "The axes tensor's shape needs to be known(static). Node: ",
-                     node.get_description());
+        FRONT_END_GENERAL_CHECK(reduction_axes.get_partial_shape().is_static(),
+                                "The axes tensor's shape needs to be known(static). Node: ",
+                                node.get_description());
 
         if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != Shape{0}) {
             return reduction_axes.get_node_shared_ptr();

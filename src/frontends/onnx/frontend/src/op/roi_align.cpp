@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ngraph/opsets/opset9.hpp"
+#include "openvino/frontend/exception.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -16,7 +17,7 @@ namespace set_1 {
 OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
-    NGRAPH_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
+    FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
 
     const auto& data = inputs[0];
     const auto& rois = inputs[1];
@@ -45,7 +46,7 @@ namespace set_16 {
 OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
-    NGRAPH_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
+    FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
 
     const auto& data = inputs[0];
     const auto& rois = inputs[1];

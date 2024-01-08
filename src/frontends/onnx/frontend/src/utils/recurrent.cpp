@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "default_opset.hpp"
-#include "ngraph/check.hpp"
 #include "ngraph/enum_names.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "ov_models/ov_builders/reshape.hpp"

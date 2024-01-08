@@ -7,6 +7,7 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -16,10 +17,10 @@ OutputVector experimental_detectron_generate_proposals(const Node& node) {
     using GenerateProposalsSingleImage = ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
     const auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 4,
-                 "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
-                 "inputs, received: ",
-                 inputs.size());
+    FRONT_END_GENERAL_CHECK(inputs.size() == 4,
+                            "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
+                            "inputs, received: ",
+                            inputs.size());
 
     auto im_info = inputs[0];
     auto anchors = inputs[1];

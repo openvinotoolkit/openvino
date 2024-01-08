@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "default_opset.hpp"
+#include "openvino/frontend/exception.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,8 +19,8 @@ OutputVector greater_or_equal(const Node& node) {
     const auto A = node.get_ng_inputs().at(0);
     const auto B = node.get_ng_inputs().at(1);
 
-    NGRAPH_CHECK(A.get_element_type() != ov::element::bf16 && B.get_element_type() != ov::element::bf16,
-                 "The input data bfloat16 isn't supported in opset 12");
+    FRONT_END_GENERAL_CHECK(A.get_element_type() != ov::element::bf16 && B.get_element_type() != ov::element::bf16,
+                            "The input data bfloat16 isn't supported in opset 12");
 
     const auto C = std::make_shared<default_opset::GreaterEqual>(A, B);
 

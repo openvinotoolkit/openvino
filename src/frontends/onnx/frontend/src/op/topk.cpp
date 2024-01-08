@@ -14,6 +14,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/topk.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -21,9 +22,9 @@ namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ngraph::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
-    NGRAPH_CHECK(shape_size(k_node.get_shape()) == 1,
-                 "ONNX TopK operator: 'K' parameter must contain a single positive value.",
-                 node);
+    FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
+                            "ONNX TopK operator: 'K' parameter must contain a single positive value.",
+                            node);
 
     return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
 }
