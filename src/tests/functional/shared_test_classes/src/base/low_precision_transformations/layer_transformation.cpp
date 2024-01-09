@@ -39,14 +39,14 @@ LayerTransformation::LayerTransformation() {
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
-std::pair<float, float> LayerTransformation::getQuantizationInterval(ov::element::Type precision) {
+std::pair<float, float> LayerTransformation::get_quantization_interval(ov::element::Type precision) {
     const bool unsignedInterval = precision == ov::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
 }
 
-std::string LayerTransformation::toString(const ov::pass::low_precision::LayerTransformation::Params& params) {
+std::string LayerTransformation::to_string(const ov::pass::low_precision::LayerTransformation::Params& params) {
     using namespace ov::pass::low_precision;
     std::ostringstream result;
     result <<
@@ -62,11 +62,11 @@ std::string LayerTransformation::get_test_case_name_by_params(
     const std::string& targetDevice,
     const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
-    result << precision << "_" << inputShapes << "_" << targetDevice << "_" << toString(params);
+    result << precision << "_" << inputShapes << "_" << targetDevice << "_" << to_string(params);
     return result.str();
 }
 
-std::string LayerTransformation::getRuntimePrecision(const std::string& layerName) {
+std::string LayerTransformation::get_runtime_precision(const std::string& layerName) {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
@@ -83,7 +83,7 @@ std::string LayerTransformation::getRuntimePrecision(const std::string& layerNam
     return "";
 }
 
-std::string LayerTransformation::getRuntimePrecisionByType(const std::string& layerType) {
+std::string LayerTransformation::get_runtime_precision_by_type(const std::string& layerType) {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
@@ -104,7 +104,7 @@ std::string LayerTransformation::getRuntimePrecisionByType(const std::string& la
     return "";
 }
 
-std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::string& layerName) {
+std::string LayerTransformation::get_runtime_precision_by_fused_name(const std::string& layerName) {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
@@ -142,7 +142,7 @@ std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::strin
     return "";
 }
 
-std::map<std::string, ov::Node::RTMap> LayerTransformation::getRuntimeInfo() {
+std::map<std::string, ov::Node::RTMap> LayerTransformation::get_runtime_info() {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
 

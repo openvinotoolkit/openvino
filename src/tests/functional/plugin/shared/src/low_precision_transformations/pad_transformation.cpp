@@ -54,7 +54,7 @@ void PadTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
-    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     const auto expectedPrecision = params.expectedKernelType;
 
     EXPECT_EQ(actualPrecision, expectedPrecision);

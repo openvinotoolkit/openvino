@@ -58,7 +58,7 @@ void MultiplyToGroupConvolutionTransformation::run() {
     LayerTransformation::run();
 
     const auto param = std::get<3>(GetParam());
-    const auto actualPrecision = getRuntimePrecision(param.layerName);
+    const auto actualPrecision = get_runtime_precision(param.layerName);
     auto expectedPrecision = param.expectedKernelType;
     if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";

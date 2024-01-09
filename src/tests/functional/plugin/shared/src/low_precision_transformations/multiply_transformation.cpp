@@ -114,7 +114,7 @@ void MultiplyTransformation::run() {
     };
 
     const auto expectedFqPrecision = to_string(params.expectedPrecisions);
-    const auto actualFqPrecision = getRuntimePrecision("multiply");
+    const auto actualFqPrecision = get_runtime_precision("multiply");
     EXPECT_EQ(expectedFqPrecision, actualFqPrecision);
 }
 

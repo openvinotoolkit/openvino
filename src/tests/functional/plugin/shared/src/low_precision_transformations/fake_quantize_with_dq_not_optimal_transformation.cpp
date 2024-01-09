@@ -56,7 +56,7 @@ void FakeQuantizeWithNotOptimalTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecisionByType("Convolution");
+    const auto actualType = get_runtime_precision_by_type("Convolution");
     EXPECT_EQ(actualType, params.expectedPrecision);
 }
 

@@ -32,11 +32,11 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
     result << netPrecision << "_" <<
-        shapes.first << "_" <<
-        shapes.second << "_" <<
-        targetDevice << "_" <<
-        toString(params) << "_" <<
-        "_axes" << axes.size() <<
+           shapes.first << "_" <<
+           shapes.second << "_" <<
+           targetDevice << "_" <<
+                               to_string(params) << "_" <<
+           "_axes" << axes.size() <<
         (fuseMultiply ? "_multiply" : "") <<
         (shift ? "_shift" : "");
     return result.str();

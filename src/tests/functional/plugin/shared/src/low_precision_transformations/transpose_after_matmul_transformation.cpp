@@ -30,8 +30,8 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << toString(params) <<
-        (perTensor ? "_perTensor" : "_perChannel") <<
+    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+           (perTensor ? "_perTensor" : "_perChannel") <<
         (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
     return result.str();
 }

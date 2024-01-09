@@ -20,8 +20,8 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
     std::tie(netPrecision, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << toString(params) <<
-        "_" << param.inputShape << "_" << param.fakeQuantize << "_{";
+    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+           "_" << param.inputShape << "_" << param.fakeQuantize << "_{";
     for (size_t i = 0; i < param.reshapeConstValues.size(); ++i) {
         result << param.reshapeConstValues[i];
         if (i != (param.reshapeConstValues.size() - 1ul)) {
@@ -51,7 +51,7 @@ void ReshapeTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
-    auto actualPrecision = getRuntimePrecisionByType(params.layerType);
+    auto actualPrecision = get_runtime_precision_by_type(params.layerType);
     const auto expectedPrecision = params.expectedKernelType;
     if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
         actualPrecision = "FP32";

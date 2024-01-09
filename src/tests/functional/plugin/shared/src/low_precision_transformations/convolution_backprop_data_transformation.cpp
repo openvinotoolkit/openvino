@@ -78,7 +78,7 @@ void ConvolutionBackpropDataTransformation::run() {
     const auto inputShape = std::get<1>(GetParam());
     if (inputShape.second) {
         const auto params = std::get<5>(GetParam());
-        const auto actualType = getRuntimePrecision(params.layerName);
+        const auto actualType = get_runtime_precision(params.layerName);
         EXPECT_EQ(actualType, params.expectedKernelType);
     }
 }

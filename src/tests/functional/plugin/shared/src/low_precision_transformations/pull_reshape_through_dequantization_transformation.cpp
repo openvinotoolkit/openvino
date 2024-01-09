@@ -84,7 +84,7 @@ void PullReshapeThroughDequantizationTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
-    const auto actualType = getRuntimePrecision(params.operationName);
+    const auto actualType = get_runtime_precision(params.operationName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 

@@ -64,7 +64,7 @@ void MatMulTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
-    const auto actualType = getRuntimePrecision(params.expectedKernelName);
+    const auto actualType = get_runtime_precision(params.expectedKernelName);
 
     EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }

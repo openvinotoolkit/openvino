@@ -63,7 +63,7 @@ void ConvolutionQDqTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecisionByType(params.layerName);
+    const auto actualType = get_runtime_precision_by_type(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 

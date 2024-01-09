@@ -51,7 +51,7 @@ void BatchToSpaceTransformation::run() {
         expected_type = "f16";
     }
 
-    const auto actual_type = getRuntimePrecisionByType(params.layer_type);
+    const auto actual_type = get_runtime_precision_by_type(params.layer_type);
     EXPECT_EQ(actual_type, expected_type);
 }
 

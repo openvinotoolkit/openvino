@@ -80,7 +80,7 @@ void ElementwiseBranchSelectionTransformation::run() {
 
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
     if (!expectedReorders.empty()) {
-        auto rtInfo = LayerTransformation::getRuntimeInfo();
+        auto rtInfo = LayerTransformation::get_runtime_info();
         for (auto it : rtInfo) {
             const auto& typeIt = it.second.find("layerType");
             const auto type = typeIt->second.as<std::string>();
@@ -110,7 +110,8 @@ void ElementwiseBranchSelectionTransformation::run() {
     }
 
     for (auto it : params.expectedPrecisions) {
-        const auto actualPrecision = getRuntimePrecisionByFusedName(it.first == "eltwise" ? elementwiseType : it.first);
+        const auto actualPrecision = get_runtime_precision_by_fused_name(
+                it.first == "eltwise" ? elementwiseType : it.first);
         ASSERT_EQ(it.second, actualPrecision) << "actual precision for operation '" << it.first << "' is not correct";
     }
 }

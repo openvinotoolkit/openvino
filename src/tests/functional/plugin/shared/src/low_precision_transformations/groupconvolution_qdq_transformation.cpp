@@ -61,7 +61,7 @@ void GroupConvolutionQDqTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
+    const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 

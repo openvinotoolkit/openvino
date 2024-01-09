@@ -35,9 +35,9 @@ class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
 
-    static std::pair<float, float> getQuantizationInterval(ov::element::Type precision);
+    static std::pair<float, float> get_quantization_interval(ov::element::Type precision);
 
-    static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
+    static std::string to_string(const ov::pass::low_precision::LayerTransformation::Params& params);
 
     static std::string get_test_case_name_by_params(
         ov::element::Type precision,
@@ -46,15 +46,15 @@ protected:
         const ov::pass::low_precision::LayerTransformation::Params& params);
 
     // get runtime precision by operation friendly name
-    std::string getRuntimePrecision(const std::string& layerName);
+    std::string get_runtime_precision(const std::string& layerName);
 
     // get runtime precision by operation type
-    std::string getRuntimePrecisionByType(const std::string& layerType);
+    std::string get_runtime_precision_by_type(const std::string& layerType);
 
     // get runtime precision by operation friendly name which can be fused
-    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
+    std::string get_runtime_precision_by_fused_name(const std::string& layerName);
 
-    std::map<std::string, ov::Node::RTMap> getRuntimeInfo();
+    std::map<std::string, ov::Node::RTMap> get_runtime_info();
 
     void init_input_shapes(const ov::PartialShape& shape);
 
