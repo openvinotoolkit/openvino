@@ -360,6 +360,7 @@ void Concat::prepareParams() {
         }
         if (useSpecial) {
             execSpecialCase = [this]() {
+                DEBUG_LOG(getName(), " uses short 1d vector executor");
                 auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
                 for (size_t i = 0; i < getParentEdges().size(); i++) {
                     const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
@@ -372,7 +373,6 @@ void Concat::prepareParams() {
                     }
                 }
             };
-            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
             return;
         }
     }

@@ -187,6 +187,7 @@ void Gather::createPrimitive() {
         auto dim0 = dataShape.getDims()[0];
         if (dim0 <= 64) {
             execSpecialCase = [this]() {
+                DEBUG_LOG(getName(), " uses short 1d vector executor");
                 auto mptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
                 const auto* src = reinterpret_cast<const uint32_t*>(mptr->getData());
                 auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
@@ -202,7 +203,6 @@ void Gather::createPrimitive() {
                     dst[i] = src[ii];
                 }
             };
-            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
             return;
         }
     }

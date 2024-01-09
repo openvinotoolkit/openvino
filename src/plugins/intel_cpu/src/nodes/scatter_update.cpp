@@ -234,6 +234,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
         updateDim.size() <= 1 && indicesPrec == ov::element::i32 && dataPrec == ov::element::i32) {
         if (srcDataDim[0] <= 64) {
             execSpecialCase = [this]() {
+                DEBUG_LOG(getName(), " uses short 1d vector executor");
                 auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
                 auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
                 auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
@@ -253,7 +254,6 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
                     dstPtr[indicesPtr[i]] = updatePtr[i];
                 }
             };
-            DEBUG_LOG("use special case impl (short 1d vector) for node ", getName());
         }
     }
 }
