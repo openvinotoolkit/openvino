@@ -518,6 +518,75 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
     OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
 }
 
+//
+// GetRuntimeModel
+//
+typedef std::tuple<ov::element::Type,  // Element type
+                   ov::Shape,          // Shape
+                   std::string         // Device name
+                   >
+    OVCompiledModelGraphUniqueNodeNamesTestParams;
+
+class OVCompiledModelGraphUniqueNodeNamesTest
+    : public testing::WithParamInterface<OVCompiledModelGraphUniqueNodeNamesTestParams>,
+      public OVCompiledNetworkTestBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<OVCompiledModelGraphUniqueNodeNamesTestParams> obj) {
+        ov::element::Type netPrecision;
+        ov::Shape inputShapes;
+        std::string targetDevice;
+        std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+        result << "netPRC=" << netPrecision.to_string() << "_";
+        result << "targetDevice=" << targetDevice;
+        return result.str();
+    }
+
+    void SetUp() override {
+        ov::Shape inputShape;
+        ov::element::Type netPrecision;
+        std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+        APIBaseTest::SetUp();
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShape))};
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
+
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+        fnPtr = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> fnPtr;
+};
+
+TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    auto compiled_model = core->compile_model(fnPtr, target_device);
+    auto exec_graph = compiled_model.get_runtime_model();
+
+    std::unordered_set<std::string> names;
+    ASSERT_NE(exec_graph, nullptr);
+
+    for (const auto& op : exec_graph->get_ops()) {
+        ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end())
+            << "Node with name " << op->get_friendly_name() << "already exists";
+        names.insert(op->get_friendly_name());
+
+        const auto& rtInfo = op->get_rt_info();
+        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
+        ASSERT_NE(rtInfo.end(), it);
+    }
+};
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -3,25 +3,34 @@
 //
 
 #include "common_test_utils/test_constants.hpp"
-#include "behavior/ov_executable_network/exec_graph_info.hpp"
+#include "behavior/compiled_model/import_export.hpp"
 
 namespace {
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::element::Type> netPrecisions = {
+const std::vector<ov::element::Type_t> netPrecisions = {
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::i64,
+    ov::element::u8,
+    ov::element::u16,
+    ov::element::u32,
+    ov::element::u64,
+    ov::element::f16,
     ov::element::f32,
 };
 const ov::AnyMap empty_property = {};
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
-                         OVExecGraphImportExportTest,
+                         OVCompiledGraphImportExportTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(empty_property)),
-                         OVExecGraphImportExportTest::getTestCaseName);
+                         OVCompiledGraphImportExportTest::getTestCaseName);
 
-TEST_P(OVExecGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
+TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(fnPtr, target_device);
     auto exec_graph = compiled_model.get_runtime_model();
@@ -46,12 +55,16 @@ TEST_P(OVExecGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
         << "Expected reorders: " << expectedReorders << ", actual reorders: " << numReorders;
 };
 
+const std::vector<ov::element::Type> netPrc = {
+    ov::element::f32,
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
-                         OVExecGraphUniqueNodeNamesTest,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                         OVCompiledModelGraphUniqueNodeNamesTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrc),
                                             ::testing::Values(ov::Shape{1, 2, 5, 5}),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         OVExecGraphUniqueNodeNamesTest::getTestCaseName);
+                         OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
 
 }  // namespace
 
