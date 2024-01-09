@@ -42,7 +42,7 @@ Additionally, several supporting workflows build and test OpenVINO for other ope
 
 ### Reusing GitHub Actions
 
-The OpenVINO workflows make use of the rich GitHub Actions official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
+The OpenVINO workflows make use of the rich official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
 
 Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
 
@@ -104,7 +104,7 @@ The listed above workflows are **required**, i.e., a PR could not be merged if a
 
 This section provides the structural overview of the Linux, Windows and macOS workflows.
 
-The structure for all of them is largely the same:
+The structure for all of them is mostly the same:
 1. Clone OpenVINO repository and required resources
 2. Install build dependencies
 3. Build OpenVINO from source
