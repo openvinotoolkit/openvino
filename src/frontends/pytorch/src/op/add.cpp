@@ -33,7 +33,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     // Checking for boolean inputs - input rhs
     if (rhs.get_element_type() == element::boolean || (dtype1.is<element::Type>() && dtype1.as<element::Type>() == element::boolean)) {
         rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, element::i64));
-        dtype1 = element::i64;  
+        dtype1 = element::i64;
     }
     
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
