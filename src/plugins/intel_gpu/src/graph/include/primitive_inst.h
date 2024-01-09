@@ -229,6 +229,8 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+
+    void init_variable();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
