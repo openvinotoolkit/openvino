@@ -5,6 +5,9 @@
 #pragma once
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -20,7 +23,11 @@ public:
     /// \brief Construct GraphIterator for the frozen model in text format without v1 checkpoints
     template <typename T>
     GraphIteratorProtoTxt(const std::basic_string<T>& path) : GraphIteratorProto() {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+        std::ifstream pbtxt_stream(std::filesystem::path(path), std::ios::in);
+#else
         std::ifstream pbtxt_stream(path, std::ios::in);
+#endif
         FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
         auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
         FRONT_END_GENERAL_CHECK(input_stream, "Model cannot be read");

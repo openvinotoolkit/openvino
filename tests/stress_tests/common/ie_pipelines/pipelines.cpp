@@ -118,7 +118,7 @@ inference_with_streams(const std::string &model, const std::string &target_devic
         unsigned int nireq = nstreams;
         auto ie_api_wrapper = create_infer_api_wrapper(api_version);
         ie_api_wrapper->load_plugin(target_device);
-        ie_api_wrapper->set_config(target_device, "THROUGHPUT_STREAMS", nstreams);
+        ie_api_wrapper->set_config(target_device, ov::AnyMap{ov::num_streams(nstreams)});
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(target_device);
         try {

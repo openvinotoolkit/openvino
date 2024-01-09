@@ -3,13 +3,8 @@
 //
 
 #pragma once
-#include <ie_common.h>
-#include <node.h>
 
-#include <memory>
-#include <string>
-#include <vector>
-
+#include "node.h"
 #include "transformations/cpu_opset/common/op/rope.hpp"
 
 namespace ov {
