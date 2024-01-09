@@ -299,7 +299,7 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 }  // namespace
 
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_platform_id platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform)
 : _context(ctx)
 , _device(dev)
 , _platform(platform)
