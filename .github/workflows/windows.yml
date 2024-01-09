@@ -163,7 +163,7 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake          
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
