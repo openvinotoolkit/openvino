@@ -6,6 +6,8 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {
 namespace test {
@@ -61,22 +63,22 @@ void OutputBeforeActivation::SetUp() {
     std::shared_ptr<ngraph::Node> midLayer;
     switch (outputType) {
     case ov::test::midOutputType::Sum: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
         break;
     }
     case ov::test::midOutputType::Sub: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::SUBTRACT);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::SUBTRACT);
         break;
     }
     case ov::test::midOutputType::Mul: {
-        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::MULTIPLY);
         break;
     }
     default:
         GTEST_FAIL() << "Unknown midOutputType";
     }
 
-    auto act = ngraph::builder::makeActivation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
+    auto act = ov::test::utils::make_activation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
 }

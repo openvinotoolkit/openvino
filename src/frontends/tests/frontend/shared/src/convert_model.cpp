@@ -38,12 +38,7 @@ void FrontEndConvertModelTest::doLoadFromFile() {
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
-    if (m_modelFile.find("/bad_header/") == std::string::npos) {
-        ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
-    } else {
-        ASSERT_THROW(model_ref = m_frontEnd->convert(m_inputModel), std::exception);
-        return;
-    }
+    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(model_ref, nullptr);
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = m_frontEnd->convert_partially(m_inputModel));
@@ -61,12 +56,7 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
-    if (m_modelFile.find("/bad_header/") == std::string::npos) {
-        ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
-    } else {
-        ASSERT_THROW(model_ref = m_frontEnd->convert(m_inputModel), std::exception);
-        return;
-    }
+    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(model_ref, nullptr);
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = m_frontEnd->decode(m_inputModel));

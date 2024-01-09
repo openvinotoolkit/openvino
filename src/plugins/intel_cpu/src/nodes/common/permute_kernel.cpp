@@ -6,17 +6,16 @@
 
 #include <vector>
 
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "nodes/executors/common/ref_transpose.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -173,7 +172,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
-    SizeVector dst_dims = jcp.dst_block_dims;
+    VectorDims dst_dims = jcp.dst_block_dims;
     if (permute_kernel) {
         optimizedExecute(src_data, dst_data, dst_dims[0]);
         return;
@@ -183,9 +182,9 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
-    SizeVector dst_dims = jcp.dst_block_dims;
-    const SizeVector dst_strides = jcp.dst_strides;
-    const SizeVector src_strides = jcp.src_strides;
+    VectorDims dst_dims = jcp.dst_block_dims;
+    const VectorDims dst_strides = jcp.dst_strides;
+    const VectorDims src_strides = jcp.src_strides;
 
     if (static_cast<int>(dst_dims[0]) != mb)
         dst_dims[0] = mb;

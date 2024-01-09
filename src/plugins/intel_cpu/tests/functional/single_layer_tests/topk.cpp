@@ -2,42 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
 using SortMode = ov::op::TopKMode;
 using SortType = ov::op::TopKSortType;
 
-namespace CPULayerTestsDefinitions {
+typedef std::tuple<int64_t,                     // keepK
+                   int64_t,                     // axis
+                   SortMode,                    // mode
+                   std::tuple<SortType, bool>,  // sort and stable
+                   ElementType,                 // Net type
+                   ElementType,                 // Input type
+                   ElementType,                 // Output type
+                   InputShape                   // inputShape
+                   >
+    basicTopKParams;
 
-typedef std::tuple<
-        int64_t,                    // keepK
-        int64_t,                    // axis
-        SortMode,                   // mode
-        std::tuple<SortType, bool>, // sort and stable
-        ElementType,                // Net precision
-        ElementType,                // Input precision
-        ElementType,                // Output precision
-        InputShape                  // inputShape
-> basicTopKParams;
-
-typedef std::tuple<
-        basicTopKParams,
-        CPUSpecificParams,
-        std::map<std::string, std::string>> TopKLayerCPUTestParamsSet;
+typedef std::tuple<basicTopKParams, CPUSpecificParams, ov::AnyMap> TopKLayerCPUTestParamsSet;
 
 class TopKLayerCPUTest : public testing::WithParamInterface<TopKLayerCPUTestParamsSet>,
-                         virtual public SubgraphBaseTest, public CPUTestsBase {
+                         virtual public SubgraphBaseTest,
+                         public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TopKLayerCPUTestParamsSet> obj) {
         basicTopKParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
 
         int64_t keepK, axis;
@@ -60,7 +54,8 @@ public:
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
-        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_" << "TS=(";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_"
+               << "TS=(";
         for (const auto& shape : inputShape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
@@ -70,8 +65,8 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                if (item.second == PluginConfigParams::YES)
-                    result << "_" << item.first << "=" << item.second;
+                if (item.second == ov::element::bf16)
+                    result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -84,7 +79,7 @@ protected:
 
         basicTopKParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -98,13 +93,13 @@ protected:
         sort = std::get<0>(sortTypeStable);
         stable = std::get<1>(sortTypeStable);
 
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16)
             inPrc = outPrc = netPrecision = ElementType::bf16;
         else
             inPrc = outPrc = netPrecision;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(netPrecision).name();
+        selectedType = getPrimitiveType() + "_" + ov::element::Type(netPrecision).get_type_name();
 
         staticShape = inputShape.first.rank() == 0;
         if (staticShape) {
@@ -123,22 +118,22 @@ protected:
         if (staticShape) {
             auto k = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{}, &keepK);
             topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
-                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
+                std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         } else {
             auto k = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inputDynamicShapes[1]);
             params.push_back(k);
             topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
-                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
+                std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         }
 
         topk->get_rt_info() = getCPUInfo();
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < topk->get_output_size(); i++) {
             results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "TopK");
+        function = std::make_shared<ov::Model>(results, params, "TopK");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -160,7 +155,7 @@ protected:
             std::vector<int> data(size);
 
             // For int32, deliberately set big numbers which are not accurately representable in fp32
-            int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : - static_cast<int>(size / 2);
+            int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : -static_cast<int>(size / 2);
             size_t set_size = sort == SortType::SORT_VALUES && stable ? size / 2 : size;
             std::iota(data.begin(), data.begin() + set_size, start);
             if (sort == SortType::SORT_VALUES && stable) {
@@ -170,12 +165,12 @@ protected:
             std::shuffle(data.begin(), data.end(), gen);
 
             if (netPrecision == ElementType::f32) {
-                auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
+                auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
                 for (size_t i = 0; i < size; ++i) {
                     rawBlobDataPtr[i] = static_cast<float>(data[i]);
                 }
             } else {
-                auto *rawBlobDataPtr = static_cast<int32_t *>(tensor.data());
+                auto* rawBlobDataPtr = static_cast<int32_t*>(tensor.data());
                 for (size_t i = 0; i < size; ++i) {
                     rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
                 }
@@ -190,11 +185,11 @@ protected:
             if (O * A * I != size)
                 FAIL() << "Incorrect blob shape " << shape;
 
-            auto *rawBlobDataPtr = static_cast<ov::bfloat16 *>(tensor.data());
+            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
             for (size_t o = 0; o < O; o++) {
                 for (size_t i = 0; i < I; i++) {
                     std::vector<int> data(A);
-                    int start = - static_cast<int>(A / 2);
+                    int start = -static_cast<int>(A / 2);
                     std::iota(data.begin(), data.end(), start);
                     const size_t seed = (o + 1) * (i + 1);
                     std::mt19937 gen(seed);
@@ -220,10 +215,11 @@ private:
         const auto& kPrecision = funcInputs[1].get_element_type();
         const auto& kShape = targetInputStaticShapes[1];
 
-        const size_t startFrom = 1;
-        const size_t range = targetInputStaticShapes[0][axis];
-        const size_t seed = inferRequestNum++;
-        const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 1;
+        in_data.range = targetInputStaticShapes[0][axis];
+        in_data.seed = inferRequestNum++;;
+        const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, in_data);
 
         inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
     }
@@ -248,68 +244,57 @@ const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
 };
 
-std::vector<std::map<std::string, std::string>> additionalConfig = {
-    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
-    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
-};
+std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
+                                            {{ov::hint::inference_precision(ov::element::bf16)}}};
 
 const std::vector<int64_t> axes = {0, 1, 2, 3};
 const std::vector<int64_t> k = {1, 5, 7, 18, 21};
 
-const std::vector<SortMode> modes = {
-    SortMode::MIN,
-    SortMode::MAX
-};
+const std::vector<SortMode> modes = {SortMode::MIN, SortMode::MAX};
 
 const std::vector<std::tuple<SortType, bool>> sortTypeStable = {
     std::tuple<SortType, bool>{SortType::SORT_VALUES, false},
     std::tuple<SortType, bool>{SortType::SORT_VALUES, true},
-    std::tuple<SortType, bool>{SortType::SORT_INDICES, false}
-};
+    std::tuple<SortType, bool>{SortType::SORT_INDICES, false}};
 
 std::vector<ov::test::InputShape> inputShapes = {
     {{}, {{21, 21, 21, 21}}},
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {
-    {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}
-};
+    {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}};
 
-std::vector<CPUSpecificParams> cpuParams = {
-    CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {}),
-    CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
-    CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})
-};
+std::vector<CPUSpecificParams> cpuParams = {CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {}),
+                                            CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
+                                            CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})};
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::ValuesIn(k),
-            ::testing::ValuesIn(axes),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapes)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
-        ::testing::ValuesIn(additionalConfig)),
-    TopKLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TopK,
+                        TopKLayerCPUTest,
+                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(k),
+                                                              ::testing::ValuesIn(axes),
+                                                              ::testing::ValuesIn(modes),
+                                                              ::testing::ValuesIn(sortTypeStable),
+                                                              ::testing::ValuesIn(netPrecisions),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::ValuesIn(inputShapes)),
+                                           ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                           ::testing::ValuesIn(additionalConfig)),
+                        TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::ValuesIn(axes),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapesDynamic)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
-        ::testing::ValuesIn(additionalConfig)),
-    TopKLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic,
+                        TopKLayerCPUTest,
+                        ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                                              ::testing::ValuesIn(axes),
+                                                              ::testing::ValuesIn(modes),
+                                                              ::testing::ValuesIn(sortTypeStable),
+                                                              ::testing::ValuesIn(netPrecisions),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::ValuesIn(inputShapesDynamic)),
+                                           ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                           ::testing::ValuesIn(additionalConfig)),
+                        TopKLayerCPUTest::getTestCaseName);
 
 const std::vector<int64_t> k_int32 = {1, 5, 7, 9};
 
@@ -318,115 +303,107 @@ std::vector<ov::test::InputShape> inputShapes_int32 = {
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic_int32 = {
-    {{9, {5, 10}, 9, {5, 10}}, {{9, 9, 9, 9}, {9, 10, 9, 10}}}
-};
+    {{9, {5, 10}, 9, {5, 10}}, {{9, 9, 9, 9}, {9, 10, 9, 10}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_int32, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::ValuesIn(k_int32),
-            ::testing::ValuesIn(axes),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::Values(ElementType::i32),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapes_int32)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
-        ::testing::Values(additionalConfig[0])),
-    TopKLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TopK_int32,
+                        TopKLayerCPUTest,
+                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_int32),
+                                                              ::testing::ValuesIn(axes),
+                                                              ::testing::ValuesIn(modes),
+                                                              ::testing::ValuesIn(sortTypeStable),
+                                                              ::testing::Values(ElementType::i32),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::ValuesIn(inputShapes_int32)),
+                                           ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                           ::testing::Values(additionalConfig[0])),
+                        TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_int32_dynamic, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::ValuesIn(axes),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::Values(ElementType::i32),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapesDynamic_int32)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
-        ::testing::Values(additionalConfig[0])),
-    TopKLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TopK_int32_dynamic,
+                        TopKLayerCPUTest,
+                        ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                                              ::testing::ValuesIn(axes),
+                                                              ::testing::ValuesIn(modes),
+                                                              ::testing::ValuesIn(sortTypeStable),
+                                                              ::testing::Values(ElementType::i32),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::Values(ElementType::undefined),
+                                                              ::testing::ValuesIn(inputShapesDynamic_int32)),
+                                           ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                           ::testing::Values(additionalConfig[0])),
+                        TopKLayerCPUTest::getTestCaseName);
 
 std::vector<ov::test::InputShape> inputShapes_bubble_BLK_on_channel_horiz = {
     {{}, {{2, 2, 2, 2}}},
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic_bubble_BLK_on_channel_horiz = {
-    {{2, {2, 3}, 2, 2}, {{2, 2, 2, 2}, {2, 3, 2, 2}}}
-};
+    {{2, {2, 3}, 2, 2}, {{2, 2, 2, 2}, {2, 3, 2, 2}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::Values(1),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapes_bubble_BLK_on_channel_horiz)),
-        ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
-        ::testing::ValuesIn(additionalConfig)),
+INSTANTIATE_TEST_CASE_P(
+    smoke_TopK_bubble_BLK_on_channel_horiz,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                          ::testing::Values(1),
+                                          ::testing::ValuesIn(modes),
+                                          ::testing::ValuesIn(sortTypeStable),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::ValuesIn(inputShapes_bubble_BLK_on_channel_horiz)),
+                       ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
+                       ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::Values(1),
-            ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypeStable),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapesDynamic_bubble_BLK_on_channel_horiz)),
-        ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
-        ::testing::ValuesIn(additionalConfig)),
+INSTANTIATE_TEST_CASE_P(
+    smoke_TopK_bubble_BLK_on_channel_horiz_dynamic,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                          ::testing::Values(1),
+                                          ::testing::ValuesIn(modes),
+                                          ::testing::ValuesIn(sortTypeStable),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::ValuesIn(inputShapesDynamic_bubble_BLK_on_channel_horiz)),
+                       ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
+                       ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
 std::vector<ov::test::InputShape> inputShapes_top1 = {
     {{}, {{1, 1, 2, 1}}},
 };
 
-std::vector<ov::test::InputShape> inputShapesDynamic_top1 = {
-    {{1, 1, 2, {1, 2}}, {{1, 1, 2, 1}, {1, 1, 2, 2}}}
-};
+std::vector<ov::test::InputShape> inputShapesDynamic_top1 = {{{1, 1, 2, {1, 2}}, {{1, 1, 2, 1}, {1, 1, 2, 2}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_Top1, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::Values(3),
-            ::testing::Values(SortMode::MAX),
-            ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapes_top1)),
-        ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
-        ::testing::ValuesIn(additionalConfig)),
+INSTANTIATE_TEST_CASE_P(
+    smoke_Top1,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                          ::testing::Values(3),
+                                          ::testing::Values(SortMode::MAX),
+                                          ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::ValuesIn(inputShapes_top1)),
+                       ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
+                       ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Top1_dynamic, TopKLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(1),
-            ::testing::Values(3),
-            ::testing::Values(SortMode::MAX),
-            ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::ValuesIn(inputShapesDynamic_top1)),
-        ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
-        ::testing::ValuesIn(additionalConfig)),
+INSTANTIATE_TEST_CASE_P(
+    smoke_Top1_dynamic,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                          ::testing::Values(3),
+                                          ::testing::Values(SortMode::MAX),
+                                          ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::Values(ElementType::undefined),
+                                          ::testing::ValuesIn(inputShapesDynamic_top1)),
+                       ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
+                       ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
-} // namespace
-
-} // namespace CPULayerTestsDefinitions
+}  // namespace

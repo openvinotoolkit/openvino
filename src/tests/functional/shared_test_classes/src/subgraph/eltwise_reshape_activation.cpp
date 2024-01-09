@@ -3,6 +3,8 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/eltwise_reshape_activation.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -37,15 +39,15 @@ void EltwiseReshapeActivation::SetUp() {
 
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0])),
                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0]))};
-    auto eltw = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
+    auto eltw = ov::test::utils::make_eltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
 
-    auto reshape_pattern1 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);
-    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(eltw, reshape_pattern1, false);
+    auto reshape_pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(eltw, reshape_pattern1, false);
 
-    auto relu = ngraph::builder::makeActivation(reshape1, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto relu = ov::test::utils::make_activation(reshape1, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
-    auto reshape_pattern2 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shapes[0].size()}, shapes[0]);
-    auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(relu, reshape_pattern2, false);
+    auto reshape_pattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{shapes[0].size()}, shapes[0]);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(relu, reshape_pattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, input, "EltwiseReshapeActivation");
 }

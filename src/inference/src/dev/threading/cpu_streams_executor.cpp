@@ -144,7 +144,7 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_numa_id(_numaNodeId)
+                                                            .set_numa_id(get_org_numa_id(_numaNodeId))
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
@@ -186,7 +186,10 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+            const auto stream_id =
+                _impl->_config._streams == 0
+                    ? 0
+                    : (_streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId);
 
             get_cur_stream_info(stream_id,
                                 _impl->_config._cpu_reservation,

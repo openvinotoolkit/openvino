@@ -28,4 +28,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 // IE Class Query model
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("CPU"));
+
+// OV Class Load network
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTestWithThrow,
+        ::testing::Values(""));
+
 }  // namespace

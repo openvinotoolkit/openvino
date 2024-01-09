@@ -3,10 +3,11 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prelu.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -16,8 +17,8 @@ ov::OutputVector translate_leaky_relu_op(const NodeContext& node) {
     default_op_checks(node, 1, {"LeakyRelu", "LEAKY_RELU"});
     auto features = node.get_input(0);
     auto alpha = node.get_attribute<float>("alpha", 0.2f);
-    auto alpha_const = make_shared<Constant>(element::f32, Shape{1}, alpha);
-    auto leaky_relu = make_shared<PRelu>(features, alpha_const);
+    auto alpha_const = make_shared<v0::Constant>(element::f32, Shape{1}, alpha);
+    auto leaky_relu = make_shared<v0::PRelu>(features, alpha_const);
     set_node_name(node.get_name(), leaky_relu);
     return {leaky_relu};
 }

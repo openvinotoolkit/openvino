@@ -16,7 +16,7 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
 
     std::tie(binConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = obj.param;
 
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
@@ -61,7 +61,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     std::tie(binConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
         this->GetParam();
 
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernelSize, strides, dilations;
     std::vector<ptrdiff_t> padsBegin, padsEnd;
     size_t numOutChannels;
@@ -74,7 +74,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
     auto binConv = ngraph::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
                                                           padValue);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(binConv)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(binConv)};
     function = std::make_shared<ngraph::Function>(results, params, "BinaryConvolution");
 }
 

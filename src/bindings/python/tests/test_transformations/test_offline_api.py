@@ -7,7 +7,6 @@ import pytest
 import numpy as np
 from openvino._offline_transformations import (
     apply_moc_transformations,
-    apply_pot_transformations,
     apply_low_latency_transformation,
     apply_pruning_transformation,
     apply_make_stateful_transformation,
@@ -16,7 +15,7 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core, serialize, save_model
+from openvino import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
 from tests.utils.helpers import create_filename_for_test, compare_models, _compare_models
@@ -108,15 +107,6 @@ def test_moc_with_smart_reshape():
     model = get_relu_model()
 
     apply_moc_transformations(model, cf=False, smart_reshape=True)
-
-    assert model is not None
-    assert len(model.get_ops()) == 3
-
-
-def test_pot_transformations():
-    model = get_relu_model()
-
-    apply_pot_transformations(model, "GNA")
 
     assert model is not None
     assert len(model.get_ops()) == 3

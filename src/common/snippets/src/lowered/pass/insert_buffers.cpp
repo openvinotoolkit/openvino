@@ -49,26 +49,52 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
         return allocation_shape;
     }
 
-    auto set_rest_dims_to_ones = [&](const int filled_dims_count) {
-        for (int i = 0; i < static_cast<int>(allocation_shape.size()) - filled_dims_count; ++i) {
-            allocation_shape[i] = 1;
+    // If subtensor is set, its information is used for allocation shape computation. Two situations are possible:
+    // 1. Buffer is outside the parent loop: the corresponding subtensor value is ignored, parent loop work amount is set instead
+    // 2. Buffer is inside the parent loop: the corresponding subtensor value is used in allocation shape.
+    // Since we can defenitely know which subtensor value corresponds to the loop only for 1st case
+    // (we can extract this info from loop exit port), we copy subtensor, and then replace subtensor values with parent loop work amount if needed.
+    // Example:
+    // Parent subtensor: [M_blk, N_blk]
+    // Buffer loop idces: [M_loop_idx], parent loop idces: [M_loop_idx, N_loop_idx]
+    //
+    // 1. Allocation shape is set to subtensor: [M_blk, N_blk]
+    // 2. Buffer is inside M_loop_idx loop => allocation shape is not changed
+    // 3. Buffer is outside N_loop_idx loop => the corresponding allocation shape value is replaced with N loop work amount
+    // So the result allocation shape is [M_blk, N_loop_work_amount]
+    const auto& subtensor =  expr_port.get_descriptor_ptr()->get_subtensor();
+    if (!subtensor.empty()) {
+        for (size_t i = 0; i < std::min(rank, subtensor.size()); ++i) {
+            auto& cur_val = *(allocation_shape.rbegin() + i);
+            const auto& subtensor_val = *(subtensor.rbegin() + i);
+            cur_val = std::min(cur_val, subtensor_val);
         }
-    };
-
-    // In some cases it's possible to allocate less shape
-    // 1. Buffer and its parent are in the same loop: allocation size for the outer dimension can be extracted from loop increment
-    // 2. Buffer is outside the parent's loops: allocation size can be extracted from the corresponding loop work amount
-    // TODO: Use general logic with the help of memory counts for allocation shape computation
-    if (buffer_loop_ids.back() == parent_loop_ids.back()) {
-        const auto buffer_loop = loop_manager->get_loop_info(buffer_loop_ids.back());
-        *(allocation_shape.rbegin() + 1) = buffer_loop->increment;
-        set_rest_dims_to_ones(2);
+        for (const auto& parent_loop : parent_loop_ids) {
+            if (std::find(buffer_loop_ids.begin(), buffer_loop_ids.end(), parent_loop) == buffer_loop_ids.end()) {
+                const auto loop_info = loop_manager->get_loop_info(parent_loop);
+                const auto& exit_points = loop_info->get_exit_points();
+                auto it = std::find_if(exit_points.begin(),
+                                       exit_points.end(),
+                                       [&expr_port](const LinearIR::LoopManager::LoopPort& port) {
+                                           return *port.expr_port == expr_port;
+                                       });
+                OPENVINO_ASSERT(it != exit_points.end(), "compute_allocation_shape: exit point of parent loop can not be found");
+                const auto& loop_port = *it;
+                if (loop_port.is_incremented && loop_port.dim_idx < allocation_shape.size()) {
+                    *(allocation_shape.rbegin() + loop_port.dim_idx) = loop_info->get_work_amount();
+                }
+            }
+        }
     } else {
+        // WA: In case of empty subtensors another information have to be used to update allocation shape.
         for (size_t i = 0; i < std::min(rank, parent_loop_ids.size()); ++i) {
             const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
-            *(allocation_shape.rbegin() + i) = loop->work_amount;
+            OPENVINO_ASSERT(loop->get_dim_idx() == i, "compute_allocation_shape: eltwise loop has unexpected dimension index");
+            *(allocation_shape.rbegin() + i) = loop->get_work_amount();
         }
-        set_rest_dims_to_ones(static_cast<int>(parent_loop_ids.size()));
+        for (int i = 0; i < allocation_rank - static_cast<int>(parent_loop_ids.size()); ++i) {
+            allocation_shape[i] = 1;
+        }
     }
     return allocation_shape;
 }
@@ -155,7 +181,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    parent_loops,
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
-            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), allocation_shape);
+            const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
             // Output connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
@@ -248,7 +274,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    current_loops,
                                                                    *exit_port,
                                                                    m_buffer_allocation_rank);
-            auto buffer = std::make_shared<op::Buffer>(node->output(port_idx), allocation_shape);
+            auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
@@ -275,8 +301,8 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
         const auto loop_info = loop_data.second;
-        const auto loop_entries = loop_info->entry_points;
-        const auto loop_exits = loop_info->exit_points;
+        const auto loop_entries = loop_info->get_entry_points();
+        const auto loop_exits = loop_info->get_exit_points();
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
         insertion(linear_ir, linear_ir.cbegin(), loop_manager, loop_entries, loop_exits);
     }

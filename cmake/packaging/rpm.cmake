@@ -37,15 +37,10 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
            # because in case of .rpm package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # see ticket # 82605
-           NOT item STREQUAL "gna" AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
-           # even for case of system TBB we have installation rules for wheels packages
-           # so, need to skip this explicitly
-           NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml")
            list(APPEND CPACK_COMPONENTS_ALL ${item})
@@ -79,6 +74,7 @@ macro(ov_cpack_settings)
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
         2023.1.0
         2023.2.0
+        2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -181,15 +177,6 @@ macro(ov_cpack_settings)
         set(gpu_copyright "generic")
     endif()
 
-    # intel-gna
-    if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator inference plugin")
-        set(CPACK_RPM_GNA_PACKAGE_REQUIRES "${core_package}")
-        set(CPACK_RPM_GNA_PACKAGE_NAME "libopenvino-intel-gna-plugin-${cpack_name_ver}")
-        _ov_add_package(plugin_packages gna)
-        set(gna_copyright "generic")
-    endif()
-
     #
     # Frontends
     #
@@ -279,7 +266,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
         set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_REQUIRES
             "${core_package}, ${frontend_packages}, ${plugin_packages}, python3, python3-numpy")
-        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino-${cpack_full_ver}")
         set(python_package "${CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
         set(${python_component}_copyright "generic")
 
@@ -329,6 +316,7 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
         set(python_samples_package "${CPACK_RPM_PYTHON_SAMPLES_PACKAGE_NAME} = ${cpack_full_ver}")
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
+        ov_rpm_generate_conflicts(${OV_CPACK_COMP_PYTHON_SAMPLES} ${conflicting_versions})
         set(python_samples_copyright "generic")
 
         ov_rpm_add_rpmlint_suppression(${OV_CPACK_COMP_PYTHON_SAMPLES}

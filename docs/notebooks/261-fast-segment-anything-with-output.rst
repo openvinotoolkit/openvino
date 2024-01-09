@@ -30,6 +30,7 @@ the prompt.
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 
    -  `Install requirements <#install-requirements>`__
@@ -65,7 +66,7 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.0.200" onnx
+    %pip install -q "ultralytics==8.0.200" onnx --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino-dev>=2023.1.0"
     %pip install -q "nncf>=2.6.0"
     %pip install -q gradio
@@ -156,8 +157,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 631.0ms
-    Speed: 3.8ms preprocess, 631.0ms inference, 21.8ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 621.3ms
+    Speed: 3.7ms preprocess, 621.3ms inference, 22.9ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -201,13 +202,13 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
     
     ONNX: starting export with onnx 1.15.0 opset 16...
-    ONNX: export success ✅ 3.5s, saved as 'FastSAM-x.onnx' (275.5 MB)
+    ONNX: export success ✅ 3.4s, saved as 'FastSAM-x.onnx' (275.5 MB)
     
-    OpenVINO: starting export with openvino 2023.1.0-12185-9e6b00e51cd-releases/2023/1...
-    OpenVINO: export success ✅ 1.0s, saved as 'FastSAM-x_openvino_model/' (275.9 MB)
+    OpenVINO: starting export with openvino 2023.2.0-13089-cfd42bd2cb0-HEAD...
+    OpenVINO: export success ✅ 1.1s, saved as 'FastSAM-x_openvino_model/' (275.9 MB)
     
-    Export complete (7.5s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
+    Export complete (7.4s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -306,8 +307,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 353.6ms
-    Speed: 3.5ms preprocess, 353.6ms inference, 14.7ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 321.2ms
+    Speed: 2.3ms preprocess, 321.2ms inference, 20.1ms postprocess per image at shape (1, 3, 480, 640)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -376,7 +377,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization>`__.
+repo <../230-yolov8-optimization/>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -534,20 +535,62 @@ repo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/
 
 .. parsed-literal::
 
-    INFO:nncf:12 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:9 ignored nodes was found by types in the NNCFGraph
+    INFO:nncf:12 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:9 ignored nodes were found by types in the NNCFGraph
     INFO:nncf:Not adding activation input quantizer for operation: 204 /model.22/Sigmoid
     INFO:nncf:Not adding activation input quantizer for operation: 246 /model.22/dfl/conv/Conv
     INFO:nncf:Not adding activation input quantizer for operation: 275 /model.22/Sub
     INFO:nncf:Not adding activation input quantizer for operation: 276 /model.22/Add_10
-    INFO:nncf:Not adding activation input quantizer for operation: 297 /model.22/Sub_1
-    INFO:nncf:Not adding activation input quantizer for operation: 334 /model.22/Mul_5
+    INFO:nncf:Not adding activation input quantizer for operation: 298 /model.22/Sub_1
+    INFO:nncf:Not adding activation input quantizer for operation: 335 /model.22/Mul_5
+
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 128/128 [01:07<00:00,  1.91it/s]
-    Applying Fast Bias correction: 100%|██████████| 115/115 [00:30<00:00,  3.76it/s]
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:80: RuntimeWarning: invalid value encountered in multiply
+      return Tensor(self.data * unwrap_tensor_data(other))
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 Compare the performance of the Original and Quantized Models
