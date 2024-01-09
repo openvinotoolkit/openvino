@@ -27,7 +27,6 @@ namespace ngraph {
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
 using ov::has_no_labels;
-using ov::infer_convolution_forward;
 using ov::normalize_axes;
 using ov::normalize_axis;
 
@@ -62,29 +61,6 @@ void validate_conv_params_spatial_dimensions(const Node* node,
                                              Strides& dilations,
                                              CoordinateDiff& pads_begin,
                                              CoordinateDiff& pads_end);
-
-/// \brief      Validates input shape ranks and infers convolution forward output shape.
-///
-/// \param[in] node              Node with convolution operation.
-/// \param[in] data_batch_pshape Partial shape of data batch input.
-/// \param[in] filters_pshape    Partial shape of filters input.
-/// \param[in] auto_pad          Type of padding.
-/// \param     strides           Strides.
-/// \param     dilations         Dilations.
-/// \param     pads_begin        Pads begin.
-/// \param     pads_end          Pads end.
-///
-/// \return Partial shape of the output.
-NGRAPH_API_DEPRECATED
-PartialShape validate_and_infer_convolution_forward_output_shape(const Node* node,
-                                                                 const Rank& result_ps_rank,
-                                                                 const PartialShape& data_batch_pshape,
-                                                                 const PartialShape& filters_pshape,
-                                                                 const op::PadType auto_pad,
-                                                                 Strides& strides,
-                                                                 Strides& dilations,
-                                                                 CoordinateDiff& pads_begin,
-                                                                 CoordinateDiff& pads_end);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API

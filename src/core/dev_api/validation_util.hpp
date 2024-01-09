@@ -84,19 +84,6 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 /// \return True if rank compatible to any of others, otherwise false.
 OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others);
 
-/// \brief Infers the output batch shape for convolution forward propagation.
-///
-/// \return Infered output shape.
-OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
-OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
-                                                    const PartialShape& data_batch_shape,
-                                                    const Strides& data_dilation,
-                                                    const CoordinateDiff& data_padding_below,
-                                                    const CoordinateDiff& data_padding_above,
-                                                    const PartialShape& filters_shape,
-                                                    const Strides& filter_strides,
-                                                    const Strides& filter_dilation);
-
 /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would be represented as partial
 /// shape object using Dimension(min, max) for each element.
 ///
