@@ -12,7 +12,6 @@
 #include "dnnl_postops_composer.h"
 #include "dnnl_scratch_pad.h"
 #include "edge.h"
-#include "extension_mngr.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/mvn_list.hpp"
