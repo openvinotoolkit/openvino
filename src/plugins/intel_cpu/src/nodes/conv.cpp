@@ -383,7 +383,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 
 const bool Convolution::isBrgConvAvailable() {
     static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
     return isBrgConvAvailable;
 }
 
