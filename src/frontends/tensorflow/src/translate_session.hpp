@@ -6,7 +6,6 @@
 
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace frontend {

@@ -580,6 +580,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       operation_name,
                                                                       port_index,
                                                                       port_type);
+
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
@@ -659,9 +660,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
+    // SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
     // for example, serving_default_input_name:0 maps to input_name
-    // we need to re-write input and output internal tensor names to user specific
+    // we need to re-write input and output internal tensor names to user specific.
+    // Outputs for TF1 formats are changed to have single output name with ":0".
 
     // it makes sense to use set because Parameter and Results nodes may have the common tensor
     std::set<ov::Output<ov::Node>> ov_tensors;
