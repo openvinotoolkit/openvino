@@ -155,6 +155,8 @@ The list of OpenVINO tutorials:
 - [OpenVINO™ Integration with TensorFlow](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/build/ovtfoverview.html)
 - [TNN](https://github.com/Tencent/TNN/tree/master)
 
+You can also check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) to see all the community-made projects using OpenVINO!
+
 ## System requirements
 
 The system requirements vary depending on platform and are available on dedicated pages:
@@ -184,6 +186,7 @@ Report questions, issues and suggestions, using:
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
+* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/wPuqAujS)
 
 ## Additional Resources
 
