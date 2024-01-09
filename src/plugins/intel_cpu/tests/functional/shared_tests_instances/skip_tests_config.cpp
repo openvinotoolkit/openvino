@@ -212,6 +212,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
         // Issue: 126095
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
+        // Issue: 129025
+        R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
 #ifdef OPENVINO_ARCH_32_BIT
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.CompareWithRefs/.*_eltwiseOpType=Bitwise.*_NetType=i32_.*)"
