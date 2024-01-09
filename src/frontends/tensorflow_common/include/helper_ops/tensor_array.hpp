@@ -23,10 +23,13 @@ public:
 
     TensorArrayV3(const Output<Node>& size,
                   const ov::element::Type element_type,
+                  int64_t element_rank,
+                  bool dynamic_size,
                   const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, OutputVector{size}, 2, "TensorArrayV3"),
           m_element_type(element_type),
-          m_element_rank(-1) {
+          m_element_rank(element_rank),
+          m_dynamic_size(dynamic_size) {
         validate_and_infer_types();
     }
 
@@ -43,6 +46,10 @@ public:
         return m_element_rank;
     }
 
+    bool get_dynamic_size() const {
+        return m_dynamic_size;
+    }
+
     void set_element_rank(int64_t element_rank) {
         FRONT_END_GENERAL_CHECK(
             element_rank >= 0,
@@ -50,9 +57,19 @@ public:
         m_element_rank = element_rank;
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 1,
+                                      "[TensorFlow Frontend] internal error: TensorArrayV3 expects one input");
+        auto tensor_array_v3_node =
+            std::make_shared<TensorArrayV3>(inputs[0], m_element_type, m_element_rank, m_dynamic_size, m_decoder);
+        tensor_array_v3_node->set_attrs(get_attrs());
+        return tensor_array_v3_node;
+    }
+
 private:
     ov::element::Type m_element_type;
     int64_t m_element_rank;
+    bool m_dynamic_size;
 };
 
 }  // namespace tensorflow

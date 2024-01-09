@@ -5,6 +5,7 @@
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 
 #include "default_opset.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -13,8 +14,8 @@ namespace set_1 {
 OutputVector skip_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
-    NGRAPH_CHECK(num_nodes >= 3 && num_nodes <= 5,
-                 "SkipLayerNormalization takes 3, 4 or 5 inputs. Provided " + std::to_string(num_nodes));
+    FRONT_END_GENERAL_CHECK(num_nodes >= 3 && num_nodes <= 5,
+                            "SkipLayerNormalization takes 3, 4 or 5 inputs. Provided " + std::to_string(num_nodes));
 
     // input + skip
     std::shared_ptr<ngraph::Node> input = std::make_shared<default_opset::Add>(nodes[0], nodes[1]);
