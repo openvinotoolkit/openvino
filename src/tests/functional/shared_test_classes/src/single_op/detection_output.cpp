@@ -38,7 +38,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
              attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = common_attrs;
 
     const size_t numInputs = 5;
-    std::vector<InferenceEngine::SizeVector> input_shapes(numInputs);
+    std::vector<ov::Shape> input_shapes(numInputs);
     std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
              input_shapes[idxLocation], input_shapes[idxConfidence], input_shapes[idxPriors], input_shapes[idxArmConfidence],
              input_shapes[idxArmLocation]) = specific_attrs;

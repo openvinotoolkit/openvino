@@ -64,7 +64,7 @@ add_custom_command(TARGET _${PROJECT_NAME}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
 )
 
-ov_set_apple_rpath(_${PROJECT_NAME} ${OV_CPACK_PYTHONDIR} ${OV_CPACK_RUNTIMEDIR})
+ov_set_install_rpath(_${PROJECT_NAME} ${OV_CPACK_PYTHONDIR} ${OV_CPACK_RUNTIMEDIR})
 
 # Install
 
@@ -83,8 +83,3 @@ install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
         COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
-
-install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility
-        DESTINATION tests/${PROJECT_NAME}
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)

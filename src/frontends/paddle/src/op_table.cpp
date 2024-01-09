@@ -77,6 +77,8 @@ OP_CONVERTER(nearest_interp_v2);
 OP_CONVERTER(one_hot_v2);
 OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
+OP_CONVERTER(partial_concat);
+OP_CONVERTER(partial_sum);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
@@ -121,6 +123,7 @@ OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(unique);
 OP_CONVERTER(unstack);
 OP_CONVERTER(where);
 OP_CONVERTER(while_);
@@ -207,6 +210,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"one_hot_v2", op::one_hot_v2},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
+            {"partial_concat", op::partial_concat},
+            {"partial_sum", op::partial_sum},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
             {"prior_box", op::prior_box},
@@ -252,6 +257,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
+            {"unique", op::unique},
             {"unstack", op::unstack},
             {"where", op::where},
             {"while", op::while_},

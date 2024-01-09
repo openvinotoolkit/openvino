@@ -6,7 +6,6 @@
 #include "snippets/convert.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -43,9 +42,8 @@ void Convert::SetUp() {
     auto f = ov::test::snippets::ConvertFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -102,9 +100,8 @@ void ConvertInput::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::ConvertInputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -147,9 +144,8 @@ void ConvertOutput::SetUp() {
     auto f = ov::test::snippets::ConvertOutputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -162,9 +158,8 @@ void ConvertStub::SetUp() {
     auto f = ov::test::snippets::ConvertStubFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -176,9 +171,8 @@ void ConvertPartialInputsAndResults::SetUp() {
 
     auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -190,9 +184,8 @@ void ConvertManyOnInputs::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -204,9 +197,8 @@ void ConvertManyOnOutputs::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -218,9 +210,8 @@ void ConvertManyOnInputOutput::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 

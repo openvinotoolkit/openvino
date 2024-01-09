@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestLSTM(OnnxRuntimeLayerTest):
@@ -131,7 +131,7 @@ class TestLSTM(OnnxRuntimeLayerTest):
             )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_{}_model'.format(cell_type))
+        onnx_net = onnx_make_model(graph_def, producer_name='test_{}_model'.format(cell_type))
 
         # We do not create reference graph, as it's too complicated to construct it
         # Moreover, IR reader do not support TensorIterator layers
