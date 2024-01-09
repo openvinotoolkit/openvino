@@ -108,11 +108,15 @@ class TestMulTypes(PytorchLayerTest):
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version, freeze_model=False, trace_model=True)
 
-# Boolean input test classa
+# Boolean input test class
 class TestMulBool(PytorchLayerTest):
     def _prepare_input(self):
-        return (torch.tensor(self.input_array, dtype=torch.bool).numpy(),
-                torch.tensor(self.other_array, dtype=torch.bool).numpy())
+        shape = np.random.randint(1, 5, size=3)  # Random shape for each tensor
+        input_tensor = np.random.randint(0, 2, size=shape).astype(bool)
+        other_tensor = np.random.randint(0, 2, size=shape).astype(bool)
+        return (torch.tensor(input_tensor, dtype=torch.bool).numpy(),
+                torch.tensor(other_tensor, dtype=torch.bool).numpy())
+
 
     def create_model(self):
         class aten_mul(torch.nn.Module):
@@ -120,16 +124,12 @@ class TestMulBool(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, input_tensor, other_tensor):
-                return torch.mul(input_tensor, other_tensor)
+                return input_tensor * other_tensor
 
         ref_net = None
 
         return aten_mul(), ref_net, "aten::mul"
 
-    @pytest.mark.parametrize(("input_array", "other_array"), [
-        (np.array([True, False, True]), np.array([False, True, True])),
-        (np.array([[True, False], [True, True]]), np.array([[False, True], [True, False]])),
-    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mul_bool(self, input_array, other_array, ie_device, precision, ir_version):
