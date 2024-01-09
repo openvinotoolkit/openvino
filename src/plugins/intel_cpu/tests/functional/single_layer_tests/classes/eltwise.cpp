@@ -232,6 +232,22 @@ void EltwiseLayerCPUTest::SetUp() {
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 
+std::string EltwiseLayerCPUTest::getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+                                                  const ov::element::Type_t& element_type,
+                                                  const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+#if defined(OPENVINO_ARCH_ARM64)
+    if ((eltwise_type == ngraph::helpers::EltwiseTypes::ADD) ||
+       (eltwise_type == ngraph::helpers::EltwiseTypes::MULTIPLY) ||
+       (eltwise_type == ngraph::helpers::EltwiseTypes::SUBTRACT) ||
+       (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE)) {
+        return "jit";
+    }
+    return "acl";
+#else
+    return getPrimitiveType();
+#endif
+}
+
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
