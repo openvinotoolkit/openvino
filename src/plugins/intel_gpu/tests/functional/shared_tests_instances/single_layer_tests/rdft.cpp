@@ -3,22 +3,22 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include <single_layer_tests/rdft.hpp>
-#include <vector>
+#include <single_op_tests/rdft.hpp>
 
 namespace {
+using ov::test::RDFTLayerTest;
 
-const std::vector<ngraph::helpers::DFTOpType> opTypes = {
-    ngraph::helpers::DFTOpType::FORWARD,
-    ngraph::helpers::DFTOpType::INVERSE,
+const std::vector<ov::test::utils::DFTOpType> opTypes = {
+    ov::test::utils::DFTOpType::FORWARD,
+    ov::test::utils::DFTOpType::INVERSE,
 };
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+const std::vector<ov::element::Type> inputPrecisions = {
+    ov::element::f32,
+    ov::element::f16,
 };
 
-const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputShapes,
+const auto combine = [](const std::vector<std::vector<size_t>>& inputShapes,
                         const std::vector<std::vector<int64_t>>& axes,
                         const std::vector<std::vector<int64_t>>& signalSizes) {
     return testing::Combine(testing::ValuesIn(inputShapes),
@@ -29,16 +29,14 @@ const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputSha
                             testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
-using namespace LayerTestsDefinitions;
-
 // RDFT can support 1d
 INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d,
                          RDFTLayerTest,
-                         testing::Combine(testing::Values(InferenceEngine::SizeVector{10}),
+                         testing::Combine(testing::Values(std::vector<size_t>{10}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{0}),
                                           testing::Values(std::vector<int64_t>{}),
-                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ov::test::utils::DFTOpType::FORWARD),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
@@ -84,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_5d_last_axis,
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
-                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ov::test::utils::DFTOpType::FORWARD),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
@@ -95,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_6d,
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
-                                          testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                                          testing::Values(ov::test::utils::DFTOpType::INVERSE),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
