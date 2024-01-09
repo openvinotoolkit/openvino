@@ -53,8 +53,7 @@ class TestTFEye(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api=True):
+    def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_tf_eye_net(**params), ie_device,
