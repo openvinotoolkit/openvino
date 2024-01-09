@@ -51,40 +51,44 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::collectConsumers(std::vector<NodePtr>& result, bool nested) const {
-    if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
-        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
-            auto peerOutputNum = this->getOutputNum();
-            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
-            for (auto childEdge : vecChildEdges) {
-                childEdge->collectConsumers(result, true);
-            }
+void Edge::collectConsumers(std::vector<NodePtr>& result) const {
+    auto childNode = this->getChild();
+    if (childNode->getChildEdges().empty()) {
+        if (Type::ShapeOf != childNode->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            result.push_back(childNode);
         }
         return;
-    } else if (!this->getChild()->getChildEdges().empty()) {
-        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
-            bool isReferenced = false;
-            for (size_t i = 0; i < peerChildSPD->getConfig().outConfs.size(); i++) {
-                auto peerOutPlacePort = peerChildSPD->getConfig().outConfs[i].inPlace();
-                if (peerOutPlacePort == this->getOutputNum()) {
-                    isReferenced = true;
-                    for (auto childEdge : this->getChild()->getChildEdgesAtPort(i))
-                        childEdge->collectConsumers(result, true);
-                }
-            }
-            if (isReferenced)
-                return;
-        }
     }
 
-    auto childNode = this->getChild();
-    if (Type::ShapeOf == childNode->getType()) {
-        // ShapeOf doesn't actually read the data, it only reads shape
-        if (nested)
-            result.push_back(this->getParent());
+    if (this->inPlace(LOOK_DOWN)) {
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto peerOutputNum = this->getOutputNum();
+            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
+            auto& vecChildEdges = childNode->getChildEdgesAtPort(peerInPlacePort);
+            for (auto childEdge : vecChildEdges) {
+                childEdge->collectConsumers(result);
+            }
+        }
     } else {
+        if (Type::ShapeOf == childNode->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return;
+        }
         result.push_back(childNode);
+
+        // collect consumers in case of an upstream in-place memory reference
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto&& conf = peerChildSPD->getConfig();
+            for (size_t i = 0; i < conf.outConfs.size(); i++) {
+                const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
+                if (peerOutInPlacePort == this->getOutputNum()) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
+                        childEdge->collectConsumers(result);
+                    }
+                }
+            }
+        }
     }
 }
 
