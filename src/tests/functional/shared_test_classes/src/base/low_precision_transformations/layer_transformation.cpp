@@ -68,8 +68,7 @@ std::string LayerTransformation::get_test_case_name_by_params(
 
 std::string LayerTransformation::getRuntimePrecision(const std::string& layerName) {
     const ov::CompiledModel& execNet = compiledModel;
-    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
-    const auto& execFunction = function;
+    const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
     for (const auto& op : execFunction->get_ops()) {
         const auto name = op->get_friendly_name();
@@ -86,8 +85,7 @@ std::string LayerTransformation::getRuntimePrecision(const std::string& layerNam
 
 std::string LayerTransformation::getRuntimePrecisionByType(const std::string& layerType) {
     const ov::CompiledModel& execNet = compiledModel;
-    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
-    const auto& execFunction = function;
+    const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
     for (const auto& op : execFunction->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
@@ -108,8 +106,7 @@ std::string LayerTransformation::getRuntimePrecisionByType(const std::string& la
 
 std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::string& layerName) {
     const ov::CompiledModel& execNet = compiledModel;
-    const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
-    const auto& execFunction = function;
+    const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
     const auto parse = [](const std::string& originalLayersNames) -> std::set<std::string> {
         std::set<std::string> names;

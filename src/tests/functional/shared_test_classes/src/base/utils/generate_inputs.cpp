@@ -329,8 +329,6 @@ bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const 
 
     auto const_value = const_node->cast_vector<float>();
     return get_item_func(const_value, value);
-
-    return true;
 }
 
 bool get_min_value(const std::vector<float>& v, float& value) {
