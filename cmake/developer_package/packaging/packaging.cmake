@@ -152,7 +152,6 @@ macro(ov_define_component_names)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")
-    set(OV_CPACK_COMP_SETUPVARS_PWSH "setupvars_pwsh")
 endmacro()
 
 ov_define_component_names()

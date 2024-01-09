@@ -27,23 +27,18 @@ ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 ov_cpack_add_component(${OV_CPACK_COMP_SETUPVARS} HIDDEN)
 
 if(UNIX)
-    set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
+    set(_setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
 elseif(WIN32)
     # setupvars.bat
     set(_setupvars_file "setupvars/setupvars.bat")
-    set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file}")
+    set(_setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file}")
 
     # setupvars.ps1
     set(_setupvars_file_pwsh "setupvars/setupvars.ps1")
-    set(_setupvars_file_pwsh_full_path "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file_pwsh}")
-
-    install(PROGRAMS "${_setupvars_file_pwsh_full_path}"
-            DESTINATION .
-            COMPONENT ${OV_CPACK_COMP_SETUPVARS}
-            ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
+    list(APPEND _setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file_pwsh}")
 endif()
 
-install(PROGRAMS "${_setupvars_file_full_path}"
+install(PROGRAMS ${_setupvars_files}
         DESTINATION .
         COMPONENT ${OV_CPACK_COMP_SETUPVARS}
         ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
