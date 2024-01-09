@@ -11,10 +11,13 @@
 #include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 
+using namespace ::ONNX_NAMESPACE;
+
 namespace ov {
 namespace frontend {
-namespace onnx_common {
-ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
+namespace onnx {
+namespace common {
+ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
@@ -27,7 +30,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
+ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
@@ -40,7 +43,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
 }
 #endif
 
-ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
+ModelProto parse_from_istream(std::istream& model_stream) {
     if (!model_stream.good()) {
         model_stream.clear();
         model_stream.seekg(0);
@@ -49,7 +52,7 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
         }
     }
 
-    ONNX_NAMESPACE::ModelProto model_proto;
+    ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
         OPENVINO_THROW("Error during import of ONNX model provided as input stream "
                        " with binary protobuf message.");
@@ -57,6 +60,8 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
 
     return model_proto;
 }
-}  // namespace onnx_common
+
+}  // namespace common
+}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

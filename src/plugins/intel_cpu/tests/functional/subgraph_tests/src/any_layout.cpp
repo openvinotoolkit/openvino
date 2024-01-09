@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(AnyLayoutOnInputsAndOutputs,
                          AnyLayoutOnInputsAndOutputs,
                          ::testing::Combine(
                              ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
-                             ::testing::ValuesIn({cpu_empty_plugin_config, cpu_f16_plugin_config})),
+                             ::testing::ValuesIn({CPUTestUtils::empty_plugin_config, cpu_f16_plugin_config})),
                          AnyLayoutOnInputsAndOutputs::getTestCaseName);
 
 }  // namespace test

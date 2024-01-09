@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_ref, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(inputShapes4D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(ref),
-                                 ::testing::Values(cpu_empty_plugin_config)),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                               ::testing::Values(true),
                               ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
                               ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(cpu_empty_plugin_config)),
+                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes5D_int8 = {
@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
                               ::testing::Values(true),
                               ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
                               ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(cpu_empty_plugin_config)),
+                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D_FP16, PoolingLayerCPUTest,

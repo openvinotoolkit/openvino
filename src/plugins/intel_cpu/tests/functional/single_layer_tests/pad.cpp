@@ -170,7 +170,7 @@ const std::vector<ElementType> inputPrecisions = {
 };
 
 const std::vector<ov::AnyMap> deviceConfig = {
-    cpu_empty_plugin_config,
+    CPUTestUtils::empty_plugin_config,
     cpu_f16_plugin_config
 };
 

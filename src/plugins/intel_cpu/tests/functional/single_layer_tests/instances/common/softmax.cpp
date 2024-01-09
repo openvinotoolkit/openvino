@@ -115,7 +115,7 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
 };
 
 const std::vector<ov::AnyMap> deviceConfig = {
-    cpu_empty_plugin_config
+    CPUTestUtils::empty_plugin_config
 };
 
 
@@ -145,7 +145,7 @@ const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32
                                                 testing::ValuesIn(unsupportedConfigsFP32),
                                                 testing::Values(ov::test::utils::DEVICE_CPU),
                                                 testing::Values(notOptimizedCPUSpec),
-                                                testing::Values(cpu_empty_plugin_config));
+                                                testing::Values(CPUTestUtils::empty_plugin_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,
