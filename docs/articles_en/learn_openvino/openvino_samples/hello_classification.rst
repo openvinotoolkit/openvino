@@ -131,21 +131,6 @@ Example
 
             ovc ./models/alexnet
 
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. code-block:: console
-
-            mo --input_model ./models/googlenet-v1
-
-      .. tab-item:: C
-         :sync: c
-
-         .. code-block:: console
-
-            mo --input_model ./models/alexnet
-
-
 3. Perform inference of an image, using a model on a ``GPU``, for example:
 
    .. tab-set::

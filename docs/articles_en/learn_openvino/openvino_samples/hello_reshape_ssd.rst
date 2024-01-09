@@ -120,13 +120,6 @@ Example
 
             ovc ./test_data/models/mobilenet-ssd
 
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. code-block:: console
-
-            mo --input_model <path_to_model>
-
 4. Perform inference of an image, using a model on a ``GPU``, for example:
 
    .. tab-set::

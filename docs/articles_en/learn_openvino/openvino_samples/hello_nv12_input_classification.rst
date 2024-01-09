@@ -114,21 +114,9 @@ Example
 1. Download a pre-trained model.
 2. If a model is not in the IR or ONNX format, it must be converted by using:
 
-   .. tab-set::
-
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. code-block:: console
-
-            mo --input_model ./models/alexnet
-
-      .. tab-item:: C
-         :sync: c
-
-         .. code-block:: console
-
-            mo --input_model ./models/alexnet
+   .. code-block:: console
+   
+      ovc ./models/alexnet
 
 3. Perform inference of an NV12 image, using a model on a ``CPU``, for example:
 
