@@ -25,6 +25,7 @@
 #include "op/brgemm.hpp"
 #include "op/vector_buffer.hpp"
 #include "op/rank_normalization.hpp"
+#include "op/perf_count.hpp"
 
 namespace ov {
 namespace snippets {

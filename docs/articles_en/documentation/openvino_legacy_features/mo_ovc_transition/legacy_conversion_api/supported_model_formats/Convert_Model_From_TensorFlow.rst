@@ -1,15 +1,20 @@
 .. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
-Converting a TensorFlow Model
-=============================
-
+[LEGACY] Converting a TensorFlow Model
+============================================
 
 .. meta::
    :description: Learn how to convert a model from a 
                  TensorFlow format to the OpenVINO Intermediate Representation.
 
+.. danger::
 
-.. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article. 
+
+
+.. note:: TensorFlow models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 The conversion instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 

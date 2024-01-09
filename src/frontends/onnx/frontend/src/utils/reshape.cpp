@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/builder/reshape.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -10,9 +10,9 @@
 #include <numeric>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -27,11 +27,11 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     // shape argument.
     for (std::size_t idx = 0; idx < inferred_dims.size(); ++idx) {
         if (inferred_dims.at(idx) == 0) {
-            NGRAPH_CHECK(idx < input_shape.size(),
-                         "Node ",
-                         node_name,
-                         " cannot copy dimension from the input data shape because "
-                         "requested index is out of range.");
+            FRONT_END_GENERAL_CHECK(idx < input_shape.size(),
+                                    "Node ",
+                                    node_name,
+                                    " cannot copy dimension from the input data shape because "
+                                    "requested index is out of range.");
 
             inferred_dims.at(idx) = input_shape.at(idx);
         }
@@ -43,11 +43,12 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     auto neg_value_it = std::find(std::begin(inferred_dims), std::end(inferred_dims), -1);
     if (neg_value_it != std::end(inferred_dims)) {
         // only single '-1' value is allowed
-        NGRAPH_CHECK(std::find(std::next(neg_value_it), std::end(inferred_dims), -1) == std::end(inferred_dims),
-                     "Node ",
-                     node_name,
-                     " more than one dimension is set to (-1). ",
-                     "Only one dimension value can be inferred.");
+        FRONT_END_GENERAL_CHECK(
+            std::find(std::next(neg_value_it), std::end(inferred_dims), -1) == std::end(inferred_dims),
+            "Node ",
+            node_name,
+            " more than one dimension is set to (-1). ",
+            "Only one dimension value can be inferred.");
 
         // Set dimension value to 1 temporarily to be able to calculate its value.
         *neg_value_it = 1;
@@ -71,15 +72,17 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
         return node;
     }
 
-    NGRAPH_CHECK((shape_size(node_shape) == 1), "Scalar value can't be derived from a node with ", node_shape);
+    FRONT_END_GENERAL_CHECK((shape_size(node_shape) == 1),
+                            "Scalar value can't be derived from a node with ",
+                            node_shape);
 
     // If node is a Constant, recreate as Constant with Shape{}
     if (ngraph::op::is_constant(node.get_node())) {
-        const auto value = ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
+        const auto value = ov::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
         return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
     }
 
-    return builder::opset1::reshape(node, Shape{});
+    return ov::op::util::reshape(node, Shape{});
 }
 
 Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,

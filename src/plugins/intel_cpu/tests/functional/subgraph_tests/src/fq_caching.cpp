@@ -27,24 +27,21 @@
 //                                   |Output|
 //                                   --------
 
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "internal_properties.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
-using namespace InferenceEngine;
-using namespace ngraph;
 
-namespace CPUSubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-using InputShapesTuple = std::tuple<
-        std::vector<InputShape>,                // fq dynamic data shapes
-        std::vector<std::vector<SizeVector>>,   // fq range input shapes
-        std::vector<int32_t>                    // reshape shape
->;
+using InputShapesTuple = std::tuple<std::vector<InputShape>,              // fq dynamic data shapes
+                                    std::vector<std::vector<ov::Shape>>,  // fq range input shapes
+                                    std::vector<int32_t>                  // reshape shape
+                                    >;
 
 using FqSpecificParams = std::tuple<int64_t,                  // 'data' input low bounds
                                     int64_t,                  // 'data' input high bounds
@@ -52,13 +49,13 @@ using FqSpecificParams = std::tuple<int64_t,                  // 'data' input lo
                                     std::vector<float>,       // output high
                                     size_t>;                  // levels
 
-typedef std::tuple<
-        InputShapesTuple,                                   // fq input shapes and reshape shape
-        FqSpecificParams,                                   // fq specific params
-        std::pair<std::vector<float>, std::vector<float>>,  // il and ih values
-        CPUSpecificParams,
-        std::map<std::string, std::string>                  // Additional config (disable snippets or no)
-> FakeQuantizeCacheTestParams;
+typedef std::tuple<InputShapesTuple,                                   // fq input shapes and reshape shape
+                   FqSpecificParams,                                   // fq specific params
+                   std::pair<std::vector<float>, std::vector<float>>,  // il and ih values
+                   CPUSpecificParams,
+                   ov::AnyMap  // Additional config (disable snippets or no)
+                   >
+    FakeQuantizeCacheTestParams;
 
 class FakeQuantizeCacheTest : public testing::WithParamInterface<FakeQuantizeCacheTestParams>,
                          virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -68,11 +65,11 @@ public:
         FqSpecificParams fqParams;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(inputShapesTuple, fqParams, inputRangesValues, cpuParams, additionalConfig) = obj.param;
 
         std::vector<InputShape> shapes;
-        std::vector<std::vector<SizeVector>> ranges;
+        std::vector<std::vector<ov::Shape>> ranges;
         std::vector<int32_t> reshapeShape;
         std::tie(shapes, ranges, reshapeShape) = inputShapesTuple;
 
@@ -113,7 +110,7 @@ public:
         if (!additionalConfig.empty()) {
             results << "_PluginConf";
             for (auto& item : additionalConfig) {
-                results << "_" << item.first << "=" << item.second;
+                results << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
 
@@ -128,12 +125,12 @@ protected:
         FqSpecificParams fqParams;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         std::tie(inputShapesTuple, fqParams, inputRangesValues,
                 cpuParams, additionalConfig) = this->GetParam();
 
         std::vector<InputShape> shapesVec;
-        std::vector<std::vector<SizeVector>> rangesVec;
+        std::vector<std::vector<ov::Shape>> rangesVec;
         std::vector<int32_t> reshapeShape;
         std::tie(shapesVec, rangesVec, reshapeShape) = inputShapesTuple;
 
@@ -150,14 +147,14 @@ protected:
         rangesBounds[1] = inputRangesValues.second;
         std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
 
-        ParameterVector ngraphParam;
-        std::vector<std::shared_ptr<Node>> ngraphInputs;
+        ParameterVector paramVect;
+        std::vector<std::shared_ptr<Node>> inputVect;
 
-        auto ngInPrec = element::Type_t::f32;
+        auto ngInPrec = ov::element::f32;
 
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
-            ngraphParam.push_back(std::make_shared<opset1::Parameter>(ngInPrec, inputDynamicShapes[i]));
-            ngraphInputs.push_back(ngraphParam.back());
+            paramVect.push_back(std::make_shared<ov::op::v0::Parameter>(ngInPrec, inputDynamicShapes[i]));
+            inputVect.push_back(paramVect.back());
         }
 
         auto makeFQ = [&](int i) {
@@ -172,16 +169,16 @@ protected:
 
             auto ranges = rangesVec[i];
 
-            auto il = builder::makeConstant(ngInPrec, ranges[0], extendData(rangesBounds[0],
+            auto il = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[0], extendData(rangesBounds[0],
                 std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
-            auto ih = builder::makeConstant(ngInPrec, ranges[1], extendData(rangesBounds[1],
+            auto ih = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[1], extendData(rangesBounds[1],
                 std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
-            auto ol = builder::makeConstant(ngInPrec, ranges[2], extendData(rangesBounds[2],
+            auto ol = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[2], extendData(rangesBounds[2],
                 std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
-            auto oh = builder::makeConstant(ngInPrec, ranges[3], extendData(rangesBounds[3],
+            auto oh = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[3], extendData(rangesBounds[3],
                 std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
 
-            auto fqNode = std::make_shared<opset5::FakeQuantize>(ngraphParam[i], il, ih, ol, oh, levels);
+            auto fqNode = std::make_shared<ov::op::v0::FakeQuantize>(paramVect[i], il, ih, ol, oh, levels);
             fqNode->get_rt_info() = getCPUInfo();
             return fqNode;
         };
@@ -190,9 +187,9 @@ protected:
         std::shared_ptr<Node> lastNode1 = makeFQ(1);
 
         if (!reshapeShape.empty()) {
-            auto reshapeConstNode = builder::makeConstant(::element::Type(::element::Type_t::i32),
-                                                                  {reshapeShape.size()}, reshapeShape);
-            lastNode1 = std::make_shared<opset5::Reshape>(lastNode1, reshapeConstNode, false);
+            auto reshapeConstNode =
+                ov::test::utils::deprecated::make_constant(ov::element::i32, {reshapeShape.size()}, reshapeShape);
+            lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
 
@@ -200,7 +197,7 @@ protected:
            selectedType = getPrimitiveType() + "_f32";
         }
 
-        function = std::make_shared<Function>(concat, ngraphParam, "fq_cache");
+        function = std::make_shared<ov::Model>(concat, paramVect, "fq_cache");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -209,10 +206,10 @@ protected:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                             targetInputStaticShapes[i],
-                                                             inDataHighBounds - inDataLowBounds,
-                                                             inDataLowBounds);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = inDataLowBounds;
+            in_data.range = inDataHighBounds - inDataLowBounds;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -247,10 +244,8 @@ const auto specificParams = ::testing::Combine(::testing::Values(dataLowBounds),
                                                ::testing::Values(outputHigh),
                                                ::testing::ValuesIn(levels));
 
-const std::map<std::string, std::string> emptyConfig = {};
-const std::map<std::string, std::string> disableSnippets = {
-    {PluginConfigInternalParams::KEY_SNIPPETS_MODE, PluginConfigInternalParams::DISABLE}};
-
+const ov::AnyMap emptyConfig = {};
+const ov::AnyMap disableSnippets = {ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE)};
 
 // 3D
 std::vector<CPUSpecificParams> cpuParams_3D = {
@@ -525,5 +520,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_5D, FakeQuantizeCacheTest,
                                 ::testing::Values(disableSnippets)),
                         FakeQuantizeCacheTest::getTestCaseName);
 
-} // namespace
-} // namespace CPUSubgraphTestsDefinitions
+}  // namespace
+}  // namespace test
+}  // namespace ov

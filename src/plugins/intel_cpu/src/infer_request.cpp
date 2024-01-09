@@ -8,8 +8,6 @@
 #include "compiled_model.h"
 #include "debug.h"
 #include "dnnl_extension_utils.h"
-#include "ie_common.h"
-#include "ie_ngraph_utils.hpp"
 #include "itt.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_state.h"
@@ -25,6 +23,8 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+
+using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
 namespace ov {
 namespace intel_cpu {
@@ -173,11 +173,18 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 }
 
 static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
-    auto size = tensor->get_byte_size();
-    auto& mem = edge->getMemory();
-    auto memMngr = mem.getMemoryMngr();
-    OPENVINO_ASSERT(memMngr);
-    memMngr->setExtBuff(tensor->data(), size);
+    auto mem = edge->getMemoryPtr();
+    OPENVINO_ASSERT(mem != nullptr, "Edge with name '", edge->name(), "' doesn't have allocated memory object.");
+
+    if (tensor->get_element_type() == element::string) {
+        auto memMngr = dynamic_cast<StringMemory *>(mem.get())->getStringMemoryMngrPtr();
+        OPENVINO_ASSERT(memMngr);
+        memMngr->setExtBuff(tensor->data<StringMemory::OvString>(), tensor->get_size());
+    } else {
+        auto memMngr = mem->getMemoryMngr();
+        OPENVINO_ASSERT(memMngr);
+        memMngr->setExtBuff(tensor->data(), tensor->get_byte_size());
+    }
 }
 
 void SyncInferRequest::change_default_ptr() {
@@ -332,37 +339,6 @@ void SyncInferRequest::throw_if_canceled() const {
     }
 }
 
-static InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ITensor>& tensor) {
-    auto element_type = tensor->get_element_type();
-    auto shape = tensor->get_shape();
-    std::vector<size_t> blk_order(shape.size());
-    std::iota(blk_order.begin(), blk_order.end(), 0);
-    std::vector<size_t> dim_offset(shape.size(), 0);
-    std::vector<size_t> blk_strides;
-    auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
-    if (byte_strides.empty()) {
-        blk_strides = ov::row_major_strides(shape);
-    } else {
-        blk_strides.resize(byte_strides.size());
-        std::transform(byte_strides.begin(),
-                       byte_strides.end(),
-                       blk_strides.begin(),
-                       [&element_type](size_t byte_stride) {
-                           OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                           "Limitation: Stride in bytes ",
-                                           byte_stride,
-                                           " should be divisible by size of element ",
-                                           element_type.size());
-                           return byte_stride / element_type.size();
-                       });
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return InferenceEngine::TensorDesc{InferenceEngine::details::convertPrecision(element_type),
-                          shape,
-                          InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_port) const {
     auto port = get_internal_port(in_port);
     return ov::ISyncInferRequest::get_tensor(port);
@@ -398,7 +374,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
     auto name = get_port_name(in_port, m_is_legacy_api);
-    auto tensor_desc = create_tensor_desc(tensor);
+    auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         const auto netInPrc = port.get_element_type();
@@ -436,14 +412,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
             // because lower and upper bound will be compared
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            actualDesc = actualDesc->cloneWithNewDims(tensor_desc.getLayout() == InferenceEngine::Layout::SCALAR
-                                                          ? InferenceEngine::SizeVector{1}
-                                                          : tensor_desc.getDims());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            actualDesc = actualDesc->cloneWithNewDims(
+                ov::is_scalar(tensor->get_shape()) ? VectorDims{1} : VectorDims{tensor->get_shape()});
         }
-        if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc)) &&
-            m_graph->_normalizePreprocMap.find(name) == m_graph->_normalizePreprocMap.end()) {
+
+        if (actualDesc->isCompatible(*mem_desc_ptr)) {
             m_external_ptr[name] = tensor;
         } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
             m_external_ptr.erase(name);
@@ -481,7 +454,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
 
         const auto& desc = m_graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && tensor_desc == MemoryDescUtils::convertToTensorDesc(desc)) {
+        if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
             m_external_ptr[name] = tensor;
         } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
             m_external_ptr.erase(name);
@@ -538,12 +511,12 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
             ov::ISyncInferRequest::set_tensor(port, tensor);
 
-            auto desc = create_tensor_desc(tensor);
-            if (!isDynamic &&
-                desc == MemoryDescUtils::convertToTensorDesc(
-                            m_graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                m_graph->_normalizePreprocMap.find(name) == m_graph->_normalizePreprocMap.end()) {
-                m_external_ptr[name] = tensor;
+            if (!isDynamic) {
+                auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
+                if (mem_desc_ptr->isCompatible(
+                        m_graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                    m_external_ptr[name] = tensor;
+                }
             }
         }
     }
@@ -572,26 +545,40 @@ void SyncInferRequest::init_tensor(const std::string& name) {
 
             if (!tensor) {
                 ov::Shape tensor_shape;
+                const auto model_prec = port.get_element_type();
                 if (isDynamic) {
-                    const auto model_prec = port.get_element_type();
-                    const auto graph_prec =
-                        output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
-                    OutputControlBlock control_block{model_prec, Shape{shape}};
+                    if (model_prec == element::string) {
+                        VectorDims memDims;
+                        auto c_shape = Shape{shape};
+                        for (auto&& dim : c_shape.getDims()) {
+                            memDims.push_back(dim != Shape::UNDEFINED_DIM ? dim : 0);
+                        }
 
-                    DEBUG_LOG(name,
-                              ", tensor ",
-                              control_block.tensor(),
-                              ", memmngr ",
-                              control_block.tensor()->get_memory()->getMemoryMngr(),
-                              "memory object ",
-                              control_block.tensor()->get_memory().get());
+                        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+                        CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(model_prec, Shape{memDims});
+                        auto memory = std::make_shared<StringMemory>(eng, desc);
 
-                    tensor = control_block.tensor();
-                    if (model_prec == graph_prec)
-                        m_outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
+                        tensor = std::make_shared<Tensor>(memory);
+                    } else {
+                        const auto graph_prec =
+                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+                        OutputControlBlock control_block{model_prec, Shape{shape}};
+
+                        DEBUG_LOG(name,
+                                ", tensor ",
+                                control_block.tensor(),
+                                ", memmngr ",
+                                control_block.tensor()->get_memory()->getMemoryMngr(),
+                                "memory object ",
+                                control_block.tensor()->get_memory().get());
+
+                        tensor = control_block.tensor();
+                        if (model_prec == graph_prec)
+                            m_outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
+                    }
                 } else {
                     tensor_shape = shape.to_shape();
-                    tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+                    tensor = ov::make_tensor(model_prec, tensor_shape);
                 }
                 ov::ISyncInferRequest::set_tensor(port, tensor);
             } else {
@@ -626,11 +613,11 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 }
             }
             m_outputs[name] = tensor;
-            auto desc = create_tensor_desc(tensor);
-            if (!port_shape.is_dynamic() && !m_external_ptr.count(name) &&
-                desc == MemoryDescUtils::convertToTensorDesc(
-                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                m_external_ptr[name] = tensor;
+            if (!port_shape.is_dynamic() && !m_external_ptr.count(name)) {
+                auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
+                if (desc->isCompatible(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                    m_external_ptr[name] = tensor;
+                }
             }
             // update tensors in case of multiple output ports with the same name
             for (const auto& out : get_outputs()) {

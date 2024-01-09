@@ -11,6 +11,7 @@ namespace test {
 namespace behavior {
 struct OVInferRequestWaitTests : public OVInferRequestTests {
     void SetUp() override;
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
     void TearDown() override;
     ov::InferRequest req;
     ov::Output<const ov::Node> input;

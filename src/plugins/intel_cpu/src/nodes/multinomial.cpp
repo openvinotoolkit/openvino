@@ -4,7 +4,6 @@
 
 #include "multinomial.hpp"
 
-#include "ie_ngraph_utils.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 
@@ -28,7 +27,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     m_num_samples_precision = ov::element::i32;
     m_output_precision = multinomial_op->get_convert_type();
 
-    constant = ConstantType::NoConst;
+    constant = ConstantType::StrictNoConst;
 
     m_const_batch = op->get_input_partial_shape(PROBS_PORT)[0].is_static();
     m_const_inputs[PROBS_PORT] = is_type<op::v0::Constant>(op->get_input_node_ptr(PROBS_PORT));
@@ -66,42 +65,6 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
                          {{LayoutType::ncsp, m_output_precision}},
                          ref_any);
-}
-
-std::string Multinomial::getPrimitiveDescriptorType() const {
-    std::string str_type;
-    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
-
-    impl_desc_type type = impl_desc_type::undef;
-    if (selectedPrimitiveDesc) {
-        type = selectedPrimitiveDesc->getImplementationType();
-    }
-
-    if (type == impl_desc_type::unknown)
-        str_type += "unknown_";
-    if ((type & impl_desc_type::jit) == impl_desc_type::jit)
-        str_type += "jit_";
-    if ((type & impl_desc_type::ref) == impl_desc_type::ref)
-        str_type += "ref_";
-    if ((type & impl_desc_type::avx512) == impl_desc_type::avx512)
-        str_type += "avx512_";
-    if ((type & impl_desc_type::avx2) == impl_desc_type::avx2)
-        str_type += "avx2_";
-    if ((type & impl_desc_type::sse42) == impl_desc_type::sse42)
-        str_type += "sse42_";
-    if ((type & impl_desc_type::any) == impl_desc_type::any)
-        str_type += "any_";
-
-    if (str_type.empty())
-        str_type += "undef_";
-
-    if (selectedPrimitiveDesc) {
-        str_type += m_output_precision.get_type_name();
-    } else {
-        str_type.pop_back();
-    }
-
-    return str_type;
 }
 
 bool Multinomial::needShapeInfer() const {

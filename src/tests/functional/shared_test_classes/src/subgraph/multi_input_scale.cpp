@@ -4,6 +4,7 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/multi_input_scale.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -44,9 +45,9 @@ void MultipleInputScaleTest::SetUp() {
     auto fc1 = ngraph::builder::makeFullyConnected(input[0], ngPrc, inputSize, false, {inputSize, inputSize}, fc1_weights);
     auto fc2 = ngraph::builder::makeFullyConnected(input[1], ngPrc, inputSize, false, {inputSize, inputSize}, fc2_weights);
 
-    auto add = ngraph::builder::makeEltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
+    auto add = ov::test::utils::make_eltwise(fc1, fc2, ngraph::helpers::EltwiseTypes::ADD);
 
-    auto result = std::make_shared<ngraph::opset7::Result>(add);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
     function = std::make_shared<ngraph::Function>(result, input, "multiple_input_scale");
     functionRefs = ngraph::clone_function(*function);
 }

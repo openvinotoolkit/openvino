@@ -3,13 +3,9 @@
 //
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
+#include "node.h"
+#include "oneapi/dnnl/dnnl.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -116,7 +112,6 @@ private:
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
     bool isNspcAvailable() const;
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
     MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);

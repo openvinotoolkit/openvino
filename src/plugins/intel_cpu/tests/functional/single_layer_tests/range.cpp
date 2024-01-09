@@ -112,17 +112,17 @@
 //        step = std::get<2>(rangeInputs);
 //        auto ngOutPr = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
 //        auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-//        auto startPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});
-//        auto stopPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});
-//        auto stepPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});
-//        auto range = std::make_shared<ngraph::opset4::Range>(startPar, stopPar, stepPar, ngOutPr);
+//        auto startPar = std::make_shared<ov::op::v0::Parameter>(ngNetPrc, ngraph::Shape{});
+//        auto stopPar = std::make_shared<ov::op::v0::Parameter>(ngNetPrc, ngraph::Shape{});
+//        auto stepPar = std::make_shared<ov::op::v0::Parameter>(ngNetPrc, ngraph::Shape{});
+//        auto range = std::make_shared<ov::op::v4::Range>(startPar, stopPar, stepPar, ngOutPr);
 //        range->get_rt_info() = getCPUInfo();
 //        selectedType = std::string("ref_any_") + (inPrc == outPrc ? inPrc.name() : "FP32");
 //        startPar->set_friendly_name("start");
 //        stopPar->set_friendly_name("stop");
 //        stepPar->set_friendly_name("step");
 //
-//        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(range)};
+//        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
 //        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector {
 //            startPar, stopPar, stepPar}, "Range");
 //        functionRefs = ngraph::clone_function(*function);

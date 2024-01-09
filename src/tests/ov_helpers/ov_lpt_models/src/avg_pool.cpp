@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
@@ -10,6 +10,7 @@
 
 #include "ov_lpt_models/avg_pool.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -58,7 +59,7 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
     }
 
     if (addFQ) {
-        lastLayer = ngraph::builder::makeFakeQuantize(
+        lastLayer = ov::test::utils::make_fake_quantize(
             lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
@@ -74,7 +75,7 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
     const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
@@ -145,7 +146,7 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getReference(
     lastLayer = makeDequantization(lastLayer, deqStructure);
 
     if (addFQ) {
-        lastLayer = ngraph::builder::makeFakeQuantize(
+        lastLayer = ov::test::utils::make_fake_quantize(
             lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 

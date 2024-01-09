@@ -24,6 +24,7 @@ void regmodule_properties(py::module m) {
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
+    wrap_property_RW(m_properties, ov::cache_mode, "cache_mode");
     wrap_property_RW(m_properties, ov::auto_batch_timeout, "auto_batch_timeout");
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
@@ -54,13 +55,10 @@ void regmodule_properties(py::module m) {
         .value("HIGH", ov::hint::Priority::HIGH)
         .value("DEFAULT", ov::hint::Priority::DEFAULT);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     py::enum_<ov::hint::PerformanceMode>(m_hint, "PerformanceMode", py::arithmetic())
-        .value("UNDEFINED", ov::hint::PerformanceMode::UNDEFINED)
         .value("LATENCY", ov::hint::PerformanceMode::LATENCY)
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
@@ -282,8 +280,14 @@ void regmodule_properties(py::module m) {
     py::module m_intel_auto =
         m_properties.def_submodule("intel_auto",
                                    "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+    // Submodule intel_auto - enums
+    py::enum_<ov::intel_auto::SchedulePolicy>(m_intel_auto, "SchedulePolicy", py::arithmetic())
+        .value("ROUND_ROBIN", ov::intel_auto::SchedulePolicy::ROUND_ROBIN)
+        .value("DEVICE_PRIORITY", ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)
+        .value("DEFAULT", ov::intel_auto::SchedulePolicy::DEFAULT);
 
     wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
 }

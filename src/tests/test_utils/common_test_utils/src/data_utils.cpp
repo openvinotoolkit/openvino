@@ -250,6 +250,57 @@ size_t byte_size(const InferenceEngine::TensorDesc& tdesc) {
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+namespace {
+static int randInt(int low, int high) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis(low, high);
+    return dis(gen);
+}
+}  // namespace
+
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode) {
+    auto numROIs = tensor.get_size() / 5;
+    int minRoiWidth = groupSize;
+    int maxRoiWidth = width / groupSize * groupSize;
+    int minRoiHeight = groupSize;
+    int maxRoiHeight = height / groupSize * groupSize;
+    float scaleX = spatialScale;
+    float scaleY = spatialScale;
+    if (mode == "bilinear") {
+        minRoiWidth = spatialBinsX;
+        maxRoiWidth = width / spatialBinsX * spatialBinsX;
+        minRoiHeight = spatialBinsY;
+        maxRoiHeight = height / spatialBinsY * spatialBinsY;
+        scaleX *= width;
+        scaleY *= height;
+    }
+    int batchId = 0;
+    for (int i = 0; i < numROIs; i++) {
+        int sizeX = std::min(width, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
+        int sizeY = std::min(height, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
+        int startX = randInt(0, std::max(1, width - sizeX - 1));
+        int startY = randInt(0, std::max(1, height - sizeY - 1));
+
+        float* roi = tensor.data<float>() + i * 5;
+        roi[0] = batchId;
+        roi[1] = startX / scaleX;
+        roi[2] = startY / scaleY;
+        roi[3] = (startX + sizeX - 1) / scaleX;
+        roi[4] = (startY + sizeY - 1) / scaleY;
+
+        batchId = (batchId + 1) % batchSize;
+    }
+}
+
 template <ov::element::Type_t type>
 inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
                                const uint32_t range,
@@ -576,6 +627,27 @@ void fill_tensor_random(ov::Tensor& tensor,
     }
 #undef CASE
 #undef CASE_FLOAT
+}
+
+void fill_random_string(std::string* dst,
+                        const size_t size,
+                        const size_t len_range,
+                        const size_t start_from,
+                        const int seed) {
+    static const int32_t char_range = 128;
+    testing::internal::Random random_len(seed);
+    random_len.Generate(len_range);
+    testing::internal::Random random_char(seed);
+    random_char.Generate(char_range);
+
+    for (size_t i = 0lu; i < size; i++) {
+        const auto len = start_from + static_cast<size_t>(random_len.Generate(len_range));
+        auto& str = dst[i];
+        str.resize(len);
+        for (size_t j = 0lu; j < len; j++) {
+            str[j] = static_cast<char>(random_len.Generate(char_range));
+        }
+    }
 }
 
 }  // namespace utils

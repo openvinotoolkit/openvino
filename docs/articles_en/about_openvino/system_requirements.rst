@@ -32,13 +32,13 @@ CPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
+      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+), ARM64
       * Windows* 10
       * Windows* 11
       * macOS* 10.15 and above, 64-bit
       * macOS 11 and above, ARM64
       * Red Hat Enterprise Linux* 8, 64-bit
-      * Debian 9 ARM64 and ARM
+      * Debian 9 ARM
       * CentOS 7 64-bit 
 
 GPU
@@ -81,7 +81,7 @@ GPU
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
         for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8. 
 
-NPU and GNA 
+NPU
 #############################
 
 .. tab-set::
@@ -89,13 +89,6 @@ NPU and GNA
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit
-
-   .. tab-item:: Operating Systems for GNA
-
-      * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * Windows 10, 64-bit
       * Windows 11, 64-bit
 
    .. tab-item:: Additional considerations
@@ -130,7 +123,7 @@ Operating systems and developer environment
       Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors,
       11th Gen Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors,
       12th Gen Intel® Core™ Processors, 13th Gen Intel® Core™ Processors, Intel® Core™ Ultra
-      Processors, or 4th Gen Intel® Xeon® Scalable Processors to support CPU, GPU, GNA or
+      Processors, or 4th Gen Intel® Xeon® Scalable Processors to support CPU, GPU or
       hybrid-cores CPU capabilities.
 
    .. tab-item:: Windows

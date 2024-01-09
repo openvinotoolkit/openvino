@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_models/builders.hpp"
-
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -33,7 +33,7 @@ std::shared_ptr<ov::opset1::Convolution> createConvolution(
             ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(fqOnWeights.empty() ?
                 weights :
-                ngraph::builder::makeFakeQuantize(
+                ov::test::utils::make_fake_quantize(
                     weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
                     fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues), element::f32).get(),
             ov::Strides{ 1, 1 },
@@ -43,7 +43,7 @@ std::shared_ptr<ov::opset1::Convolution> createConvolution(
         std::make_shared<ov::opset1::Convolution>(
             parent,
             fqOnWeights.empty() ? weights->output(0) :
-            ngraph::builder::makeFakeQuantize(
+            ov::test::utils::make_fake_quantize(
                 weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
                 fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
             ov::Strides{ 1, 1 },
@@ -63,7 +63,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndTwoOutputBranchesWithConvolutionFuncti
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input,
             precision,
             fqOnData.quantizationLevel,

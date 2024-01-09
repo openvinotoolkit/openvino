@@ -15,7 +15,7 @@ PartialShape project(const PartialShape& shape, const AxisSet& axes) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (axes.find(i) != axes.end()) {
@@ -32,7 +32,7 @@ PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (deleted_axes.find(i) == deleted_axes.end()) {
@@ -49,11 +49,11 @@ PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool
 
 template <>
 PartialShape inject_pairs(const PartialShape& shape,
-                          std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
+                          std::vector<std::pair<size_t, ov::Dimension>> new_axis_pos_value_pairs) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         size_t original_pos = 0;
 
@@ -61,7 +61,7 @@ PartialShape inject_pairs(const PartialShape& shape,
              result_pos++) {
             auto search_it = std::find_if(new_axis_pos_value_pairs.begin(),
                                           new_axis_pos_value_pairs.end(),
-                                          [result_pos](std::pair<size_t, Dimension> p) {
+                                          [result_pos](std::pair<size_t, ov::Dimension> p) {
                                               return p.first == result_pos;
                                           });
 
@@ -103,16 +103,6 @@ TContainer replace_container(const TContainer& input, const TAxes& axes) {
 }
 
 namespace util {
-Shape make_dynamic_shape() {
-    return Shape{0, std::numeric_limits<size_t>::max()};
-}
-
-bool is_dynamic_shape(const Shape& s) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const auto dyn_shape = make_dynamic_shape();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return s == dyn_shape;
-}
 
 Shape reduce(const Shape& input, const AxisSet& axes) {
     return ov::reduce_container(input, axes);

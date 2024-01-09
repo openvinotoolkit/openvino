@@ -1,19 +1,24 @@
 .. {#Supported_Model_Formats_MO_DG}
 
-Supported Model Formats
-=======================
+[LEGACY] Supported Model Formats
+=====================================
 
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <openvino_docs_model_processing_introduction>` article. 
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
-   openvino_docs_MO_DG_prepare_model_convert_model_tutorials
+   Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>
+   Converting an ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>
+   Converting a PyTorch Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>
+   Converting a TensorFlow Lite Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>
+   Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>
+   Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>
 
 .. meta::
    :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.
@@ -129,7 +134,6 @@ Here are code examples of how to use these methods with different model formats:
 
               For a guide on how to run inference, see how to
               :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
-              For TensorFlow format, see :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -552,7 +556,7 @@ converting them to ONNX for use with OpenVINO should be considered the default p
    OpenVINO versions of 2023 are mostly compatible with the old instructions, 
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html>`__ is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.3/Supported_Model_Formats_MO_DG.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 

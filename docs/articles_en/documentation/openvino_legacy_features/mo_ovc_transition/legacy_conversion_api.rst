@@ -8,13 +8,14 @@ Legacy Conversion API
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
-   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
-   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
-   openvino_docs_MO_DG_FP16_Compression
-   openvino_docs_MO_DG_Python_API
-   openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
-   Supported_Model_Formats_MO_DG
+   Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>
+   Troubleshooting Reshape Errors <troubleshooting_reshape_errors>
+   Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>
+   Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>
+   Compressing a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>
+   Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>
+   Model Optimizer Frequently Asked Questions <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>
+   Supported Model Formats <Supported_Model_Formats_MO_DG>
 
 .. meta::
    :description: Model conversion (MO) furthers the transition between training and

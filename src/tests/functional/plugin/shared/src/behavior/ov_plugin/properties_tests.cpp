@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
-#include <cstdint>
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -27,7 +29,7 @@ void OVPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::test::utils::make_split_concat();
 }
 
 void OVPropertiesTests::TearDown() {
@@ -57,7 +59,7 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
 void OVSetPropComplieModleGetPropTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(target_device, properties, compileModelProperties) = this->GetParam();
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::test::utils::make_split_concat();
 }
 
 std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -96,7 +98,7 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
 
-    model = ngraph::builder::subgraph::makeSplitConcat();
+    model = ov::test::utils::make_split_concat();
 
     APIBaseTest::SetUp();
 }
@@ -605,6 +607,16 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
     }
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::available_devices);
+}
+
+TEST_P(OVGetMetricPropsTest, GetMetriDeviceFullNameWithoutAdditionalTerminatorChars) {
+    ov::Core core = createCoreWithTemplate();
+    auto supported_properties = core.get_property(target_device, ov::supported_properties);
+    if (util::contains(supported_properties, ov::device::full_name)) {
+        std::string full_name;
+        OV_ASSERT_NO_THROW(full_name = core.get_property(target_device, ov::device::full_name));
+        EXPECT_EQ(full_name.size(), strlen(full_name.c_str()));
+    }
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES) {

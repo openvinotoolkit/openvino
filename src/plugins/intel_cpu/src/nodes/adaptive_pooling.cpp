@@ -4,19 +4,18 @@
 
 #include "adaptive_pooling.h"
 #include "openvino/core/parallel.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include <math.h>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include <selective_build.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
+#include "selective_build.h"
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 #include <vector>
 #include "shape_inference/custom/adaptive_pooling.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 
@@ -104,10 +103,6 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
 
     // we supports only fp32 currently
     precision = ov::element::f32;
-
-    InferenceEngine::LayerConfig config;
-    config.inConfs.resize(2);
-    config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
     std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
     const auto &inDims = getInputShapeAtPort(0).getDims();

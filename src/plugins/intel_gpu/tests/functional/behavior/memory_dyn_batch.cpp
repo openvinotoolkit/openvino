@@ -2,23 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_common.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_models/subgraph_builders.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "common_test_utils/common_utils.hpp"
+#include "openvino/op/add.hpp"
 
-#include <vector>
-
-#include <gtest/gtest.h>
-
-using namespace ov::test;
-
+namespace {
 using MemoryDynamicBatchParams = std::tuple<
     ov::PartialShape,                           // Partial shape for network initialization
     ov::Shape,                                  // Actual shape to be passed to inference request
@@ -57,9 +52,9 @@ public:
         infer_request = compiled_model.create_infer_request();
     }
 
-    static std::shared_ptr<ov::Model> build_model(ElementType precision, const ov::PartialShape& shape) {
-        auto param = std::make_shared<ov::op::v0::Parameter>(precision, shape);
-        const ov::op::util::VariableInfo variable_info { shape, precision, "v0" };
+    static std::shared_ptr<ov::Model> build_model(ov::element::Type type, const ov::PartialShape& shape) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        const ov::op::util::VariableInfo variable_info { shape, type, "v0" };
         auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
         auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
@@ -169,3 +164,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryDynamicBatch, MemoryDynamicBatch,
                              ::testing::ValuesIn(iterations_num),
                              ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MemoryDynamicBatch::get_test_case_name);
+} // namespace
