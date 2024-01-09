@@ -9,7 +9,7 @@
 using namespace ov::test;
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_PreProcess,
+    smoke_PrePostProcess,
     PrePostProcessTest,
     ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_preprocess_functions()),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
