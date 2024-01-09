@@ -19,6 +19,7 @@ OutputVector celu(const Node& node) {
     auto zero_node = default_opset::Constant::create(element::f32, Shape{}, {0});
     auto one_node = default_opset::Constant::create(element::f32, Shape{}, {1});
     auto input = node.get_ng_inputs().at(0);
+    input = std::make_shared<default_opset::Convert>(input, element::f32);
 
     auto positive_input = std::make_shared<default_opset::Maximum>(zero_node, input);
     auto negative_input = std::make_shared<default_opset::Minimum>(

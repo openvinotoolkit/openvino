@@ -6219,3 +6219,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
+    auto model = convert_model("celu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-45., 22.98});
+    test_case.add_expected_output<float>(Shape{2}, {-1., 22.98});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_int) {
+    auto model = convert_model("celu_int.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{4}, {-5, -4, -10, 7});
+    test_case.add_expected_output<float>(Shape{4}, {-0.99326205, -0.98168436, -0.9999546, 7.});
+
+    test_case.run();
+}
