@@ -60,7 +60,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*MobileNet_ssd_with_branching.*)",
 
         // Not expected behavior
-        R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
@@ -165,18 +164,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_Convert/Convert\.CompareWithRefImpl/IS.*_IT=\(f32\)_OT=\(u8\)_#N=1_#S=1_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_ConvertManyOnInputs/ConvertManyOnInputs\.CompareWithRefImpl/IS.*_IT=\(f32\.u8\)_OT=\(\)_#N=1_#S=1_targetDevice=CPU.*)",
-        // New plugin work with tensors, so it means that blob in old API can have different pointers
-        R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Issue: 106939
         R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // Old API cannot deallocate tensor
-        R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
         // Issue: 113703, 114763
