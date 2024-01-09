@@ -757,6 +757,12 @@ struct Equal<std::shared_ptr<Constant>> {
             return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
             break;
         }
+        case ov::element::Type_t::string: {
+            const auto& lhs_v = lhs->cast_vector<std::string>();
+            const auto& rhs_v = rhs->cast_vector<std::string>();
+            return Equal<std::vector<std::string>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         default: {
             const auto& lhs_v = lhs->cast_vector<double>();
             const auto& rhs_v = rhs->cast_vector<double>();
