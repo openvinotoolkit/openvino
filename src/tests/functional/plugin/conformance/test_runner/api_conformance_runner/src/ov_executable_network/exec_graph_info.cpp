@@ -40,4 +40,15 @@ INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelImportExportTestP,
         ::testing::Values(targetDevice));
 
+const std::vector<ov::element::Type> netPrc = {
+    ov::element::f32,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
+                         OVCompiledModelGraphUniqueNodeNamesTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrc),
+                                            ::testing::Values(ov::Shape{1, 2, 5, 5}),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
+
 }  // namespace
