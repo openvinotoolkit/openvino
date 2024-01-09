@@ -9,15 +9,15 @@ typedef Napi::Function (*Prototype)(Napi::Env);
 
 /** @brief A structure with data that will be associated with the instance of the ov.js node-addon. */
 struct AddonData {
-    Napi::FunctionReference* compiled_model = new Napi::FunctionReference();
-    Napi::FunctionReference* core = new Napi::FunctionReference();
-    Napi::FunctionReference* const_output = new Napi::FunctionReference();
-    Napi::FunctionReference* infer_request = new Napi::FunctionReference();
-    Napi::FunctionReference* model = new Napi::FunctionReference();
-    Napi::FunctionReference* output = new Napi::FunctionReference();
-    Napi::FunctionReference* partial_shape = new Napi::FunctionReference();
-    Napi::FunctionReference* ppp = new Napi::FunctionReference();
-    Napi::FunctionReference* tensor = new Napi::FunctionReference();
+    Napi::FunctionReference* compiled_model;
+    Napi::FunctionReference* core;
+    Napi::FunctionReference* const_output;
+    Napi::FunctionReference* infer_request;
+    Napi::FunctionReference* model;
+    Napi::FunctionReference* output;
+    Napi::FunctionReference* partial_shape;
+    Napi::FunctionReference* ppp;
+    Napi::FunctionReference* tensor;
 };
 
 void init_class(Napi::Env env,
@@ -26,4 +26,4 @@ void init_class(Napi::Env env,
                 Prototype func,
                 Napi::FunctionReference* reference);
 
-Napi::Object init_all(Napi::Env env, Napi::Object exports);
+Napi::Object init_module(Napi::Env env, Napi::Object exports);
