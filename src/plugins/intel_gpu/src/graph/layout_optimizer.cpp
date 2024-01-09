@@ -418,7 +418,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
-    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<fully_connected>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
         (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
