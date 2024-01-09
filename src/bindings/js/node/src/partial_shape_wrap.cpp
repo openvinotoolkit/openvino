@@ -21,7 +21,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
     }
 }
 
-Napi::Function PartialShapeWrap::get_class_constructor(Napi::Env env) {
+Napi::Function PartialShapeWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "PartialShapeWrap",
                        {

@@ -38,7 +38,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
-Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),

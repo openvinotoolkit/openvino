@@ -9,7 +9,7 @@
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 
-Napi::Function Output<ov::Node>::get_class_constructor(Napi::Env env) {
+Napi::Function Output<ov::Node>::get_class(Napi::Env env) {
     return Output::DefineClass(
         env,
         "Output",
@@ -52,7 +52,7 @@ Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<Output<const ov::Node>>(info),
       _output{} {}
 
-Napi::Function Output<const ov::Node>::get_class_constructor(Napi::Env env) {
+Napi::Function Output<const ov::Node>::get_class(Napi::Env env) {
     return Output::DefineClass(
         env,
         "ConstOutput",

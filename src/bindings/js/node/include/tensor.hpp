@@ -34,7 +34,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Tensor class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Tensor get_tensor() const;
     void set_tensor(const ov::Tensor& tensor);

@@ -12,7 +12,7 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
       _core{},
       _compiled_model{} {}
 
-Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
                        {InstanceMethod("getName", &ModelWrap::get_name),

@@ -20,7 +20,7 @@ namespace preprocess {
       auto resizeAlgorithm = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
 
       const auto data = env.GetInstanceData<AddonData>();
-      init_class(env, preprocess, "PrePostProcessor", &PrePostProcessorWrap::get_class_constructor, data->ppp);
+      init_class(env, preprocess, "PrePostProcessor", &PrePostProcessorWrap::get_class, data->ppp);
       preprocess.DefineProperty(resizeAlgorithm);
 
       return preprocess;

@@ -19,7 +19,7 @@ InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<InferRequestWrap>(info),
       _infer_request{} {}
 
-Napi::Function InferRequestWrap::get_class_constructor(Napi::Env env) {
+Napi::Function InferRequestWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
                        {

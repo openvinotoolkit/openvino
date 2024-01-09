@@ -16,7 +16,7 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     }
 }
 
-Napi::Function PrePostProcessorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function PrePostProcessorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
                        {InstanceMethod("input", &PrePostProcessorWrap::input),

@@ -12,7 +12,7 @@ CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
       _compiled_model{} {}
 
-Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),

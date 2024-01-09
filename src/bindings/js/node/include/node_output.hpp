@@ -21,7 +21,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Output class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Output<ov::Node> get_output() const;
 
@@ -49,7 +49,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Output class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Output<const ov::Node> get_output() const;
 

@@ -23,7 +23,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Model class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
+    static Napi::Function get_class(Napi::Env env);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
     /**
