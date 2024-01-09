@@ -265,13 +265,7 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
                 }();
 
                 if (filter_spatial_shape.is_static()) {
-                    auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
-                                                                  filter_spatial_shape.to_shape(),
-                                                                  strides,
-                                                                  dilations,
-                                                                  auto_pad,
-                                                                  pads_end,
-                                                                  pads_begin);
+                    auto_padding_applied = false;
                 }
             }
             if (!auto_padding_applied) {
@@ -512,22 +506,6 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
         input_element_type,
         input_shape,
         {{gamma_element_type, gamma_shape, "gamma"}, {beta_element_type, beta_shape, "beta"}});
-}
-
-bool try_apply_auto_padding(const PartialShape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    return ov::util::try_apply_auto_padding(image_shape,
-                                            filter_shape,
-                                            filter_strides,
-                                            filter_dilations,
-                                            pad_type,
-                                            padding_above,
-                                            padding_below);
 }
 
 PartialShape infer_slice_shape(const Node* node,
@@ -962,22 +940,6 @@ std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
 }
 }  // namespace ngraph
 
-void ov::infer_auto_padding(const Shape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    ov::util::infer_auto_padding(image_shape,
-                                 filter_shape,
-                                 filter_strides,
-                                 filter_dilations,
-                                 pad_type,
-                                 padding_above,
-                                 padding_below);
-}
-
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
     return [&tensor_rank](int64_t& axis) {
@@ -1364,57 +1326,6 @@ PartialShape infer_convolution_forward(const Node* node,
     }
 
     return batch_output_shape;
-}
-
-bool try_apply_auto_padding(const PartialShape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
-
-    if (image_shape.rank().is_dynamic()) {
-        return false;
-    }
-    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
-        if (image_dims[i + 2].is_static()) {
-            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
-            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
-            auto output_size = (image_size + filter_stride - 1) / filter_stride;
-
-            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
-            auto padding_lhs = padding_needed / 2;
-            auto padding_rhs = padding_needed - padding_lhs;
-            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
-        } else {
-            padding_below.push_back(0);
-            padding_above.push_back(0);
-        }
-    }
-    return true;
-}
-
-void infer_auto_padding(const Shape& image_shape,
-                        const Shape& filter_shape,
-                        const Strides& filter_strides,
-                        const Strides& filter_dilations,
-                        const op::PadType pad_type,
-                        CoordinateDiff& padding_above,
-                        CoordinateDiff& padding_below) {
-    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
-    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    try_apply_auto_padding(image_dims,
-                           filter_shape,
-                           filter_strides,
-                           filter_dilations,
-                           pad_type,
-                           padding_above,
-                           padding_below);
 }
 
 bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {

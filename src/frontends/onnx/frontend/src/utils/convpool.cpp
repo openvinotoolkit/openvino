@@ -135,19 +135,30 @@ void calculate_auto_pads(const Shape& data_shape,
                          CoordinateDiff& padding_below,
                          CoordinateDiff& padding_above) {
     if (pad_type == ngraph::op::PadType::SAME_UPPER || pad_type == ngraph::op::PadType::SAME_LOWER) {
-        padding_below.clear();
-        padding_above.clear();
-        // Extract kernel shape - remove (N,C) channels
-        Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::infer_auto_padding(data_shape,
-                                   kernel_shape,
-                                   strides,
-                                   dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        // Move `try_apply_auto_padding` padding for static shape implementation to this function
+        // as it is only used here. The `calculate_auto_pads` is not used in the project could be removed ?
+        //
+        // In general the  auto padding is  calculated for openvino operators like convolution, pooling
+        // when created and shape inference performed
+        const auto num_spatial = strides.size();
+        padding_below.resize(num_spatial);
+        padding_above.resize(num_spatial);
+        auto data_dim = data_shape.cend() - num_spatial;
+        auto filter_dim = filter_shape.cend() - num_spatial;
+
+        const auto padding_swap = pad_type == ov::op::PadType::SAME_UPPER;
+        auto&& pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
+        auto&& pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
+
+        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
+            int64_t filter_size = (static_cast<int64_t>(*filter_dim - 1)) * dilations[i] + 1;
+            auto filter_stride = static_cast<int64_t>(strides[i]);
+            auto output_size = (*data_dim + filter_stride - 1) / filter_stride;
+
+            auto padding_needed = std::max<int64_t>(0, (output_size - 1) * filter_stride + filter_size - *data_dim);
+            *pad_b = padding_needed / 2;
+            *pad_e = padding_needed - *pad_b;
+        }
     }
 }
 
