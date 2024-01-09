@@ -34,7 +34,6 @@ class CommonLayerTest:
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
         self.use_new_frontend = use_new_frontend
-        self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms

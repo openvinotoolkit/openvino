@@ -150,8 +150,8 @@ def permute_axis(axis, permutation_inv):
     return permutation_inv[axis]
 
 
-def transpose_nchw_to_nhwc(data, use_new_frontend, use_old_api):
-    if use_new_frontend or not use_old_api:
+def transpose_nchw_to_nhwc(data, use_new_frontend):
+    if use_new_frontend:
         return data
 
     if len(data.shape) == 4:  # reshaping for 4D tensors
@@ -162,8 +162,8 @@ def transpose_nchw_to_nhwc(data, use_new_frontend, use_old_api):
         return data
 
 
-def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
-    if use_new_frontend or not use_old_api:
+def transpose_nhwc_to_nchw(data, use_new_frontend):
+    if use_new_frontend:
         return data
 
     if len(data.shape) == 4:  # reshaping for 4D tensors

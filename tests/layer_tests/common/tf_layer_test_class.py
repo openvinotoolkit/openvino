@@ -15,7 +15,7 @@ class CommonTFLayerTest(CommonLayerTest):
             data = inputs_dict.get(key)
             if not ':' in key:
                 key += ':0'
-            input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
+            input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend)
 
         return input
 
@@ -47,8 +47,7 @@ class CommonTFLayerTest(CommonLayerTest):
                 result = dict()
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
-                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
-                                                            self.use_old_api)
+                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend)
                 return result
 
     def get_framework_results(self, inputs_dict, model_path):
@@ -59,4 +58,4 @@ class CommonTFLayerTest(CommonLayerTest):
             return self.get_tf_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
+            return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)
