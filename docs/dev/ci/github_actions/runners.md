@@ -7,7 +7,7 @@ Two types of runners are available in this repository:
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
 
-The machines are specified for each job using the `runs-on` key. 
+The runners are specified for each job using the `runs-on` key. 
 
 An example `Build` job from the `linux.yml` workflow:
 ```yaml
@@ -17,7 +17,7 @@ Build:
   ...
 ```
 
-The `aks-linux-16-cores-32gb` machine group is used for this job.
+The `aks-linux-16-cores-32gb` runners group is used for this job.
 
 ## Available GitHub Actions Runners
 
@@ -33,20 +33,20 @@ The OpenVINO repositories make use of the following runners:
 ## Available Self-hosted Runners
 
 The self-hosted runners are dynamically spawned for each requested pipeline. 
-Several configurations of self-hosted runners are available, they are identified by different group names.
+Several configurations of the self-hosted runners are available, they are identified by different group names.
 
 The group names generally follow the pattern: `aks-{OS}-{CORES_N}-cores-|{RAM_SIZE}gb|-|{ARCH}|`, where:
 * `{OS}` - the operating system: `win`/`linux`
   * **Note**: Currently, only Windows and Linux self-hosted runners are available.
-* `{CORES_N}` - the number of cores available to the machines in the group: `4`/`8`/etc.
-* `|{RAM_SIZE}gb|` - **_optional_**, the RAM size in GB available to the machines in the group: `8`/`16`/etc.
-  * **Note**: The groups with unspecified `{RAM_SIZE}` consist of the machines with 32 GB of RAM
-* `|{ARCH}|` - **_optional_**, the architecture of the machines in the group: `arm`
-  * **Note**: The groups with unspecified `{ARCH}` consist of the `x86_64` machines
+* `{CORES_N}` - the number of cores available to the runners in the group: `4`/`8`/etc.
+* `|{RAM_SIZE}gb|` - **_optional_**, the RAM size in GB available to the runners in the group: `8`/`16`/etc.
+  * **Note**: The groups with unspecified `{RAM_SIZE}` consist of the runners with 32 GB of RAM
+* `|{ARCH}|` - **_optional_**, the architecture of the runners in the group: `arm`
+  * **Note**: The groups with unspecified `{ARCH}` consist of the `x86_64` runners
 
 Examples:
-* `aks-win-16-cores-32gb` - the Windows x86_64 machines with 16 cores and 32 GB of RAM available
-* `aks-linux-16-cores-arm` - the Linux ARM64 machines with 16 cores and 32 GB of RAM available
+* `aks-win-16-cores-32gb` - the Windows x86_64 runners with 16 cores and 32 GB of RAM available
+* `aks-linux-16-cores-arm` - the Linux ARM64 runners with 16 cores and 32 GB of RAM available
 
 The available configurations are:
 
@@ -60,7 +60,7 @@ The available configurations are:
 
 ## How to choose a Runner
 
-The configuration of a machine required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is, 
+The configuration of a runner required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is, 
 the more robust configuration is required.
 
 The `Build` job in the `linux.yml` workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
@@ -86,8 +86,8 @@ CXX_Unit_Tests:
 As the C++ tests could not utilize the large number of cores for parallel execution as the build tools in the `Build` job could, 
 it would be pointless to use the `aks-linux-16-cores-32gb` group for them.
 
-The advice is to use machines with more cores/RAM size for the tasks that could load them.
+The advice is to use runners with more cores/RAM size for the tasks that could load them.
 
 It is possible to experiment with different configurations before deciding, i.e.,
-run a job on machines from different groups and observe the gains; if they are significant, e.g., 60 minutes on 4-core machines vs. 15 minutes on 16-core machines, 
+run a job on runners from different groups and observe the gains; if they are significant, e.g., 60 minutes on a 4-core runner vs. 15 minutes on a 16-core runner, 
 it is better to use those with more cores.
