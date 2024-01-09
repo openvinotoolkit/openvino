@@ -24,18 +24,6 @@ Napi::Function PrePostProcessorWrap::get_class_constructor(Napi::Env env) {
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
 }
 
-Napi::Object PrePostProcessorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->ppp= ref;
-
-    exports.Set("PrePostProcessor", prototype);
-    return exports;
-}
-
 Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {
     if (info.Length() != 0 && info.Length() != 1) {
         reportError(info.Env(), "Wrong number of parameters.");
