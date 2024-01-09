@@ -22,7 +22,7 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
     std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params)
            << "_" << param.fakeQuantize << "_"
            << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
            << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));

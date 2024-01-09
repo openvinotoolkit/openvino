@@ -30,8 +30,8 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const test
     std::tie(precision, shape, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" <<
-        param.fqOnData << "_" <<
+    result << get_test_case_name_by_params(precision, shape, targetDevice, params) << "_" <<
+           param.fqOnData << "_" <<
         param.constant << "_" <<
         param.layerName << "_" <<
         param.expectedKernelType << "_" <<

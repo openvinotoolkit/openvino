@@ -26,8 +26,8 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
-        testValues.fqOnData1 <<
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+           testValues.fqOnData1 <<
         testValues.dequantization1 <<
         testValues.fqOnData2 <<
         testValues.dequantization2;

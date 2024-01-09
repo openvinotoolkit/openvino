@@ -26,8 +26,8 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        param.fqOnData1 << param.fqOnData2;
+           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           param.fqOnData1 << param.fqOnData2;
 
     return result.str();
 }

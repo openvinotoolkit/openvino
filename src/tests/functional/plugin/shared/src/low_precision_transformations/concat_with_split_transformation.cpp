@@ -25,7 +25,7 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
     return result.str();
 }
 

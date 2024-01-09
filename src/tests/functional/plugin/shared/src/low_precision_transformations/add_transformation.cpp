@@ -25,8 +25,8 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
     std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        (param.broadcast ? "_broadcast" : "");
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           (param.broadcast ? "_broadcast" : "");
     for (const auto& elem : param.precisionOnActivations) {
         result << "_" << elem << "_";
     }

@@ -24,7 +24,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
 }
 
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {

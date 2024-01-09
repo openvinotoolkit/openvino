@@ -37,8 +37,8 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
     std::tie(precision, shapes, targetDevice, attributes) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shapes.first, targetDevice, params) << "_" <<
-        shapes.second << "_" <<
+    result << get_test_case_name_by_params(precision, shapes.first, targetDevice, params) << "_" <<
+           shapes.second << "_" <<
         attributes.align_corners << "_" <<
         attributes.antialias << "_" <<
         attributes.axes << "_" <<

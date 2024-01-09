@@ -30,8 +30,8 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(precision, shapes.inputA, targetDevice, params) <<
-        shapes.inputB << "_" <<
+           get_test_case_name_by_params(precision, shapes.inputA, targetDevice, params) <<
+           shapes.inputB << "_" <<
         shapes.transposeA << "_" <<
         shapes.transposeB;
 

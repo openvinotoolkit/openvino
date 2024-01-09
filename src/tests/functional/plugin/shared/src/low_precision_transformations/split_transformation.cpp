@@ -24,8 +24,8 @@ std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<Sp
     std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
     return result.str();
 }
 

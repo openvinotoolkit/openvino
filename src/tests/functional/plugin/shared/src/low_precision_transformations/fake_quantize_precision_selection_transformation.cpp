@@ -24,7 +24,7 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 

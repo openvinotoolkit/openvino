@@ -16,11 +16,11 @@ class UnsqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> unsqueezeAxes;
-    ngraph::PartialShape shape;
+    ov::PartialShape shape;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     UnsqueezeTransformationParam

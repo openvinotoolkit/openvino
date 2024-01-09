@@ -28,8 +28,8 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize <<
         param.convert <<
         param.dequantizationBefore <<
         (param.reduceMean.keepDims ? "_keepDims_" : "");

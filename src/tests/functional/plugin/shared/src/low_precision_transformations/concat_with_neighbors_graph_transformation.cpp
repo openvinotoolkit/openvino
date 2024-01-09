@@ -23,7 +23,7 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
 }
 
 

@@ -15,17 +15,17 @@ namespace LayerTestsDefinitions {
 
 class MatMulTransformationTestValues {
 public:
-    ngraph::Shape inputShape1;
+    ov::Shape inputShape1;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::Shape inputShape2;
+    ov::Shape inputShape2;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
     std::string expectedKernelName;
     std::string expectedRuntimePrecision;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     MatMulTransformationTestValues> MatMulTransformationParams;
 

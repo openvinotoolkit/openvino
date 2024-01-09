@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::op::v0::DepthToSpace::DepthToSpaceMode,
     size_t> DepthToSpaceTransformationParams;

@@ -37,9 +37,9 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    std::vector<ngraph::PartialShape>,
-    std::vector<ngraph::Shape>,
+    ov::element::Type,
+    std::vector<ov::PartialShape>,
+    std::vector<ov::Shape>,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     RecurrentCellTransformationParam

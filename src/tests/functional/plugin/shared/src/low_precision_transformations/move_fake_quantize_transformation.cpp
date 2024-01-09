@@ -28,8 +28,8 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape[0], targetDevice, params) <<
-        "SPLIT:" << oneInputWithSplit << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape[0], targetDevice, params) <<
+           "SPLIT:" << oneInputWithSplit << "_" <<
         "OP:" << param.operation << "_" <<
         "FQ:" << param.fakeQuantizeAfter << "_" <<
         "DQ:" << param.dequantizationAfter;

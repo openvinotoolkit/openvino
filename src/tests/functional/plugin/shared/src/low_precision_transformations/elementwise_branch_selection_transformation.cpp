@@ -22,8 +22,8 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     std::tie(netPrecision, inputShapes, targetDevice, param, elementwiseType) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        "_elementwiseType_" << elementwiseType;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           "_elementwiseType_" << elementwiseType;
 
     auto toString = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {

@@ -30,8 +30,8 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        inputShape << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           inputShape << "_" <<
         elementwiseConstantShapes << "_" <<
         testValues.precisionBeforeDequantization << "_" <<
         testValues.dequantizationOnActivations << "_" <<

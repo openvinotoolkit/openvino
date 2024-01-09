@@ -29,8 +29,8 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
-        (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) <<
+           (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
         (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
         (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
     return result.str();

@@ -16,13 +16,13 @@ class SqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> squeezeAxes;
-    ngraph::PartialShape shape;
+    ov::PartialShape shape;
 };
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     SqueezeTransformationParam

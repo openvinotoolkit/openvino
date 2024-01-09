@@ -24,8 +24,8 @@ std::string VariadicSplitTransformation::getTestCaseName(const testing::TestPara
     std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_axis=" << param.splitedAxis << "_splitLengths={ ";
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_axis=" << param.splitedAxis << "_splitLengths={ ";
     for (size_t i = 0; i < param.splitLengths.size(); ++i) {
         result << param.splitLengths[i];
         if (i != (param.splitLengths.size() - 1ul)) {

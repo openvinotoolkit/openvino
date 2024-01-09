@@ -56,19 +56,9 @@ std::string LayerTransformation::toString(const ov::pass::low_precision::LayerTr
     return result.str();
 }
 
-std::string LayerTransformation::getTestCaseNameByParams(
-    const ov::element::Type precision,
-    const ov::Shape& inputShapes,
-    const std::string& targetDevice,
-    const ov::pass::low_precision::LayerTransformation::Params& params) {
-    std::ostringstream result;
-    result << precision << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << toString(params);
-    return result.str();
-}
-
-std::string LayerTransformation::getTestCaseNameByParams(
-    const ov::element::Type precision,
-    const ngraph::PartialShape& inputShapes,
+std::string LayerTransformation::get_test_case_name_by_params(
+    ov::element::Type precision,
+    const ov::PartialShape& inputShapes,
     const std::string& targetDevice,
     const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;

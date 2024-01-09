@@ -19,8 +19,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildrenTransformationParam,
     ov::pass::low_precision::LayerTransformation::Params // transformation parameters

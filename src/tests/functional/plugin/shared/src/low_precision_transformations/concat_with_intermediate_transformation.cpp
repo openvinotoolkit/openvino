@@ -27,8 +27,8 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
+           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
         (multichannel ? "_multichannel" : "");
 
     return result.str();

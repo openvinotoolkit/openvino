@@ -39,14 +39,8 @@ protected:
 
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
 
-    static std::string getTestCaseNameByParams(
-        const ov::element::Type precision,
-        const ov::Shape& inputShapes,
-        const std::string& targetDevice,
-        const ov::pass::low_precision::LayerTransformation::Params& params);
-
-    static std::string getTestCaseNameByParams(
-        const ov::element::Type precision,
+    static std::string get_test_case_name_by_params(
+        ov::element::Type precision,
         const ov::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ov::pass::low_precision::LayerTransformation::Params& params);

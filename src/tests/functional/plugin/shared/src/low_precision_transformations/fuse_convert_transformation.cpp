@@ -31,7 +31,7 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, shape, targetDevice, params) <<
            "_" << deqOperations << "_" << constInput;
     return result.str();
 }

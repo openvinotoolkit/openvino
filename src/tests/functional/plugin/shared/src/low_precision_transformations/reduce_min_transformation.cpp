@@ -21,8 +21,8 @@ std::string ReduceMinTransformation::getTestCaseName(const testing::TestParamInf
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
     for (const auto& elem : param.constantValues) {
         result << elem << "_";
     }

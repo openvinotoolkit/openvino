@@ -21,8 +21,8 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_" <<
         "min=" << param.clampLowConst <<
         "max=" << param.clampHighConst;
     return result.str();

@@ -31,8 +31,8 @@ std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNT
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) <<
-        "_" << reductionAxes << "_" << normalizeVariance;
+    result << get_test_case_name_by_params(precision, shape, targetDevice, params) <<
+           "_" << reductionAxes << "_" << normalizeVariance;
     return result.str();
 }
 

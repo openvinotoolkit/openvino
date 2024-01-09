@@ -28,7 +28,7 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params);
+    return get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params);
 }
 
 void GemmTransformation::SetUp() {

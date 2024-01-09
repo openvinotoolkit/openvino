@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 
 class MatMulWithConstantTransformationTestValues {
 public:
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
 
     ngraph::builder::subgraph::Constant weights;
@@ -31,7 +31,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     MatMulWithConstantTransformationTestValues> MatMulWithConstantTransformationParams;
 

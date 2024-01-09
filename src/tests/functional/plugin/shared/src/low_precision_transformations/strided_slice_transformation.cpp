@@ -33,8 +33,8 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_" << param.begin << "_" << param.beginMask << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_" << param.begin << "_" << param.beginMask << "_" <<
         param.end << "_" << param.endMask << "_" << param.strides << "_" << param.newAxisMask <<
         param.shrinkAxisMask << "_" << param.elipsisMask;
     return result.str();

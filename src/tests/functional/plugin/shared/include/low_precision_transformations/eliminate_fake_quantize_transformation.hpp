@@ -19,7 +19,7 @@ class EliminateFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBefore;
+        ov::element::Type precisionBefore;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
@@ -31,7 +31,7 @@ public:
         size_t int8_convolutions;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;

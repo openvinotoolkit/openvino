@@ -30,8 +30,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ElementwiseBranchSelectionTestValues,
     std::string

@@ -27,8 +27,8 @@ std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestPa
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantizeOnData << "_axis_" << param.axis << "_group_" << param.group;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantizeOnData << "_axis_" << param.axis << "_group_" << param.group;
     return result.str();
 }
 

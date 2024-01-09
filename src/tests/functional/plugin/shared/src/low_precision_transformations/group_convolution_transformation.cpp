@@ -30,8 +30,8 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, inputShapes.first, targetDevice, params) << "_" <<
-        inputShapes.first.rank().get_length() << "D_" <<
+           get_test_case_name_by_params(netPrecision, inputShapes.first, targetDevice, params) << "_" <<
+           inputShapes.first.rank().get_length() << "D_" <<
         inputShapes.first << "_" <<
         inputShapes.second << "_" <<
         param.group << "_" <<

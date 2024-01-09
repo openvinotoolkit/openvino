@@ -27,8 +27,8 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        isConvertOnConstants << "_" << testParams.fakequantize;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           isConvertOnConstants << "_" << testParams.fakequantize;
     return result.str();
 }
 

@@ -44,8 +44,8 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShape, targetDevice, params) <<
-        "_" << names[mode] << "_" << blockSize;
+    result << get_test_case_name_by_params(precision, inputShape, targetDevice, params) <<
+           "_" << names[mode] << "_" << blockSize;
     return result.str();
 }
 

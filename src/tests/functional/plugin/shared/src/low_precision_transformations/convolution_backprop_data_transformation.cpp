@@ -22,8 +22,8 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape.first, targetDevice, params) << "_" <<
-        outputShape << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape.first, targetDevice, params) << "_" <<
+           outputShape << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights << "_" <<
         param.dequantizationOnWeights;

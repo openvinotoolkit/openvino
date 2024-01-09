@@ -24,7 +24,7 @@ std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params);
 }
 
 void SubtractTransformation::SetUp() {

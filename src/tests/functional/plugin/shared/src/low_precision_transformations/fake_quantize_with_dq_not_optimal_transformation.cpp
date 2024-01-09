@@ -24,7 +24,7 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
     std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 

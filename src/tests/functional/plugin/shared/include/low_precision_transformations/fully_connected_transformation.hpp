@@ -11,14 +11,14 @@
 
 class MatMulShapes {
 public:
-    ngraph::PartialShape inputA;
-    ngraph::PartialShape inputB;
+    ov::PartialShape inputA;
+    ov::PartialShape inputB;
     bool transposeA;
     bool transposeB;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     MatMulShapes,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;

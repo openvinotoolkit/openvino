@@ -38,8 +38,8 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, unsqueezeParam.shape, targetDevice, params) << "_" <<
-        unsqueezeParam.fakeQuantize << "_" <<
+    result << get_test_case_name_by_params(netPrecision, unsqueezeParam.shape, targetDevice, params) << "_" <<
+           unsqueezeParam.fakeQuantize << "_" <<
         unsqueezeParam.unsqueezeAxes << "_" <<
         params.updatePrecisions << "_" <<
         unsqueezeParam.shape;

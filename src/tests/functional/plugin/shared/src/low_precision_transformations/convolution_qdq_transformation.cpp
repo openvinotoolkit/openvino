@@ -29,7 +29,7 @@ std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestPar
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << param;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << param;
     return result.str();
 }
 

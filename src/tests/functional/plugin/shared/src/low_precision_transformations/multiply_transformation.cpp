@@ -26,8 +26,8 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
     std::tie(precision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
-        (param.broadcast1 ? "_broadcast1" : "") <<
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+           (param.broadcast1 ? "_broadcast1" : "") <<
         (param.broadcast2 ? "_broadcast2" : "");
 
     result << "_" << param.expectedPrecisions << "_";

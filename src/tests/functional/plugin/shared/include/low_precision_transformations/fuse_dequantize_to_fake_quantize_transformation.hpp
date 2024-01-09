@@ -18,15 +18,15 @@ class FuseDequantizeToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeAdd;
+        ov::element::Type precisionBeforeAdd;
         ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
+        ov::element::Type precisionAfterDequantization;
         ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };

@@ -22,7 +22,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };

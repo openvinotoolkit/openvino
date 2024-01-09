@@ -22,8 +22,8 @@ std::string AssignAndReadValueTransformation::getTestCaseName(const testing::Tes
     std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_" << opset;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_" << opset;
     return result.str();
 }
 
