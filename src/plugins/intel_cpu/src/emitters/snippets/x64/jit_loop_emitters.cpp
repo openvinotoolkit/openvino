@@ -30,9 +30,9 @@ std::shared_ptr<ov::snippets::op::LoopEnd> jit_loop_begin_emitter::get_loop_end(
     OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "has invalid LoopBegin expression configuration");
     const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
     OV_CPU_JIT_EMITTER_ASSERT(consumers.size() == 1, "has invalid LoopBegin expression configuration");
-    const auto loop_end_expr = consumers.cbegin()->get_expr();
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopEnd>(loop_end_expr->get_node()), "jhas invalid LoopBegin expression configuration");
-    return ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(consumers.cbegin()->get_expr()->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "has invalid LoopBegin expression configuration");
+    return loop_end;
 }
 
 jit_loop_begin_static_emitter::jit_loop_begin_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -40,7 +40,7 @@ jit_loop_begin_static_emitter::jit_loop_begin_static_emitter(dnnl::impl::cpu::x6
     : jit_loop_begin_emitter(h, isa, expr) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginStatic>(expr->get_node()),
                               "expects LoopBeginStatic expression");
-    const auto loop_end = get_loop_end(expr);
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndStatic>(get_loop_end(expr));
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
@@ -151,7 +151,8 @@ void jit_loop_end_static_emitter::validate_arguments(const std::vector<size_t> &
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1, "Invalid number of in arguments: expected ", io_size + 1, " got ", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size, "Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
-    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size, "Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
+    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
+                              "Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
     OV_CPU_JIT_EMITTER_ASSERT(data_sizes.size() == io_size, "Invalid data_sizes size: expected: ", io_size, " got ", data_sizes.size());
 }
 

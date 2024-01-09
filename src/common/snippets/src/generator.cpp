@@ -10,7 +10,6 @@
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
 
 #include "snippets/op/kernel.hpp"
 
@@ -45,17 +44,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
 
-    const auto contains_dynamic_exprs = std::any_of(linear_ir.cbegin(), linear_ir.cend(),
-                       [](const lowered::ExpressionPtr& expr) {
-                            return ov::is_type<op::LoopBeginDynamic>(expr->get_node()) ||
-                                   ov::is_type<op::LoopEndDynamic>(expr->get_node());
-                       });
-
-    std::shared_ptr<op::Kernel> kernel_op = nullptr;
-    if (linear_ir.is_dynamic() || contains_dynamic_exprs)
-        kernel_op = std::make_shared<op::KernelDynamic>(linear_ir);
-    else
-        kernel_op = std::make_shared<op::KernelStatic>(linear_ir);
+    const auto kernel_op = op::Kernel::make_kernel(linear_ir);
     kernel_op->compile_params = compile_params;
     const auto kernel_expr = linear_ir.create_expression(kernel_op, std::vector<lowered::PortConnectorPtr>{});
     const auto kernel = target->get(kernel_expr->get_node()->get_type_info())(kernel_expr);

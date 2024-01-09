@@ -26,11 +26,6 @@ public:
     bool run(LinearIR& linear_ir) override;
 private:
     static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id);
-    static std::shared_ptr<op::LoopBegin> make_loop_begin(bool is_dynamic);
-    static std::shared_ptr<op::LoopEnd> make_loop_end(bool is_dynamic, const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
-                                                      std::vector<bool> is_incremented, std::vector<int64_t> ptr_increments,
-                                                      std::vector<int64_t> finalization_offsets, std::vector<int64_t> element_type_sizes,
-                                                      size_t input_num, size_t output_num, size_t id);
 };
 
 } // namespace pass

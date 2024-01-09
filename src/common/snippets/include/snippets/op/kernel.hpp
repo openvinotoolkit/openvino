@@ -22,6 +22,8 @@ public:
     Kernel() = default;
     Kernel(lowered::LinearIR region);
 
+    static std::shared_ptr<Kernel> make_kernel(const lowered::LinearIR& region);
+
     lowered::LinearIR region;
     const void *compile_params = nullptr;
 };
