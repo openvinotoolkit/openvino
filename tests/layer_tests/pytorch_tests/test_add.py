@@ -156,7 +156,7 @@ class TestAddBool(PytorchLayerTest):
             def forward(self, x1, x2):
                 x1 = x1.to(torch.bool)
                 x2 = x2.to(torch.bool)
-                return x1 + x2  
+                return x1 + x2     #Uses + inplace of 'add'  
         ref_net = None
 
         return aten_add(), ref_net, "aten::add"
