@@ -154,6 +154,9 @@ void handle_performance_hint(const std::string& device, const ov::Core& core, ov
             if (FLAGS_api == "sync") {
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
             }
+            if (config.find(ov::hint::performance_mode.name()) != config.end()) {
+                ov_perf_hint = config[ov::hint::performance_mode.name()];
+            }
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
                        << device << ") performance hint will be set to " << ov_perf_hint << "." << slog::endl;
