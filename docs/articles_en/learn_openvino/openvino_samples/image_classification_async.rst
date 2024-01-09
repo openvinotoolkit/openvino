@@ -5,39 +5,39 @@ Image Classification Async Sample
 
 
 .. meta::
-   :description: Learn how to do inference of image classification models 
+   :description: Learn how to do inference of image classification models
                  using Asynchronous Inference Request API (Python, C++).
 
 
-This sample demonstrates how to do inference of image classification models 
-using Asynchronous Inference Request API. Before using the sample, refer to the 
+This sample demonstrates how to do inference of image classification models
+using Asynchronous Inference Request API. Before using the sample, refer to the
 following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
   and ONNX (.onnx) formats, that do not require preprocessing.
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>` models.
-- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
 
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, prepares input data, and 
+At startup, the sample application reads command-line parameters, prepares input data, and
 loads a specified model and an image to the OpenVINO™ Runtime plugin.
-The batch size of the model is set according to the number of read images. The 
-batch mode is an independent attribute on the asynchronous mode. 
+The batch size of the model is set according to the number of read images. The
+batch mode is an independent attribute on the asynchronous mode.
 The asynchronous mode works efficiently with any batch size.
 
-Then, the sample creates an inference request object and assigns completion callback 
+Then, the sample creates an inference request object and assigns completion callback
 for it. In scope of the completion callback handling, the inference request is executed again.
 
-After that, the application starts inference for the first infer request and waits 
-until 10th inference request execution has been completed. 
+After that, the application starts inference for the first infer request and waits
+until 10th inference request execution has been completed.
 The asynchronous mode might increase the throughput of the pictures.
 
-When inference is done, the application outputs data to the standard output stream. 
+When inference is done, the application outputs data to the standard output stream.
 You can place labels in ``.labels`` file near the model to get pretty output.
 
 .. tab-set::
@@ -46,7 +46,7 @@ You can place labels in ``.labels`` file near the model to get pretty output.
       :sync: python
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/python/classification_sample_async/classification_sample_async.py
             :language: python
 
@@ -54,13 +54,13 @@ You can place labels in ``.labels`` file near the model to get pretty output.
       :sync: cpp
 
       .. scrollbox::
-      
-         .. doxygensnippet:: samples/cpp/classification_sample_async/main.cpp 
+
+         .. doxygensnippet:: samples/cpp/classification_sample_async/main.cpp
             :language: cpp
 
 
-You can see the explicit description of each sample step at 
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
+You can see the explicit description of each sample step at
+:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 
@@ -75,16 +75,16 @@ Run the application with the ``-h`` option to see the usage message:
       :sync: python
 
       .. code-block:: console
-      
+
          python classification_sample_async.py -h
 
       Usage message:
-      
+
       .. code-block:: console
-         
+
          usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
                                                [-d DEVICE]
-         
+
          Options:
            -h, --help            Show this help message and exit.
            -m MODEL, --model MODEL
@@ -102,32 +102,32 @@ Run the application with the ``-h`` option to see the usage message:
       :sync: cpp
 
       .. code-block:: console
-      
+
          classification_sample_async -h
 
       Usage instructions:
-      
+
       .. code-block:: console
-      
+
          [ INFO ] OpenVINO Runtime version ......... <version>
          [ INFO ] Build ........... <build>
-         
+
          classification_sample_async [OPTION]
          Options:
-         
+
              -h                      Print usage instructions.
              -m "<path>"             Required. Path to an .xml file with a trained model.
              -i "<path>"             Required. Path to a folder with images or path to image files: a .ubyte file for LeNet and a .bmp file for other models.
              -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify the HETERO plugin. Sample will look for a suitable plugin for the device specified.
-         
+
          Available target devices: <devices>
 
 
 To run the sample, you need to specify a model and an image:
 
-- You can get a model specific for your inference task from one of model 
+- You can get a model specific for your inference task from one of model
   repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub.
-- You can use images from the media files collection available at 
+- You can use images from the media files collection available at
   `the storage <https://storage.openvinotoolkit.org/data/test_data>`__.
 
 
@@ -142,16 +142,16 @@ To run the sample, you need to specify a model and an image:
    - The sample supports NCHW model layout only.
 
    - When you specify single options multiple times, only the last value will be used. For example, the ``-m`` flag:
-   
+
      .. tab-set::
-     
+
         .. tab-item:: Python
            :sync: python
 
            .. code-block:: console
 
               python classification_sample_async.py -m model.xml -m model2.xml
-     
+
         .. tab-item:: C++
            :sync: cpp
 
@@ -195,7 +195,7 @@ Example
          :sync: python
 
          .. code-block:: console
-      
+
             python classification_sample_async.py -m ./models/alexnet.xml -i ./test_data/images/banana.jpg ./test_data/images/car.bmp -d GPU
 
       .. tab-item:: C++
@@ -214,11 +214,11 @@ Sample Output
    .. tab-item:: Python
       :sync: python
 
-      The sample application logs each step in a standard output stream and 
+      The sample application logs each step in a standard output stream and
       outputs top-10 inference results.
 
       .. code-block:: console
-      
+
          [ INFO ] Creating OpenVINO Runtime Core
          [ INFO ] Reading the model: C:/test_data/models/alexnet.xml
          [ INFO ] Loading the model to the plugin
@@ -258,11 +258,11 @@ Sample Output
    .. tab-item:: C++
       :sync: cpp
 
-      The sample application logs each step in a standard output stream and 
+      The sample application logs each step in a standard output stream and
       outputs top-10 inference results.
 
       .. code-block:: console
-         
+
          [ INFO ] OpenVINO Runtime version ......... <version>
          [ INFO ] Build ........... <build>
          [ INFO ]
@@ -305,11 +305,11 @@ Sample Output
          [ INFO ] Completed 9 async request execution
          [ INFO ] Completed 10 async request execution
          [ INFO ] Completed async requests execution
-         
+
          Top 10 results:
-         
+
          Image /images/dog.bmp
-         
+
          classid probability
          ------- -----------
          156     0.8935547

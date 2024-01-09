@@ -5,26 +5,26 @@ Hello Classification Sample
 
 
 .. meta::
-   :description: Learn how to do inference of image classification 
+   :description: Learn how to do inference of image classification
                  models using Synchronous Inference Request API (Python, C++, C).
 
 
-This sample demonstrates how to do inference of image classification models using 
+This sample demonstrates how to do inference of image classification models using
 Synchronous Inference Request API. Before using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
   and ONNX (.onnx) formats, that do not require preprocessing.
-- The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`, 
+- The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`,
   :doc:`googlenet-v1 <omz_models_model_googlenet_v1>` models.
-- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, prepares input data, 
-loads a specified model and image to the OpenVINO™ Runtime plugin (Inference Engine in C API), 
+At startup, the sample application reads command-line parameters, prepares input data,
+loads a specified model and image to the OpenVINO™ Runtime plugin (Inference Engine in C API),
 performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 .. tab-set::
@@ -33,7 +33,7 @@ performs synchronous inference, and processes output data, logging each step in 
       :sync: python
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/python/hello_classification/hello_classification.py
             :language: python
 
@@ -41,7 +41,7 @@ performs synchronous inference, and processes output data, logging each step in 
       :sync: cpp
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/cpp/hello_classification/main.cpp
             :language: cpp
 
@@ -49,13 +49,13 @@ performs synchronous inference, and processes output data, logging each step in 
       :sync: c
 
       .. scrollbox::
-      
-         .. doxygensnippet:: samples/c/hello_classification/main.c 
+
+         .. doxygensnippet:: samples/c/hello_classification/main.c
             :language: c
 
 
-You can see the explicit description of each sample step at 
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
+You can see the explicit description of each sample step at
+:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -86,22 +86,22 @@ Running
 
 To run the sample, you need to specify a model and an image:
 
-- You can get a model specific for your inference task from one of model 
+- You can get a model specific for your inference task from one of model
   repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub.
-- You can use images from the media files collection available at 
+- You can use images from the media files collection available at
   `the storage <https://storage.openvinotoolkit.org/data/test_data>`__.
 
 .. note::
 
-   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR 
-     channels order. If you trained your model to work with RGB order, you need 
-     to manually rearrange the default channels order in the sample or demo 
-     application or reconvert your model using model conversion API with 
-     ``reverse_input_channels`` argument specified. For more information about 
-     the argument, refer to **When to Reverse Input Channels** section of 
+   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR
+     channels order. If you trained your model to work with RGB order, you need
+     to manually rearrange the default channels order in the sample or demo
+     application or reconvert your model using model conversion API with
+     ``reverse_input_channels`` argument specified. For more information about
+     the argument, refer to **When to Reverse Input Channels** section of
      :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is 
-     converted to the intermediate representation (IR) format (\*.xml + \*.bin) 
+   - Before running the sample with a trained model, make sure the model is
+     converted to the intermediate representation (IR) format (\*.xml + \*.bin)
      using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -164,7 +164,7 @@ Sample Output
    .. tab-item:: Python
       :sync: python
 
-      The sample application logs each step in a standard output stream and 
+      The sample application logs each step in a standard output stream and
       outputs top-10 inference results.
 
       .. code-block:: console
@@ -174,7 +174,7 @@ Sample Output
          [ INFO ] Loading the model to the plugin
          [ INFO ] Starting inference in synchronous mode
          [ INFO ] Image path: /images/banana.jpg
-         [ INFO ] Top 10 results:     
+         [ INFO ] Top 10 results:
          [ INFO ] class_id probability
          [ INFO ] --------------------
          [ INFO ] 954      0.9703885

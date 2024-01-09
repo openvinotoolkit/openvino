@@ -5,28 +5,28 @@ Hello Reshape SSD Sample
 
 
 .. meta::
-   :description: Learn how to do inference of object detection 
-                 models using shape inference feature and Synchronous 
+   :description: Learn how to do inference of object detection
+                 models using shape inference feature and Synchronous
                  Inference Request API (Python, C++).
 
 
-This sample demonstrates how to do synchronous inference of object detection models 
-using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`. Before 
+This sample demonstrates how to do synchronous inference of object detection models
+using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`. Before
 using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin) 
+- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
   and ONNX (.onnx) formats, that do not require preprocessing.
-- The sample has been validated with: :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`, 
-  :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>` 
+- The sample has been validated with: :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`,
+  :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`
   models and the NCHW layout format.
-- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+- To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data.  
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data.
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 .. tab-set::
@@ -35,7 +35,7 @@ As a result, the program creates an output image, logging each step in a standar
       :sync: python
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/python/hello_reshape_ssd/hello_reshape_ssd.py
             :language: python
 
@@ -44,8 +44,8 @@ As a result, the program creates an output image, logging each step in a standar
       :sync: cpp
 
       .. scrollbox::
-      
-         .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
+
+         .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp
             :language: cpp
 
 
@@ -62,35 +62,35 @@ Running
       :sync: python
 
       .. code-block:: console
-         
+
          python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 
    .. tab-item:: C++
       :sync: cpp
 
       .. code-block:: console
-         
+
          hello_reshape_ssd <path_to_model> <path_to_image> <device_name>
 
 
 To run the sample, you need to specify a model and an image:
 
-- You can get a model specific for your inference task from one of model 
+- You can get a model specific for your inference task from one of model
   repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub.
-- You can use images from the media files collection available at 
+- You can use images from the media files collection available at
   `the storage <https://storage.openvinotoolkit.org/data/test_data>`__.
 
 .. note::
-  
-   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels 
-     order. If you trained your model to work with RGB order, you need to manually 
-     rearrange the default channels order in the sample or demo application or 
-     reconvert your model using model conversion API with ``reverse_input_channels`` 
-     argument specified. For more information about the argument, refer to 
-     **When to Reverse Input Channels** section of 
+
+   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels
+     order. If you trained your model to work with RGB order, you need to manually
+     rearrange the default channels order in the sample or demo application or
+     reconvert your model using model conversion API with ``reverse_input_channels``
+     argument specified. For more information about the argument, refer to
+     **When to Reverse Input Channels** section of
      :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is 
-     converted to the intermediate representation (IR) format (\*.xml + \*.bin) 
+   - Before running the sample with a trained model, make sure the model is
+     converted to the intermediate representation (IR) format (\*.xml + \*.bin)
      using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -123,19 +123,19 @@ Example
 4. Perform inference of an image, using a model on a ``GPU``, for example:
 
    .. tab-set::
-   
+
       .. tab-item:: Python
          :sync: python
-   
+
          .. code-block:: console
-            
+
             python hello_reshape_ssd.py ./test_data/models/mobilenet-ssd.xml banana.jpg GPU
-   
+
       .. tab-item:: C++
          :sync: cpp
-   
+
          .. code-block:: console
-            
+
             hello_reshape_ssd ./models/person-detection-retail-0013.xml person_detection.bmp GPU
 
 
@@ -147,12 +147,12 @@ Sample Output
    .. tab-item:: Python
       :sync: python
 
-      The sample application logs each step in a standard output stream and 
-      creates an output image, drawing bounding boxes for inference results 
+      The sample application logs each step in a standard output stream and
+      creates an output image, drawing bounding boxes for inference results
       with an over 50% confidence.
-      
+
       .. code-block:: console
-         
+
          [ INFO ] Creating OpenVINO Runtime Core
          [ INFO ] Reading the model: C:/test_data/models/mobilenet-ssd.xml
          [ INFO ] Reshaping the model to the height and width of the input image
@@ -166,13 +166,13 @@ Sample Output
    .. tab-item:: C++
       :sync: cpp
 
-      The application renders an image with detected objects enclosed in rectangles. 
-      It outputs the list of classes of the detected objects along with the 
-      respective confidence values and the coordinates of the rectangles to the 
+      The application renders an image with detected objects enclosed in rectangles.
+      It outputs the list of classes of the detected objects along with the
+      respective confidence values and the coordinates of the rectangles to the
       standard output stream.
-      
+
       .. code-block:: console
-         
+
          [ INFO ] OpenVINO Runtime version ......... <version>
          [ INFO ] Build ........... <build>
          [ INFO ]
@@ -198,7 +198,7 @@ Sample Output
          [ INFO ]         output shape: {1, 1, 200, 7}
          [0,1] element, prob = 0.716309,    (852,187)-(983,520)
          The resulting image was saved in the file: hello_reshape_ssd_output.bmp
-         
+
          This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 
 

@@ -8,17 +8,17 @@ Bert Benchmark Python Sample
    :description: Learn how to estimate performance of a Bert model using Asynchronous Inference Request (Python) API.
 
 
-This sample demonstrates how to estimate performance of a Bert model using Asynchronous 
-Inference Request API. Unlike :doc:`demos <omz_demos>` this sample does not have 
-configurable command line arguments. Feel free to modify sample's source code to 
+This sample demonstrates how to estimate performance of a Bert model using Asynchronous
+Inference Request API. Unlike :doc:`demos <omz_demos>` this sample does not have
+configurable command line arguments. Feel free to modify sample's source code to
 try out different options.
 
 
 How It Works
 ####################
 
-The sample downloads a model and a tokenizer, exports the model to ONNX format, reads the 
-exported model and reshapes it to enforce dynamic input shapes. Then, it compiles the 
+The sample downloads a model and a tokenizer, exports the model to ONNX format, reads the
+exported model and reshapes it to enforce dynamic input shapes. Then, it compiles the
 resulting model, downloads a dataset and runs a benchmark on the dataset.
 
 .. scrollbox::
@@ -27,8 +27,8 @@ resulting model, downloads a dataset and runs a benchmark on the dataset.
       :language: python
 
 
-You can see the explicit description of each sample step at 
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
+You can see the explicit description of each sample step at
+:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running

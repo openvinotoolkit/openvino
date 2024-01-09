@@ -5,20 +5,20 @@ Hello Query Device Sample
 
 
 .. meta::
-   :description: Learn how to show metrics and default 
-                 configuration values of inference devices using Query 
+   :description: Learn how to show metrics and default
+                 configuration values of inference devices using Query
                  Device API feature (Python, C++).
 
 
-This sample demonstrates how to show OpenVINO™ Runtime devices and prints their 
+This sample demonstrates how to show OpenVINO™ Runtime devices and prints their
 metrics and default configuration values using :doc:`Query Device API feature <openvino_docs_OV_UG_query_api>`.
-To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>` 
+To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
 section in "Get Started with Samples" guide.
 
 How It Works
 ####################
 
-The sample queries all available OpenVINO™ Runtime devices and prints their 
+The sample queries all available OpenVINO™ Runtime devices and prints their
 supported metrics and plugin configuration parameters.
 
 .. tab-set::
@@ -27,7 +27,7 @@ supported metrics and plugin configuration parameters.
       :sync: python
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/python/hello_query_device/hello_query_device.py
             :language: python
 
@@ -36,7 +36,7 @@ supported metrics and plugin configuration parameters.
       :sync: cpp
 
       .. scrollbox::
-      
+
          .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp
             :language: cpp
 
@@ -67,7 +67,7 @@ The sample has no command-line parameters. To see the report, run the following 
 Sample Output
 ####################
 
-The application prints all available devices with their supported metrics and 
+The application prints all available devices with their supported metrics and
 default values for configuration parameters.
 For example:
 
