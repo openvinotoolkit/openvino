@@ -17,6 +17,24 @@ OutputVector average_pool(const Node& node) {
 }
 
 }  // namespace set_1
+namespace set_10{
+OutputVector average_pool(const Node& node) {
+    return pooling::PoolingFactory(node).make_avg_pool_10();
+}    
+
+} // namespace set_10
+namespace set_11{
+OutputVector average_pool(const Node& node) {
+    return pooling::PoolingFactory(node).make_avg_pool_11();;
+}    
+
+} // namespace set_11
+
+namespace set_19{
+OutputVector average_pool(const Node& node) {
+    return pooling::PoolingFactory(node).make_avg_pool_19();
+}    
+} // namespace set_19
 
 }  // namespace op
 
