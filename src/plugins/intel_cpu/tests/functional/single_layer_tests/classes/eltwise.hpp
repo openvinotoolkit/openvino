@@ -35,6 +35,10 @@ protected:
 
 private:
     utils::EltwiseTypes eltwiseType;
+
+    std::string getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+                                 const ov::element::Type_t& element_type,
+                                 const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
 };
 
 namespace Eltwise {
