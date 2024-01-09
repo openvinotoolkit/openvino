@@ -8,8 +8,6 @@ param (
 
 $Env:INTEL_OPENVINO_DIR = Split-Path $MyInvocation.MyCommand.Path
 
-$Env:InferenceEngine_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
-$Env:ngraph_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
 $Env:OpenVINO_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
 $Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
 

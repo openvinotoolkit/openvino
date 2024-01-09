@@ -25,7 +25,6 @@ ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 # install setupvars
 
 ov_cpack_add_component(${OV_CPACK_COMP_SETUPVARS} HIDDEN)
-ov_cpack_add_component(${OV_CPACK_COMP_SETUPVARS_PWSH} HIDDEN)
 
 if(UNIX)
     set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
@@ -40,8 +39,8 @@ elseif(WIN32)
 
     install(PROGRAMS "${_setupvars_file_pwsh_full_path}"
             DESTINATION .
-            COMPONENT ${OV_CPACK_COMP_SETUPVARS_PWSH}
-            ${OV_CPACK_COMP_SETUPVARS_PWSH_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_SETUPVARS}
+            ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
 endif()
 
 install(PROGRAMS "${_setupvars_file_full_path}"
