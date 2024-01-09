@@ -174,9 +174,6 @@ public:
     virtual MemoryDescPtr getDescPtr() const = 0;
 
     virtual void* getData() const = 0; // pointer to the actual memory
-    virtual bool hasActualMemory() const {
-        return true;
-    }
 
     virtual size_t getSize() const = 0; // in bytes
     virtual const Shape& getShape() const = 0;
