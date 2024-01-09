@@ -19,6 +19,8 @@
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
+using namespace ov::frontend::onnx::common;
+
 namespace ngraph {
 namespace onnx_import {
 // Detecting automatically the underlying type used to store the information
@@ -80,7 +82,7 @@ inline std::vector<T> __get_data(const Container& container) {
 template <typename T>
 inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_type) {
     auto it = reinterpret_cast<const T*>(raw_data.data());
-    return std::vector<T>(it, it + (raw_data.size() / onnx_common::get_onnx_data_size(onnx_data_type)));
+    return std::vector<T>(it, it + (raw_data.size() / get_onnx_data_size(onnx_data_type)));
 }
 
 }  // namespace
@@ -333,7 +335,7 @@ private:
 
     size_t get_data_size() const {
         if (m_tensor_proto->has_raw_data()) {
-            return m_tensor_proto->raw_data().size() / onnx_common::get_onnx_data_size(m_tensor_proto->data_type());
+            return m_tensor_proto->raw_data().size() / get_onnx_data_size(m_tensor_proto->data_type());
         }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:

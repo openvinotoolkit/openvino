@@ -54,7 +54,7 @@ protected:
         int axis;
         ElementType netPrecision;
         InputShape inputShapes;
-        ov::Shape outIndices;
+        std::vector<size_t> outIndices;
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = this->GetParam();
         if (outIndices.empty()) {

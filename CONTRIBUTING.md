@@ -101,6 +101,7 @@ You can start with the following links:
 - [User documentation](https://docs.openvino.ai/)
 - [Blog post on contributing to OpenVINO](https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e)
 - [Pick up a Good First Issue](https://github.com/orgs/openvinotoolkit/projects/3)
+- Check out [Intel DevHub Discord server](https://discord.gg/wPuqAujS) - engage in discussions, ask questions and talk to OpenVINO developers
 
 ### 2. Building the project
 
@@ -138,7 +139,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 
 ### 3. Start working on your Good First Issue
 
-Use the issue description and locally built OpenVINO to complete the task. Remember that you can always ask users tagged in the "Contact points" section for help!
+Use the issue description and locally built OpenVINO to complete the task. Remember that you can always ask users tagged in the "Contact points" section for help! You can also visit [Intel DevHub Discord server](https://discord.gg/wPuqAujS) and ask questions in the channel dedicated to Good First Issue support.
 
 ### 4. Submit a PR with your changes
 

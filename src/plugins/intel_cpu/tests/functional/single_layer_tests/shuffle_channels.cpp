@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/shuffle_channels.hpp"
+#include "shared_test_classes/single_op/shuffle_channels.hpp"
 
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -14,7 +14,7 @@ namespace test {
 
 using ShuffleChannelsLayerCPUTestParamsSet = std::tuple<InputShape,   // Input shape
                                                         ElementType,  // Input element type
-                                                        LayerTestsDefinitions::shuffleChannelsSpecificParams,
+                                                        ov::test::shuffleChannelsSpecificParams,
                                                         CPUSpecificParams>;
 
 class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleChannelsLayerCPUTestParamsSet>,
@@ -24,7 +24,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
         InputShape shapes;
         ElementType inType;
-        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
+        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
         CPUSpecificParams cpuParams;
         std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = obj.param;
         int axis, group;
@@ -48,7 +48,7 @@ protected:
     void SetUp() override {
         InputShape shapes;
         ElementType inType;
-        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
+        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
         int axis, group;
         CPUSpecificParams cpuParams;
         std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = this->GetParam();

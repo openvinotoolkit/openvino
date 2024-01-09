@@ -29,7 +29,6 @@
 #include "condition_inst.h"
 #include "gather_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "non_max_suppression_inst.h"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -80,7 +79,7 @@ bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
     if (runtime_alloc) {
         // Try to recursively find any optimized out user which is also network output
         for (const auto& user : prim->get_user_insts()) {
-            if (is_optimized_output_user<const std::shared_ptr<primitive_inst>>(user)) {
+            if (is_optimized_output_user<const primitive_inst*>(user)) {
                 return true;
             }
         }
@@ -493,8 +492,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     auto updated_layout = actual_layout;
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
-        // to prevemt reading beyound the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>()) {
+        // to prevent reading beyond the allocated memory bounds
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
             user->update_shape();
             user->update_shape_done_by_other = true;
 
@@ -509,7 +508,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0] && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+    if (_node->is_type<gather>() && !can_be_optimized() && _outputs[0]
+            && dep_memory_ptr(0) && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
         _outputs[0] = nullptr;
         max_output_layout_size = 0;
     }
@@ -545,7 +545,6 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
         if (_outputs[0]->get_layout() != actual_layout) {
-            _outputs[0]->set_reused(true);
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
         if (need_reset_output_memory() && !can_be_optimized()) {
@@ -699,12 +698,16 @@ bool primitive_inst::update_impl() {
             o.data_padding.set_dynamic_pad(tensor(0));
         }
 
+        const auto is_current_impl_dynamic = _impl && _impl->is_dynamic();
         const auto& prog = get_network().get_program();
         auto& cache = prog->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
             cached_impl = cache.get(updated_params_no_dyn_pad);
             if (cached_impl) {
+                // Keep dynamic impl in memory and replace current impl with static one
+                if (is_current_impl_dynamic)
+                    _dynamic_impl = std::move(_impl);
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
@@ -714,7 +717,7 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
-            if (_dynamic_impl) {
+            if (_dynamic_impl || is_current_impl_dynamic) {
                 if (use_async_compilation()) {
                     auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
@@ -740,7 +743,8 @@ bool primitive_inst::update_impl() {
                     });
                 }
                 if (!can_be_optimized())  {
-                    _impl = _dynamic_impl->clone();
+                    if (!is_current_impl_dynamic)
+                        _impl = std::move(_dynamic_impl);
                     auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
                     _impl->update_dispatch_data(new_impl_params);
                     update_shape_info(new_impl_params);
@@ -798,8 +802,8 @@ void primitive_inst::do_runtime_skip_reorder() {
             u->update_shape_done_by_other = true;
 
             if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
-                std::function<void(std::vector<std::shared_ptr<primitive_inst>>)> update_memory_dependencies;
-                update_memory_dependencies = [&](std::vector<std::shared_ptr<primitive_inst>> users) {
+                std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
+                update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                     for (auto& user : users) {
                         GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
                         user->_runtime_memory_dependencies.insert(id());
@@ -838,7 +842,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
                 reset_pad(*inst->_impl_params, inst->_node);
                 auto& users = inst->_node->get_users();
                 if (users.size() == 1 && users.front()->get_output_layout(0).data_padding.get_dynamic_pad_dims() != tensor(0)) {
-                    inst = inst->get_user_insts().front().get();
+                    inst = inst->get_user_insts().front();
                 } else {
                     inst = nullptr;
                 }
@@ -915,6 +919,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 void primitive_inst::do_runtime_skip_gather() {
     // Check pattern
     if (!get_node().is_type<gather>()
+        || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
@@ -927,8 +932,15 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_shape = _impl_params->get_input_layout(1).get_shape();
     auto idx_rank = idx_shape.size();
 
-    if (idx_rank > 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_shape.size() << std::endl;
+    if (_impl_params->get_input_layout(0).count() == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+
+    if (idx_rank != 1) {
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
+        set_can_be_optimized(false);
         return;
     }
 
@@ -984,7 +996,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized())
         return;
     // Currently does not support cascaded concats
-    std::vector<std::shared_ptr<primitive_inst>> concat_preds;
+    std::vector<primitive_inst*> concat_preds;
     for (auto pred : concat_inst->_deps) {
         concat_preds.push_back(pred.first);
     }
@@ -1049,18 +1061,39 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
+        do_runtime_in_place_kv_cache();
+
+        bool can_skip_execution = false;
+        if (_impl_params->output_layouts[0].count() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            can_skip_execution = true;
+        }
+
+        if (_node->is_in_shape_of_subgraph()) {
+            bool subgraph_input_changed = false;
+            for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
+                if (dependant_shape_of_insts[i]->shape_changed()) {
+                    subgraph_input_changed = true;
+                    break;
+                }
+            }
+            if (!subgraph_input_changed) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                can_skip_execution = true;
+            }
+        }
+
+        if (can_skip_execution) {
+            auto ev = get_network().get_stream().create_user_event(true);
+            update_shape_done_by_other = false; // reset
+            return ev;
+        }
+
         // Check successor reorder if layouts are same
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
-        do_runtime_in_place_kv_cache();
-        if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
-            auto ev = get_network().get_stream().create_user_event(true);
-            update_shape_done_by_other = false; // reset
-            return ev;
-        }
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
@@ -1112,8 +1145,14 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
+    // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
+    bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
+        [](const std::pair<primitive_inst*, int32_t>& dep) {
+            return dep.first->is_dynamic();
+    });
+
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output()) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || (!is_dynamic() && has_dynamic_dependencies_insts)) {
         set_arguments();
     }
     on_execute();
@@ -1193,14 +1232,12 @@ void primitive_inst::build_deps() {
 void primitive_inst::configure_shape_of_dependencies() {
     if (dependant_shape_of_insts.empty() && _node != nullptr) {
         for (auto shape_of : _node->get_dependant_shape_of_nodes()) {
-            dependant_shape_of_insts.push_back(_network.get_primitive(shape_of->id()));
+            dependant_shape_of_insts.push_back(_network.get_primitive(shape_of->id()).get());
         }
     }
 }
 
-void primitive_inst::rebuild_deps(
-    std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives) {
-
+void primitive_inst::rebuild_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives) {
     _deps.resize(_dep_ids.size());
     for (size_t i = 0; i < _dep_ids.size(); i++) {
         OPENVINO_ASSERT((primitives.count(_dep_ids[i].first) > 0),
@@ -1209,9 +1246,7 @@ void primitive_inst::rebuild_deps(
     }
 }
 
-void primitive_inst::rebuild_exec_deps(
-    std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives) {
-
+void primitive_inst::rebuild_exec_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives) {
     _exec_deps.resize(_exec_dep_ids.size());
     for (size_t i = 0; i < _exec_dep_ids.size(); i++) {
         OPENVINO_ASSERT((primitives.count(_exec_dep_ids[i]) > 0),
@@ -1259,7 +1294,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
-    if (allocate_memory && node.is_dynamic() && (!network.get_engine().check_allocatable(output_layout, allocation_type::usm_host))) {
+    auto& engine = network.get_engine();
+    if (allocate_memory && node.is_dynamic() && (!engine.check_allocatable(output_layout, engine.get_lockable_preferred_memory_allocation_type(false)))) {
         allocate_memory = false;
     }
     _mem_allocated = allocate_memory;
@@ -1333,7 +1369,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (ibuf_layouts.empty())
         return nullptr;
 
-    auto device_mem_acc = [&](size_t a, std::pair<std::shared_ptr<primitive_inst>, int32_t> b) {
+    auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
         if (!b.first->mem_allocated()) return a;
         auto res = a;
         for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
@@ -1667,9 +1703,8 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     return outputs;
 }
 
-std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& deps) {
-    std::vector<std::shared_ptr<primitive_inst>> exec_deps;
+std::vector<primitive_inst*> primitive_inst::build_exec_deps(std::vector<std::pair<primitive_inst*, int32_t>> const& deps) {
+    std::vector<primitive_inst*> exec_deps;
     exec_deps.reserve(deps.size());
     for (auto& dep : deps)
         if (dep.first->get_impl() != nullptr || dep.first->is_dynamic())
