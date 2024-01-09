@@ -35,6 +35,11 @@ protected:
 private:
     ov::element::Type netPrecision = ov::element::undefined;
     utils::ActivationTypes activationType = utils::ActivationTypes::None;
+
+    std::string getPrimitiveType(
+        const ngraph::helpers::ActivationTypes& activation_type,
+        const ov::element::Type_t& element_type,
+        const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
 };
 
 namespace Activation {
