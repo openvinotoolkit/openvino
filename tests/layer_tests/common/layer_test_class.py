@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
-from common.layer_utils import IEInfer, InferAPI20
+from common.layer_utils import InferAPI20
 from common.utils.common_utils import generate_ir_python_api
 
 
@@ -82,9 +82,7 @@ class CommonLayerTest:
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
         if self.use_old_api:
-            ie_engine = IEInfer(model=path_to_xml,
-                                weights=path_to_bin,
-                                device=ie_device)
+            raise Exception("Python API 1.0 isn't available")
         else:
             ie_engine = InferAPI20(model=path_to_xml,
                                    weights=path_to_bin,
