@@ -3,11 +3,61 @@
 //
 
 #include "shared_test_classes/single_op/dft.hpp"
-
 #include "common_test_utils/node_builders/dft.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {
+static inline void set_real_number_generation_data(utils::InputGenerateData& inGenData) {
+    inGenData.range = 8;
+    inGenData.resolution = 32;
+}
+
+void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    std::vector<InputShape> shapes;
+    ov::element::Type model_type;
+    std::vector<int64_t> axes;
+    std::vector<int64_t> signal_size;
+    ov::test::utils::DFTOpType op_type;
+    std::string target_device;
+    std::tie(shapes, model_type, axes, signal_size, op_type, target_device) = GetParam();
+
+    auto elemType = model_type;
+    bool inPrcSigned = elemType.is_signed();
+
+    ov::test::utils::InputGenerateData inGenData;
+    if (elemType.is_real()) {
+        set_real_number_generation_data(inGenData);
+    }
+
+    const auto& funcInputs = function->inputs();
+    auto funcInput = funcInputs.begin();
+
+    const auto node = funcInput->get_node_shared_ptr();
+    const size_t inNodeCnt = node->get_input_size();
+
+    auto it = ov::test::utils::inputRanges.find(ov::op::v7::DFT::get_type_info_static());
+    if (op_type == ov::test::utils::DFTOpType::INVERSE) {
+        it = ov::test::utils::inputRanges.find(ov::op::v7::IDFT::get_type_info_static());
+    }
+
+    if (it != ov::test::utils::inputRanges.end()) {
+        const auto& ranges = it->second;
+        if (ranges.size() != 2) {
+            throw std::runtime_error("Incorrect size of ranges. It should be 2 (real and int cases)");
+        }
+        const auto& range = ranges.at(elemType.is_real());
+        inGenData = range.size() < inNodeCnt ? range.front() : range.at(0);
+    }
+
+    inputs.clear();
+    runtime::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
+                                            targetInputStaticShapes[0],
+                                            inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
+}
+
 std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type model_type;

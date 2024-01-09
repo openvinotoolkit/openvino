@@ -14,7 +14,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
-            R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
+            R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
@@ -36,9 +36,9 @@ std::vector<std::string> disabledTestPatterns() {
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
-            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 68712
