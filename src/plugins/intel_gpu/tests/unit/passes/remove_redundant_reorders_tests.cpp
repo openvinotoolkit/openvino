@@ -503,3 +503,56 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
         ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
 }
+
+TEST(remove_redundant_reorders, fuse_reorder_to_prev_fc_dyn) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{ ov::Dimension::dynamic(), ov::Dimension::dynamic(), 32, 128 }, data_types::f16, format::bfyx};
+    auto pattern_layout = layout{ov::PartialShape{ 3 }, data_types::i32, format::bfyx};
+    auto input = engine.allocate_memory({ ov::PartialShape{ 1084, 1, 32, 128 }, data_types::f32, format::bfyx });
+    auto pattern = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 4096, 4096 }, data_types::u4, format::bfyx });
+    auto scale = engine.allocate_memory({ ov::PartialShape{ 4096, 128 }, data_types::f16, format::bfyx });
+
+    set_values(pattern, { 1084, 1, 4096 });
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("pattern", pattern_layout));
+    topology.add(data("weights", weights));
+    topology.add(data("scale", scale));
+    topology.add(reshape("reshape1", input_info("input"), true, { 0, 0, 4096 },
+                         ov::PartialShape{ ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4096 },
+                         reshape::reshape_mode::base));
+    topology.add(reshape("reshape2", input_info("reshape1"), false, { -1, 4096 }, 
+                         ov::PartialShape{ ov::Dimension::dynamic(), 4096 },
+                         reshape::reshape_mode::base));
+    topology.add(fully_connected("fc", input_info("reshape2"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2));
+    topology.add(reorder("reorder", input_info("fc"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(reshape("reshape3", input_info("reorder"), input_info("pattern"), false, 
+                         ov::PartialShape{ ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4096 },
+                         reshape::reshape_mode::base));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<reorder>(*prog));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("pattern", pattern);
+
+    EXPECT_NO_THROW(network.execute());
+
+    auto& fc_node = prog->get_node("fc");
+    auto fc_layout = fc_node.get_output_layout();
+
+    ASSERT_EQ(fc_layout.data_type, data_types::f32);
+}
