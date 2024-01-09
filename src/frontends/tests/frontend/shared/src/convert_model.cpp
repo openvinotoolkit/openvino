@@ -70,7 +70,7 @@ TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     }
     // m_frontEnd->convert() aligns outputs to have single tensor name, depending on origianal FW.
     // This allignment is possible only for ov::frontend::InputModel as ov::Model does not have original FW info.
-    // For this reason tensor names may differ for TF in this test. 
+    // For this reason tensor names may differ for TF in this test.
     if (m_frontEnd->get_name() == "tf") {
         func_comparator.disable(FunctionsComparator::TENSOR_NAMES);
     }
