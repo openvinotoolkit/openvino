@@ -116,6 +116,7 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
+set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # 'Ninja Multi-Config' specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
