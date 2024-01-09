@@ -8,6 +8,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -61,7 +62,7 @@ OutputVector detection_output(const Node& node) {
                                                               aux_box_preds,
                                                               attrs)};
     } else {
-        NGRAPH_CHECK(false, "Invalid number of inputs");
+        FRONT_END_GENERAL_CHECK(false, "Invalid number of inputs");
     }
 }
 
