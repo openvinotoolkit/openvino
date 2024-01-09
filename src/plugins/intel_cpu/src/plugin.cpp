@@ -566,7 +566,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     }
 
     conf.readProperties(config, modelType);
-    std::cout << "Engine::compile_model - conf.readProperties " << std::endl;
     calculate_streams(conf, cloned_model);
     std::cout << "Engine::compile_model - calculate_streams " << std::endl;
 

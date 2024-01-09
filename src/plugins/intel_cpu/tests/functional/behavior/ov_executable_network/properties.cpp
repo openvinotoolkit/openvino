@@ -116,7 +116,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
     int32_t value = 0;
 
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...2" << std::endl;
+    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...2 - streams = " << streams
+              << std::endl;
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...3" << std::endl;
     ov::AnyMap config;
