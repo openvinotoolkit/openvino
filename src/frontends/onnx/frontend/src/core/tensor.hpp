@@ -234,9 +234,9 @@ private:
                     std::make_shared<ov::op::v0::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
             }
             if (constant->get_byte_size() != ov::shape_size(m_shape) * type.size()) {
-                FRONT_END_THROW("The size of the external data file does not match the byte size of an initializer '" +
-                                get_name() + "' in the model");
-            }
+                throw error::invalid_external_data(
+                    "The size of the external data file does not match the byte size of an initializer '" + get_name() +
+                    "' in the model");            }
         } else if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, get_data_ptr());
         } else if (data_size == 0 && m_shape.size() == 0) {
