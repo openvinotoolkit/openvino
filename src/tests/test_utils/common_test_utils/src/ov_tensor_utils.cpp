@@ -269,21 +269,21 @@ inline double less(double a, double b) {
 }
 
 inline double less_or_equal(double a, double b) {
-    return ((b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a <= b);
-    // bool res = true;
-    // if (std::isnan(a) || std::isnan(b)) {
-    //     res = false;
-    // } else if (std::isinf(b) && b > 0) {
-    //     // b is grater than any number or eq the +Inf
-    //     res = true;
-    // } else if (std::isinf(a) && a > 0) {
-    //     res = false;
-    // } else {
-    //     res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
-    // }
-    // double eq_midle_res = std::fabs(b - a);
-    // bool eq_res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps));
-    // return res;
+    // return ((b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a <= b);
+    bool res = true;
+    if (std::isnan(a) || std::isnan(b)) {
+        res = false;
+    } else if (std::isinf(b) && b > 0) {
+        // b is grater than any number or eq the +Inf
+        res = true;
+    } else if (std::isinf(a) && a > 0) {
+        res = false;
+    } else {
+        res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps) || a < b);
+    }
+    double eq_midle_res = std::fabs(b - a);
+    bool eq_res = (std::fabs(b - a) <= (std::fmax(std::fabs(a), std::fabs(b)) * eps));
+    return res;
 }
 
 struct Error {
@@ -383,9 +383,22 @@ void compare(const ov::Tensor& expected,
     }
 
     Error abs_error(abs_threshold), rel_error(rel_threshold);
+    auto max_type_expected = std::numeric_limits<ExpectedT>::max();
+    auto max_type_actual = std::numeric_limits<ActualT>::max();
+    auto min_type_expected = std::numeric_limits<ExpectedT>::min();
+    auto min_type_actual = std::numeric_limits<ActualT>::min();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
+
+        if ((std::isinf(expected_value) || expected_value >= max_type_expected) &&
+            (std::isinf(actual_value) || actual_value >= max_type_actual)) {
+            continue;
+        } else if ((std::isinf(expected_value) || expected_value <= min_type_expected) &&
+                    (std::isinf(actual_value) || actual_value <= min_type_actual)) {
+            continue;
+        }
+
         if (std::isnan(expected_value)) {
             std::ostringstream out_stream;
             out_stream << "Expected value is NAN on coordinate: " << i;
