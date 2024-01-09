@@ -39,8 +39,8 @@ LayerTransformation::LayerTransformation() {
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
-std::pair<float, float> LayerTransformation::getQuantizationInterval(ngraph::element::Type precision) {
-    const bool unsignedInterval = precision == ngraph::element::u8;
+std::pair<float, float> LayerTransformation::getQuantizationInterval(ov::element::Type precision) {
+    const bool unsignedInterval = precision == ov::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
@@ -142,11 +142,11 @@ std::string LayerTransformation::getRuntimePrecisionByFusedName(const std::strin
     return "";
 }
 
-std::map<std::string, ngraph::Node::RTMap> LayerTransformation::getRuntimeInfo() {
+std::map<std::string, ov::Node::RTMap> LayerTransformation::getRuntimeInfo() {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
 
-    std::map<std::string, ngraph::Node::RTMap> runtimeInfo;
+    std::map<std::string, ov::Node::RTMap> runtimeInfo;
     for (const auto& op : function->get_ops()) {
         runtimeInfo[op->get_friendly_name()] = op->get_rt_info();
     }
