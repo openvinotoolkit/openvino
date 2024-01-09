@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "single_layer_tests/experimental_detectron_generate_proposals_single_image.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include "single_op_tests/experimental_detectron_generate_proposals_single_image.hpp"
 
 namespace {
+using ov::test::ExperimentalDetectronGenerateProposalsSingleImageLayerTest;
 
 const std::vector<float> min_size = { 0.0f, 0.1f };
 const std::vector<float> nms_threshold = { 0.7f };
@@ -175,22 +172,21 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> getInputTenso
     return input_tensors;
 }
 
-const std::vector<std::vector<InputShape>> input_shape = {
+const std::vector<ov::test::InputShape> input_shape = {
     // im_info / anchors / deltas / scores
-    static_shapes_to_test_representation({{3}, {36, 4}, {12, 2, 6}, {3, 2, 6}}),
+    ov::test::static_shapes_to_test_representation({{3}, {36, 4}, {12, 2, 6}, {3, 2, 6}}),
 };
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_ExperimentalDetectronGenerateProposalsSingleImageLayerTest_f16,
     ExperimentalDetectronGenerateProposalsSingleImageLayerTest,
     ::testing::Combine(
-        ::testing::ValuesIn(input_shape),
+        ::testing::Values(input_shape),
         ::testing::ValuesIn(min_size),
         ::testing::ValuesIn(nms_threshold),
         ::testing::ValuesIn(post_nms_count),
         ::testing::ValuesIn(pre_nms_count),
-        ::testing::ValuesIn(getInputTensors<ov::float16>()),
-        ::testing::ValuesIn({ov::element::Type_t::f16}),
+        ::testing::Values(ov::element::f16),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);
 
@@ -198,13 +194,12 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_ExperimentalDetectronGenerateProposalsSingleImageLayerTest_f32,
         ExperimentalDetectronGenerateProposalsSingleImageLayerTest,
         ::testing::Combine(
-                ::testing::ValuesIn(input_shape),
+                ::testing::Values(input_shape),
                 ::testing::ValuesIn(min_size),
                 ::testing::ValuesIn(nms_threshold),
                 ::testing::ValuesIn(post_nms_count),
                 ::testing::ValuesIn(pre_nms_count),
-                ::testing::ValuesIn(getInputTensors<float>()),
-                ::testing::ValuesIn({ov::element::Type_t::f32}),
+                ::testing::Values(ov::element::f32),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
         ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);
 
