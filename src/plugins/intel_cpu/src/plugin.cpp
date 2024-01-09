@@ -561,7 +561,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     transformations.UpToLpt();
 
-    std::cout << "Engine::compile_model - transformations.UpToLpt " << std::endl;
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
     }
@@ -606,6 +605,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
         new_result.get_tensor().set_names(orig_result.get_tensor().get_names());
     }
 
+    std::cout << "Engine::compile_model - transformations.CpuSpecificOpSet " << std::endl;
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
@@ -617,6 +617,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
+    std::cout << "Engine::compile_model - make_shared<CompiledModel> " << std::endl;
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
 }
 

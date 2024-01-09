@@ -51,6 +51,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(loaded_from_cache) {
     bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
     m_mutex = std::make_shared<std::mutex>();
+    std::cout << "CompiledModel::CompiledModel - get_core " << std::endl;
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
@@ -80,10 +81,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
+    std::cout << "CompiledModel::CompiledModel - set_callback_executor " << std::endl;
     int streams = std::max(1, m_cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
+    std::cout << "CompiledModel::CompiledModel - m_graphs.resize " << std::endl;
     if (m_cfg.streamExecutorConfig._streams != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
@@ -101,6 +104,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
+    std::cout << "CompiledModel::CompiledModel - done " << std::endl;
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
