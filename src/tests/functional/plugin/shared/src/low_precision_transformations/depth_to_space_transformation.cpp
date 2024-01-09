@@ -8,7 +8,6 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -21,7 +20,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 

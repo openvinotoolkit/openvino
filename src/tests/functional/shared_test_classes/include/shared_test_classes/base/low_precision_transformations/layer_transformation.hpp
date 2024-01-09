@@ -35,7 +35,7 @@ class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
 
-    static std::pair<float, float> getQuantizationInterval(const ov::element::Type precision);
+    static std::pair<float, float> getQuantizationInterval(ov::element::Type precision);
 
     static std::string toString(const ov::pass::low_precision::LayerTransformation::Params& params);
 

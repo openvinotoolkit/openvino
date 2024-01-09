@@ -8,9 +8,8 @@
 #include <tuple>
 #include <vector>
 #include <string>
-//#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/max_pool.hpp"
 

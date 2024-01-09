@@ -9,7 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include <ie_core.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/multiply_with_one_parent.hpp"
 

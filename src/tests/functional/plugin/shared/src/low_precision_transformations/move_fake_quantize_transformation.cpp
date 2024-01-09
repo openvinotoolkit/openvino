@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"

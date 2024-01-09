@@ -7,7 +7,7 @@
 #include <memory>
 #include <tuple>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {

@@ -39,7 +39,7 @@ LayerTransformation::LayerTransformation() {
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
-std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {
+std::pair<float, float> LayerTransformation::getQuantizationInterval(ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;

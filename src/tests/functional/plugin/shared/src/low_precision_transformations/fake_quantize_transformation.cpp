@@ -8,9 +8,8 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
