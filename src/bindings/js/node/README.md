@@ -13,27 +13,10 @@
 - Create build dir `mkdir build && cd build`
 - To configure binaries building run:
 
-  ### Linux x86
+  ### Linux x86, Linux arm, Mac x86, Mac arm
   ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_FASTER_BUILD=ON \
-    -DCPACK_GENERATOR=NPM \
-    -DENABLE_SYSTEM_TBB=OFF -UTBB* \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_SAMPLES=OFF \
-    -DENABLE_WHEEL=OFF \
-    -DENABLE_PYTHON=OFF \
-    -DENABLE_INTEL_GPU=OFF \
-    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
-    ..
-  ```
-
-  ### Linux ARM
-  ```bash
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
     -DENABLE_FASTER_BUILD=ON \
     -DCPACK_GENERATOR=NPM \
     -DENABLE_SYSTEM_TBB=OFF -UTBB* \
