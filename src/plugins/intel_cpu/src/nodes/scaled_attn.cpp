@@ -979,9 +979,10 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     OPENVINO_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
     OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
+    ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = {B, H, (L0 + L1) * 2, S};
-        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(reverse(new_shape)),
             new_shape,
             order);
@@ -1011,7 +1012,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         m_v_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
     }
     auto new_shape = {B, H, (L0 + L1), S};
-    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(m_kvcache_precision,
+    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
         Shape(reverse(new_shape)),
         new_shape,
         order,
@@ -1047,13 +1048,12 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 }
 
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
-    if (m_kvcache_precision != ov::element::undefined)
-        return m_kvcache_precision;
+    ov::element::Type kvcache_precision;
     auto rtPrecision = getRuntimePrecision();
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
-    m_kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
+    kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
-    return m_kvcache_precision;
+    return kvcache_precision;
 }
 
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
