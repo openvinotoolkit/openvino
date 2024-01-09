@@ -374,10 +374,11 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    const bool isAVX2INT8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                                    canBeExecutedInInt8();
-    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !isAVX2INT8;
+    // const bool isAVX2INT8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+    //                                 !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+    //                                 canBeExecutedInInt8();
+    // const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !isAVX2INT8;
+    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
     return isBrgConvAvailable;
 }
 
