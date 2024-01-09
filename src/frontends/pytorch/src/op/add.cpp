@@ -24,7 +24,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     auto dtype0 = context.get_input_type(0);
     auto dtype1 = context.get_input_type(1);
     
-        // Checking for boolean inputs
+    // Checking for boolean inputs
     if (dtype0.is<type::boolean>() || dtype1.is<type::boolean>()) {
         if (dtype0.is<type::boolean>()) {
             lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, element::i64));
