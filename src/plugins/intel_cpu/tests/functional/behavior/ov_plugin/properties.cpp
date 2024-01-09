@@ -292,21 +292,18 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
     ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
 
     //check set and get
-    const std::vector<ov::log::Level> logLevels = {ov::log::Level::NO,
-                            ov::log::Level::ERR,
-                            ov::log::Level::WARNING,
-                            ov::log::Level::INFO,
-                            ov::log::Level::DEBUG,
-                            ov::log::Level::TRACE};
+    const std::vector<ov::log::Level> logLevels = {
+        ov::log::Level::ERR,
+        ov::log::Level::NO,
+        ov::log::Level::WARNING,
+        ov::log::Level::INFO,
+        ov::log::Level::DEBUG,
+        ov::log::Level::TRACE};
 
-    auto check_loglevel_property = [&ie, &logLevels, &value](unsigned int i) {
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
         ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
         ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
         ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
-    };
-
-    for (unsigned int i = 0; i < logLevels.size(); i++) {
-        check_loglevel_property(i);
     }
 }
 
