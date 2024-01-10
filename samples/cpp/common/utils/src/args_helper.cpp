@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
 #    include "samples/os/windows/w_dirent.h"
 #else
 #    include <dirent.h>
