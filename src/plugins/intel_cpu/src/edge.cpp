@@ -52,12 +52,17 @@ bool Edge::isDropped() const {
 }
 
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
+    auto add_result_node = [](std::vector<NodePtr>& result, const NodePtr& node) -> bool {
+        if (Type::ShapeOf == node->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return true;
+        }
+        result.push_back(node);
+        return false;
+    };
     auto childNode = this->getChild();
     if (childNode->getChildEdges().empty()) {
-        if (Type::ShapeOf != childNode->getType()) {
-            // ShapeOf doesn't actually read the data, it only reads shape
-            result.push_back(childNode);
-        }
+        add_result_node(result, childNode);
         return;
     }
 
@@ -71,11 +76,8 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             }
         }
     } else {
-        if (Type::ShapeOf == childNode->getType()) {
-            // ShapeOf doesn't actually read the data, it only reads shape
+        if (add_result_node(result, childNode))
             return;
-        }
-        result.push_back(childNode);
 
         // collect consumers in case of an upstream in-place memory reference
         if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
