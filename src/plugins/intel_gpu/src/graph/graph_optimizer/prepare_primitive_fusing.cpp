@@ -552,8 +552,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 _lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
                 return true;
             } else {
+                bool does_support_fusings = false;
                 auto in_dt = node.get_input_layout(0).data_type;
-                return data_type_traits::is_i8_u8(in_dt);
+                if (data_type_traits::is_i8_u8(in_dt) || data_type_traits::is_floating_point(in_dt))
+                    does_support_fusings = true;
+                return does_support_fusings;
             }
         };
 
