@@ -105,7 +105,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                         val.as<std::string>(),
-                        "for property key ",
+                        " for property key ",
                         key,
                         ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
             }
