@@ -55,10 +55,10 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
     auto add_result_node = [](std::vector<NodePtr>& result, const NodePtr& node) -> bool {
         if (Type::ShapeOf == node->getType()) {
             // ShapeOf doesn't actually read the data, it only reads shape
-            return true;
+            return false;
         }
         result.push_back(node);
-        return false;
+        return true;
     };
     auto childNode = this->getChild();
     if (childNode->getChildEdges().empty()) {
@@ -76,7 +76,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             }
         }
     } else {
-        if (add_result_node(result, childNode))
+        if (!add_result_node(result, childNode))
             return;
 
         // collect consumers in case of an upstream in-place memory reference
