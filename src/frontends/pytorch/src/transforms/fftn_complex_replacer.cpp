@@ -13,6 +13,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/rdft.hpp"
 #include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -130,6 +131,16 @@ FFTNComplexReplacer::FFTNComplexReplacer() {
         bool rval = false;
         for (auto& out : fftn_outs) {
             if (auto real_op = cast_fw_node(out, "aten::real")) {
+                // Check if the last dimension of the tensor is 1
+                auto last_dim = normalized_fftn->output(0).get_shape().back();
+                if (last_dim != 1) {
+                    // Reshape the tensor to make the last dimension 1
+                    auto new_shape = normalized_fftn->output(0).get_shape();
+                    new_shape.back() = 1;
+                    auto new_shape_tensor = std::make_shared<v0::Constant>(element::i64, Shape{new_shape.size()}, new_shape);
+                    auto reshaped = std::make_shared<v1::Reshape>(normalized_fftn->output(0), new_shape_tensor, false);
+                    normalized_fftn = reshaped;
+                }
                 auto squeezed = std::make_shared<v0::Squeeze>(normalized_fftn->output(0), const_neg_1);
                 copy_runtime_info({fftn_op, real_op}, squeezed);
                 squeezed->set_friendly_name(real_op->get_friendly_name());
