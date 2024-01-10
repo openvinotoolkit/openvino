@@ -159,11 +159,7 @@ void LayerTransformation::init_input_shapes(const ov::PartialShape& shape) {
 }
 
 void LayerTransformation::init_input_shapes(const std::vector<ov::PartialShape>& shapes) {
-    std::vector<ov::test::InputShape> input_shapes;
-    for (const auto& shape : shapes) {
-        std::pair<ov::PartialShape, std::vector<ov::Shape>> tmp_shapes(shape, { shape.to_shape() });
-        input_shapes.push_back(tmp_shapes);
-    }
+    auto input_shapes = ov::test::static_partial_shapes_to_test_representation(shapes);
     SubgraphBaseTest::init_input_shapes(input_shapes);
 }
 
