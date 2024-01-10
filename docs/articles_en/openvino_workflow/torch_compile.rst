@@ -77,7 +77,7 @@ enable model caching, set the cache directory etc. See the example below:
 
 .. code-block:: python
 
-   model = torch.compile(model, backend="openvino", options = {"device" : "CPU", "model_caching" : True})
+   model = torch.compile(model, backend="openvino", options = {"device" : "CPU", "model_caching" : True, "cache_dir": "./model_cache"})
 
 You can also set OpenVINO specific configuration options by adding them as a dictionary under ``config`` key in ``options``:
 
