@@ -151,12 +151,12 @@ Graph::Graph(const std::string& model_dir,
             std::shared_ptr<default_opset::Constant> ov_constant;
             // For each initializer create a Constant node and store it in cache
             try {
-                ov_constant = tensor.get_ng_constant();
+                ov_constant = tensor.get_ov_constant();
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ov::Exception&) {
-                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ng_type());
+                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ov_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
@@ -173,7 +173,7 @@ Graph::Graph(const std::string& model_dir,
         }
 
         ValueInfo value_info{input};
-        auto ov_node = value_info.get_ng_node(m_parameters, initializers);
+        auto ov_node = value_info.get_ov_node(m_parameters, initializers);
         m_cache->emplace_node(input.name(), std::move(ov_node));
     }
 }

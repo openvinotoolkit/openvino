@@ -27,7 +27,7 @@ OutputVector random_uniform(const Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);
     const auto target_shape_const = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
 
-    const auto target_type = common::get_ngraph_element_type(dtype);
+    const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
     // TODO: This multiplication leads to a mismatch in accuracy. Issue: 123003
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
