@@ -13,6 +13,7 @@
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
@@ -41,7 +42,8 @@ OutputVector conv(const Node& node,
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
+    FRONT_END_GENERAL_CHECK(data.get_partial_shape().rank().is_static(),
+                            "The input data tensor's rank has to be known (static)");
 
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
@@ -60,13 +62,13 @@ OutputVector conv(const Node& node,
                                                              auto_pad_type);
 
     // no bias param
-    if (ngraph::op::is_null(bias)) {
+    if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();
 
-        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                     "The bias input needs to be 1D vector");
+        FRONT_END_GENERAL_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
+                                "The bias input needs to be 1D vector");
 
         const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
         conv_node->set_friendly_name(onnx_name + "/WithoutBiases");

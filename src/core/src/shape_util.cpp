@@ -8,6 +8,7 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "validation_util.hpp"
 
 namespace ngraph {
 template <>
@@ -15,7 +16,7 @@ PartialShape project(const PartialShape& shape, const AxisSet& axes) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (axes.find(i) != axes.end()) {
@@ -32,7 +33,7 @@ PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (deleted_axes.find(i) == deleted_axes.end()) {
@@ -49,11 +50,11 @@ PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool
 
 template <>
 PartialShape inject_pairs(const PartialShape& shape,
-                          std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
+                          std::vector<std::pair<size_t, ov::Dimension>> new_axis_pos_value_pairs) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
-        std::vector<Dimension> result_dims;
+        std::vector<ov::Dimension> result_dims;
 
         size_t original_pos = 0;
 
@@ -61,7 +62,7 @@ PartialShape inject_pairs(const PartialShape& shape,
              result_pos++) {
             auto search_it = std::find_if(new_axis_pos_value_pairs.begin(),
                                           new_axis_pos_value_pairs.end(),
-                                          [result_pos](std::pair<size_t, Dimension> p) {
+                                          [result_pos](std::pair<size_t, ov::Dimension> p) {
                                               return p.first == result_pos;
                                           });
 
@@ -125,6 +126,15 @@ Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::Aut
     OPENVINO_ASSERT(PartialShape::broadcast_merge_into(out_shape, second, broadcast_spec),
                     "Argument shapes are inconsistent");
     return out_shape.to_shape();
+}
+
+std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank) {
+    idx = normalize(idx, static_cast<int64_t>(rank));
+    if (static_cast<decltype(rank)>(idx) >= rank) {
+        OPENVINO_THROW("Accessing out-of-range dimension");
+    } else {
+        return idx;
+    }
 }
 }  // namespace util
 }  // namespace ov

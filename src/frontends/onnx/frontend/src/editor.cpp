@@ -11,7 +11,6 @@
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
-#include "ngraph/file_util.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
 #include "openvino/util/file_util.hpp"
@@ -390,7 +389,7 @@ element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& 
                     onnx_input->name());
     auto& tensor_type = type_proto.tensor_type();
     auto type = tensor_type.elem_type();
-    return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    return ngraph::onnx_import::common::get_ov_element_type(type);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {

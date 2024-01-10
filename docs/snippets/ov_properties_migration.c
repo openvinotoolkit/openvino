@@ -1,4 +1,3 @@
-#include <c_api/ie_c_api.h>
 #include <openvino/c/openvino.h>
 
 int main_new() {
@@ -57,64 +56,3 @@ ov_core_free(core);
 return 0;
 }
 
-
-int main_old() {
-ie_core_t *core = NULL;
-ie_core_create("", &core);
-    
-//! [core_get_metric]
-ie_param_t full_device_name;
-full_device_name.params = NULL;
-ie_core_get_metric(core, "CPU", "FULL_DEVICE_NAME", &full_device_name);
-ie_param_free(&full_device_name);
-//! [core_get_metric]
-
-//! [core_get_config]
-ie_param_t num_streams;
-num_streams.params = NULL;
-ie_core_get_config(core, "CPU", "CPU_THROUGHPUT_STREAMS", &num_streams);
-ie_param_free(&num_streams);
-//! [core_get_config]
-
-//! [core_set_config]
-ie_config_t config = {"PERF_COUNT", "YES", NULL};
-ie_core_set_config(core, &config, "CPU");
-//! [core_set_config]
-
-ie_network_t *network = NULL;
-ie_core_read_network(core, "sample.xml", "sample.bin", &network);
-//! [core_load_network]
-ie_config_t config_1 = {"DEVICE_PRIORITIES", "CPU, GPU", NULL};
-ie_config_t config_2 = {"PERFORMANCE_HINT", "THROUGHPUT", &config_1};
-ie_config_t config_3 = {"ENFORCE_BF16", "NO", &config_2};
-ie_executable_network_t *exe_network = NULL;
-ie_core_load_network(core, network, "MULTI", &config_3, &exe_network);
-//! [core_load_network]
-
-//! [executable_network_set_config]
-// turn CPU off for multi-device executio
-ie_config_t config_param = {"DEVICE_PRIORITIES", "GPU", NULL};
-ie_exec_network_set_config(exe_network, &config_param);
-//! [executable_network_set_config]
-
-{
-//! [executable_network_get_metric]
-ie_param_t nireq;
-nireq.params = NULL;
-ie_exec_network_get_metric(exe_network, "OPTIMAL_NUMBER_OF_INFER_REQUESTS", &nireq);
-ie_param_free(&nireq);
-//! [executable_network_get_metric]
-}
-
-{
-//! [executable_network_get_config]
-ie_param_t perf_model;
-perf_model.params = NULL;
-ie_exec_network_get_config(exe_network, "PERFORMANCE_HINT", &perf_model);
-//! [executable_network_get_config]
-}
-ie_exec_network_free(&exe_network);
-ie_network_free(&network);
-ie_core_free(&core);
-return 0;
-}
