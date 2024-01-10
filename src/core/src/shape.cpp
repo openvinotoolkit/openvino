@@ -71,19 +71,19 @@ std::string ov::Shape::to_string() const {
 
 namespace ov {
 
-typename Shape::reference& Shape::operator[](std::ptrdiff_t i) {
+typename Shape::reference Shape::operator[](std::ptrdiff_t i) {
     return std::vector<size_t>::operator[](util::normalize(i, size()));
 }
 
-typename Shape::const_reference& Shape::operator[](std::ptrdiff_t i) const {
+typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
     return std::vector<size_t>::operator[](util::normalize(i, size()));
 }
 
-typename Shape::reference& Shape::at(std::ptrdiff_t i) {
+typename Shape::reference Shape::at(std::ptrdiff_t i) {
     return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
 }
 
-typename Shape::const_reference& Shape::at(std::ptrdiff_t i) const {
+typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
     return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
 }
 }  // namespace ov
