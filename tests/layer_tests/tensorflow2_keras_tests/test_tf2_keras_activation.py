@@ -70,7 +70,7 @@ class TestKerasActivation(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_activation_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_old_api, use_new_frontend):
+                                      use_new_frontend):
         self._test(*self.create_keras_activation_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

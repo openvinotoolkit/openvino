@@ -60,4 +60,4 @@ class TestTFEye(CommonTFLayerTest):
         self._test(*self.create_tf_eye_net(**params), ie_device,
                    precision,
                    temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   **params)
