@@ -45,7 +45,7 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 150
+    timeout-minutes: 300
     defaults:
       run:
         shell: bash
@@ -123,6 +123,9 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           show-cache-info: 'true'
+
+      - name: Sleep
+        run: sleep 5h
 
       - name: Install python dependencies
         run: |
