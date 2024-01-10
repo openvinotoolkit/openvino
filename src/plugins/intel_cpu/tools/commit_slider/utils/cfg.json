@@ -19,7 +19,7 @@
         {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
         {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
         {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
-        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
@@ -74,6 +74,7 @@
     "checkIfBordersDiffer" : true,
     "printCSV" : false,
     "usePrevRunCache" : false,
+    "verboseOutput": true,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     },
@@ -83,7 +84,7 @@
         "appPath" : "path, substituted by job"
     },
     "cachedPathConfig": {
-        "enabled" : false,
+        "enabled" : true,
         "scheme" : "optional | mandatory",
         "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
         "passCmdList": true,

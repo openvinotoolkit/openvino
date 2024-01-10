@@ -220,7 +220,8 @@ def runCommandList(commit, cfgData):
             encoding="utf-8", errors="replace"
         )
         for line in proc.stdout:
-            sys.stdout.write(line)
+            if cfgData["verboseOutput"]:
+                sys.stdout.write(line)
             commitLogger.info(line)
             if "catchMsg" in cmd:
                 isErrFound = re.search(cmd["catchMsg"], line)

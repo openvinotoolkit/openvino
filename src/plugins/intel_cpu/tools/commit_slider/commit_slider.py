@@ -68,9 +68,14 @@ else:
     safeClearDir(permCachePath, cfgData)
     copytree(tempCachePath, permCachePath)
 
-    shutil.copyfile(
-        os.path.join(workPath, customCfgPath),
-        os.path.join(curPath, customCfgPath),
-        follow_symlinks=True,
-    )
+    try:
+        shutil.copyfile(
+            os.path.join(workPath, customCfgPath),
+            os.path.join(curPath, customCfgPath),
+            follow_symlinks=True,
+        )
+    except shutil.SameFileError:
+        # prevent exception raising if cfg set up from outer location
+        pass
+
     safeClearDir(workPath, cfgData)
