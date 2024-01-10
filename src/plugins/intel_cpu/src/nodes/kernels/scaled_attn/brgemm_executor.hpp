@@ -33,20 +33,25 @@ public:
     // scratch_a / scratch_b
     size_t get_scratch_a_size();
     size_t get_scratch_b_size();
-    size_t get_mblk_size() {
-        return 32;
+    size_t get_mblk_size() const {
+        return matmulOptimalM;
+    }
+    size_t get_k_blk() const {
+        return K_blk;
     }
 
 private:
     size_t M = 0, M_blk = 0, M_tail = 0;
-    size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
+    size_t K = 0, K_tail = 0, N = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0;
     bool b_transposed = false;
-    size_t brg0VnniFactor = 0;
+    size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     size_t wsp_size_per_thread = 4 * 1024;
     std::vector<size_t> wsp;
+    static constexpr size_t N_blk = 32;
+    static constexpr size_t K_blk = 32;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {

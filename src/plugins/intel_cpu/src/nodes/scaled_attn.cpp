@@ -317,11 +317,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         wv_gemm_ptr = wv_result.first;
 
         size_t nthr = static_cast<size_t>(parallel_get_max_threads());
-        if (kv_len >> 1 != 0) {
-            wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size()});
+
+        if (head_size % qk_gemm_ptr->get_k_blk() != 0) {
+            qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / 2});
         }
-        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size()});
-        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size()});
+
+        if (kv_len % wv_gemm_ptr->get_k_blk() != 0) {
+            wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size() / 2});
+        }
+        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / 2});
+        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / 2});
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
@@ -397,7 +402,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         PlainTensor score, weight;
         score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
         weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
-
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         // packed k, v
@@ -414,18 +418,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
             bool is_m_tail = m_cnt < m_block_size;
-            printf("m_start %ld m_end %ld mcnt %ld is_m_tail %d\n", m_start, m_end, m_cnt, is_m_tail);
             size_t tid = parallel_get_thread_num();
             bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
             bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* c_ptr = &score.at<float>({b, h, m_start, 0});
-            std::cout << "cal qk" << std::endl;
             qk_gemm_ptr->executeGemm(m_cnt,
                                      is_m_tail,
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
-                                     nullptr,
+                                     qk_scratch_a ? &qk_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
                                      &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
             float* alibi_ptr = nullptr;
             auto alibi_stride = 0;
@@ -456,7 +458,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              &weight.at<bfloat16>({b, h, m, 0}),
                              d_scale,
                              alibi_ptr + m * alibi_stride,
-                             attn_mask_ptr + m * attn_mask_stride,
+                             attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
@@ -468,13 +470,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* fp32_out_ptr =
                 has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
-            std::cout << "cal wv" << std::endl;
             wv_gemm_ptr->executeGemm(m_cnt,
-                                    is_m_tail,
+                                     is_m_tail,
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
-                                     &wv_scratch_a.at<bfloat16>({tid, 0}),
+                                     wv_scratch_a ? &wv_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
                                      &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
         });
         cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}),
