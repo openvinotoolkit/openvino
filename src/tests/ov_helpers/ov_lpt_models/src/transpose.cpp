@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/transpose.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 namespace ngraph {

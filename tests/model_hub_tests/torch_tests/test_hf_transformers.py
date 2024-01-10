@@ -113,6 +113,8 @@ class TestTransformersModel(TestTorchConvertModel):
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
+        if "bart" in mi.tags:
+            model_kwargs["attn_implementation"] = "eager"
         try:
             auto_model = mi.transformersInfo['auto_model']
             if "processor" in mi.transformersInfo:
@@ -125,6 +127,42 @@ class TestTransformersModel(TestTorchConvertModel):
             preprocessor = CLIPFeatureExtractor.from_pretrained(name)
             encoded_input = preprocessor(self.image, return_tensors='pt')
             example = dict(encoded_input)
+        elif 'xclip' in mi.tags:
+            from transformers import XCLIPVisionModel
+            
+            model = XCLIPVisionModel.from_pretrained(name, **model_kwargs)
+            # needs video as input
+            example = {'pixel_values': torch.randn(*(16, 3, 224, 224), dtype=torch.float32)}
+        elif 'audio-spectrogram-transformer' in mi.tags:
+            example = {'input_values': torch.randn(*(1, 1024, 128), dtype=torch.float32)}
+        elif 'mega' in mi.tags:
+            from transformers import AutoModel
+            
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            model.config.output_attentions = True
+            model.config.output_hidden_states = True
+            model.config.return_dict = True
+            example = dict(model.dummy_inputs)
+        elif 'bros' in mi.tags:
+            from transformers import AutoProcessor, AutoModel
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            encoding = processor("to the moon!", return_tensors="pt")
+            bbox = torch.randn([1, 6, 8], dtype=torch.float32)
+            example = dict(input_ids=encoding["input_ids"], bbox=bbox, attention_mask=encoding["attention_mask"])
+        elif 'upernet' in mi.tags:
+            from transformers import AutoProcessor, UperNetForSemanticSegmentation
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = UperNetForSemanticSegmentation.from_pretrained(name, **model_kwargs)
+            example = dict(processor(images=self.image, return_tensors="pt"))
+        elif 'deformable_detr' in mi.tags or 'universal-image-segmentation' in mi.tags:
+            from transformers import AutoProcessor, AutoModel
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
@@ -473,7 +511,7 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
-                                           ("OpenVINO/opt-125m-gptq", 'opt')
+                                           ("OpenVINO/opt-125m-gptq", "opt")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):

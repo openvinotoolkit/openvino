@@ -5,7 +5,9 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include <algorithm>
@@ -69,37 +71,37 @@ protected:
         std::shared_ptr<ov::Node> nodeBeforeConv;
         selectedType = makeSelectedTypeStr(selectedType, ElementType::i8);
         if (inType == ElementType::u8)
-            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+            fq1 = ov::test::utils::make_fake_quantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
         else
-            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            fq1 = ov::test::utils::make_fake_quantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
         if (isFC) {
             ov::Shape weightShape = inShapes;
             std::swap(weightShape[0], weightShape[1]);
-            auto weightsNode = ngraph::builder::makeConstant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
-            auto fq2 = ngraph::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            auto weightsNode = ov::test::utils::deprecated::make_constant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
+            auto fq2 = ov::test::utils::make_fake_quantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             auto fc = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, false);
             fc->get_rt_info() = getCPUInfo();
             fc->set_friendly_name(nameMatmul);
-            auto biasWeightsNode = ngraph::builder::makeConstant(ngPrec, {}, std::vector<float>{0.0f}, true);
+            auto biasWeightsNode = ov::test::utils::deprecated::make_constant(ngPrec, {}, std::vector<float>{0.0f}, true);
             matMul = std::make_shared<ov::op::v1::Add>(fc, biasWeightsNode);
         } else {
-            auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            auto fq2 = ov::test::utils::make_fake_quantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             matMul = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, true);
             matMul->get_rt_info() = getCPUInfo();
             matMul->set_friendly_name(nameMatmul);
         }
         if (outType == ElementType::u8)
-            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+            nodeBeforeConv = ov::test::utils::make_fake_quantize(matMul, ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
         else if (outType == ElementType::i8)
-            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            nodeBeforeConv = ov::test::utils::make_fake_quantize(matMul, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         else
             nodeBeforeConv = matMul;
 
         // matmul->fq->matmul can cover x8*s8->x8 case
         auto filterWeightsShape = matMul->get_output_shape(0);
-        auto filterWeightsNode = ngraph::builder::makeConstant(ov::element::f32, filterWeightsShape, std::vector<float>{}, true);
-        auto fq3 = ngraph::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        auto filterWeightsNode = ov::test::utils::deprecated::make_constant(ov::element::f32, filterWeightsShape, std::vector<float>{}, true);
+        auto fq3 = ov::test::utils::make_fake_quantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         // only matmul avx2 support s8*s8 input
         auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);
 

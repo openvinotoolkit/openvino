@@ -5,9 +5,11 @@
 #include "execution_graph_tests/keep_assign.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <inference_engine.hpp>
+#include "openvino/runtime/core.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -26,38 +28,34 @@ void ExecGraphKeepAssignNode::SetUp() {
  */
 TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     auto device_name = this->GetParam();
-    ngraph::Shape shape = {3, 2};
-    ngraph::element::Type type = ngraph::element::f32;
+    ov::Shape shape = {3, 2};
+    ov::element::Type type = ov::element::f32;
 
-    using std::make_shared;
-    using namespace ngraph::opset5;
-
-    // Some simple graph with Memory(Assign) node                     //    in   read     //
-    auto input = make_shared<Parameter>(type, shape);                 //    | \  /        //
-    auto mem_i = make_shared<Constant>(type, shape, 0);          //    |  mul        //
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");       //    | /  \        //
-    auto mul   = make_shared<ngraph::op::v1::Multiply>(mem_r, input); //    sum  assign   //
-    auto mem_w = make_shared<Assign>(mul, "id");            //     |            //
-    auto sum   = make_shared<ngraph::op::v1::Add>(mul, input);        //    out           //
+    // Some simple graph with Memory(Assign) node                           //    in   read     //
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);      //    | \  /        //
+    auto mem_i = std::make_shared<ov::op::v0::Constant>(type, shape, 0);    //    |  mul        //
+    auto mem_r = std::make_shared<ov::op::v3::ReadValue>(mem_i, "id");      //    | /  \        //
+    auto mul   = std::make_shared<ov::op::v1::Multiply>(mem_r, input);      //    sum  assign   //
+    auto mem_w = std::make_shared<ov::op::v3::Assign>(mul, "id");           //     |            //
+    auto sum   = std::make_shared<ov::op::v1::Add>(mul, input);             //    out           //
 
     mem_w->add_control_dependency(mem_r);
     sum->add_control_dependency(mem_w);
 
-    auto function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector      {sum},
-            ngraph::ParameterVector {input},
-            "SimpleNet");
+    auto model = std::make_shared<ov::Model>(
+        ov::NodeVector      {sum},
+        ov::ParameterVector {input},
+        "SimpleNet");
 
     // Load into plugin and get exec graph
-    auto ie  = InferenceEngine::Core();
-    auto net = InferenceEngine::CNNNetwork(function);
-    auto exec_net   = ie.LoadNetwork(net, device_name);
-    auto exec_graph = exec_net.GetExecGraphInfo();
-    auto exec_ops   = exec_graph.getFunction()->get_ops();
+    auto core  = ov::Core();
+    auto compiled_model = core.compile_model(model, device_name);
+    auto runtime_model  = compiled_model.get_runtime_model();
+    auto runtime_ops    = runtime_model->get_ops();
 
     // Check Memory(Assign) node existence
     bool assign_node_found;
-    for (auto &node : exec_ops) {
+    for (auto &node : runtime_ops) {
         auto var = node->get_rt_info()["layerType"];
         auto s_val = var.as<std::string>();
 

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "behavior/ov_infer_request/callback.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
 
@@ -12,8 +13,7 @@ namespace {
 auto configs = []() {
     return std::vector<ov::AnyMap>{
         {},
-        {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-          InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}},
+        {ov::num_streams(ov::streams::AUTO)},
     };
 };
 

@@ -5,9 +5,10 @@
 #pragma once
 
 #include <array>
-#include <openvino/op/slice.hpp>
 
+#include "openvino/op/slice.hpp"
 #include "slice_shape_inference_utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -108,9 +109,7 @@ std::vector<TRShape> shape_infer(const Slice* op,
                               "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
 
         if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 4, ta)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::normalize_axes(op, input_shape.rank().get_length(), *axes);
             axes_map.add(*axes);
             NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
         }

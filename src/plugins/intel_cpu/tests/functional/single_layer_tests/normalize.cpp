@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/normalize_l2.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -90,8 +89,12 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
-                tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, -5, 7, 222);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -5;
+                in_data.range = 10;
+                in_data.resolution = 7;
+                in_data.seed = 222;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }

@@ -10,8 +10,6 @@
 #include <ctime>
 #include <iterator>
 
-#include "ov_models/builders.hpp"
-
 namespace SubgraphTestsDefinitions {
 std::string PermuteConcatPermute::getTestCaseName(const testing::TestParamInfo<PermuteConcatPermuteTuple>& obj) {
     std::vector<std::vector<size_t>> input;
@@ -38,11 +36,11 @@ void PermuteConcatPermute::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input_param = std::make_shared<ngraph::opset9::Parameter>(ngPrc, ngraph::Shape{input_shape});
+    auto input_param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape{input_shape});
     auto permute_params_1 =
-        ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{permute_1_param.size()}, permute_1_param);
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{permute_1_param.size()}, permute_1_param);
 
-    auto permute_1 = std::make_shared<ngraph::opset9::Transpose>(input_param, permute_params_1);
+    auto permute_1 = std::make_shared<ov::op::v1::Transpose>(input_param, permute_params_1);
 
     auto const_input_shape_vec = std::vector<size_t>{1};
     const_input_shape_vec.insert(const_input_shape_vec.end(), input_shape.begin(), std::prev(input_shape.end()));
@@ -50,16 +48,16 @@ void PermuteConcatPermute::SetUp() {
     auto const_input_values_size = InferenceEngine::details::product(const_input_shape_vec);
     auto const_input_values = std::vector<size_t>(const_input_values_size, 0);
 
-    auto const_input_1 = ngraph::opset9::Constant::create(ngPrc, constinput_shape, const_input_values);
-    auto const_input_2 = ngraph::opset9::Constant::create(ngPrc, constinput_shape, const_input_values);
-    auto const_input_3 = ngraph::opset9::Constant::create(ngPrc, constinput_shape, const_input_values);
+    auto const_input_1 = ov::op::v0::Constant::create(ngPrc, constinput_shape, const_input_values);
+    auto const_input_2 = ov::op::v0::Constant::create(ngPrc, constinput_shape, const_input_values);
+    auto const_input_3 = ov::op::v0::Constant::create(ngPrc, constinput_shape, const_input_values);
 
-    auto concat = std::make_shared<ngraph::opset9::Concat>(
+    auto concat = std::make_shared<ov::op::v0::Concat>(
         ngraph::OutputVector{const_input_1, const_input_2, permute_1, const_input_3},
         0);
     auto permute_params_2 =
-        ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{permute_2_param.size()}, permute_2_param);
-    auto permute_2 = std::make_shared<ngraph::opset9::Transpose>(concat, permute_params_2);
+        ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{permute_2_param.size()}, permute_2_param);
+    auto permute_2 = std::make_shared<ov::op::v1::Transpose>(concat, permute_params_2);
 
     function =
         std::make_shared<ngraph::Function>(permute_2, ngraph::ParameterVector{input_param}, "permute_concat_permute");

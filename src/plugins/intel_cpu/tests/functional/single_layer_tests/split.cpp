@@ -25,7 +25,7 @@ public:
         int64_t axis;
         ElementType netPrecision;
         InputShape inputShapes;
-        InferenceEngine::SizeVector outIndices;
+        std::vector<size_t> outIndices;
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = obj.param;
 
@@ -54,7 +54,7 @@ protected:
         int axis;
         ElementType netPrecision;
         InputShape inputShapes;
-        InferenceEngine::SizeVector outIndices;
+        std::vector<size_t> outIndices;
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = this->GetParam();
         if (outIndices.empty()) {
@@ -64,7 +64,7 @@ protected:
         }
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
+        selectedType += std::string("_") + ov::element::Type(netPrecision).to_string();
 
         init_input_shapes({inputShapes});
 

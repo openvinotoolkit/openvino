@@ -9,8 +9,6 @@
 #include "openvino/core/parallel.hpp"
 #include "experimental_detectron_detection_output.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

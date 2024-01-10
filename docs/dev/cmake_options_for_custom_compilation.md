@@ -19,8 +19,6 @@ This document provides description and default values for CMake options that can
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
         * `ON` is default for x86 platforms; not available, otherwise.
-    * `ENABLE_INTEL_GNA` enables GNA plugin compilation:
-        * `ON` is default for x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:
         * `ON` is default.
     * `ENABLE_MULTI` enables MULTI plugin build:
@@ -46,8 +44,6 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_OV_IR_FRONTEND` enables OpenVINO Intermediate Representation frontend plugin for OpenVINO Runtime:
         * `ON` is default.
-* `ENABLE_GAPI_PREPROCESSING` enables G-API preprocessing:
-    * `ON` is default.
 * `OPENVINO_EXTRA_MODULES` specifies path to add extra OpenVINO modules to the build.
     * See [OpenVINO Contrib] to add extra modules from.
 * `ENABLE_SAMPLES` enables OpenVINO Runtime samples build:
@@ -58,9 +54,6 @@ This document provides description and default values for CMake options that can
     * `ON` if requirements are satisfied (auto-discovered by CMake).
 * `ENABLE_TESTS` enables tests compilation:
     * `OFF` is default.
-* `ENABLE_IR_V7_READER` enables IR v7 reader:
-    * `ON` is default.
-    **Note:** must be turned `OFF` when building OpenVINO runtime as static
 * `ENABLE_DOCS` enables building the OpenVINO documentation:
     * `OFF` is on Debian (Ubuntu) OSes
     * `OFF` is in other cases.
@@ -190,8 +183,8 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[deployment manager]:https://docs.openvino.ai/2023.2/openvino_docs_install_guides_deployment_manager_tool.html
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
+[deployment manager]:https://docs.openvino.ai/2023.3/openvino_docs_install_guides_deployment_manager_tool.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite
