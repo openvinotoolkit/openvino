@@ -23,7 +23,7 @@ std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const OutputVecto
 }
 
 std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_functions, inputs);
+    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_models, inputs);
 }
 
 std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVector& inputs) const {
