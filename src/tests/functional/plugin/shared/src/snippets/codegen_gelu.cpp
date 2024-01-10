@@ -11,7 +11,6 @@
 #include "subgraph_simple.hpp"
 #include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -66,9 +65,8 @@ namespace snippets {
             ov::pass::InitNodeInfo().run_on_model(function);
             ov::pass::ConstantFolding().run_on_model(function);
         }
-        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+        if (!configuration.count("SNIPPETS_MODE")) {
+            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
         }
     }
 

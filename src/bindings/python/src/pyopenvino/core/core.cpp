@@ -15,11 +15,6 @@
 
 namespace py = pybind11;
 
-inline std::string to_string(py::handle handle) {
-    auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
-    return PyBytes_AsString(encodedString);
-}
-
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
     cls.doc() =
@@ -619,7 +614,7 @@ void regclass_Core(py::module m) {
 
                 GIL is released while running this function.
 
-                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, NPU...
                     If there more than one device of specific type, they are enumerated with .# suffix.
                     Such enumerated device can later be used as a device name in all Core methods like:
                     compile_model, query_model, set_property and so on.
@@ -634,7 +629,7 @@ void regclass_Core(py::module m) {
 
                                     GIL is released while running this function.
 
-                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, NPU...
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.

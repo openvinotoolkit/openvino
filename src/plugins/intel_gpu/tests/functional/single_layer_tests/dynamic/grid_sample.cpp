@@ -2,38 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/select.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
-#include <string>
-#include <common_test_utils/ov_tensor_utils.hpp>
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/grid_sample.hpp"
+
+namespace {
+using ov::test::InputShape;
 using ov::op::v9::GridSample;
-
-namespace GPULayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<InputShape>,                 // Input shapes
         GridSample::InterpolationMode,           // Interpolation mode
         GridSample::PaddingMode,                 // Padding mode
         bool,                                    // Align corners
-        ElementType,                             // Data precision
-        ElementType                              // Grid precision
+        ov::element::Type,                             // Data precision
+        ov::element::Type                              // Grid precision
 > GridSampleLayerTestGPUParams;
 
 class GridSampleLayerTestGPU : public testing::WithParamInterface<GridSampleLayerTestGPUParams>,
-                          virtual public SubgraphBaseTest {
+                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GridSampleLayerTestGPUParams> obj) {
         std::vector<InputShape> inputShapes;
         GridSample::InterpolationMode interpolateMode;
         GridSample::PaddingMode paddingMode;
         bool alignCorners;
-        ElementType dataPrecision, gridPrecision;
+        ov::element::Type dataPrecision, gridPrecision;
 
         std::tie(inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision) = obj.param;
 
@@ -69,7 +68,7 @@ protected:
         GridSample::InterpolationMode interpolateMode;
         GridSample::PaddingMode paddingMode;
         bool alignCorners;
-        ElementType dataPrecision, gridPrecision;
+        ov::element::Type dataPrecision, gridPrecision;
 
         std::tie(inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
@@ -86,12 +85,12 @@ protected:
         GridSample::Attributes attributes = {alignCorners, interpolateMode, paddingMode};
         auto gridSampleNode = std::make_shared<GridSample>(params[0], params[1], attributes);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < gridSampleNode->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(gridSampleNode->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(gridSampleNode->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "GridSampleGPU");
+        function = std::make_shared<ov::Model>(results, params, "GridSampleGPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -101,24 +100,26 @@ protected:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
+            ov::test::utils::InputGenerateData in_data;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
                 int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1u, std::multiplies<uint32_t>());
-                tensor = utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[0], range, -range / 2, 1);
+                in_data.start_from = -range / 2;
+                in_data.range = range;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "grid") {
                 int32_t range = std::max(targetInputStaticShapes[0][2], targetInputStaticShapes[0][3]) + 2;
-                int32_t resolution = range / 2;
-                tensor = utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[1], range, -1, resolution == 0 ? 1 : resolution);
+                in_data.start_from = -1;
+                in_data.range = range;
+                in_data.resolution = range / 2;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 };
 
-TEST_P(GridSampleLayerTestGPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(GridSampleLayerTestGPU, Inference) {
     run();
 }
 
@@ -152,8 +153,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GridSampleLayerTestGPU,
                 ::testing::ValuesIn(interpolateMode),
                 ::testing::ValuesIn(paddingMode),
                 ::testing::ValuesIn(alignCorners),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32)),
+                ::testing::Values(ov::element::f32),
+                ::testing::Values(ov::element::f32)),
         GridSampleLayerTestGPU::getTestCaseName);
-
-} // namespace GPULayerTestsDefinitions
+} // namespace

@@ -3,7 +3,9 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -69,15 +71,23 @@ protected:
         const auto& shapeX = targetInputStaticShapes[0];
         const auto& shapeH = targetInputStaticShapes[1];
 
-        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, 1, 0, 16);
-        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, 1, 0, 16);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 1;
+        in_data.resolution = 16;
+        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, in_data);
+        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, in_data);
 
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorX});
         inputs.insert({funcInputs[1].get_node_shared_ptr(), tensorH});
 
         if (hasCell) {
             const auto& shapeC = targetInputStaticShapes[cellIdx];
-            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, 2, -1, 128, 2);
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 128;
+            in_data.seed = 2;
+            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, in_data);
             inputs.insert({funcInputs[cellIdx].get_node_shared_ptr(), tensorC});
         }
     }
@@ -112,7 +122,7 @@ protected:
 
         auto makeDataFQ = [](const ov::Output<Node>& input) {
             const auto fqLevels = 256;
-            return ngraph::builder::makeFakeQuantize(input, ov::element::f32, fqLevels, {},
+            return ov::test::utils::make_fake_quantize(input, ov::element::f32, fqLevels, {},
                                                       {-128.f/127}, {1.f},
                                                       {-128.f/127}, {1.f});
         };
@@ -122,16 +132,16 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(inputParams[1]);
         } else {
-            H = ngraph::builder::makeConstant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ov::test::utils::deprecated::make_constant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
-            return ngraph::builder::makeFakeQuantize(weight, ov::element::f32,
+            return ov::test::utils::make_fake_quantize(weight, ov::element::f32,
                                                      fqLevelsW, std::vector<size_t>{},
                                                      {-127.f/63}, {127.f/63},
                                                      {-127.f/63}, {127.f/63});

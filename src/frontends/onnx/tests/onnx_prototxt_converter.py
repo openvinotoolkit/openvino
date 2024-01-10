@@ -58,12 +58,12 @@ def _get_output_file_path(path, extension):
 
 def save_model(proto, f, format=None, save_as_external_data=False, all_tensors_to_one_file=True, location=None, size_threshold=1024, convert_attribute=False):
     if isinstance(proto, bytes):
-        proto = onnx._deserialize(proto, onnx.ModelProto())
+        proto = onnx.serialization.registry.get("protobuf").serialize_proto(proto, onnx.ModelProto())
 
     if save_as_external_data:
         convert_model_to_external_data(proto, all_tensors_to_one_file, location, size_threshold, convert_attribute)
 
-    s = onnx._serialize(proto)
+    s = onnx.serialization.registry.get("protobuf").serialize_proto(proto)
     onnx._save_bytes(s, f)
 
 

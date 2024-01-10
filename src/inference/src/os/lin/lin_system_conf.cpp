@@ -415,17 +415,22 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[nproc][1].substr(endpos + 1);
                 core_2 = std::stoi(sub_str);
+                if ((core_2 - core_1 == 1) && (_proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
+                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                } else {
+                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                }
 
                 for (int m = core_1; m <= core_2; m++) {
                     _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
                     _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _cores;
-                    _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE];
                     _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
 
                     _cores++;
 
                     _proc_type_table[0][ALL_PROC]++;
-                    _proc_type_table[0][EFFICIENT_CORE_PROC]++;
+                    _proc_type_table[0][_cpu_mapping_table[m][CPU_MAP_CORE_TYPE]]++;
                 }
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
@@ -608,6 +613,16 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 
     std::vector<int> line_value_0(PROC_TYPE_TABLE_SIZE, 0);
 
+    auto clean_up_output = [&]() {
+        _processors = 0;
+        _cores = 0;
+        _numa_nodes = 0;
+        _sockets = 0;
+        _cpu_mapping_table.clear();
+        _proc_type_table.clear();
+        return;
+    };
+
     for (int n = 0; n < _processors; n++) {
         if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
             std::string::size_type pos = 0;
@@ -625,6 +640,10 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[n][0].substr(endpos1 + 1);
                 core_2 = std::stoi(sub_str);
+                if ((core_1 != n) && (core_2 != n)) {
+                    clean_up_output();
+                    return;
+                }
 
                 _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
                 _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = std::stoi(system_info_table[core_1][1]);

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/loop.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 using namespace ov::test::utils;
 
@@ -66,8 +66,10 @@ protected:
         size_t i = 0;
         if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                                 funcInput.get_shape(), 10, 1);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = 10;
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), funcInput.get_shape(), in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             i++;
         }
@@ -75,8 +77,11 @@ protected:
         // parameters for body
         for (; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                                 targetInputStaticShapes[i], 15, 0, 32768);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 15;
+            in_data.resolution = 32768;
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -283,7 +288,7 @@ protected:
         auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1});
         auto s = std::make_shared<ov::op::v8::Slice>(body_params[0], beginNode, endNode, strideNode, axesNode);
 
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto constant = ov::test::utils::deprecated::make_constant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 
         auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, s, eltwise}, body_params);
@@ -352,7 +357,7 @@ protected:
         }
 
         // Body
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
+        auto constant = ov::test::utils::deprecated::make_constant(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{body_params[1], add}, 0);
 
@@ -425,7 +430,11 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
                 auto* dataPtr = tensor.data<bool>();
                 *dataPtr = true;
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 2560;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

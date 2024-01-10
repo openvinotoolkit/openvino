@@ -15,6 +15,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
+#include "transformations/utils.hpp"
 
 using namespace ov;
 using namespace ov::threading;
@@ -424,7 +425,19 @@ int get_model_prefer_threads(const int num_streams,
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#if ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__linux__))
+        config.modelPreferThreads = 4;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
+                config.modelPreferThreads = 16;
+            }
+        } else if ((networkToleranceForLowCache.ratio_mem_limited_deconvs != ov::MemBandwidthPressure::ALL) &&
+                   ((networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) ||
+                    (networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) ||
+                    (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::NONE))) {
+            config.modelPreferThreads = 8;
+        }
+#elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
@@ -446,27 +459,25 @@ int get_model_prefer_threads(const int num_streams,
                    networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) {
             config.modelPreferThreads = 2;
         }
-#endif
-
-        if (-1 == config.modelPreferThreads) {
-            config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
-            if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-                if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-                    (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                    // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                    config.modelPreferThreads = 1;
-                }  // otherwise (no recognized layers) falling back to the default value
-            } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-                // network is below the ISA-specific threshold
+#else
+        config.modelPreferThreads = 0;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 config.modelPreferThreads = 1;
-            } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-                // network is below general threshold
-                config.modelPreferThreads = 2;
-            }
-            if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
-                config.modelPreferThreads = 2;
-            }
+            }  // otherwise (no recognized layers) falling back to the default value
+        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+            // network is below the ISA-specific threshold
+            config.modelPreferThreads = 1;
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            // network is below general threshold
+            config.modelPreferThreads = 2;
         }
+        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+            config.modelPreferThreads = 2;
+        }
+#endif
     }
 
     // latency
@@ -477,13 +488,18 @@ int get_model_prefer_threads(const int num_streams,
                 model_prefer = proc_type_table[0][ALL_PROC];
             }
 #else
-            bool fp_intesive = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+            bool llm_related = has_matmul_with_compressed_weights(model);
+            bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+            // By default the latency case uses (faster) Big cores only, depending on the compute ratio
+            // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big cores
+            // only cases except LLM.
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (fp_intesive ? fp32_threshold : int8_threshold))
-                               ? proc_type_table[0][MAIN_CORE_PROC]
+                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
+                               ? ((!llm_related && ov::get_number_of_blocked_cores())
+                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
+                                      : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
 #endif
         }

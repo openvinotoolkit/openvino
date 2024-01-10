@@ -9,7 +9,7 @@ namespace ov {
 namespace intel_cpu {
 
 using namespace arm_compute;
-using namespace InferenceEngine;
+
 
 bool ACLConvertExecutor::init(const ConvertParams& convertParams,
                               const MemoryDescPtr& srcDesc,
