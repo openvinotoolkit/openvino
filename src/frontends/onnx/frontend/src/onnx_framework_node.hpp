@@ -101,10 +101,10 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 // Be careful with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
-    static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
-
 public:
     OPENVINO_OP("NotSupportedONNXNode", "util", ov::op::util::FrameworkNode);
+
+    static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
 
     NotSupportedONNXNode(const OutputVector& inputs,
                          const size_t output_size,
