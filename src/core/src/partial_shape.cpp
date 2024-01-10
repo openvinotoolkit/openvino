@@ -8,7 +8,6 @@
 #include <iostream>
 #include <vector>
 
-#include "compare.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/util/common_util.hpp"
