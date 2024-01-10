@@ -32,7 +32,7 @@ class BaseInfer:
         self.res = multiprocessing_run(self.fw_infer, [input_data, config], self.name, infer_timeout)
         return self.res
 
-class InferAPI20(BaseInfer):
+class InferAPI(BaseInfer):
     def __init__(self, model, weights, device, use_new_frontend):
         super().__init__('Inference Engine')
         self.device = device

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
-from common.layer_utils import InferAPI20
+from common.layer_utils import InferAPI
 from common.utils.common_utils import generate_ir_python_api
 
 
@@ -80,10 +80,10 @@ class CommonLayerTest:
         if ie_device == 'GPU' and precision == 'FP32':
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
-        ie_engine = InferAPI20(model=path_to_xml,
-                               weights=path_to_bin,
-                               device=ie_device,
-                               use_new_frontend=use_new_frontend)
+        ie_engine = InferAPI(model=path_to_xml,
+                             weights=path_to_bin,
+                             device=ie_device,
+                             use_new_frontend=use_new_frontend)
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
