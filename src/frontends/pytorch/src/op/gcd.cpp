@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -21,9 +25,8 @@ OutputVector translate_gcd(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    align_eltwise_input_types(context, x, y, false);
+    align_eltwise_input_types(context, x, y, true);
     auto zero_i32 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-    auto zero = std::make_shared<ov::op::v1::ConvertLike>(zero_i32, x);
 
     auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 1000);
     auto exec_condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
@@ -33,6 +36,9 @@ OutputVector translate_gcd(const NodeContext& context) {
     auto x_input = std::make_shared<v0::Parameter>(x.get_element_type(), x.get_partial_shape());
     auto y_input = std::make_shared<v0::Parameter>(y.get_element_type(), y.get_partial_shape());
 
+    x_input->set_element_type(x.get_element_type());
+    y_input->set_element_type(y.get_element_type());
+    auto zero = std::make_shared<ov::op::v1::ConvertLike>(zero_i32, x_input);
     auto condition = std::make_shared<v1::NotEqual>(y_input, zero);
     auto mod = std::make_shared<v1::Mod>(x_input, y_input);
     auto new_x = std::make_shared<v1::Select>(condition, y_input, x_input);
