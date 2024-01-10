@@ -66,16 +66,15 @@ protected:
             }
             ov::AnyMap config;
             if (target_device.find("GPU") != std::string::npos) {
-                config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config["INFERENCE_PRECISION_HINT"] = "f32";
+                config.insert(ov::num_streams(num_streams));
+                config.insert(ov::hint::inference_precision(ov::element::f32));
             }
 
             if (target_device.find("CPU") != std::string::npos) {
-                config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);
+                config.insert(ov::num_streams(num_streams));
             }
             // minimize timeout to reduce test time
-            config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
+            config.insert(ov::auto_batch_timeout(1));
 
             auto compiled_model = core->compile_model(model, std::string(ov::test::utils::DEVICE_BATCH) + ":" +
                                                       target_device + "(" + std::to_string(num_batch) + ")",
