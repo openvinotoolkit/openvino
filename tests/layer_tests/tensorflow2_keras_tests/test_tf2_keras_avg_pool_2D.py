@@ -34,9 +34,9 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_avg_pool_2D_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api, use_new_frontend):
+                                       use_new_frontend):
         self._test(*self.create_keras_avg_pool_2D_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_extended_float32 = [
@@ -53,7 +53,7 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_extended_float32)
     @pytest.mark.nightly
     def test_keras_avg_pool_2D_extended_float32(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_old_api, use_new_frontend):
+                                                temp_dir, use_new_frontend):
         self._test(*self.create_keras_avg_pool_2D_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

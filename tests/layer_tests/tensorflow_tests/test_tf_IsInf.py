@@ -38,11 +38,11 @@ class TestIsInf(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_is_inf_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+                          use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
         if not use_new_frontend:
             pytest.skip("IsInf operation is not supported via legacy frontend.")
         self._test(*self.create_is_inf_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

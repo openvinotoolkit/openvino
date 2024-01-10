@@ -150,8 +150,8 @@ class TestArgMax(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keepdims", [None, 0])
     @pytest.mark.nightly
-    def test_argmax(self, params, keepdims, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_argmax(self, params, keepdims, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'CPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, ir_version=ir_version, keepdims=keepdims),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

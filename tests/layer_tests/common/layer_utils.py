@@ -4,7 +4,6 @@ import subprocess
 import sys
 
 from common.utils.multiprocessing_utils import multiprocessing_run
-from openvino.inference_engine import IECore, get_version as ie_get_version
 from openvino.runtime import Core, get_version as ie2_get_version
 
 
@@ -33,44 +32,7 @@ class BaseInfer:
         self.res = multiprocessing_run(self.fw_infer, [input_data, config], self.name, infer_timeout)
         return self.res
 
-
-class IEInfer(BaseInfer):
-    def __init__(self, model, weights, device):
-        super().__init__('Inference Engine')
-        self.device = device
-        self.model = model
-        self.weights = weights
-
-    def fw_infer(self, input_data, config=None):
-
-        print("Inference Engine version: {}".format(ie_get_version()))
-        print("Creating IE Core Engine...")
-        ie = IECore()
-        print("Reading network files")
-        net = ie.read_network(self.model, self.weights)
-        print("Loading network")
-        exec_net = ie.load_network(net, self.device, config)
-        print("Starting inference")
-        result = exec_net.infer(input_data)
-
-        if "exec_net" in locals():
-            del exec_net
-        if "ie" in locals():
-            del ie
-
-        return result
-
-    def get_inputs_info(self, precision) -> dict:
-        core = IECore()
-        net = core.read_network(self.model, self.weights)
-        inputs_info = {}
-        for item in net.input_info.items():
-            inputs_info[item[0]] = item[1].tensor_desc.dims
-
-        return inputs_info
-
-
-class InferAPI20(BaseInfer):
+class InferAPI(BaseInfer):
     def __init__(self, model, weights, device, use_new_frontend):
         super().__init__('Inference Engine')
         self.device = device

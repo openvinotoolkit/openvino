@@ -262,47 +262,47 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+            precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+            precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+            precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSplit(OnnxRuntimeLayerTest):
@@ -550,37 +550,37 @@ class TestSplit(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_multiple_out)
-    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], use_old_api=use_old_api)
+                   output_names=params['output_names'])
 
     @pytest.mark.parametrize("params", test_multiple_out_with_add)
     def test_split_outputs_order_multiple_connection_before_result_case(self, params, ie_device,
                                                                         precision, ir_version,
-                                                                        temp_dir, use_old_api):
+                                                                        temp_dir):
         self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], use_old_api=use_old_api)
+                   output_names=params['output_names'])
 
     @pytest.mark.parametrize("params", test_multiple_out_with_identity)
     def test_split_outputs_order_multiple_tensors_before_result_case(self,
@@ -588,8 +588,8 @@ class TestSplit(OnnxRuntimeLayerTest):
                                                                      ie_device,
                                                                      precision,
                                                                      ir_version,
-                                                                     temp_dir, use_old_api):
+                                                                     temp_dir):
         self._test(*self.create_split_net_ordered_outputs_multiple_tensor_names(**params,
                                                                                 ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], use_old_api=use_old_api)
+                   output_names=params['output_names'])

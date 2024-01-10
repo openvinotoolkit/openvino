@@ -247,24 +247,24 @@ class TestGather(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     test_data_negative_indices = [
         dict(shape=[10, 12], axis=0, indices=[3, -1, -4], output_shape=[3, 12]),
@@ -278,8 +278,8 @@ class TestGather(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_negative_indices)
     @pytest.mark.nightly
     def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,
-                                             temp_dir, use_old_api):
+                                             temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

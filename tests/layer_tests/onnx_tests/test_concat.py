@@ -252,39 +252,37 @@ class TestConcat(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.precommit
-    def test_concat_4D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api):
+    def test_concat_4D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.nightly
-    def test_concat_5D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api):
+    def test_concat_5D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_concat_inputs_order_params)
     @pytest.mark.nightly
-    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_concat_net(**params, ir_version=ir_version), ie_device=ie_device,
                    precision=precision, ir_version=ir_version, temp_dir=temp_dir,
-                   input_names=params['input_names'], use_old_api=use_old_api)
+                   input_names=params['input_names'])

@@ -187,7 +187,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         tf_net_path = self.create_tf_model(temp_dir)
 
         test_params = params['params_test']
@@ -221,7 +221,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model_no_concat(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         tf_net_path = self.create_tf_model_no_concat(temp_dir)
 
         test_params = params['params_test']
@@ -310,7 +310,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_new_frontend, use_old_api):
+                                                     temp_dir, use_new_frontend):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
 
         test_params = params['params_test']
@@ -323,7 +323,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_clearing_transformation_registry(self, ie_device, precision, ir_version,
-                                                         temp_dir, use_new_frontend, use_old_api):
+                                                         temp_dir, use_new_frontend):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
         from openvino.tools.mo import convert_model
 

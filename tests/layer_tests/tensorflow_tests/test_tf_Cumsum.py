@@ -50,7 +50,7 @@ class TestCumsum(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+                          use_new_frontend):
         self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

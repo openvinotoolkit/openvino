@@ -114,10 +114,10 @@ class TestScatter(TestScatters):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
 
 class TestScatterElements(TestScatters):
@@ -126,7 +126,7 @@ class TestScatterElements(TestScatters):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

@@ -140,10 +140,10 @@ class TestROIAlign(OnnxRuntimeLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122846, 122783, 126312')
-    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir):
         # TODO: ticket for investigating GPU failures: CVS-86300
         if ie_device != "GPU":
             self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
                        ir_version,
-                       temp_dir=temp_dir, use_old_api=use_old_api,
+                       temp_dir=temp_dir,
                        use_legacy_frontend=True)

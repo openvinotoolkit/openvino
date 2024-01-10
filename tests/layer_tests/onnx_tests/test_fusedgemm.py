@@ -138,7 +138,7 @@ class TestFusedGemm(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_fusedgemm(self, params, alpha, beta, trans_a, trans_b,
-                       ie_device, precision, opset, ir_version, temp_dir, use_old_api):
+                       ie_device, precision, opset, ir_version, temp_dir):
         self._test(
             *self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta,
                              trans_a, trans_b,
@@ -146,4 +146,4 @@ class TestFusedGemm(OnnxRuntimeLayerTest):
                              params['activation_beta'], params['activation_gamma'],
                              opset, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, use_old_api=use_old_api, custom_eps=1e-2)
+            temp_dir=temp_dir, custom_eps=1e-2)

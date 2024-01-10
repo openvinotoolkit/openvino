@@ -37,7 +37,7 @@ class TestLog1p(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_log1p_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
+                         use_new_frontend):
         self._test(*self.create_log1p_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

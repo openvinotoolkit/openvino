@@ -71,12 +71,12 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         if not use_new_frontend:
             pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_different_types = [
         dict(data_input_cnt=4, shape_of_element=[3, 2], data_type=tf.float64),
@@ -87,9 +87,9 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
     def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         if not use_new_frontend:
             pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

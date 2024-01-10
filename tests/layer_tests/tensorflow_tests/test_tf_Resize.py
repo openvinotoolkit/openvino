@@ -65,7 +65,7 @@ class TestResize(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+                          use_new_frontend):
         self._test(*self.create_resize_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

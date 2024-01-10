@@ -65,8 +65,8 @@ class TestLogicalOps(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_logical_ops_placeholder_const(self, params, op_type, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_new_frontend):
         self._test(*self.create_logical_ops_placeholder_const_net(**params, op_type=op_type, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

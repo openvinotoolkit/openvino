@@ -45,10 +45,10 @@ class TestReshape(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_reshape_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend, use_old_api):
+                           use_new_frontend):
         self._test(*self.create_reshape_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 class TestComplexReshape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -87,9 +87,9 @@ class TestComplexReshape(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_reshape(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         self._test(
             *self.create_complex_transpose_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)
 

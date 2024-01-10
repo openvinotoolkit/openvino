@@ -57,8 +57,8 @@ class TestArgMinMax(CommonTFLayerTest):
                                                                                          'arm64', 'ARM64'],
                        reason='Ticket - 126314')
     def test_argmin_max_net(self, params, input_type, output_type, op_type, ie_device, precision, ir_version, temp_dir,
-                            use_new_frontend, use_old_api):
+                            use_new_frontend):
         self._test(*self.create_argmin_max_net(**params, input_type=input_type,
                                                output_type=output_type, op_type=op_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

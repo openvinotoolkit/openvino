@@ -65,9 +65,9 @@ class TestCastOp(CommonTFLayerTest):
     @pytest.mark.parametrize("truncate", [ False, True ])
     @pytest.mark.nightly
     def test_cast_op_placeholder_const(self, params, input_type, output_type, truncate, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_new_frontend):
         self._test(*self.create_cast_op_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend, input_type=input_type,
                                                           output_type=output_type, truncate=truncate),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

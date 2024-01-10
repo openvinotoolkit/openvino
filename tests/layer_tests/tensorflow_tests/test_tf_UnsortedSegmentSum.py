@@ -61,11 +61,11 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
                        reason='Ticket - 122716')
     def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
                                         precision, ir_version, temp_dir,
-                                        use_new_frontend, use_old_api):
+                                        use_new_frontend):
         if not use_new_frontend:
             pytest.skip("UnsortedSegmentSum operation is not supported via legacy frontend.")
         self._test(
             *self.create_unsorted_segment_sum_net(**params, data_type=data_type, segment_ids_type=segment_ids_type,
                                                   num_segments_type=num_segments_type),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)

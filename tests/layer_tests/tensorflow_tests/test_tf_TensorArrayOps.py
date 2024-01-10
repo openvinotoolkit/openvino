@@ -52,10 +52,10 @@ class TestTensorArraySizeV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_size_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_tensor_array_size_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayReadV3(CommonTFLayerTest):
@@ -96,10 +96,10 @@ class TestTensorArrayReadV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_read_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_tensor_array_read_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
@@ -162,10 +162,10 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_write_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_new_frontend, use_old_api):
+                                   use_new_frontend):
         self._test(*self.create_tensor_array_write_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayConcatV3(CommonTFLayerTest):
@@ -205,7 +205,7 @@ class TestTensorArrayConcatV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_concat_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend, use_old_api):
+                                    use_new_frontend):
         self._test(*self.create_tensor_array_concat_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
