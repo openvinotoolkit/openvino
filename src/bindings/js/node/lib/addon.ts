@@ -8,7 +8,7 @@ type SupportedTypedArray =
   | Float32Array
   | Float64Array;
 
-type ElementTypeString =
+type elementTypeString =
   | 'u8'
   | 'u32'
   | 'u16'
@@ -24,12 +24,12 @@ interface Core {
   compileModel(
     model: Model,
     device: string,
-    config?: Record<string, string>,
+    config?: { [option: string]: string }
   ): Promise<CompiledModel>;
   compileModelSync(
     model: Model,
     device: string,
-    config?: Record<string, string>,
+    config?: { [option: string]: string }
   ): CompiledModel;
   readModel(modelPath: string, weightsPath?: string): Promise<Model>;
   readModel(
@@ -59,12 +59,12 @@ interface CompiledModel {
 
 interface Tensor {
   data: number[];
-  getElementType(): Element;
+  getElementType(): element;
   getShape(): number[];
   getData(): number[];
 }
 interface TensorConstructor {
-  new(type: Element | ElementTypeString,
+  new(type: element | elementTypeString,
       shape: number[],
       tensorData?: number[] | SupportedTypedArray): Tensor;
 }
@@ -76,10 +76,10 @@ interface InferRequest {
   getTensor(nameOrOutput: string | Output): Tensor;
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
-  infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray }
-    | Tensor[] | SupportedTypedArray[]): { [outputName: string]: Tensor };
-  inferAsync(inputData: { [inputName: string]: Tensor }
-    | Tensor[]): Promise<{ [outputName: string]: Tensor }>;
+  infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
+    | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
+  inferAsync(inputData: { [inputName: string]: Tensor}
+    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
   getAvailableDevices(): string[];
 }
@@ -96,17 +96,17 @@ interface Output {
 }
 
 interface InputTensorInfo {
-  setElementType(elementType: Element | ElementTypeString): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
   setShape(shape: number[]): InputTensorInfo;
 }
 
 interface OutputTensorInfo {
-  setElementType(elementType: Element | ElementTypeString): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
 }
 interface PreProcessSteps {
-  resize(algorithm: ResizeAlgorithm | string): PreProcessSteps;
+  resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
 }
 
 interface InputModelInfo {
@@ -142,7 +142,7 @@ interface PartialShapeConstructor {
   new(shape: string): PartialShape;
 }
 
-declare enum Element {
+declare enum element {
   u8,
   u32,
   u16,
@@ -155,7 +155,7 @@ declare enum Element {
   f64,
 }
 
-declare enum ResizeAlgorithm {
+declare enum resizeAlgorithm {
   RESIZE_NEAREST,
   RESIZE_CUBIC,
   RESIZE_LINEAR,
@@ -167,12 +167,13 @@ export interface NodeAddon {
   PartialShape: PartialShapeConstructor,
 
   preprocess: {
-    resizeAlgorithm: typeof ResizeAlgorithm,
+    resizeAlgorithm: typeof resizeAlgorithm,
     PrePostProcessor: PrePostProcessorConstructor,
   },
-  element: typeof Element,
+  element: typeof element,
 }
 
-export default // eslint-disable-next-line @typescript-eslint/no-var-requires
+export default
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 require('../bin/ov_node_addon.node') as
   NodeAddon;
