@@ -19,7 +19,7 @@ OutputVector random_normal(const Node& node) {
 
     const auto dtype =
         node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
-    const auto target_type = common::get_ngraph_element_type(dtype);
+    const auto target_type = common::get_ov_element_type(dtype);
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);

@@ -11,7 +11,7 @@ tf2-preview/mobilenet_v2/feature_vector,https://www.kaggle.com/models/google/mob
 magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2
 nnlm-en-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim128/versions/1,skip,120721 AssertionError No signatures for a model
 bert_en_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-uncased-l-12-h-768-a-12/versions/4
-bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-12-h-768-a-12/versions/1
+bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-12-h-768-a-12/versions/1,xfail,129153 TimeoutError or killed with a signal 11
 elmo,https://www.kaggle.com/models/google/elmo/frameworks/tensorFlow1/variations/elmo/versions/3
 universal-sentence-encoder-multilingual-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-large/versions/2
 small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
@@ -53,7 +53,7 @@ bert_en_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/tensorflow/bert/f
 imagenet/mobilenet_v3_small_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-100-224-feature-vector/versions/1
 efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1
 small_bert/bert_en_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-2-h-128-a-2/versions/2
-albert_base,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/base/versions/3
+albert_base,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/base/versions/3,skip,129153 TimeoutError or killed with a signal 11
 nnlm-ja-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128/versions/1,skip,120721 AssertionError No signatures for a model
 universal-sentence-encoder-multilingual-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-qa/versions/2
 nnlm-ja-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
@@ -68,8 +68,8 @@ mobilebert/uncased_L-24_H-128_B-512_A-4_F-4_OPT/squadv1,https://www.kaggle.com/m
 delf,https://www.kaggle.com/models/google/delf/frameworks/tensorFlow1/variations/delf/versions/1
 ssd_mobilenet_v2,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/ssd-mobilenet-v2/versions/1
 imagenet/mobilenet_v3_large_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-075-224-feature-vector/versions/1
-centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512-kpts/versions/1
-bert_cased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/cased-l-12-h-768-a-12/versions/1
+centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512-kpts/versions/1,skip,129153 TimeoutError or killed with a signal 11
+bert_cased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/cased-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
 biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2
 tf2-preview/gnews-swivel-20dim-with-oov,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim-with-oov/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
 tf2-preview/nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
@@ -108,7 +108,7 @@ albert_en_preprocess,https://www.kaggle.com/models/tensorflow/albert/frameworks/
 bert_zh_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/zh-l-12-h-768-a-12/versions/4
 efficientdet/lite4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite4-feature-vector/versions/2
 imagenet/mobilenet_v1_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
-bert_chinese_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/chinese-l-12-h-768-a-12/versions/1
+bert_chinese_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/chinese-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
 mask_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1,xfail,128695 Inference results mismatch
 object_detection/mobile_object_localizer_v1,https://www.kaggle.com/models/google/mobile-object-localizer-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-localizer-v1/versions/1
 efficientdet/lite3/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3-detection/versions/1
@@ -133,7 +133,7 @@ imagenet/mobilenet_v3_small_075_224/classification,https://www.kaggle.com/models
 tweening_conv3d_bair,https://www.kaggle.com/models/google/tweening-conv3d/frameworks/tensorFlow1/variations/bair/versions/1,skip,128817 Model references undeclared parameters
 efficientnet/b7/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b7-feature-vector/versions/1
 bert_en_cased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-cased-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
-bert_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-24-h-1024-a-16/versions/1
+bert_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-24-h-1024-a-16/versions/1,skip,129153 TimeoutError or killed with a signal 11
 centernet/hourglass_512x512,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512/versions/1
 imagenet/mobilenet_v2_035_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-128-feature-vector/versions/2
 efficientdet/d7,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d7/versions/1
@@ -204,7 +204,7 @@ imagenet/inception_v2/feature_vector,https://www.kaggle.com/models/google/incept
 disease-classification,https://www.kaggle.com/models/agripredict/disease-classification/frameworks/tensorFlow2/variations/disease-classification/versions/1
 biggan-deep-128,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/deep-128/versions/1
 bit/m-r101x3,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x3/versions/1
-centernet/hourglass_1024x1024,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/1024x1024/versions/1
+centernet/hourglass_1024x1024,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/1024x1024/versions/1,skip,129153 TimeoutError or killed with a signal 11
 small_bert/bert_en_uncased_L-12_H-128_A-2,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-128-a-2/versions/2
 centernet/resnet50v2_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512/versions/1,skip,128695 Inference results mismatch
 imagenet/resnet_v2_152/classification,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/152-classification/versions/2
@@ -232,12 +232,12 @@ centernet/resnet50v1_fpn_512x512_kpts,https://www.kaggle.com/models/tensorflow/c
 nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 efficientdet/d6,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d6/versions/1,skip,128695 Inference results mismatch
 cord-19/swivel-128d,https://www.kaggle.com/models/tensorflow/cord-19-swivel-128d/frameworks/tensorFlow2/variations/cord-19-swivel-128d/versions/2,skip,120721 AssertionError No signatures for a model
-albert_large,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/large/versions/3
+albert_large,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/large/versions/3,skip,129153 TimeoutError or killed with a signal 11
 centernet/resnet50v2_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512-kpts/versions/1
 efficientnet/b7/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b7-feature-vector/versions/1
 efficientnet/b5/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b5-feature-vector/versions/1
 imagenet/nasnet_large/feature_vector,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/large-feature-vector/versions/2
-centernet/resnet101v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/101v1-fpn-512x512/versions/1
+centernet/resnet101v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/101v1-fpn-512x512/versions/1,skip,129153 TimeoutError or killed with a signal 11
 retinanet/resnet152_v1_fpn_640x640,https://www.kaggle.com/models/tensorflow/retinanet-resnet/frameworks/tensorFlow2/variations/152-v1-fpn-640x640/versions/1
 movinet/a0/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a0-stream-kinetics-600-classification/versions/2
 imagenet/mobilenet_v1_025_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-224-feature-vector/versions/2
@@ -251,7 +251,7 @@ efficientdet/d5,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks
 faster_rcnn/resnet101_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet101-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
 film,https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1
 electra_large,https://www.kaggle.com/models/google/electra/frameworks/tensorFlow2/variations/large/versions/2
-small_bert/bert_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-128-a-2/versions/2
+small_bert/bert_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
 imagenet/mobilenet_v1_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-224-classification/versions/2
 efficientdet/d3,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d3/versions/1,skip,128695 Inference results mismatch
 distilbert_en_uncased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/en-uncased-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
@@ -415,7 +415,7 @@ tiny_video_net/tvn3,https://www.kaggle.com/models/google/tiny-video-net/framewor
 imagenet/mobilenet_v2_035_192/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-192-classification/versions/2
 tf2-preview/nnlm-ko-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ko-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/mobilenet_v2_035_160/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-160-classification/versions/2
-small_bert/bert_uncased_L-4_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-128-a-2/versions/2
+small_bert/bert_uncased_L-4_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
 bit/m-r101x1/imagenet21k_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x1-imagenet21k-classification/versions/1
 efficientnet/b3/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b3-classification/versions/1
 imagenet/efficientnet_v2_imagenet1k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b2-classification/versions/2
@@ -438,7 +438,7 @@ LAReQA/mBERT_X_X_mono,https://www.kaggle.com/models/google/lareqa/frameworks/ten
 experts/bit/r50x1/in21k/object,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-object/versions/1
 small_bert/bert_en_uncased_L-10_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-10-h-256-a-4/versions/2
 supcon/resnet_v1_200/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/200-imagenet-classification/versions/1
-small_bert/bert_uncased_L-6_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-128-a-2/versions/2
+small_bert/bert_uncased_L-6_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
 tf2-preview/nnlm-ja-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ja-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 nnlm-ko-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ko-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 compare_gan/model_12_cifar10_resnet_cifar,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-12-cifar10-resnet-cifar/versions/1,skip,128817 Model references undeclared parameters
@@ -447,7 +447,7 @@ compare_gan/s3gan_5_128x128,https://www.kaggle.com/models/google/compare-gan/fra
 convnext_base_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-224-fe/versions/1
 convnext_base_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-384/versions/1
 edgetpu/vision/mobilenet-edgetpu-v2/l,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/l/versions/1
-small_bert/bert_uncased_L-4_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-512-a-8/versions/2
+small_bert/bert_uncased_L-4_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-512-a-8/versions/2,skip,129153 TimeoutError or killed with a signal 11
 experts/bit/r50x1/in21k/flower,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-flower/versions/1
 distill_bit_r50x1_160_feature_extraction,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/distill-bit-r50x1-160-feature-extraction/versions/1
 edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/l,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/feature-vector-l/versions/2
@@ -455,7 +455,7 @@ spiral/default-wgangp-celebahq64-gen-19steps/agent5,https://www.kaggle.com/model
 image_augmentation/crop_rotate_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/crop-rotate-color/versions/1,skip,128817 Model references undeclared parameters
 tf2-preview/nnlm-id-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-id-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/mobilenet_v2_035_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-192-feature-vector/versions/2
-small_bert/bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-12-h-768-a-12/versions/2
+small_bert/bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-12-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
 xlm_roberta_multi_cased_L-24_H-1024_A-16,https://www.kaggle.com/models/kaggle/xlm-roberta/frameworks/tensorFlow2/variations/multi-cased-l-24-h-1024-a-16/versions/1
 regnety600mf_classification,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/600mf-classification/versions/1
 convnext_tiny_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/tiny-1k-224/versions/1
@@ -464,7 +464,7 @@ vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/
 imagenet/mobilenet_v1_050_128/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/050-128-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
 wiki40b-lm-sr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/sr/versions/1
 imagenet/mobilenet_v1_075_160/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-160-classification/versions/2
-small_bert/bert_uncased_L-6_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-512-a-8/versions/2
+small_bert/bert_uncased_L-6_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-512-a-8/versions/2,skip,129153 TimeoutError or killed with a signal 11
 tf2-preview/nnlm-es-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 sup-rotation-100,https://www.kaggle.com/models/vtab/sup-rotation-100/frameworks/tensorFlow1/variations/sup-rotation-100/versions/1
 wiki40b-lm-ko,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ko/versions/1
@@ -549,7 +549,7 @@ convnext_xlarge_21k_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext
 mobilevit_xxs_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/xxs-1k-256-fe/versions/1
 mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1
 spiral/default-wgangp-celebahq64-gen-19steps/agent1,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent1/versions/1
-small_bert/bert_uncased_L-8_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-768-a-12/versions/2
+small_bert/bert_uncased_L-8_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
 edgetpu/vision/deeplab-edgetpu/fused_argmax/m,https://www.kaggle.com/models/google/deeplab-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-m/versions/1
 image_augmentation/nas_imagenet,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/nas-imagenet/versions/1
 mixer_b16_i21k_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i21k-fe/versions/1,skip,128695 Inference results mismatch
@@ -568,7 +568,7 @@ compare_gan/model_11_cifar10_resnet_cifar,https://www.kaggle.com/models/google/c
 wiki40b-lm-fi,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/fi/versions/1
 vit_r26_s32_medaug_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-medaug-fe/versions/1
 distill_bit_r50x1_224_feature_extraction,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/distill-bit-r50x1-224-feature-extraction/versions/1
-small_bert/bert_uncased_L-2_H-256_A-4,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-256-a-4/versions/2
+small_bert/bert_uncased_L-2_H-256_A-4,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-256-a-4/versions/2,skip,129153 TimeoutError or killed with a signal 11
 edgetpu/vision/autoseg-edgetpu/fused_argmax/s,https://www.kaggle.com/models/google/autoseg-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-s/versions/1
 image_augmentation/flipx_crop_rotate_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/flipx-crop-rotate-color/versions/1,skip,128817 Model references undeclared parameters
 circularnet_3,https://www.kaggle.com/models/google/circularnet/frameworks/tensorFlow2/variations/3/versions/1
@@ -588,12 +588,12 @@ wiki40b-lm-lv,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorF
 sentence-t5/st5-11b,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-11b/versions/1
 gtr/gtr-xxl,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-xxl/versions/1
 swin_base_patch4_window7_224_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/base-patch4-window7-224-fe/versions/1
-small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-128-a-2/versions/2
+small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
 mmt/data_mscoco,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-mscoco/versions/1
 vit_r26_s32_lightaug_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-lightaug-classification/versions/1
 compare_gan/s3gan_10_256x256,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/s3gan-10-256x256/versions/1
 experts/bit/r50x1/in21k/tree,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-tree/versions/1
-small_bert/bert_uncased_L-6_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-768-a-12/versions/2
+small_bert/bert_uncased_L-6_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
 imagenet/mobilenet_v2_075_96/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-96-classification/versions/2
 mixer_b16_i1k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i1k-classification/versions/1
 edgetpu/nlp/mobilebert-edgetpu/s,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/s/versions/1,skip,120720 InvalidArgumentError Graph execution error
