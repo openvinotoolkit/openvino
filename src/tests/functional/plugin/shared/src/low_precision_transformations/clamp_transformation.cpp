@@ -6,7 +6,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/clamp.hpp"
 

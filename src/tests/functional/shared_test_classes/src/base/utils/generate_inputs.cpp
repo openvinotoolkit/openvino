@@ -6,8 +6,6 @@
 #include <algorithm>
 #include <functional>
 
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include "ngraph/ops.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/ops.hpp"

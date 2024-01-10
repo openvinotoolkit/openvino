@@ -8,7 +8,6 @@
 #include <string>
 #include <queue>
 
-#include "ngraph/op/op.hpp"
 #include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/unsqueeze_transformation.hpp"
 #include "ov_models/subgraph_builders.hpp"

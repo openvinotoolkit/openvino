@@ -17,12 +17,12 @@
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
 
-#include <ngraph/function.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
-#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <ngraph/op/depth_to_space.hpp>
+#include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 #include "ov_lpt_models/depth_to_space.hpp"
 
