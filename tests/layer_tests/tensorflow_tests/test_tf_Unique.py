@@ -39,12 +39,12 @@ class TestUnique(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_unique_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+                          use_new_frontend):
         if not use_new_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_other_types = [
         dict(x_shape=[10], data_type=tf.int32, out_idx=tf.int32),
@@ -54,9 +54,9 @@ class TestUnique(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_other_types)
     @pytest.mark.nightly
     def test_unique_other_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, use_old_api):
+                                use_new_frontend):
         if not use_new_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

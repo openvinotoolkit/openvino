@@ -94,20 +94,18 @@ class TestUpsample(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("mode", [None, 'nearest'])
     @pytest.mark.parametrize("opset", [7, 9])
     @pytest.mark.nightly
-    def test_upsample_nearest(self, params, mode, opset, ie_device, precision, ir_version, temp_dir,
-                              use_old_api):
+    def test_upsample_nearest(self, params, mode, opset, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, mode=mode, opset=opset, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("opset", [7, 9])
     @pytest.mark.nightly
-    def test_upsample_linear(self, params, opset, ie_device, precision, ir_version, temp_dir,
-                             use_old_api):
+    def test_upsample_linear(self, params, opset, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, mode='linear', opset=opset, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class PytorchLayerTest(CommonLayerTest):
@@ -176,21 +174,20 @@ class TestPytorchUpsample(PytorchLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("mode", [None, 'nearest'])
     def test_pytorch_upsample_precommit(self, params, mode, ie_device, precision, ir_version,
-                                        temp_dir, use_old_api):
+                                        temp_dir):
         if ie_device == 'GPU':
             pytest.skip('Linear upsampling not supported on GPU')
         self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("mode", [None, 'nearest', 'bilinear'])
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_pytorch_upsample(self, params, mode, ie_device, precision, ir_version, temp_dir,
-                              use_old_api):
+    def test_pytorch_upsample(self, params, mode, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and mode == 'bilinear':
             pytest.skip('Linear upsampling not supported on GPU')
         self._test(*self.create_net(**params, mode=mode, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
