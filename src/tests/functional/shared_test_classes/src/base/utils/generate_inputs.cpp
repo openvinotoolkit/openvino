@@ -250,7 +250,46 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::DetectionOutput>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
-bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value);
+namespace {
+using GetItemF = std::function<bool (const std::vector<float>&, float&)>;
+
+bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const GetItemF& get_item_func) {
+    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!const_node)
+        return false;
+
+    auto const_value = const_node->cast_vector<float>();
+    return get_item_func(const_value, value);
+}
+
+bool get_min_value(const std::vector<float>& v, float& value) {
+    const auto it = std::min_element(v.begin(), v.end());
+    if (it == v.end()) {
+        return false;
+    }
+    value = *it;
+    return true;
+}
+
+bool get_max_value(const std::vector<float>& v, float& value) {
+    const auto it = std::max_element(v.begin(), v.end());
+    if (it == v.end()) {
+        return false;
+    }
+    value = *it;
+    return true;
+}
+
+bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
+    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
+        return false;
+
+    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
+        return false;
+
+    return true;
+}
+} // namespace
 
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
                              size_t port,
@@ -316,45 +355,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
             return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
         }
     }
-}
-
-using GetItemF = std::function<bool (const std::vector<float>&, float&)>;
-
-bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const GetItemF& get_item_func) {
-    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
-    if (!const_node)
-        return false;
-
-    auto const_value = const_node->cast_vector<float>();
-    return get_item_func(const_value, value);
-}
-
-bool get_min_value(const std::vector<float>& v, float& value) {
-    const auto it = std::min_element(v.begin(), v.end());
-    if (it == v.end()) {
-        return false;
-    }
-    value = *it;
-    return true;
-}
-
-bool get_max_value(const std::vector<float>& v, float& value) {
-    const auto it = std::max_element(v.begin(), v.end());
-    if (it == v.end()) {
-        return false;
-    }
-    value = *it;
-    return true;
-}
-
-bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
-    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
-        return false;
-
-    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
-        return false;
-
-    return true;
 }
 
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling>& node,
