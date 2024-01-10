@@ -12,6 +12,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/exception.hpp"
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType& ex) {             \
@@ -20,6 +21,8 @@
     }
 
 #define CATCH_OV_EXCEPTIONS                                \
+    CATCH_OV_EXCEPTION(REQUEST_BUSY, Busy)                 \
+    CATCH_OV_EXCEPTION(INFER_CANCELLED, Cancelled)         \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)    \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)           \
     catch (...) {                                          \

@@ -32,6 +32,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
         ov::Busy::create(ex.what());                                        \
     } catch (const ov::Busy&) {                                             \
         throw;                                                              \
+    } catch (const ov::Cancelled&) {                                        \
+        throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
