@@ -150,17 +150,15 @@ public:
 
     template<typename src_t, typename dst_t>
     static fn_t get() {
+        // fallback to AVX2 if AVX512 is not available
         if (mayiuse(cpu_isa_t::avx512_core)) {
             static jit_convert_array converter(convert_vec<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
-            auto & generator = static_cast<jit_generator&>(converter);
+            auto& generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
-        }
-        // fallback to AVX2 if AVX512 is not available
-        else if (mayiuse(cpu_isa_t::avx2)
-                 && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
+        } else if (mayiuse(cpu_isa_t::avx2) && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
             static jit_convert_array converter(convert_vec<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
-            auto & generator = static_cast<jit_generator&>(converter);
+            auto& generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
         }
