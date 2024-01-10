@@ -184,7 +184,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             num_output_port = edge->getInputNum() + 1;
     }
 
-    auto getData = [](MemoryPtr& ptr) {
+    auto getData = [](const MemoryPtr& ptr) {
         std::string ret;
         try {
             std::stringstream ss;
