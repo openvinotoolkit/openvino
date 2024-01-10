@@ -5,6 +5,7 @@
 #include "ngraph/shape.hpp"
 #include "op/random_uniform_like.hpp"
 #include "openvino/frontend/common/random_normal_helper.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -19,12 +20,12 @@ OutputVector random_normal_like(const Node& node) {
     ngraph::element::Type target_type;
     if (node.has_attribute("dtype")) {
         const auto dtype = node.get_attribute_value<int64_t>("dtype");
-        target_type = common::get_ngraph_element_type(dtype);
+        target_type = common::get_ov_element_type(dtype);
     } else {
         target_type = input.get_element_type();
     }
 
-    const auto shape = std::make_shared<default_opset::ShapeOf>(input);
+    const auto shape = std::make_shared<ov::op::v0::ShapeOf>(input);
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
