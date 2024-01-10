@@ -36,6 +36,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::enable_hyper_threading.name()),
         RO_property(ov::execution_devices.name()),
         RO_property(ov::intel_cpu::denormals_optimization.name()),
+        RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
     };
 
@@ -228,5 +229,46 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHas
     ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, inference_precision_expected);
 }
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckLogLevel) {
+    ov::Core ie;
+
+    // check default value
+    {
+        ov::AnyMap config;
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
+    }
+    //check set and get
+    const std::vector<ov::log::Level> logLevels = {
+        ov::log::Level::ERR,
+        ov::log::Level::NO,
+        ov::log::Level::WARNING,
+        ov::log::Level::INFO,
+        ov::log::Level::DEBUG,
+        ov::log::Level::TRACE};
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ov::AnyMap config{ov::log::level(logLevels[i])};
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(logLevels[i])));
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+}
+
 
 } // namespace
