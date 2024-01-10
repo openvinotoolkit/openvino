@@ -182,11 +182,11 @@ def test_simple_if_without_body_parameters():
 def check_if_getters(if_model, cond_val):
     if_op = if_model(cond_val)
     assert isinstance(if_op.get_then_body(), Model)
-    assert if_op.get_function(0)._get_raw_address(), if_op.get_then_body()._get_raw_address()
+    assert if_op.get_function(0)._get_raw_address() == if_op.get_then_body()._get_raw_address()
     assert compare_models(if_op.get_function(0), if_op.get_then_body())
 
     assert isinstance(if_op.get_else_body(), Model)
-    assert if_op.get_function(1)._get_raw_address(), if_op.get_else_body()._get_raw_address()
+    assert if_op.get_function(1)._get_raw_address() == if_op.get_else_body()._get_raw_address()
     assert compare_models(if_op.get_function(1), if_op.get_else_body())
 
 
