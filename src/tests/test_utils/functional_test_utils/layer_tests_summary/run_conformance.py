@@ -54,7 +54,7 @@ def parse_arguments():
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
     entity_help = "Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or "\
-        "`ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)"
+        "`ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0 and GPU.1 in case when device are the same"
     expected_failures_help = "Excepted failures list file path as csv"
     cache_path_help = "Path to the cache file with test_name list sorted by execution time as `.lst` file!"
@@ -68,7 +68,7 @@ def parse_arguments():
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False,
                         default=NO_MODEL_CONSTANT)
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default="")
-    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count() - 1)
+    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count())
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_graph", help=dump_graph_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--special_mode", help=special_mode_help, type=str, required=False, default="")
@@ -287,7 +287,7 @@ class Conformance:
     def __summarize(self, xml_report_path: os.path, report_dir: os.path):
         if self._type == constants.OP_CONFORMANCE:
             summary_root = ET.parse(xml_report_path).getroot()
-            rel_weights_path = os.path.join(self._model_path,
+            rel_weights_path = os.path.join("/home/efode/repo/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary/utils/rel",
                                             constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR,
                                                                                    self._special_mode))
             create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
