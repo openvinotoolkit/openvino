@@ -44,6 +44,7 @@ inline std::shared_ptr<Model> create_preprocess_1input(element::Type type, const
     data1->output(0).get_tensor().set_names({"input1"});
     std::shared_ptr<op::v0::Result> res;
     auto op1 = std::make_shared<op::v0::Abs>(data1);
+    op1->set_friendly_name("abs1");
     if (type == element::f32) {
         res = std::make_shared<op::v0::Result>(op1);
     } else {
