@@ -256,7 +256,7 @@ MemoryPtr VariableStateKVcache::output_mem() {
 }
 
 MemoryDescPtr VariableStateKVcache::internal_desc() const {
-    return m_internal_mem->getDescPtr(); //since we don't store initial one
+    return m_dense_internal_desc; //since we don't store initial one
 }
 
 MemoryPtr VariableStateKVcache::internal_state_mem() const {
