@@ -432,10 +432,18 @@ TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
 
-static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool is_caching_test = false) {
+
+
+static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout,
+                                        ov::PartialShape whole_layout,
+                                        std::vector<float> input_data,
+                                        std::vector<float> expected_output_data,
+                                        size_t axis,
+                                        size_t exit_value,
+                                        bool is_caching_test = false) {
     auto& engine = get_test_engine();
 
-    auto e_input_layout = cldnn::layout{ { 1, 1, 5, 4 }, data_types::f32, format::bfyx };
+    auto e_input_layout = cldnn::layout{ whole_layout, data_types::f32, format::bfyx };
     auto b_input_layout = cldnn::layout{ body_input_layout, data_types::f32, format::bfyx };
     auto const_layout = cldnn::layout{ {}, data_types::i64, format::bfyx };
 
@@ -445,15 +453,7 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool
     auto b_exit_value_mem = engine.allocate_memory(const_layout);
     auto b_index_inc_mem = engine.allocate_memory(const_layout);
 
-    std::vector<float> input_data{
-        1.0f,  2.0f, -15.f,  3.0f,
-        4.0f, -15.f, 5.0f,  6.0f,
-        -15.f, 7.0f, -15.f, 0.0f,
-        0.0f, -15.f, 0.5f, -0.5f,
-        -15.f, 8.0f,  1.5f,  5.2f
-    };
-
-    const int64_t exit_value = 3;
+    auto expected_output_layout = whole_layout;
 
     // initialize input buffers
     set_values(e_input_mem, input_data);
@@ -484,12 +484,12 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool
     int64_t num_iterations = -1;
 
     std::vector<loop::io_primitive_map> input_primitive_maps {
-        loop::io_primitive_map("input", "b_add_data", 2),
-        loop::io_primitive_map("input", "b_mul_data", 2),
+        loop::io_primitive_map("input", "b_add_data", axis),
+        loop::io_primitive_map("input", "b_mul_data", axis),
         loop::io_primitive_map(actual_iteration_count_id, body_current_iteration_id) };
     std::vector<loop::io_primitive_map> output_primitive_maps {
-        loop::io_primitive_map(cldnn::input_info("loop", 0), cldnn::input_info("b_add", 0), 2),
-        loop::io_primitive_map(cldnn::input_info("loop", 1), cldnn::input_info("b_mul", 0), 2) };
+        loop::io_primitive_map(cldnn::input_info("loop", 0), cldnn::input_info("b_add", 0), axis),
+        loop::io_primitive_map(cldnn::input_info("loop", 1), cldnn::input_info("b_mul", 0), axis) };
     std::vector<loop::backedge_mapping> back_edges {
         loop::backedge_mapping("b_index_update", body_current_iteration_id) };
 
@@ -517,6 +517,8 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool
     ASSERT_EQ(outputs.size(), 1);
 
     auto expected_num_iterations = (exit_value + 1);
+    expected_output_layout[axis] = expected_num_iterations;
+    auto e_output_layout = cldnn::layout{ expected_output_layout, data_types::f32, format::bfyx };
 
     auto num_iter_mem = network->get_output_memory(actual_iteration_count_id);
     if (num_iter_mem != nullptr) {
@@ -525,18 +527,21 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool
     }
 
     std::vector<float> expected(input_data.size());
-    for (size_t j = 0; j < input_data.size(); j++) {
-        auto val = static_cast<size_t>(j / 4) + 1;
-        expected[j] = static_cast<float>(input_data[j] + val) + static_cast<float>(input_data[j] * val);
+    if (expected_output_data.size() == 0) {
+        for (size_t j = 0; j < input_data.size(); j++) {
+            auto val = static_cast<size_t>(j / 4) + 1;
+            expected[j] = static_cast<float>(input_data[j] + val) + static_cast<float>(input_data[j] * val);
+        }
+    } else {
+        expected = expected_output_data;
     }
 
     auto output_mem = outputs.begin()->second.get_memory();
     auto output_layout = output_mem->get_layout();
-
-    ASSERT_EQ(output_layout.batch(), 1);
-    ASSERT_EQ(output_layout.feature(), 1);
-    ASSERT_EQ(output_layout.spatial(0), 4);
-    ASSERT_EQ(output_layout.spatial(1), expected_num_iterations);
+    ASSERT_EQ(output_layout.batch(), e_output_layout.batch());
+    ASSERT_EQ(output_layout.feature(), e_output_layout.feature());
+    ASSERT_EQ(output_layout.spatial(0), e_output_layout.spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), e_output_layout.spatial(1));
     // value check
     {
         mem_lock<float> output_ptr{ output_mem, get_test_stream() };
@@ -546,18 +551,53 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool
     }
 }
 
+
+std::vector<float> input_data_5_4{
+    1.0f,  2.0f, -15.f,  3.0f,
+    4.0f, -15.f, 5.0f,  6.0f,
+    -15.f, 7.0f, -15.f, 0.0f,
+    0.0f, -15.f, 0.5f, -0.5f,
+    -15.f, 8.0f,  1.5f,  5.2f
+};
+
 TEST(loop_gpu, support_dynamic_tensoriterator) {
-    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 });
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 }, { 1, 1, 5, 4 }, input_data_5_4, std::vector<float>(), 2, 3);
 }
 
 TEST(loop_gpu, support_loop_w_dynamic_body_input) {
-    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 });
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 }, { 1, 1, 5, 4 }, input_data_5_4, std::vector<float>(), 2, 3);
 }
 
 TEST(loop_gpu, support_dynamic_tensoriterator_cached) {
-    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 }, true);
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 }, { 1, 1, 5, 4 }, input_data_5_4, std::vector<float>(), 2, 3, true);
 }
 
 TEST(loop_gpu, support_loop_w_dynamic_body_input_cached) {
-    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 }, true);
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 }, { 1, 1, 5, 4 }, input_data_5_4, std::vector<float>(), 2, 3, true);
+}
+
+TEST(loop_gpu, support_dynamic_tensoriterator_feature_iter_1) {
+    test_loop_gpu_wo_trip_count({ 1, 1, 4, 1}, { 1, 5, 4, 1}, input_data_5_4, std::vector<float>(), 1, 3);
+}
+
+
+TEST(loop_gpu, support_dynamic_tensoriterator_feature_iter_2) {
+    test_loop_gpu_wo_trip_count({ 1, 1, 2, 2}, { 1, 5, 2, 2}, input_data_5_4, std::vector<float>(), 1, 3);
+}
+
+TEST(loop_gpu, support_dynamic_tensoriterator_batch_axis) {
+    test_loop_gpu_wo_trip_count({ 1, 2, 2, 1}, { 5, 2, 2, 1}, input_data_5_4, std::vector<float>(), 0, 3);
+}
+
+TEST(loop_gpu, support_dynamic_tensoriterator_outer_axis) {
+    // Reference output data (generated by reference::split)
+    std::vector<float> output_data_5_4{
+         3.0f,  5.0f,  -43.f,  11.0f,
+        19.0f, -57.f,  29.0f,  34.0f,
+        -85.f, 47.0f, -29.0f,   1.0f,
+        2.0f, -43.0f,   5.0f,   1.0f,
+        -71.0f, 44.0f,  14.0f,  36.2f
+    };
+
+    test_loop_gpu_wo_trip_count({ 2, 1, 1, 2}, { 2, 5, 1, 2}, input_data_5_4, output_data_5_4, 1, 4);
 }
