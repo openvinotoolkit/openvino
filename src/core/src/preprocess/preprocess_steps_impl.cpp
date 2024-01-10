@@ -701,19 +701,18 @@ void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
         [dst_format](const Output<Node>& node, PostprocessingContext& context) {
             if (context.color_format() == dst_format) {
                 return std::make_tuple(node, false);
-            }
-            if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
-                (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
+            } else if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+                       (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
                 auto res = reverse_channels({node}, context);
                 context.color_format() = dst_format;
                 return res;
+            } else {
+                OPENVINO_THROW("Source color format '",
+                               color_format_name(context.color_format()),
+                               "' is not convertible to '",
+                               color_format_name(dst_format),
+                               "'");
             }
-            OPENVINO_ASSERT(false,
-                            "Source color format '",
-                            color_format_name(context.color_format()),
-                            "' is not convertible to '",
-                            color_format_name(dst_format),
-                            "'");
         },
         "convert color (" + color_format_name(dst_format) + ")");
 }
@@ -724,7 +723,7 @@ std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
-    auto shape = node.get_partial_shape();
+    const auto& shape = node.get_partial_shape();
     if (shape.rank().is_static()) {
         // This block of code is to preserve output shape if it contains dynamic dimensions
         // Otherwise, dynamic version will transform shape {?,3,?,?} to {?,?,?,?} which is still ok but not desired
