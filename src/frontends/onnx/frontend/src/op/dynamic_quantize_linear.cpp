@@ -9,7 +9,6 @@
 
 #include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
