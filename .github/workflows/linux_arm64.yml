@@ -125,8 +125,8 @@ jobs:
           should-setup-pip-paths: 'true'
           show-cache-info: 'true'
 
-      - name: Sleep
-        run: sleep 5h
+#      - name: Sleep
+#        run: sleep 5h
 
       - name: Install python dependencies
         run: |
@@ -152,6 +152,11 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
+          
+          SCCACHE_START_SERVER=1 SCCACHE_AZURE_KEY_PREFIX="ubuntu20_aarch64_Release" SCCACHE_AZURE_BLOB_CONTAINER="sccache" SCCACHE_AZURE_CONNECTION_STRING="${SCCACHE_AZURE_CONNECTION_STRING}" ${SCCACHE_PATH}
+          
+          sleep 10s
+          
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
@@ -175,6 +180,9 @@ jobs:
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Sleep
+        run: sleep 5h
 
       - name: Cmake install - OpenVINO
         run: |
