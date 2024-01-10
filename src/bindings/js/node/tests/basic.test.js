@@ -6,6 +6,7 @@ const { addon: ov } = require('..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
+const { platform } = require('node:process');
 
 const testXml = getModelPath().xml;
 const core = new ov.Core();
@@ -13,6 +14,12 @@ const model = core.readModelSync(testXml);
 const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
+
+it('Core.getAvailableDevices()', () => {
+    if (platform !== 'linux') return;
+    const devices = core.getAvailableDevices();
+    assert.ok(devices.includes('CPU'));
+});
 
 it('CompiledModel type', () => {
   assert.ok(compiledModel instanceof ov.CompiledModel);
