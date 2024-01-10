@@ -3,5 +3,4 @@
 
 from .utils import get_image
 from .utils import get_model
-from .utils import get_ngraph_model
 from .utils import get_path_to_model
