@@ -200,8 +200,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
 
-void dump_proc_table() {
-}
+void dump_proc_table() {}
 
 std::vector<std::vector<int>> get_org_proc_type_table() {
     return {{-1}};
@@ -263,8 +262,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
     return cpu._proc_type_table;
 }
 
-void dump_proc_table() {
-}
+void dump_proc_table() {}
 
 std::vector<std::vector<int>> get_org_proc_type_table() {
     CPU& cpu = cpu_info();
@@ -373,7 +371,7 @@ void dump_proc_table() {
     std::cout << "_proc_type_table: " << std::endl;
     for (size_t i = 0; i < proc_table.size(); i++) {
         auto& item = proc_table[i];
-        std::cout << item[ALL_PROC] << "," << item[MAIN_CORE_PROC] << "," << item[EFFICIENT_CORE_PROC] << ","
+        std::cout << "  " << item[ALL_PROC] << "," << item[MAIN_CORE_PROC] << "," << item[EFFICIENT_CORE_PROC] << ","
                   << item[HYPER_THREADING_PROC] << "," << item[PROC_NUMA_NODE_ID] << "," << item[PROC_SOCKET_ID]
                   << std::endl;
     }

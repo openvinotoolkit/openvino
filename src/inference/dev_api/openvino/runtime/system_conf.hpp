@@ -286,7 +286,6 @@ OPENVINO_RUNTIME_API int get_org_socket_id(int socket_id);
  */
 OPENVINO_RUNTIME_API int get_org_numa_id(int numa_node_id);
 
-
 OPENVINO_RUNTIME_API void dump_proc_table();
 
 /**
