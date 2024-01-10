@@ -209,7 +209,8 @@ krasserm/perceiver-io-mlm,perceiver-io-masked-language-model,skip,Load problem
 krasserm/perceiver-io-optical-flow,perceiver-io-optical-flow,skip,Load problem
 krasserm/perceiver-io-txt-clf-imdb,perceiver-io-text-classifier,skip,Load problem
 ksmcg/fan_small_12_p16_224,fan,skip,Load problem
-laion/clap-htsat-unfused,clap,xfail
+laion/clap-htsat-unfused:audio_model,clap
+laion/clap-htsat-unfused:audio_projection,clap
 Langboat/ReGPT-125M-200G,re_gpt,skip,Load problem
 lengyue233/content-vec-best,hubert
 Lewislou/cellseg_sribd,cell_sribd,skip,Load problem
@@ -316,7 +317,9 @@ RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
-Salesforce/blip2-flan-t5-xl,blip-2,xfail,Trace error
+Salesforce/blip2-flan-t5-xl:vision_model,blip-2
+Salesforce/blip2-flan-t5-xl:qformer,blip-2
+Salesforce/blip2-flan-t5-xl:language_projection,blip-2
 Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta

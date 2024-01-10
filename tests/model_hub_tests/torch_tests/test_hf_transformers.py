@@ -12,6 +12,8 @@ from models_hub_common.utils import cleanup_dir
 from torch_utils import TestTorchConvertModel
 from torch_utils import process_pytest_marks
 
+py_object_type = type
+
 def is_gptq_model(config):
     config_dict = config.to_dict() if not isinstance(config, dict) else config
     quantization_config = config_dict.get("quantization_config", None)
@@ -183,7 +185,12 @@ class TestTransformersModel(TestTorchConvertModel):
         self.cuda_available, self.gptq_postinit = None, None
 
     def load_model(self, name, type):
+        name_suffix = ''
         from transformers import AutoConfig
+        if name.find(':') != -1:
+            name_suffix = name[name.find(':') + 1:]
+            name = name[:name.find(':')]
+
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -245,33 +252,32 @@ class TestTransformersModel(TestTorchConvertModel):
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModel.from_pretrained(name, **model_kwargs)
             example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
-        elif name == 'laion/clap-htsat-unfused':
+        elif 'laion/clap-htsat-unfused' in name:
             from transformers import AutoModel
             model = AutoModel.from_pretrained(name)
+            
             import torch
-            input_features = torch.randn([1, 1, 1001, 64], dtype=torch.float32)
-            model.get_audio_features(input_features=input_features)
-            # generate
-            # eval correct
+            example_inputs_map = {
+                'audio_model': {'input_features': torch.randn([1, 1, 1001, 64], dtype=torch.float32)},
+                'audio_projection': {'hidden_states': torch.randn([1, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
         elif name == 'microsoft/git-large-coco':
             from transformers import AutoProcessor, AutoModelForCausalLM
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModelForCausalLM.from_pretrained(name)
             import torch
-            pixel_values = torch.randn(*(1, 3, 224, 224), dtype=torch.float32)
-            input_ids = torch.randint(1, 100, size=(1, 13), dtype=torch.int64)
-            model.generate(pixel_values=pixel_values, input_ids=input_ids, max_length=3)
-            # generate
-            # eval correct
+            example = {'pixel_values': torch.randn(*(1, 3, 224, 224), dtype=torch.float32), 
+                       'input_ids': torch.randint(1, 100, size=(1, 13), dtype=torch.int64)}
         elif name == 'openai/whisper-medium':
+            # todo
             from transformers import AutoProcessor, WhisperForConditionalGeneration
             model = WhisperForConditionalGeneration.from_pretrained(name)
 
             model.config.forced_decoder_ids = None
             example = (torch.randn([1, 80, 3000], dtype=torch.float32), )
             model.generate(example)
-            # generate
-            # eval correct
         elif name == 'ZinengTang/tvlt-base':
             from transformers import AutoProcessor, AutoModel
             processor = AutoProcessor.from_pretrained("ZinengTang/tvlt-base")
@@ -281,8 +287,8 @@ class TestTransformersModel(TestTorchConvertModel):
             images = list(torch.rand(*(8, 3, 224, 224), dtype=torch.float32))
             audio = list(torch.randn(10000, dtype=torch.float32))
             example = dict(processor(images, audio, sampling_rate=44100, return_tensors="pt"))
-            # eval correct
         elif name == 'openai/jukebox-1b-lyrics':
+            # vqvae, about priors don't know
             from transformers import AutoModel, AutoTokenizer
 
             tokenizer = AutoTokenizer.from_pretrained(name)
@@ -299,30 +305,27 @@ class TestTransformersModel(TestTorchConvertModel):
             metas = tokenizer(artist=artist, genres=genre, lyrics=lyrics)
             set_seed(0)
             music_tokens = model.ancestral_sample(metas.input_ids, sample_length=400)
-            # eval correct
-            # generate
+
         elif name == 'Salesforce/blip2-flan-t5-xl':
             from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
+            # vision_model, qformer, language_projection, language_model
 
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModelForVisualQuestionAnswering.from_pretrained(name)
 
             example = dict(processor(images=self.image, return_tensors="pt"))
-            
-            modules_map, orig_forwards, example_inputs = embed_model_with_hooks(model, max_depth=1)
-            generated_ids = model.generate(**example)
-            traced_modules = trace_modules(modules_map, orig_forwards, example_inputs)
-            # todo: W/A return only the last module but run infer comparison inside TestTransformersModel.load_model
-            for submodule_name, fw_submodule in traced_modules.items(): 
-                self.example = example_inputs[submodule_name]
-                ov_model = self.convert_model(fw_submodule)
-                fw_outputs = self.infer_fw_model(fw_submodule, self.example)
-                ov_outputs = self.infer_ov_model(ov_model, self.example, 'CPU')  # todo: set ie device from kwargs
-                self.compare_results(fw_outputs, ov_outputs)
-            model = fw_submodule
-            example = example_inputs[submodule_name]
-            
+            import torch
+            example_inputs_map = {
+                'vision_model' :  {'pixel_values': torch.randn([1, 3, 224, 224], dtype=torch.float32)},
+                'qformer': {'query_embeds' : torch.randn([1, 32, 768], dtype=torch.float32), 
+                            'encoder_hidden_states' : torch.randn([1, 257, 1408], dtype=torch.float32),
+                            'encoder_attention_mask' : torch.ones([1, 257], dtype=torch.int64)},
+                'language_projection': {'input' : torch.randn([1, 32, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
         elif name == 'suno/bark':
+            # semantic, coarse_acoustics, fine_acoustics, codec_model
             from transformers import AutoProcessor, AutoModelForTextToWaveform
 
             processor = AutoProcessor.from_pretrained(name)
@@ -333,8 +336,6 @@ class TestTransformersModel(TestTorchConvertModel):
                 return_tensors="pt"
             )
             speech_values = model.generate(**inputs, max_length=3)
-            # generate
-            # eval correct
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
