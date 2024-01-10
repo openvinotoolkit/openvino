@@ -270,14 +270,6 @@ class TestTransformersModel(TestTorchConvertModel):
             import torch
             example = {'pixel_values': torch.randn(*(1, 3, 224, 224), dtype=torch.float32), 
                        'input_ids': torch.randint(1, 100, size=(1, 13), dtype=torch.int64)}
-        elif name == 'openai/whisper-medium':
-            # todo
-            from transformers import AutoProcessor, WhisperForConditionalGeneration
-            model = WhisperForConditionalGeneration.from_pretrained(name)
-
-            model.config.forced_decoder_ids = None
-            example = (torch.randn([1, 80, 3000], dtype=torch.float32), )
-            model.generate(example)
         elif name == 'ZinengTang/tvlt-base':
             from transformers import AutoProcessor, AutoModel
             processor = AutoProcessor.from_pretrained("ZinengTang/tvlt-base")
@@ -287,25 +279,6 @@ class TestTransformersModel(TestTorchConvertModel):
             images = list(torch.rand(*(8, 3, 224, 224), dtype=torch.float32))
             audio = list(torch.randn(10000, dtype=torch.float32))
             example = dict(processor(images, audio, sampling_rate=44100, return_tensors="pt"))
-        elif name == 'openai/jukebox-1b-lyrics':
-            # vqvae, about priors don't know
-            from transformers import AutoModel, AutoTokenizer
-
-            tokenizer = AutoTokenizer.from_pretrained(name)
-            model = AutoModel.from_pretrained(name)
-
-            from transformers import AutoTokenizer, JukeboxModel, set_seed
-
-            model = JukeboxModel.from_pretrained("openai/jukebox-1b-lyrics", min_duration=0).eval()
-            tokenizer = AutoTokenizer.from_pretrained("openai/jukebox-1b-lyrics")
-
-            lyrics = "Hey, are you awake? Can you talk to me?"
-            artist = "Zac Brown Band"
-            genre = "Country"
-            metas = tokenizer(artist=artist, genres=genre, lyrics=lyrics)
-            set_seed(0)
-            music_tokens = model.ancestral_sample(metas.input_ids, sample_length=400)
-
         elif name == 'Salesforce/blip2-flan-t5-xl':
             from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
             # vision_model, qformer, language_projection, language_model
@@ -324,18 +297,6 @@ class TestTransformersModel(TestTorchConvertModel):
             }
             model = model._modules[name_suffix]
             example = example_inputs_map[name_suffix]
-        elif name == 'suno/bark':
-            # semantic, coarse_acoustics, fine_acoustics, codec_model
-            from transformers import AutoProcessor, AutoModelForTextToWaveform
-
-            processor = AutoProcessor.from_pretrained(name)
-            model = AutoModelForTextToWaveform.from_pretrained(name)
-
-            inputs = processor(
-                text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."], 
-                return_tensors="pt"
-            )
-            speech_values = model.generate(**inputs, max_length=3)
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
