@@ -141,9 +141,9 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BiasAddV1                                               | NO                            |                               |
 | Bincount                                                | NO                            |                               |
 | Bitcast                                                 | NO                            |                               |
-| BitwiseAnd                                              | NO                            |                               |
-| BitwiseOr                                               | NO                            |                               |
-| BitwiseXor                                              | NO                            |                               |
+| BitwiseAnd                                              | YES                           |                               |
+| BitwiseOr                                               | YES                           |                               |
+| BitwiseXor                                              | YES                           |                               |
 | BlockLSTM                                               | YES                           |                               |
 | BlockLSTMGrad                                           | NO                            |                               |
 | BlockLSTMGradV2                                         | NO                            |                               |
@@ -233,7 +233,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ConfigureDistributedTPU                                 | NO                            |                               |
 | ConfigureTPUEmbedding                                   | NO                            |                               |
 | Conj                                                    | NO                            |                               |
-| ConjugateTranspose                                      | NO                            |                               |
+| ConjugateTranspose                                      | YES                           |                               |
 | Const                                                   | YES                           |                               |
 | ConsumeMutexLock                                        | NO                            |                               |
 | ControlTrigger                                          | NO                            |                               |
@@ -342,7 +342,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | DirectedInterleaveDataset                               | NO                            |                               |
 | DisableCopyOnRead                                       | NO                            |                               |
 | DistributedSave                                         | NO                            |                               |
-| Div                                                     | NO                            |                               |
+| Div                                                     | YES                           |                               |
 | DivNoNan                                                | YES                           |                               |
 | DrawBoundingBoxes                                       | NO                            |                               |
 | DrawBoundingBoxesV2                                     | NO                            |                               |
@@ -531,7 +531,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | InterleaveDataset                                       | NO                            |                               |
 | Inv                                                     | YES                           |                               |
 | InvGrad                                                 | NO                            |                               |
-| Invert                                                  | NO                            |                               |
+| Invert                                                  | YES                           |                               |
 | InvertPermutation                                       | YES                           |                               |
 | IsBoostedTreesEnsembleInitialized                       | NO                            |                               |
 | IsBoostedTreesQuantileStreamResourceInitialized         | NO                            |                               |
@@ -671,7 +671,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MultiDeviceIteratorGetNextFromShard                     | NO                            |                               |
 | MultiDeviceIteratorInit                                 | NO                            |                               |
 | MultiDeviceIteratorToStringHandle                       | NO                            |                               |
-| Multinomial                                             | NO                            |                               |
+| Multinomial                                             | YES                           |                               |
 | MutableDenseHashTable                                   | NO                            |                               |
 | MutableDenseHashTableV2                                 | NO                            |                               |
 | MutableHashTable                                        | YES                           |                               |

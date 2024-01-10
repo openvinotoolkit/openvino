@@ -12,8 +12,7 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/relu.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -74,27 +73,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
     ov::CompiledModel execNet;
 
     // Create simple function
-    {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param2->set_friendly_name("param2");
-        param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
-        result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
-        concat->set_friendly_name("concat_op");
-        concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
-        result2->set_friendly_name("result2");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
-                                                      ov::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleRuLU");
-    }
+    function = ov::test::utils::make_multiple_input_output_double_concat({1, 2, 24, 24}, elementType);
     execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
@@ -139,14 +118,14 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
-    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
-    EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat").get_node());
-    EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat").get_node());
+    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("concat1").get_node());
+    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("concat1").get_node());
+    EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat2").get_node());
+    EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat2").get_node());
     EXPECT_THROW(importedExecNet.input("param1"), ov::Exception);
     EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("concat_op"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
+    EXPECT_THROW(importedExecNet.output("result1"), ov::Exception);
+    EXPECT_THROW(importedExecNet.output("result2"), ov::Exception);
 }
 
 TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnly) {
@@ -296,211 +275,31 @@ TEST_P(OVCompiledGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
-static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
-    auto to_config_string = [] (const Any& any) -> std::string {
-        if (any.is<bool>()) {
-            return any.as<bool>() ? "YES" : "NO";
-        } else {
-            std::stringstream strm;
-            any.print(strm);
-            return strm.str();
-        }
-    };
-    std::map<std::string, std::string> result;
-    for (auto&& value : params) {
-        result.emplace(value.first, to_config_string(value.second));
-    }
-    return result;
-}
-
-TEST_P(OVCompiledGraphImportExportTest, importExportedIENetwork) {
-    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    InferenceEngine::ExecutableNetwork execNet;
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionDoubleInputOutput) {
+    ov::CompiledModel compiledModel;
 
     // Create simple function
-    {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param2->set_friendly_name("param2");
-        param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
-        result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
-        concat->set_friendly_name("concat_op");
-        concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
-        result2->set_friendly_name("result2");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
-                                                      ov::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleReLU");
-    }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
+    function = ov::test::utils::make_multiple_input_output_double_concat({1, 2, 24, 24}, elementType);
+    compiledModel = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
-    execNet.Export(strm);
-
-    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_THROW(importedExecNet.input(), ov::Exception);
-    EXPECT_NO_THROW(importedExecNet.input("data1").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("data2").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("param1").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("param2").get_node());
-    EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_THROW(importedExecNet.output(), ov::Exception);
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("relu").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
-
-    const auto outputType = elementType == ov::element::i32 ||
-                            elementType == ov::element::u32 ||
-                            elementType == ov::element::i64 ||
-                            elementType == ov::element::u64 ? ov::element::i32 : ov::element::f32;
-    const auto inputType = elementType == ov::element::f16 ? ov::element::Type_t::f32 : elementType;
-
-    EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
-    EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("concat_op").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
-}
-
-TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
-    // New plugin API wraps CNNNetwork conversions into model, it is why parameter->result graphs won't work in legacy API with new plugin
-    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
-    ov::CompiledModel compiled_model;
-
-    // Create a simple function
-    {
-        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param->set_friendly_name("param");
-        param->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::op::v0::Result>(param);
-        result->set_friendly_name("result");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-        function->set_friendly_name("ParamResult");
-    }
-    compiled_model = core->compile_model(function, target_device, configuration);
-
-    auto inputPrecision = compiled_model.input().get_element_type();
-    auto outputPrecision = compiled_model.output().get_element_type();
-
-    std::stringstream strm;
-    compiled_model.export_model(strm);
+    compiledModel.export_model(strm);
 
     ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 1);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.input());
-    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
-
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-
-    EXPECT_EQ(inputPrecision, importedCompiledModel.input("data").get_element_type());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
-}
-
-TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
-    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    InferenceEngine::ExecutableNetwork execNet;
-
-    // Create a simple function
-    {
-        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ov::Shape({1, 3, 24, 24}));
-        constant->set_friendly_name("constant");
-        constant->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::op::v0::Result>(constant);
-        result->set_friendly_name("result");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                                      ov::ParameterVector{});
-        function->set_friendly_name("ConstResult");
-    }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
-
-    auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("constant")->getPrecision());
-
-    std::stringstream strm;
-    execNet.Export(strm);
-
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 0);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
-
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
-
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-    EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
-}
-
-TEST_P(OVCompiledGraphImportExportTest, ovImportExportedFunction) {
-    std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    ov::CompiledModel execNet;
-
-    // Create simple function
-    {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ov::Shape({1, 3, 24, 24}));
-        param2->set_friendly_name("param2");
-        param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
-        result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
-        concat->set_friendly_name("concat_op");
-        concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
-        result2->set_friendly_name("result2");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
-                                                      ov::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleReLU");
-    }
-    execNet = core->compile_model(function, target_device, configuration);
-
-    std::stringstream strm;
-    execNet.export_model(strm);
-
-    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, target_device, any_copy(configuration));
     EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
-    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input("data1").get_node());
+    EXPECT_NO_THROW(importedCompiledModel.input("data2").get_node());
+
     EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["relu_op"]);
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op"]);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output("concat1"));
+    EXPECT_NO_THROW(importedCompiledModel.output("concat2"));
 
-    const auto prc = InferenceEngine::details::convertPrecision(elementType);
-
-    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]->getPrecision());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data1").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("concat2").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("concat1").get_element_type());
 }
 
 //

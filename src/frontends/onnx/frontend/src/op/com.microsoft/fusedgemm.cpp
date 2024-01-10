@@ -12,6 +12,7 @@
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -20,8 +21,8 @@ namespace set_1 {
 OutputVector fusedgemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
     auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == 2 || num_inputs == 3,
-                 "FusedGemm takes 2/3 inputs. Provided " + std::to_string(num_inputs));
+    FRONT_END_GENERAL_CHECK(num_inputs == 2 || num_inputs == 3,
+                            "FusedGemm takes 2/3 inputs. Provided " + std::to_string(num_inputs));
 
     Output<ngraph::Node> input_a = inputs.at(0);
     Output<ngraph::Node> input_b = inputs.at(1);

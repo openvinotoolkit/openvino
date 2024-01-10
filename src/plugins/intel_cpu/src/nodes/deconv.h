@@ -4,14 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
-
 #include "executors/deconv_list.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
