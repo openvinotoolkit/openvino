@@ -704,10 +704,9 @@ void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             }
             if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
                 (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
-                auto res = reverse_channels({node}, nullptr, context);
+                auto res = reverse_channels({node}, context);
                 context.color_format() = dst_format;
-                return std::make_tuple(std::get<0>(res)[0], std::get<1>(res));
-                ;
+                return res;
             }
             OPENVINO_ASSERT(false,
                             "Source color format '",
@@ -719,15 +718,13 @@ void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
         "convert color (" + color_format_name(dst_format) + ")");
 }
 
-std::tuple<std::vector<Output<Node>>, bool> PostStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,
-                                                                            const std::shared_ptr<Model>& function,
-                                                                            PostprocessingContext& context) {
-    OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't reverse channels for multi-plane inputs");
+std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node>& node,
+                                                               PostprocessingContext& context) {
     OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
-    auto shape = nodes[0].get_partial_shape();
+    auto shape = node.get_partial_shape();
     if (shape.rank().is_static()) {
         // This block of code is to preserve output shape if it contains dynamic dimensions
         // Otherwise, dynamic version will transform shape {?,3,?,?} to {?,?,?,?} which is still ok but not desired
@@ -741,14 +738,14 @@ std::tuple<std::vector<Output<Node>>, bool> PostStepsList::reverse_channels(cons
             auto range = std::make_shared<op::v4::Range>(range_from, range_to, range_step, element::i32);
 
             auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
-            auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
-            return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+            auto convert = std::make_shared<op::v8::Gather>(node, range, constant_axis);
+            return std::make_tuple(convert, false);
         }
     }
 
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
-    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
+    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(node);  // E.g. {1, 3, 224, 224}
 
     auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
     auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});
@@ -766,8 +763,8 @@ std::tuple<std::vector<Output<Node>>, bool> PostStepsList::reverse_channels(cons
 
     // Gather slices in reverse order (indexes are specified by 'range' operation)
     auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
-    auto gather = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
-    return std::make_tuple(std::vector<Output<Node>>{gather}, false);
+    auto gather = std::make_shared<op::v8::Gather>(node, range, constant_axis);
+    return std::make_tuple(gather, false);
 }
 
 }  // namespace preprocess

@@ -229,9 +229,7 @@ public:
     }
 
 private:
-    static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
-                                                                        const std::shared_ptr<Model>& function,
-                                                                        PostprocessingContext& context);
+    static std::tuple<Output<Node>, bool> reverse_channels(const Output<Node>& nodes, PostprocessingContext& context);
 
 private:
     std::list<InternalPostprocessAction> m_actions;

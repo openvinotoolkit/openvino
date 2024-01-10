@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ std::string PostProcessTest::getTestCaseName(const testing::TestParamInfo<postpr
     postprocess_func func;
 
     std::tie(func, targetName) = obj.param;
-
     std::ostringstream result;
     result << "Func=" << func.m_name << "_";
     result << "Device=" << targetName << "";
