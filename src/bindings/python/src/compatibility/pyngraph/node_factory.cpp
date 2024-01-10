@@ -19,7 +19,6 @@
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/variable.hpp"
@@ -60,8 +59,6 @@ public:
         NGRAPH_CHECK(!ngraph::op::is_constant(op_node),
                      "Currently NodeFactory doesn't support Constant node: ",
                      op_type_name);
-
-        NGRAPH_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
 
         return op_node;
     }

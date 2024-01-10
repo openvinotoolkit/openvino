@@ -1,327 +1,410 @@
-# Overview of Inference Engine C* API
+# Overview of OpenVINO C* API 2.0
 
-> **NOTE**: It is a preview version of the Inference Engine C* API for evaluation purpose only.
-> Module structure and API itself may be changed in future releases.
-
-This API provides a simplified interface for Inference Engine functionality that allows to:
+This API provides a simplified interface for OpenVINO functionality that allows to:
 
 - handle the models
-- load and configure Inference Engine plugins based on device names
+- load and configure OpenVINO plugins based on device names
 - perform inference in synchronous and asynchronous modes with arbitrary number of infer requests (the number of infer requests may be limited by target device capabilities)
 
 ## Supported OSes
 
-Currently the Inference Engine C* API is supported on Ubuntu* 16.04, Microsoft Windows* 10 and CentOS* 7.3 OSes.
+Currently the OpenVINO C API is supported on Ubuntu* 18.04/20.04/22.04 Microsoft Windows* 10/11 and CentOS* 7.3/10.15 and above OSes.
 Supported Python* versions:
 
-- On Ubuntu 16.04: 2.7, 3.5, 3.6
-- On Windows 10: 3.5, 3.6
-- On CentOS 7.3: 3.4, 3.5, 3.6
+  - Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
+  - Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
+  - Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
+  - Windows* 10
+  - Windows* 11
+  - macOS* 10.15 and above, 64-bit
+  - macOS 11 and above, ARM64
+  - Red Hat Enterprise Linux* 8, 64-bit
+  - Debian 9 ARM64 and ARM
+  - CentOS 7 64-bit
 
 ## Setting Up the Environment
 
-To configure the environment for the Inference Engine C* API, run:
+To configure the environment for the OpenVINO C* API, run:
 
-- On Ubuntu 16.04: `source <INSTALL_DIR>/setupvars.sh .`
-- On Windows 10: XXXX
+- On Ubuntu 20.04/22.04: `source <INSTALL_DIR>/setupvars.sh .`
+- On Windows 10/11: `<INSTALL_DIR>\setupvars.bat `
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.
-If you want to use certain version of C*, set the environment variable XXXXX
-after running the environment configuration script.
+
 
 ## Struct
 
 ```
-typedef struct ie_core_version {
+typedef struct ov_version {
 
-​    size_t major;
+    const char* buildNumber;
 
-​    size_t minor;
+    const char* description;
 
-​    const char *build_number;
-
-​    const char *description;
-
-}ie_core_version_t;
+} ov_version_t;
 ```
 
 ```
-typedef struct ie_config {
+typedef struct {
 
-​    char *name;
+    const char* device_name;
 
-​    char *value;
+    ov_version_t version;
 
-}ie_config_t;
+} ov_core_version_t;
 ```
 
 ```
-typedef struct ie_param {
+typedef struct {
 
-​    union { //To be continue, to collect metric and config parameters
+    ov_core_version_t* versions;
 
-​    };
+    size_t size;
 
-}ie_param_t;
+} ov_core_version_list_t;
 ```
 
 ```
-typedef struct ie_param_config {
+typedef struct {
 
-​    char *name;
+    char** devices;
 
-​    ie_param_t *param;
+    size_t size;
 
-}ie_param_config_t;
+} ov_available_devices_t;
 ```
 
 ```
-typedef struct desc {
+typedef struct ov_dimension {
 
-​    char msg[256];
+    int64_t min;
+  
+    int64_t max;
 
-}desc_t;
+} ov_dimension_t;
 ```
 
 ```
-typedef struct dimensions {
+typedef struct {
 
-​    size_t dims[8];
+    int64_t rank;
 
-}dimensions_t;
+    int64_t* dims;
+
+} ov_shape_t;
 ```
 
 ```
-struct tensor_desc {
+typedef struct ov_partial_shape {
 
-​    layout_t layout;
+    ov_rank_t rank;
 
-​    dimensions_t dims;
+    ov_dimension_t* dims;
 
-​    precision_e precision;
+} ov_partial_shape_t;
+```
 
-};
+```
+typedef struct {
 
+    enum Status {
+
+        NOT_RUN,
+
+        OPTIMIZED_OUT,
+
+        EXECUTED
+
+    } status;
+
+    int64_t real_time;
+
+    int64_t cpu_time;
+
+    const char* node_name;
+
+    const char* exec_type;
+
+    const char* node_type;
+
+} ov_profiling_info_t;
+```
+
+```
+typedef struct {
+
+    ov_profiling_info_t* profiling_infos;
+
+    size_t size;
+
+} ov_profiling_info_list_t;
+```
+
+```
+typedef struct {
+
+    void(OPENVINO_C_API_CALLBACK* callback_func)(void* args);
+
+    void* args;
+
+} ov_callback_t;
+```
+
+```
+typedef enum {
+
+    UNDEFINED = 0U,  //!< Undefined element type
+
+    DYNAMIC,         //!< Dynamic element type
+
+    BOOLEAN,         //!< boolean element type
+
+    BF16,            //!< bf16 element type
+
+    F16,             //!< f16 element type
+
+    F32,             //!< f32 element type
+
+    F64,             //!< f64 element type
+
+    I4,              //!< i4 element type
+
+    I8,              //!< i8 element type
+
+    I16,             //!< i16 element type
+
+    I32,             //!< i32 element type
+
+    I64,             //!< i64 element type
+
+    U1,              //!< binary element type
+
+    U4,              //!< u4 element type
+
+    U8,              //!< u8 element type
+
+    U16,             //!< u16 element type
+
+    U32,             //!< u32 element type
+
+    U64,             //!< u64 element type
+
+    NF4,             //!< nf4 element type
+
+} ov_element_type_e;
+```
+
+```
+typedef enum {
+
+    OK = 0,  //!< SUCCESS
+
+    GENERAL_ERROR = -1,       //!< GENERAL_ERROR
+
+    NOT_IMPLEMENTED = -2,     //!< NOT_IMPLEMENTED
+
+    NETWORK_NOT_LOADED = -3,  //!< NETWORK_NOT_LOADED
+
+    PARAMETER_MISMATCH = -4,  //!< PARAMETER_MISMATCH
+
+    NOT_FOUND = -5,           //!< NOT_FOUND
+
+    OUT_OF_BOUNDS = -6,       //!< OUT_OF_BOUNDS
+
+    UNEXPECTED = -7,          //!< UNEXPECTED
+
+    REQUEST_BUSY = -8,        //!< REQUEST_BUSY
+
+    RESULT_NOT_READY = -9,    //!< RESULT_NOT_READY
+
+    NOT_ALLOCATED = -10,      //!< NOT_ALLOCATED
+
+    INFER_NOT_STARTED = -11,  //!< INFER_NOT_STARTED
+
+    NETWORK_NOT_READ = -12,   //!< NETWORK_NOT_READ
+
+    INFER_CANCELLED = -13,    //!< INFER_CANCELLED
+
+    INVALID_C_PARAM = -14,         //!< INVALID_C_PARAM
+
+    UNKNOWN_C_ERROR = -15,         //!< UNKNOWN_C_ERROR
+
+    NOT_IMPLEMENT_C_METHOD = -16,  //!< NOT_IMPLEMENT_C_METHOD
+
+    UNKNOW_EXCEPTION = -17,        //!< UNKNOW_EXCEPTION
+
+} ov_status_e;
 
 ```
 
 ```
-typedef void (*completeCallBackFunc)(ie_infer_request_t *infer_request, int *status);
+typedef enum {
+
+    UNDEFINE = 0U,      //!< Undefine color format
+
+    NV12_SINGLE_PLANE,  //!< Image in NV12 format as single tensor
+
+    NV12_TWO_PLANES,    //!< Image in NV12 format represented as separate tensors for Y and UV planes.
+
+    I420_SINGLE_PLANE,  //!< Image in I420 (YUV) format as single tensor
+
+    I420_THREE_PLANES,  //!< Image in I420 format represented as separate tensors for Y, U and V planes.
+
+    RGB,                //!< Image in RGB interleaved format (3 channels)
+
+    BGR,                //!< Image in BGR interleaved format (3 channels)
+
+    GRAY,               //!< Image in GRAY format (1 channel)
+
+    RGBX,               //!< Image in RGBX interleaved format (4 channels)
+
+    BGRX                //!< Image in BGRX interleaved format (4 channels)
+
+} ov_color_format_e;
 ```
 
 ```
-enum precision_e{
+typedef enum {
 
-​    UNSPECIFIED = 255, /**< Unspecified value. Used by default */
+    RESIZE_LINEAR,  //!< linear algorithm
 
-​    MIXED = 0,  /**< Mixed value. Can be received from network. No applicable for tensors */
+    RESIZE_CUBIC,   //!< cubic algorithm
 
-​    FP32 = 10,  /**< 32bit floating point value */
+    RESIZE_NEAREST  //!< nearest algorithm
 
-​    FP16 = 11,  /**< 16bit floating point value */
-
-    BF16 = 12,  /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
-
-    FP64 = 13,  /**< 64bit floating point value */
-
-​    Q78 = 20,   /**< 16bit specific signed fixed point precision */
-
-​    I16 = 30,   /**< 16bit signed integer value */
-
-​    U4 = 39,    /**< 4bit unsigned integer value */
-
-​    U8 = 40,    /**< 8bit unsigned integer value */
-
-​    I4 = 49,    /**< 4bit signed integer value */
-
-​    I8 = 50,    /**< 8bit signed integer value */
-
-​    U16 = 60,   /**< 16bit unsigned integer value */
-
-​    I32 = 70,   /**< 32bit signed integer value */
-
-​    I64 = 72,   /**< 64bit signed integer value */
-
-​    U64 = 73,   /**< 64bit unsigned integer value */
-
-​    U32 = 74,   /**< 32bit unsigned integer value */
-
-​    BIN = 71,   /**< 1bit integer value */
-
-​    CUSTOM = 80 /**< custom precision has it's own name and size of elements */
-
-};
+} ov_preprocess_resize_algorithm_e;
 ```
 
+## Properties
+
+### common properties
 ```
-enum layout_t {
+OPENVINO_C_VAR(const char*) ov_property_key_supported_properties;
 
-​    ANY = 0,	// "any" layout
+OPENVINO_C_VAR(const char*) ov_property_key_available_devices;
 
-​    // I/O data layouts
+OPENVINO_C_VAR(const char*) ov_property_key_optimal_number_of_infer_requests;
 
-​    NCHW = 1,
+OPENVINO_C_VAR(const char*) ov_property_key_range_for_async_infer_requests;
 
-​    NHWC = 2,
+OPENVINO_C_VAR(const char*) ov_property_key_range_for_streams;
 
-​    NCDHW = 3,
+OPENVINO_C_VAR(const char*) ov_property_key_device_full_name;
 
-​    NDHWC = 4,
+OPENVINO_C_VAR(const char*) ov_property_key_device_capabilities;
 
-​    // weight layouts
+OPENVINO_C_VAR(const char*) ov_property_key_model_name;
 
-​    OIHW = 64,
+OPENVINO_C_VAR(const char*) ov_property_key_optimal_batch_size;
 
-​    // Scalar
+OPENVINO_C_VAR(const char*) ov_property_key_max_batch_size;
 
-​    SCALAR = 95,
+OPENVINO_C_VAR(const char*) ov_property_key_cache_dir;
 
-​    // bias layouts
+OPENVINO_C_VAR(const char*) ov_property_key_num_streams;
 
-​    C = 96,
+OPENVINO_C_VAR(const char*) ov_property_key_affinity;
 
-​    // Single image layout (for mean image)
+OPENVINO_C_VAR(const char*) ov_property_key_inference_num_threads;
 
-​    CHW = 128,
+OPENVINO_C_VAR(const char*) ov_property_key_hint_enable_cpu_pinning;
 
-​    // 2D
+OPENVINO_C_VAR(const char*) ov_property_key_hint_enable_hyper_threading;
 
-​    HW = 192,
+OPENVINO_C_VAR(const char*) ov_property_key_hint_performance_mode;
 
-​    NC = 193,
+OPENVINO_C_VAR(const char*) ov_property_key_hint_scheduling_core_type;
 
-​    CN = 194,
+OPENVINO_C_VAR(const char*) ov_property_key_hint_inference_precision;
 
+OPENVINO_C_VAR(const char*) ov_property_key_hint_num_requests;
 
-​    BLOCKED = 200,
+OPENVINO_C_VAR(const char*) ov_property_key_log_level;
 
-};
-```
+OPENVINO_C_VAR(const char*) ov_property_key_hint_model_priority;
 
-```
-enum colorformat_e {
+OPENVINO_C_VAR(const char*) ov_property_key_enable_profiling;
 
-​    RAW = 0u,    ///< Plain blob (default), no extra color processing required
+OPENVINO_C_VAR(const char*) ov_property_key_device_priorities;
 
-​    RGB,         ///< RGB color format
+OPENVINO_C_VAR(const char*) ov_property_key_hint_execution_mode;
 
-​    BGR,         ///< BGR color format, default in OpenVINO
+OPENVINO_C_VAR(const char*) ov_property_key_force_tbb_terminate;
 
-​    GRAY,        ///< GRAY color format
+OPENVINO_C_VAR(const char*) ov_property_key_enable_mmap;
 
-​    RGBX,        ///< RGBX color format with X ignored during inference
-
-​    BGRX,        ///< BGRX color format with X ignored during inference
-};
-```
-
-```
-enum resize_alg_e {
-
-​    NO_RESIZE = 0,
-
-​    RESIZE_BILINEAR,
-
-​    RESIZE_AREA
-
-};
+OPENVINO_C_VAR(const char*) ov_property_key_auto_batch_timeout;
 ```
 
+### AUTO plugin specified properties
 ```
-struct roi_e {
+OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_device_bind_buffer;
 
-​    size_t id;     // ID of a roi
+OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_startup_fallback;
 
-​    size_t posX;   // W upper left coordinate of roi
-
-​    size_t posY;   // H upper left coordinate of roi
-
-​    size_t sizeX;  // W size of roi
-
-​    size_t sizeY;  // H size of roi
-
-};
+OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_runtime_fallback;
 ```
 
+### GPU plugin specified properties
 ```
-enum IEStatusCode {
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_context_type;
 
-​    OK = 0,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_context;
 
-​    GENERAL_ERROR = -1,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_context_device_id;
 
-​    NOT_IMPLEMENTED = -2,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_tile_id;
 
-​    NETWORK_NOT_LOADED = -3,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_queue;
 
-​    PARAMETER_MISMATCH = -4,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_device;
 
-​    NOT_FOUND = -5,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_shared_mem_type;
 
-​    OUT_OF_BOUNDS = -6,
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_mem_handle;
 
-​    /*
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_dev_object_handle;
 
-​     \* @brief exception not of std::exception derived type was thrown
-
-​     */
-
-​    UNEXPECTED = -7,
-
-​    REQUEST_BUSY = -8,
-
-​    RESULT_NOT_READY = -9,
-
-​    NOT_ALLOCATED = -10,
-
-​    INFER_NOT_STARTED = -11,
-
-​    NETWORK_NOT_READ = -12
-
-};
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
 ```
 
 
+## OV Core
 
-- `const char *ie_c_api_version(void)`
-
-  - Description: Returns number of version that is exported.
-
-  - Parameters: None.
-
-  - Return value: Version number of the API.
-
-  - Usage example:
-
-    ```
-    const char *ver_num=ie_c_api_version();
-    ```
-
-## IECore
-
-This strcut represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
+This struct represents OpenVINO entity and allows you to manipulate with plugins using unified interfaces.
 
 ### Create
 
-- `IEStatusCode ie_core_create(char *xml_config_file, ie_core_t *core_result)`
+- `ov_status_e ov_core_create(ov_core_t** core)`
 
-  > Note: create an ie_core_t instance with default configuration when xml_config_file=null.
+  > Note: Constructs OpenVINO Core instance by default.
+
+  - Parameters:
+
+    - `core` - A pointer to the newly created `ov_core_t`.
+
+  - Return value: Status code of the operation: OK(0) for success.
+
+
+- `ov_status_e ov_core_create_with_config(const char* xml_config_file, ov_core_t** core)`
+
+  > Note: Constructs OpenVINO Core instance using XML configuration file with devices description.
 
   - Parameters:
 
     - `xml_config_file`- A full path to`.xml` file containing plugins configuration. If the parameter is not specified, the default configuration is handled automatically.
-    - `core_result` - A pointer to the newly created `ie_core_t`.
+    - `core` - A pointer to the newly created `ov_core_t`.
 
   - Return value: Status code of the operation: OK(0) for success.
 
   - Usage examples:
 
-    Create an `ie_core_t` t instance with a custom configuration location specified:
+    Create an `ov_core_t` t instance with a custom configuration location specified:
 
     ```
     char *xml_config_file="/localdisk/plugins/my_custom_cfg.xml";
-    ie_core_t ie;
-    IEStatusCode status = ie_core_create(xml_config_file,ie);
+    ov_core_t* core;
+    ov_status_e status = ov_core_create_with_config(xml_config_file, &core);
     ```
 
     .`xml` file has the following structure:
@@ -342,453 +425,673 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     ```
 
 
-### <a name="iecore-methods"></a>Methods
+### Methods
 
-- `IEStatusCode ie_core_get_versions(ie_core_t *core, char *device_name, ie_core_version_t *version_result)`
+- `ov_status_e ov_get_openvino_version(ov_version_t* version)`
 
-  - Description: Returns a `ie_core_version_t` with versions of the plugin specified.
+  - Description: Get version of OpenVINO.
 
   - Parameters:
 
-    - `core` -A pointer to `ie_core_t` instance.
-    - `device_name` - Name of the registered plugin.
-  - `version_result` - Dictionary mapping a plugin name .
+    - `ov_version_t` - a pointer to the version.
 
   - Return value: Status  of the operation: OK(0) for success.
 
   - Usage example:
 
     ```
-    char *xml_config_file="/localdisk/plugins/my_custom_cfg.xml";
-  char *device_name="CPU";
-    ie_core_t *ie;
-  ie_core_version_t *version;
-    IEStatusCode status= ie_core_create(xml_config_file, ie);
-    IEStatusCode status2=ie_core_get_versions(ie,device_name, version);
-    print("description:%s, major:%d, minor:%d, build_number:%s.\n",version-		  >description, version->major, version->minor, version->build_number);
+      ov_version_t version = {.description = NULL, .buildNumber = NULL};
+      ov_get_openvino_version(&version);
+      printf("description : %s \n", version.description);
+      printf("build number: %s \n", version.buildNumber);
+      ov_version_free(&version);
     ```
 
-- `IEStatusCode ie_core_load_network(ie_core_t *core, ie_network_t *network, const char *device_name,  ie_config_t config, ie_executable_network_t *exec_network_result)`
+- `ov_status_e ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model)`
 
-  - Description: Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name and creates an `ie_executable_network_t` instance of the `ie_network_t` struct.
-    You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware resources).
+  - Description: Reads models from IR / ONNX / PDPD / TF / TFLite formats to create ov_model_t.
+    You can create as many ov_model_t as you need and use them simultaneously (up to the limitation of the hardware resources).
 
   - Parameters:
 
-    - `core` - A pointer to `ie_core_t` instance.
-    - `network` - A pointer to `ie_network_t` instance.
-    - `device_name` - A device name of a target plugin.
-    - `config` - A dictionary of plugin configuration keys and their values.
-    - `exec_network_result` - A pointer to the newly loaded network.
+    - `core` - A pointer to `ov_core_t` instance.
+    - `model_path` - Path to a model.
+    - `bin_path` - Path to a data file.
+    - `model` - A pointer to the newly created model.
 
   - Return value: Status code of the operation: OK(0) for success.
 
   - Usage example:
 
     ```
-
+      ov_core_t* core = NULL;
+      ov_core_create(&core);
+      ov_model_t* model = NULL;
+      ov_core_read_model(core, "model.xml", "model.bin", &model);
     ```
 
-- `IEStatusCode ie_core_set_config(ie_core_t *core, ie_config_t *ie_core_config, const char *device_name)`
+- `ov_status_e ov_core_compile_model(const ov_core_t* core,
+                      const ov_model_t* model,
+                      const char* device_name,
+                      const size_t property_args_size,
+                      ov_compiled_model_t** compiled_model,
+                      ...);`
 
-  - Description: Sets a configuration for a plugin.
+  - Description: Creates a compiled model from a source model object.
   - Parameters:
-    - `core`- A pointer to `ie_core_t` instance.
-    - `ie_core_config` - A dictionary of configuration parameters as keys and their values.
-    - `device_name` - A device name of a target plugin.
+    - `core`- A pointer to `ov_core_t` instance.
+    - `model Model` - An object acquired from Core::read_model.
+    - `device_name` - Name of a device to load a model to.
+    - `property_args_size` - How many properties args will be passed, each property contains 2 args: key and value.
+    - `compiled_model` - A pointer to the newly created compiled_model.
+    - `...` - property paramater, optional pack of pairs: <char* property_key, char* property_value> relevant only for this load operation operation.
+
   - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin, const char *device_name )`
 
-  - Description: Registers a new device and a plugin which implement this device inside Inference Engine.
+  - Usage example:
+
+    ```
+      ov_core_t* core = nullptr;
+      ov_core_create(&core);
+      ov_model_t* model = nullptr;
+      ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
+      const char* key = ov_property_key_hint_performance_mode;
+      const char* num = "LATENCY";
+      ov_compiled_model_t* compiled_model = nullptr;
+      ov_core_compile_model(core, model, "CPU", 2, &compiled_model, key, num);
+      ...
+      ov_compiled_model_free(compiled_model);
+      ov_model_free(model);
+      ov_core_free(core);
+    ```
+
+- `ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, ...)`
+
+  - Description: Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
   - Parameters:
-    - `core` - A pointer to `ie_core_t` instance.
-    - `plugin` - A path (absolute or relative) or name of a plugin. Depending on platform, plugin is wrapped with shared library suffix and prefix to identify library full name
-    - `device_name` - A target device name for the plugin. If not specified, the method registers.
-      a plugin with the default name.
+    - `core` - A pointer to `ov_core_t` instance.
+    - `device_name` - Name of a device.
+    - `...` - property paramaters, optional pack of pairs: <char* property_key, char* property_value>.
   - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_core_register_plugins(ie_core_t *core, const char *xml_config_file)`
 
-  - Description: Registers plugins specified in an `.xml` configuration file
+  - Usage example:
+
+    ```
+      ov_core_t* core = nullptr;
+      ov_core_create(&core);
+      const char* key_1 = ov_property_key_inference_num_threads;
+      const char* value_1 = "12";
+      const char* key_2 = ov_property_key_num_streams;
+      const char* value_2 = "7";
+      ov_core_set_property(core, "CPU", key_1, value_1, key_2, value_2);
+      ...
+      ov_core_free(core);
+    ```
+
+- `ov_status_e ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value)`
+
+  - Description: Gets properties related to device behaviour.
   - Parameters:
-    - `core` - A pointer to `ie_core_t` instance.
-    - `xml_config_file` -  A full path to `.xml` file containing plugins configuration.
+    - `core` - A pointer to `ov_core_t` instance.
+    - `device_name` - Name of a device.
+    - `property_key` - Property key.
+    - `property_value` - A pointer to property value with string format.
   - Return value: Status code of the operation: 0 for success.
 
-- `IEStatusCode ie_core_unregister_plugin(ie_core_t *core, const char *device_name)`
+  - Usage example:
 
-  - Description: Unregisters a plugin with a specified device name
+    ```
+      ov_core_t* core = nullptr;
+      ov_core_create(&core);
+      const char* key = ov_property_key_hint_performance_mode;
+      const char* mode = "LATENCY";
+      ov_core_set_property(core, "CPU", key, mode);
+      char* ret = nullptr;
+      ov_core_get_property(core, "CPU", key, &ret);
+      ov_free(ret);
+      ...
+      ov_core_free(core);
+    ```
+
+- `ov_status_e ov_core_import_model(const ov_core_t* core,
+                     const char* content,
+                     const size_t content_size,
+                     const char* device_name,
+                     ov_compiled_model_t** compiled_model);`
+
+  - Description: Imports a compiled model from the previously exported one.
   - Parameters:
-    - `core` -  A pointer `ie_core_t` instance.
-    - `device_name` -  A device name of the plugin to unregister.
+    - `core` -  A pointer `ov_core_t` instance.
+    - `content` - A pointer to content of the exported model.
+    - `content_size` - Number of bytes in the exported network.
+    - `device_name` - Name of a device to import a compiled model for.
+    - `compiled_model` - A pointer to the newly created compiled_model.
 
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_core_add_extension(ie_core_t *core, const char *extension_path, const char *device_name)`
+- `ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions)`
 
-  - Description:  Loads extension library to the plugin with a specified device name.
+  - Description: Returns device plugins version information.
   - Parameters:
-    - `core` - A pointer `ie_core_t` instance.
-    - `extension_path` -  Path to the extensions library file to load to a plugin.
-    - `device_name` -  A device name of a plugin to load the extensions to.
+    - `core` - A pointer `ov_core_t` instance.
+    - `device_name` -  A device name to identify a plugin.
+    - `versions` - A pointer to versions corresponding to device_name.
   - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_core_get_metric(ie_core_t *core, const char *device_name, const char *metric_name, ie_param_t *param_result)`
 
-  - Description: Gets a general runtime metric for dedicated hardware. Enables to request common device properties, which are `ie_executable_network_t` agnostic, such as device name, temperature, and other devices-specific values.
+- `ov_status_e ov_core_create_context(const ov_core_t* core,
+                       const char* device_name,
+                       const size_t context_args_size,
+                       ov_remote_context_t** context,
+                       ...);`
+
+  - Description: Creates a new remote shared context object on the specified accelerator device using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
   - Parameters:
-    - `core` - A pointer `ie_core_t` instance.
-    - `device_name` - A name of a device to get a metric value.
-    - `metric_name` - A metric name to request.
-    - `param_result` - A metric value corresponding to a metric key.
+    - `core` - A pointer `ov_core_t` instance.
+    - `device_name` - Device name to identify a plugin.
+    - `context_args_size` - How many property args will be for this remote context creation.
+    - `context` - A pointer to the newly created remote context.
+    - `...` - variadic parmameters Actual property parameter for remote context
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_core_get_config(ie_core_t *core, const char *device_name, const char *config_name, ie_param_t *param_result)`
 
-  - Description:  Gets a configuration dedicated to device behavior. The method targets to extract information which can be set via SetConfig method.
+- `ov_status_e ov_core_compile_model_with_context(const ov_core_t* core,
+                                   const ov_model_t* model,
+                                   const ov_remote_context_t* context,
+                                   const size_t property_args_size,
+                                   ov_compiled_model_t** compiled_model,
+                                   ...);`
+
+  - Description: Creates a compiled model from a source model within a specified remote context.
 
   - Parameters:
-    - `core` - A pointer `ie_core_t` instance.
-    - `device_name` - A name of a device to get a metric value.
-    - `config_name` - A configuration value corresponding to a configuration key.
-    - `param_result` - A metric value corresponding to a metric key.
+    - `core` - A pointer `ov_core_t` instance.
+    - `model` - Model object acquired from ov_core_read_model.
+    - `context` - A pointer to the newly created remote context.
+    - `property_args_size` - How many args will be for this compiled model.
+    - `compiled_model` - A pointer to the newly created compiled_model.
+    - `...` - variadic parmameters Actual property parameter for remote context
 
-  - Return value: Status code of the operation: OK(0) for success.
-
-
-
-## IENetwork
-
-This struct contains the information about the network model read from IR and allows you to manipulate with some model parameters such as layers affinity and output layers.
-
-### Methods
-
-- `IEStatusCode ie_network_read(char *xml, char *weights_file, ie_network_t *network_result)`
-  - Description: Reads the model from the `.xml` and `.bin` files of the IR.
-  - Parameters:
-    - `xml_file` -  `.xml` file's path of the IR.
-    - `weights_file` - `.bin` file's path of the IR.
-    - `network_result` - A pointer to the newly created network.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_free(ie_network_t *network)`
-  - Description: When network is loaded into the Inference Engine, it is not required anymore and should be released.
-  - Parameters:
-    - `network` - The pointer to the instance of the `ie_network_t` to free.
-  - Return value: Status code of the operation: OK(0) for success.
--  `IEStatusCode ie_network_get_input_numbers(ie_network_t *network, size_t *size_result)`
-  - Description: Gets number of inputs for the `IENetwork` instance.
-  - Parameters:
-    - `network` - The instance of the `ie_network_t` to get size of input information for this instance.
-    - `size_result` - A number of the instance's input information.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_input_name(ie_network_t *network, size_t number, char *name_result)`
-  - Description: Gets name corresponding to the "number".
-  - Parameters:
-    - `network` - The instance of the `ie_network_t` to get input information.
-    - `number` - An id of input  information .
-    - `name_result` - Input name corresponding to the "number".
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_output_numbers(ie_network_t *network, size_t size_result)`
-  - Description: Gets number of output for the `ie_network_t` instance.
-  - Parameters:
-    - `network` - The instance of the `ie_network_t` to get size of output information for this instance.
-    - `size_result` - A number of the instance's output information.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_output_name(ie_network_t *network, size_t number, char *name_result)`
-  - Description: Gets output name corresponding to the "number".
-  - Parameters:
-    - `network` - The instance of the `ie_network_t` to get out information of nth layer for this instance.
-    - `number` - An id of output  information.
-    - `name_result` - A output name corresponding to the "number".
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_input_precision(ie_network_t *network, char *input_name, precision_e *prec_result)`
-  - Description: Gets a precision of the input data named "input_name".
-  - Parameters:
-    - `network` - A pointer to ie_network_t instance.
-    - `input_name` - Name of input data.
-    - `prec_result` - A pointer to the precision used for input blob creation.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_input_precision(ie_network_t *network, char *input_name, precision_e p)`
-  - Description: Changes the precision of the input data named "input_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `p` - A new precision of the input data to set (eg. precision_e.FP16).
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_input_layout(ie_network_t *network, char *input_name, layout_t *layout_result)`
-  - Description: Gets a layout of the input data named "input_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `layout_result` - A pointer to the layout used for input blob creation.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_input_layout(ie_network_t *network, char *input_name, layout_t l)`
-  - Description: Changes the layout of the input data named "input_name". This function should be called before loading the network to the plugin
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` -  Name of input data.
-    - `layout` - Network layer layout (eg. layout_t.NCHW).
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_input_dims(ie_network_t *network, char *input_name, dimensions_t *dims_result)`
-  - Description: Gets dimensions/shape of the input data with reversed order.
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `dims_result` - A pointer to the dimensions used for input blob creation.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_input_resize_algorithm(ie_network_t *network, char *input_name, resize_alg_e *resize_alg_result)`
-  - Description: Gets pre-configured resize algorithm.
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `resize_alg_result` - The pointer to the resize algorithm used for input blob creation.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t *network, char *input_name, resize_alg_e resize_algo)`
-  - Description: Sets resize algorithm to be used during pre-processing
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `resize_algo` - Resize algorithm.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_color_format(ie_network_t *network, char *input_name, colorformat_e *colformat_result)`
-  - Description: Gets color format of the input data named "input_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input` - Name of input data.
-    - `colformat_result` - Input color format of the input data named "input_name".
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_color_format(ie_network_t *network, char *input_name, colorformat_e color_format)`
-  - Description: Changes the color format of the input data named "input_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `input_name` - Name of input data.
-    - `color_format` - Color format of the input data .
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_output_precision(ie_network_t *network, char *output_name, precision_e *prec_result)`
-  - Description: Get output precision of the output data named "output_name".
-  - Parameters:
-    - `network` - A pointer `ie_network_t` instance.
-    - `output_name` - Name of output date.
-    - `precision_e` - Output precision of the output data named "output_name".
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_output_precision(ie_network_t *network, char *output_name, precision_e p)`
-  - Description: Sets a precision type of the output date named "output_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `outputName` - Name of output data.
-    - `p` - Precision of the output data (eg. precision_e.FP16).
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_output_layout(ie_network_t *network, char *output_name, layout_t *layout_result)`
-  - Description: Get output layout of the output date named "output_name" in the network.
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `output_name` - Name of output data.
-    - `layout_result` - Layout value of the output data named "output_name".
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_set_output_layout(ie_network_t *network, char *output_name, c l)`
-  - Description: Sets the layout value for output data named "output_name".
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `output_name` - Name of output data.
-    - `l` - Layout value to set (eg. output_name.NCHW).
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_network_get_output_dims(ie_network_t *network, char *output_name, dimensions_t *dims_result)`
-  - Description: Get output dimension of output data named "output_name" in the network.
-  - Parameters:
-    - `network` - A pointer to `ie_network_t` instance.
-    - `output_name` - Name of output data.
-    - `dims_result` - Dimensions value of the output data named "output_name".
   - Return value: Status code of the operation: OK(0) for success.
 
-## ExecutableNetwork
+## OV Model
 
-This struct represents a network instance loaded to plugin and ready for inference.
+This struct contains the information about the model read from IR and allows you to manipulate with some model parameters such as layers affinity and output layers.
 
 ### Methods
 
-- `IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t *ie_exec_network, desc_t *desc, ie_infer_request_t **req)`
-
-  - Description:  Creates an inference request instance used to infer the network. The created request has allocated input and output blobs (that can be changed later).
+- `ov_status_e ov_model_free(ov_model_t* model)`
+  - Description: Release the memory allocated by ov_model_t.
   - Parameters:
-    - `ie_exec_network` - A pointer to `ie_executable_network_t` instance.
-    - `desc` - A pointer to a `desc_t` instance.
-    - `req`  - A pointer to the newly created `ie_infer_request_t` instance.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_exec_network_get_metric(ie_executable_network_t *ie_exec_network, const char *metric_name, ie_param_t *param_result)`
-
-  - Description: - Gets general runtime metric for an executable network. It can be network name, actual device ID on which executable network is running or all other properties which cannot be changed dynamically.
-  - Parameters:
-    - `ie_exec_network`: A pointer to `ie_executable_network_t` instance.
-    - `metric_name` - A metric name to request.
-    - `param_result` - A metric value corresponding to a metric key.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_exec_network_set_config(ie_executable_network_t *ie_exec_network, ie_param_config_t *param_config, desc_t *desc)`
-
-  - Description: Sets a configuration for current executable network.
-  - Parameters:
-    - `ie_exec_network`: A pointer to `ie_executable_network_t` instance.
-    - `config`:  An  config for current executable network.
-  - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_exec_network_get_config(ie_executable_network_t *ie_exec_network, const char *metric_config, ie_param_t *param_result)`
-
-  - Description: - Gets configuration for current executable network. The method is responsible to extract information
-    - which affects executable network execution
-  - Parameters:
-    - `ie_exec_network` - A pointer to `ie_executable_network_t` instance.
-    - `metric_config` - A configuration parameter name to request.
-    - `param_result` - A configuration value corresponding to a configuration key.
+    - `model` -  A pointer to the ov_model_t to free memory..
   - Return value: Status code of the operation: OK(0) for success.
 
+- `ov_status_e ov_model_const_input(const ov_model_t* model, ov_output_const_port_t** input_port);`
+  - Description: Get a const input port of ov_model_t,which only support single input model.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `input_port` - A pointer to the `ov_output_const_port_t`.
+  - Return value: Status code of the operation: OK(0) for success.
+
+-  `ov_status_e ov_model_input(const ov_model_t* model, ov_output_port_t** input_port);`
+  - Description: Get single input port of ov_model_t, which only support single input model.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `input_port` - A pointer to the `ov_output_port_t`.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_port_t** input_port)`
+  - Description: Get an input port of ov_model_t by name.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `tensor_name` - Input tensor name (char *).
+    - `input_port` - A pointer to the `ov_output_port_t`.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_port_t** input_port)`
+  - Description: Get an input port of ov_model_t by name.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `index` - Input tensor index.
+    - `input_port` - A pointer to the `ov_output_port_t`.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_const_output(const ov_model_t* model, ov_output_const_port_t** output_port);`
+  - Description: Get a single const output port of ov_model_t, which only support single output model.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `output_port` - A pointer to the ov_output_const_port_t.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_output(const ov_model_t* model, ov_output_port_t** output_port);`
+  - Description: Get a single output port of ov_model_t, which only support single output model.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `output_port` - A pointer to the ov_output_port_t.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_inputs_size(const ov_model_t* model, size_t* input_size);`
+  - Description: Get the input size of ov_model_t.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `input_size` - The model's input size.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_outputs_size(const ov_model_t* model, size_t* output_size);`
+  - Description: Get the input size of ov_model_t.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `output_size` - The model's output size.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `bool ov_model_is_dynamic(const ov_model_t* model)`
+  - Description: Returns true if any of the ops defined in the model is dynamic shape.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+  - Return value: true if model contains dynamic shapes.
+
+- `ov_status_e ov_model_reshape(const ov_model_t* model,
+                 const char** tensor_names,
+                 const ov_partial_shape_t* partial_shapes,
+                 size_t size)`
+  - Description: Do reshape in model with a list of <name, partial shape>.
+  - Parameters:
+    - `model` - A pointer to the ov_model_t.
+    - `tensor_names` - The list of input tensor names.
+    - `partialShape` - A PartialShape list.
+    - `size` - The item count in the list.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name)`
+  - Description: Gets the friendly name for a model.
+  - Parameters:
+     - `model` - A pointer to the ov_model_t.
+    - `friendly_name` - The model's friendly name.
+  - Return value: Status code of the operation: OK(0) for success.
 
 
+## Node
+
+This struct contains the information about the model's port.
+
+### Methods
+
+- `ov_status_e ov_const_port_get_shape(const ov_output_const_port_t* port, ov_shape_t* tensor_shape)`
+  - Description: Get the shape of port object.
+  - Parameters:
+    - `port` - A pointer to ov_output_const_port_t.
+    - `tensor_shape` - Returned tensor shape.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_port_get_shape(const ov_output_port_t* port, ov_shape_t* tensor_shape)`
+  - Description: Get the shape of port object.
+  - Parameters:
+    - `port` - A pointer to ov_output_port_t.
+    - `tensor_shape` - Returned tensor shape.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_port_get_any_name(const ov_output_const_port_t* port, char** tensor_name)`
+  - Description: Get the tensor name of port.
+  - Parameters:
+    - `port` - A pointer to ov_output_port_t.
+    - `tensor_name` - Returned tensor name.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t* partial_shape)`
+  - Description: Get the partial shape of port.
+  - Parameters:
+    - `port` - A pointer to ov_output_const_port_t.
+    - `partial_shape` - Partial shape.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_port_get_element_type(const ov_output_const_port_t* port, ov_element_type_e* tensor_type)`
+  - Description: Get the tensor type of port.
+  - Parameters:
+    - `port` - A pointer to ov_output_const_port_t.
+    - `tensor_type` - Returned tensor type.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `void ov_output_port_free(ov_output_port_t* port)`
+  - Description: free port object.
+  - Parameters:
+    - `port` - A pointer to ov_output_port_t.
+  - Return value: no return.
+
+- `void ov_output_const_port_free(ov_output_const_port_t* port)`
+  - Description: free const port object.
+  - Parameters:
+    - `port` - A pointer to ov_output_const_port_t.
+  - Return value: no return.
+
+## CompiledModel
+
+This struct represents a compiled model instance loaded to plugin and ready for inference.
+
+### Methods
+
+- `ov_status_e ov_compiled_model_inputs_size(const ov_compiled_model_t* compiled_model, size_t* size)`
+  - Description: Get the input size of ov_compiled_model_t.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `input_size` - The compiled_model's input size.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_input(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** input_port)`
+  - Description: - Get the single const input port of ov_compiled_model_t, which only support single input model.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `input_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_input_by_index(const ov_compiled_model_t* compiled_model,
+                                 const size_t index,
+                                 ov_output_const_port_t** input_port)`
+  - Description: Get a const input port of ov_compiled_model_t by port index.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `index`: Input index.
+    - `input_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_input_by_name(const ov_compiled_model_t* compiled_model,
+                                const char* name,
+                                ov_output_const_port_t** input_port)`
+  - Description: - Get a const input port of ov_compiled_model_t by name.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `name` - input tensor name.
+    - `input_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model, size_t* size)`
+  - Description: - Get the output size of ov_compiled_model_t.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `size` - The compiled_model's output size.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_output(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** output_port)`
+  - Description: - Get the single const output port of ov_compiled_model_t, which only support single output model.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `output_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_output_by_index(const ov_compiled_model_t* compiled_model,
+                                  const size_t index,
+                                  ov_output_const_port_t** output_port)`
+  - Description: Get a const input port of ov_compiled_model_t by port index.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `index`: Output index.
+    - `output_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_output_by_name(const ov_compiled_model_t* compiled_model,
+                                 const char* name,
+                                 ov_output_const_port_t** output_port)`
+  - Description: - Get a const output port of ov_compiled_model_t by name.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `name` - input tensor name.
+    - `output_port` - A pointer to the `ov_output_const_port_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model)`
+  - Description: - Gets runtime model information from a device.
+  - Parameters:
+    - `compiled_model` - A pointer to the `ov_compiled_model_t` instance.
+    - `model` - A pointer to the `ov_model_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model, ov_infer_request_t** infer_request)`
+  - Description: - Creates an inference request object used to infer the compiled model.
+  - Parameters:
+    - `compiled_model` - A pointer to `ov_compiled_model_t` instance.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...)`
+  - Description: - Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
+  - Parameters:
+    - `compiled_model` - A pointer to `ov_compiled_model_t` instance.
+    - `...` variadic paramaters, the format is <char *property_key, char* property_value>.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
+                               const char* property_key,
+                               char** property_value)`
+  - Description: - Gets properties for current compiled model.
+  - Parameters:
+    - `compiled_model` - A pointer to `ov_compiled_model_t` instance.
+    - `property_key` - Property key.
+    - `property_value` - A pointer to property value.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path)`
+  - Description: - Exports the current compiled model to an output stream `std::ostream`.
+  - Parameters:
+    - `compiled_model` - A pointer to `ov_compiled_model_t` instance.
+    - `export_model_path` - Path to the file.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `void ov_compiled_model_free(ov_compiled_model_t* compiled_model)`
+  - Description: - Release the memory allocated by ov_compiled_model_t`.
+  - Parameters:
+    - `compiled_model` - A pointer to `ov_compiled_model_t` instance.
+  - Return value: None
 
 ## InferRequest
 
-This struct provides an interface to infer requests of `ExecutableNetwork` and serves to handle infer requests execution and to set and get output data.
+This struct provides an interface to infer requests of `ov_compiled_model_t` and serves to handle infer requests execution and to set and get output data.
 
 ### Methods
 
-- `IEStatusCode *ie_infer_request_get_blob(ie_infer_request_t *infer_request, const char *name, ie_blob_t **blob_result)`
+- `ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_t* tensor)`
 
-  - Description: Get a Blob corresponding to blob name.
+  - Description: Set an input/output tensor to infer on by the name of tensor.
   - Parameters:
-    - `infer_request` - A pointer to `ie_infer_request_t` instance
-    - `name` - Blob name.
-    -  `blob_result` - A pointer to the blob corresponding to the blob name.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `tensor_name` - Name of the input or output tensor.
+    - `tensor` - Reference to the tensor.
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_request_set_blob(ie_infer_request_t *infer_request, ie_blob_t *blob)`
+- `ov_status_e ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
+                                    const ov_output_port_t* port,
+                                    const ov_tensor_t* tensor)`
 
-  - Description: Sets the blob in a inference request.
+  - Description: Set an input/output tensor to infer request for the port.
   - Parameters:
-    - `infer_request`: A pointer to `ie_infer_request_t` instance.
-    - `blob ` -   A pointer to `ie_blob_t` instance.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `port ` -   Port of the input or output tensor, which can be got by calling ov_model_t/ov_compiled_model_t interface.
+    - `tensor` - Reference to the tensor.
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_request_infer(ie_infer_request_t *infer_request)`
+- `ov_status_e ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request,
+                                           const size_t idx,
+                                           const ov_tensor_t* tensor)`
 
-  - Description:  Starts synchronous inference of the infer request and fill outputs array
+  - Description: Set an input tensor to infer on by the index of tensor.
   - Parameters:
-    - `infer_request`: A pointer to `ie_infer_request_t` instance.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `idx` - Index of the input port.
+    - `tensor` - Reference to the tensor.
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_request_infer_async(ie_infer_request_t *infer_request)`
+- `ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor)`
 
-  -  Description: Starts asynchronous inference of the infer request and fill outputs array.
+  - Description: Set an input tensor for the model with single input to infer on.
   - Parameters:
-    - `infer_request` - A pointer to `ie_infer_request_t` instance.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `tensor` - Reference to the tensor.
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t *infer_request,completeCallBackFunc callback)`
+- `ov_status_e ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request,
+                                            const size_t idx,
+                                            const ov_tensor_t* tensor)`
 
-  - Description: Sets a callback function that will be called on success or failure of asynchronous request.
+  - Description: Set an output tensor to infer by the index of output tensor.
   - Parameters:
-    - `infer_request` - A pointer to a `ie_infer_request_t` instance.
-    - `callback` -  A function to be called.
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `idx` - Index of the input port.
+    - `tensor` - Reference to the tensor.
   - Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_request_wait(ie_infer_request_t *infer_request, int64_t timeout)`
+- `ov_status_e ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor)`
 
-  - Description:  Waits for the result to become available. Blocks until specified timeout elapses or the result becomes available, whichever comes first.
-
-    NOTE:** There are special values of the timeout parameter:
-
-    - 0 - Immediately returns the inference status. It does not block or interrupt execution.
-      ind statuses meaning.
-    - -1 - Waits until inference result becomes available (default value).
-
+  - Description: Set an output tensor to infer models with single output.
   - Parameters:
-
-    - `infer_request` -A pointer to a `ie_infer_request_t` instance.
-    - `timeout` - Time to wait in milliseconds or special (0, -1) cases described above. If not specified, `timeout` value is set to -1 by default.
-
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `tensor` - Reference to the tensor.
   - Return value:  Status code of the operation: OK(0) for success.
 
-## Blob
+- `ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char* tensor_name, ov_tensor_t** tensor)`
+
+  - Description: Get an input/output tensor by the name of tensor.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `tensor_name` - Name of the input or output tensor.
+    - `tensor` - Reference to the tensor.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request,
+                                    const ov_output_port_t* port,
+                                    ov_tensor_t** tensor)`
+
+  - Description: Get an input/output tensor by port.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `port ` -  Port of the tensor to get.
+    - `tensor` - Reference to the tensor.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request,
+                                           const size_t idx,
+                                           ov_tensor_t** tensor)`
+
+  - Description: Get an input tensor by the index of input tensor.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `idx ` - Index of the tensor to get.
+    - `tensor` - Reference to the tensor.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request,
+                                            const size_t idx,
+                                            ov_tensor_t** tensor)`
+
+  - Description: Get an output tensor by the index of output tensor.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `idx ` - Index of the tensor to get.
+    - `tensor` - Reference to the tensor.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request)`
+
+  - Description: Infer specified input(s) in synchronous mode.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request)`
+
+  - Description: Start inference of specified input(s) in asynchronous mode.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request)`
+
+  - Description: Cancel inference request.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const int64_t timeout);`
+
+  - Description: Waits for the result to become available. Blocks until the specified timeout has elapsed or the result becomes available, whichever comes first.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `timeout` - Maximum duration, in milliseconds, to block for.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback)`
+
+  - Description: Set callback function, which will be called when inference is done.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `callback`  A function to be called.
+  - Return value:  Status code of the operation: OK(0) for success.
+
+- `void ov_infer_request_free(ov_infer_request_t* infer_request)`
+
+  - Description: Release the memory allocated by ov_infer_request_t.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+  - Return value:  None.
+
+- `void ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos)`
+
+  - Description: Query performance measures per layer to identify the most time consuming operation.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `profiling_infos` - Vector of profiling information for operations in a model.
+  - Return value:  None.
+
+## Tensor
 
 ### Methods
 
-/*The structure of the blobs has complex structure, below functions represent creation of memory blobs from the scratch or on top of existing memory These functions return handle to the blob to be used in other ie_* functions*/
-
-- `IEStatusCode make_memory_blob(const tensor_desc *tensorDesc, ie_blob_t *blob_result)`
-  - Description: Creates a `ie_blob_t` instance with the specified dimensions and layout but does not allocate the memory. Use the allocate() method to allocate memory. `tensor_desc` Defines the layout and dims of the blob.
+- `ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
+                               const ov_shape_t shape,
+                               void* host_ptr,
+                               ov_tensor_t** tensor)`
+  - Description: Constructs Tensor using element type, shape and external host ptr.
   - Parameters:
-    - `tensorDesc` - Defines the layout and dims of the blob.
-    - `blob_result` - A pointer to an empty ie_blob_t instance.
+    - `type` - Tensor element type
+    - `shape` - Tensor shape
+    - `host_ptr` - Pointer to pre-allocated host memory
+    - `tensor` - A point to ov_tensor_t
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode make_memory_blob_from_preallocated_memory(const tensor_desc *tensorDesc, void *ptr, size_t size = 0, ie_blob_t *blob_result)`
-  - Description: The constructor creates a `ie_blob_t` instance with the specified dimensions and layout on the pre-allocated memory. The allocate() call is not required.
+- `ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t** tensor)`
+  - Description: Constructs Tensor using element type and shape. Allocate internal host storage using default allocator.
   - Parameters:
-    - `tensorDesc` - Tensor description for Blob creation.
-    - `ptr` - A pointer to the pre-allocated memory.
-    - `size` -Length of the pre-allocated array. If not set, size is assumed equal to the dot product of dims.
-    - `blob_result` - A pointer to the newly created  ie_blob_t instance.
+    - `type` - Tensor element type
+    - `shape` - Tensor shape
+    - `tensor` - A point to ov_tensor_t
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode make_memory_blob_with_roi(const ie_blob_t **inputBlob, const roi_e *roi, ie_blob_t *blob_result)`
-  - Description:  Creates a blob describing given roi instance based on the given blob with pre-allocated memory.
+- `ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape)`
+  - Description: Get shape for tensor.
   - Parameters:
-    - `inputBlob` - Original blob with pre-allocated memory.
-    - `roi` - A roi object inside of the original blob.
-    - `blob_result` - A  pointer to the newly created blob.
+    - `tensor` - A point to ov_tensor_t
+    - `shape` - Tensor shape
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_blob_size(ie_blob_t *blob, int *size_result)`
-  - Description: Gets the total number of elements, which is a product of all the dimensions.
+- `ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type)`
+  - Description: Get type for tensor.
   - Parameters:
-    - `blob` -  A  pointer to the blob.
-    - `size_result` - The total number of elements.
+    - `tensor` - A point to ov_tensor_t
+    - `type` - Tensor element type.
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_blob_byte_size(ie_blob_t *blob, int *bsize_result)`
-  - Description: Gets the size of the current Blob in bytes.
+- `ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size)`
+  - Description: Get byte size for tensor.
   - Parameters:
-    - `blob` -  A  pointer to the blob.
-    - `bsize_result` - The size of the current Blob in bytes.
+    - `tensor` - A point to ov_tensor_t
+    - `byte_size` - The size of the current Tensor in bytes.
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_blob_allocate(ie_blob_t *blob)`
-  - Description:  Allocates memory for blob.
+- `ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data)`
+  - Description: Provides an access to the underlaying host memory.
   - Parameters:
-    - `blob` - A pointer to an empty blob.
-  - Return value: Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_blob_deallocate(ie_blob_t *blob)`
-  - Description:  Releases previously allocated data.
-  - Parameters:
-    - `blob` - A  pointer to the blob.
-  - Return value: Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_blob_buffer(ie_blob_t *blob, void *buffer)`
-  - Description: Gets access to the allocated memory .
-  - Parameters:
-    - `blob` - A  pointer to the blob.
-    - `buffer` - A pointer  to the coped date from the given pointer to the blob.
+    - `tensor` - A point to ov_tensor_t
+    - `data` - A point to host memory.
   -  Return value: Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_blob_cbuffer(ie_blob_t *blob, const void *cbuffer)`
-  - Description:   Gets read-only access to the allocated memory.
+- `void ov_tensor_free(ov_tensor_t* tensor)`
+  - Description: Free ov_tensor_t.
   - Parameters:
-    - `blob` - A  pointer to the blob.
-    - `cbuffer` - A pointer  to the coped date from the given pointer to the blob and the date is read-only.
-  -  Return value: Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_blob_get_dims(ie_blob_t *blob, dimensions_t *dims_result)`
-  - Description: Gets dimensions of blob instance's tensor.
-  - Parameters:
-    - `blob` - A  pointer to the blob.
-    - `dims_result` - A pointer to the dimensions of blob instance's tensor.
-  -  Return value:  Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_blob_get_layout(ie_blob_t *blob, layout_t *layout_result)`
-  - Description: Gets layout of blob instance's tensor.
-  - Parameters:
-    - `blob` - A  pointer to the blob.
-    - `layout_result` -  A pointer to the layout of blob instance's tensor.
-  -  Return value: Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_blob_get_precision(ie_blob_t *blob, precision_e *prec_result)`
-  - Description: Gets precision of blob instance's tensor.
-  - Parameters:
-    - `blob` - A  pointer to the blob.
-    - `prec_result` - A pointer to the precision of blob instance's tensor.
-  - Return value: Status code of the operation: OK(0) for success.
+    - `tensor` - A point to ov_tensor_t
+  -  Return value: None.

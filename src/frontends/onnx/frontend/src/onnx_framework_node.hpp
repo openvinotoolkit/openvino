@@ -19,7 +19,6 @@
 #include <core/graph.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/visibility.hpp>
 #include <onnx_import/core/node.hpp>
 #include <openvino/op/util/framework_node.hpp>
 
@@ -51,7 +50,7 @@ public:
     }
 
     OutputVector get_ng_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
-        OutputVector ng_nodes{graph->make_ng_nodes(m_node)};
+        OutputVector ng_nodes{graph->make_ov_nodes(m_node)};
         if (ng_nodes.size() > get_output_size()) {
             ng_nodes.resize(get_output_size());
         }

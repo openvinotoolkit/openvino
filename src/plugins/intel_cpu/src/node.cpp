@@ -4,7 +4,6 @@
 
 #include "node.h"
 
-#include "caseless.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
 #include "dnnl_debug.h"
@@ -80,7 +79,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
-      constant(ConstantType::Unknown),
+      constant(ConstantType::NoConst),
       context(ctx),
       algorithm(Algorithm::Default),
       fusingPort(-1),
@@ -188,7 +187,7 @@ Node::Node(const std::string& type, const std::string& name, const GraphContext:
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
-      constant(ConstantType::Unknown),
+      constant(ConstantType::NoConst),
       context(ctx),
       fusingPort(-1),
       engine(ctx->getEngine()),
@@ -199,52 +198,27 @@ Node::Node(const std::string& type, const std::string& name, const GraphContext:
     // TODO [NM]: What about filling inDims and outDims?
 }
 
-void Node::addEdge(const EdgeWeakPtr& edge) {
-    auto edgePtr = edge.lock();
-    if (!edgePtr)
-        return;
-    auto parentPtr = edgePtr->getParent();
-    auto childPtr = edgePtr->getChild();
-    if (!parentPtr || !childPtr)
-        return;
+void Node::addEdge(const EdgePtr& edge) {
+    auto parent = edge->getParent();
+    auto child = edge->getChild();
+    assert(parent && child);
 
-    parentPtr->childEdges.push_back(edge);
-    childPtr->parentEdges.push_back(edge);
-}
-
-void Node::removeEdge(const EdgeWeakPtr& edge) {
-    auto edgePtr = edge.lock();
-    if (!edgePtr)
-        return;
-    auto parentPtr = edgePtr->getParent();
-    auto childPtr = edgePtr->getChild();
-    if (!parentPtr || !childPtr)
-        return;
-    for (auto it = childPtr->parentEdges.begin(); it != childPtr->parentEdges.end(); it++) {
-        auto parentEdge = (*it).lock();
-        if (parentEdge && parentEdge->getChild() == childPtr && parentEdge->getParent() == parentPtr) {
-            childPtr->parentEdges.erase(it);
-            break;
-        }
-    }
-    for (auto it = parentPtr->childEdges.begin(); it != parentPtr->childEdges.end(); it++) {
-        auto childEdge = (*it).lock();
-        if (childEdge && childEdge->getChild() == childPtr && childEdge->getParent() == parentPtr) {
-            parentPtr->childEdges.erase(it);
-            break;
-        }
-    }
+    parent->addChildEdge(edge);
+    child->addParentEdge(edge);
 }
 
 void Node::remove() {
-    auto parent_edges = parentEdges;
-    for (const auto &parentEdge : parent_edges) {
-        removeEdge(parentEdge);
-    }
-    auto child_edges = childEdges;
-    for (const auto &childEdge : child_edges) {
-        removeEdge(childEdge);
-    }
+    auto drop = [](std::vector<EdgeWeakPtr> edges){
+        for (auto& edge : edges) {
+            auto edgePtr = edge.lock();
+            if (!edgePtr) continue;
+            edgePtr->getParent()->removeChildEdge(edgePtr);
+            edgePtr->getChild()->removeParentEdge(edgePtr);
+        }
+    };
+
+    drop(parentEdges);
+    drop(childEdges);
 }
 
 bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const {
@@ -979,26 +953,26 @@ Node::ConstantType Node::getConstantType() const {
 }
 
 bool Node::isConstant() {
-    if (getConstantType() == ConstantType::Unknown)
-        updateConstantType();
     return getConstantType() == ConstantType::Const;
 }
 
 void Node::updateConstantType() {
-    if (constant != ConstantType::StrictNoConst) {
-        bool isConst = true;
-        for (const auto& parentEdge : getParentEdges()) {
-            isConst &= parentEdge.lock()->getParent()->isConstant();
-        }
-        constant = isConst ? ConstantType::Const : ConstantType::NoConst;
+    if (constant == ConstantType::StrictNoConst)
+        return;
+
+    bool isConst = true;
+    for (const auto& parentEdge : getParentEdges()) {
+        isConst &= parentEdge.lock()->getParent()->isConstant();
     }
+
+    const auto prevConstantType = constant;
+    constant = isConst ? ConstantType::Const : ConstantType::NoConst;
+    if (constant == prevConstantType)
+        return; // state has not changed, no reason to continue
 
     for (const auto& childEdge : getChildEdges()) {
         const auto childNode = childEdge.lock()->getChild();
-        const auto childConstType = childNode->getConstantType();
-        if (!one_of(childConstType, ConstantType::Unknown, ConstantType::StrictNoConst, constant)) {
-            childNode->updateConstantType();
-        }
+        childNode->updateConstantType();
     }
 }
 
