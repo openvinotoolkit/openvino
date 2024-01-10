@@ -199,6 +199,10 @@ int get_number_of_blocked_cores() {
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
+
+void dump_proc_table() {
+}
+
 std::vector<std::vector<int>> get_org_proc_type_table() {
     return {{-1}};
 }
@@ -257,6 +261,9 @@ std::vector<std::vector<int>> get_proc_type_table() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table;
+}
+
+void dump_proc_table() {
 }
 
 std::vector<std::vector<int>> get_org_proc_type_table() {
@@ -352,6 +359,24 @@ std::vector<std::vector<int>> get_proc_type_table() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table;
+}
+
+void dump_proc_table() {
+    CPU& cpu = cpu_info();
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+    auto& proc_table = cpu._proc_type_table;
+    if (proc_table.empty()) {
+        std::cout << "Proc table is empty..." << std::endl;
+        return;
+    }
+
+    std::cout << "_proc_type_table: " << std::endl;
+    for (size_t i = 0; i < proc_table.size(); i++) {
+        auto& item = proc_table[i];
+        std::cout << item[ALL_PROC] << "," << item[MAIN_CORE_PROC] << "," << item[EFFICIENT_CORE_PROC] << ","
+                  << item[HYPER_THREADING_PROC] << "," << item[PROC_NUMA_NODE_ID] << "," << item[PROC_SOCKET_ID]
+                  << std::endl;
+    }
 }
 
 std::vector<std::vector<int>> get_org_proc_type_table() {

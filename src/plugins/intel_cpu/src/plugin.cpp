@@ -171,6 +171,7 @@ Engine::Engine() :
     get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
         dnnl::impl::cpu::x64::cpu();
     });
+    ov::dump_proc_table();
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
@@ -567,7 +568,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
-    std::cout << "Engine::compile_model - calculate_streams " << std::endl;
 
     transformations.PostLpt();
     transformations.Snippets();

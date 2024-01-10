@@ -33,11 +33,11 @@ ov_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "CMAKE_CXX
 
 ov_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
-ov_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" ON)
+ov_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
 
-ov_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" ON)
+ov_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
-ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" ON)
+ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
 ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 

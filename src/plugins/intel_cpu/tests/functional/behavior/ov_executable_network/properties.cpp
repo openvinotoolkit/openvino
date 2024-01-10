@@ -93,41 +93,30 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...1" << std::endl;
-    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores();  // latency hint should apply lower number of streams
     int32_t value = 0;
-
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...2" << std::endl;
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...3" << std::endl;
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...4" << std::endl;
-
+    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...streams = " << streams
+              << std::endl;
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...5" << std::endl;
+    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint..." << std::endl;
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
-    std::cout << "smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint...6" << std::endl;
     ASSERT_EQ(streams, value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...1" << std::endl;
     int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
     int32_t value = 0;
-
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...2 - streams = " << streams
-              << std::endl;
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...3" << std::endl;
     ov::AnyMap config;
     config[ov::num_streams.name()] = streams;
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...4" << std::endl;
+    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint... streams = " << streams << std::endl;
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...5" << std::endl;
+    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint..." << std::endl;
 
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
-    std::cout << "smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint...6" << std::endl;
     ASSERT_EQ(streams, value);
 }
 
