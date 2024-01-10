@@ -89,90 +89,6 @@ def filter_example(model, example):
 torch.manual_seed(0)
 
 
-def inspect_hf_model(model, max_depth: int = 2) -> dict:
-    from collections import defaultdict
-    modules_map = defaultdict(list)
-
-    modules_queue = []
-    modules_queue.extend([(name, m, 1) for name, m in model._modules.items()])
-
-    while len(modules_queue) > 0:
-        name, mod, depth = modules_queue.pop(0)
-        if depth > max_depth:
-            break
-        if depth == max_depth or len(mod._modules.items()) == 0:
-            modules_map[name] = mod
-        for subname, submodule in mod._modules.items():
-            modules_queue.append((name + '.' + subname, submodule, depth + 1))
-    return dict(modules_map)
-
-
-def hook_decorator(forward: callable, map_to_store: dict, module_name: str = ''):
-    import inspect
-    def hook_forward(*args, **kwargs):
-        dump_inputs = {}
-        for k, v in zip(inspect.signature(forward).parameters.keys(), args):
-            dump_inputs[k] = v
-        dump_inputs.update(kwargs)
-        map_to_store[module_name] = dump_inputs
-        return forward(*args, **kwargs)
-    return hook_forward
-
-
-class NetTraceWrapper(torch.nn.Module):
-    def __init__(self, net, decorated_inputs: dict, args_names):
-        super().__init__()
-        self.net = net
-        self.decorated_inputs = decorated_inputs
-        self.args_names = args_names
-
-    def forward(self, *args):
-        tracable_args = {name: val for name, val in zip(self.args_names, args)}
-        return self.net.forward(**tracable_args, **self.decorated_inputs)
-
-
-def decorate_module(module, example_input):
-    keys_to_decorate = {}
-    new_example = []
-    input_names = []
-    for key, val in example_input.items():
-        if isinstance(val, (bool, int, float)):
-            keys_to_decorate[key] = val
-        else:
-            input_names.append((key))
-            new_example.append(val)
-    new_module = NetTraceWrapper(module, keys_to_decorate, input_names)
-    return new_module, tuple(new_example), input_names
-
-
-def embed_model_with_hooks(model, max_depth: int = 2):
-    # replace original forward with hooks to catch example inputs
-    modules_map = inspect_hf_model(model, max_depth)
-    orig_forwards = {}
-    example_inputs = {}  # example inputs for each module
-    for module_name, module in modules_map.items():
-        orig_forwards[module_name] = module.forward
-        module.forward = hook_decorator(module.forward, example_inputs, module_name)
-    return modules_map, orig_forwards, example_inputs
-
-
-def trace_modules(modules_map, orig_forwards, example_inputs):
-    import torch        
-    import openvino as ov
-    
-    traced_modules = {}
-    # restore original forwards before tracing
-    for module_name, module in modules_map.items():
-        module.forward = orig_forwards[module_name]
-        if module_name not in example_inputs.keys():
-            continue
-        handled_model, handled_example, input_names = decorate_module(module, example_inputs[module_name])
-        traced = torch.jit.trace(handled_model, handled_example, strict=False)
-        traced_modules[module_name] = traced
-        # ov_model = ov.convert_model(traced, example_input=handled_example)
-    return traced_modules
-
-
 class TestTransformersModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image
@@ -385,18 +301,7 @@ class TestTransformersModel(TestTorchConvertModel):
             # load xvector containing speaker's voice characteristics from a dataset
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-            
-            modules_map, orig_forwards, example_inputs = embed_model_with_hooks(model, 1)
-            example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
-            model.generate_speech(**example) #, vocoder=vocoder)
-            # restore, trace and convert modules
-            trace_modules(modules_map, orig_forwards, example_inputs)
-            # fw_outputs = self.infer_fw_model(fw_model, inputs)
-            # print("Infer ov::Model")
-            # ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-            # print("Compare framework and OpenVINO results")
-            # self.compare_results(fw_outputs, ov_outputs)
-            
+                     
             example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
             class DecoratorModelForSeq2SeqLM(torch.nn.Module):
                 def __init__(self, model):
@@ -638,20 +543,20 @@ class TestTransformersModel(TestTorchConvertModel):
             self.cuda_available, self.gptq_postinit = None, None
         super().teardown_method()
 
-    # @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
-    #                                        ("bert-base-uncased", "bert"),
-    #                                        ("google/flan-t5-base", "t5"),
-    #                                        ("google/tapas-large-finetuned-wtq", "tapas"),
-    #                                        ("gpt2", "gpt2"),
-    #                                        ("openai/clip-vit-large-patch14", "clip"),
-    #                                        ("OpenVINO/opt-125m-gptq", 'opt')
-    #                                        ])
-    # @pytest.mark.precommit
-    # def test_convert_model_precommit(self, name, type, ie_device):
-    #     self.run(model_name=name, model_link=type, ie_device=ie_device)
+    @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
+                                           ("bert-base-uncased", "bert"),
+                                           ("google/flan-t5-base", "t5"),
+                                           ("google/tapas-large-finetuned-wtq", "tapas"),
+                                           ("gpt2", "gpt2"),
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ("OpenVINO/opt-125m-gptq", 'opt')
+                                           ])
+    @pytest.mark.precommit
+    def test_convert_model_precommit(self, name, type, ie_device):
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "temporary_list")))
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)

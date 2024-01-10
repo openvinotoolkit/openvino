@@ -351,7 +351,7 @@ speechbrain/m-ctc-t-large,mctct
 Splend1dchan/wav2vec2-large-lv60_t5lephone-small_lna_bs64,speechmix,skip,Load problem
 stefan-it/bort-full,bort,skip,Load problem
 SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
-suno/bark,bark,xfail,Trace error
+suno/bark,bark,skip,Load problem
 surajnair/r3m-50,r3m,skip,Load problem
 susnato/clvp_dev,clvp,skip,Load problem
 Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
