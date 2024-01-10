@@ -6,7 +6,6 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset12.hpp"
