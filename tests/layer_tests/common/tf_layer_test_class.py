@@ -5,7 +5,7 @@ from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
 from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
-from common.utils.tf_utils import save_to_pb, transpose_nhwc_to_nchw, transpose_nchw_to_nhwc
+from common.utils.tf_utils import save_to_pb
 
 
 class CommonTFLayerTest(CommonLayerTest):
@@ -15,7 +15,7 @@ class CommonTFLayerTest(CommonLayerTest):
             data = inputs_dict.get(key)
             if not ':' in key:
                 key += ':0'
-            input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend)
+            input[key] = data
 
         return input
 
@@ -47,7 +47,7 @@ class CommonTFLayerTest(CommonLayerTest):
                 result = dict()
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
-                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend)
+                    result[output] = _tf_res
                 return result
 
     def get_framework_results(self, inputs_dict, model_path):
