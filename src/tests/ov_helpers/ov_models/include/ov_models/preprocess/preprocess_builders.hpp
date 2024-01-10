@@ -501,8 +501,8 @@ inline std::shared_ptr<Model> cvt_color_bgr_to_rgb() {
 
 inline std::vector<postprocess_func> generic_postprocess_functions() {
     return std::vector<postprocess_func>{
-        postprocess_func(cvt_color_rgb_to_bgr, "convert_color_rgb_to_bgr", 0.01f),
-        postprocess_func(cvt_color_bgr_to_rgb, "convert_color_bgr_to_rgb", 0.01f),
+        postprocess_func(cvt_color_rgb_to_bgr, "convert_color_rgb_to_bgr", 1e-5f),
+        postprocess_func(cvt_color_bgr_to_rgb, "convert_color_bgr_to_rgb", 1e-5f),
     };
 }
 
