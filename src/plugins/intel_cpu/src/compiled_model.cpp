@@ -81,12 +81,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    std::cout << "CompiledModel::CompiledModel - set_callback_executor " << std::endl;
+    std::cout << "CompiledModel::CompiledModel - set_callback_executor, Config._streams = "
+              << m_cfg.streamExecutorConfig._streams << std::endl;
     int streams = std::max(1, m_cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    std::cout << "CompiledModel::CompiledModel - m_graphs.resize " << std::endl;
+    std::cout << "CompiledModel::CompiledModel - m_graphs.resize = " << streams << std::endl;
     if (m_cfg.streamExecutorConfig._streams != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
