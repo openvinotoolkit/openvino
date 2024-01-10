@@ -139,7 +139,7 @@ class TestImageScaler(OnnxRuntimeLayerTest):
                  dict(shape=[6, 8, 10, 12], scale=4.5)]
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir,:
+    def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
                    temp_dir=temp_dir)
@@ -153,7 +153,7 @@ class TestImageScaler(OnnxRuntimeLayerTest):
                    temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,:
+    def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 

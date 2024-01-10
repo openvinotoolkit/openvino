@@ -196,7 +196,7 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_3D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,:
+    def test_flatten_3D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
@@ -220,7 +220,7 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.precommit
-    def test_flatten_4D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir,:
+    def test_flatten_4D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
@@ -245,7 +245,7 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_4D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,:
+    def test_flatten_4D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
@@ -257,7 +257,7 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir,:
+    def test_flatten_5D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
@@ -294,7 +294,7 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,:
+    def test_flatten_5D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True

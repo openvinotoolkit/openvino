@@ -80,7 +80,7 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_relu6_net(**params, ir_version=ir_version,
                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

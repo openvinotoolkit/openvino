@@ -252,7 +252,7 @@ class TestCumSum(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("reverse", [0, 1])
     @pytest.mark.parametrize("exclusive", [0, 1])
     @pytest.mark.nightly
-    def test_cumsum(self, params, reverse, exclusive, ie_device, precision, ir_version, temp_dir,:
+    def test_cumsum(self, params, reverse, exclusive, ie_device, precision, ir_version, temp_dir):
         if 'axis' not in params:
             pytest.skip('No axis cases fail in ONNX')
         elif 'axis' in params and params['axis'] == -2 and exclusive == 1:

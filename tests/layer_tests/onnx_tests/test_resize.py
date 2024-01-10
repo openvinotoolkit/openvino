@@ -264,7 +264,7 @@ class TestResize(OnnxRuntimeLayerTest):
                                               'floor', 'ceil'])
     def test_resize_combined_nearest(self, params, coordinate_transformation_mode, cubic_coeff_a,
                                      mode,
-                                     nearest_mode, ie_device, precision, ir_version, temp_dir,:
+                                     nearest_mode, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
                                            cubic_coeff_a=cubic_coeff_a, mode=mode,
@@ -300,7 +300,7 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
     def test_resize_combined_linear(self, params, coordinate_transformation_mode, cubic_coeff_a,
                                     mode,
-                                    nearest_mode, ie_device, precision, ir_version, temp_dir,:
+                                    nearest_mode, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
                                            cubic_coeff_a=cubic_coeff_a, mode=mode,
@@ -384,7 +384,7 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
     def test_resize_combined_sizes_cubic(self, params, coordinate_transformation_mode,
                                          cubic_coeff_a, mode,
-                                         nearest_mode, ie_device, precision, ir_version, temp_dir,:
+                                         nearest_mode, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
                                            cubic_coeff_a=cubic_coeff_a, mode=mode,
@@ -437,7 +437,7 @@ class TestResize(OnnxRuntimeLayerTest):
                                               'floor', 'ceil'])
     def test_resize_combined_sizes_nearest(self, params, coordinate_transformation_mode,
                                            cubic_coeff_a, mode,
-                                           nearest_mode, ie_device, precision, ir_version, temp_dir,:
+                                           nearest_mode, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
                                            cubic_coeff_a=cubic_coeff_a, mode=mode,
@@ -473,7 +473,7 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
     def test_resize_combined_sizes_linear(self, params, coordinate_transformation_mode,
                                           cubic_coeff_a, mode,
-                                          nearest_mode, ie_device, precision, ir_version, temp_dir,:
+                                          nearest_mode, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
                                            cubic_coeff_a=cubic_coeff_a, mode=mode,

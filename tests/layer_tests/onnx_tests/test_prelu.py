@@ -119,7 +119,7 @@ class TestPRelu(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
-    def test_prelu_opset7_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,:
+    def test_prelu_opset7_shared_channels(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
@@ -132,7 +132,7 @@ class TestPRelu(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_scalar_precommit)
     @pytest.mark.precommit
-    def test_prelu_scalar_precommit(self, params, ie_device, precision, ir_version, temp_dir,:
+    def test_prelu_scalar_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 

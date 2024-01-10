@@ -40,7 +40,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_concat_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -52,7 +52,7 @@ class TestConcat(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_concat_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -64,7 +64,7 @@ class TestConcat(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_concat_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -77,7 +77,7 @@ class TestConcat(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_concat_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -91,7 +91,7 @@ class TestConcat(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_concat_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -103,7 +103,7 @@ class TestConcat(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_concat_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_concat_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

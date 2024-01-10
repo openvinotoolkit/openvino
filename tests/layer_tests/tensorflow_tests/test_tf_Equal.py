@@ -111,7 +111,7 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
-    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend, output_type=np.int32),
                    ie_device, precision,
@@ -133,7 +133,7 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int64)
     @pytest.mark.nightly
-    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend, output_type=np.int64),
                    ie_device, precision,
@@ -158,7 +158,7 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float16)
     @pytest.mark.nightly
-    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend, output_type=np.float16),
                    ie_device, precision,
@@ -178,7 +178,7 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend, output_type=np.float32),
                    ie_device, precision,
@@ -198,7 +198,7 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float64)
     @pytest.mark.nightly
-    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend, output_type=np.float64),
                    ie_device, precision,

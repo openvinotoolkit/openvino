@@ -157,7 +157,7 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_reduce_prod(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,:
+    def test_reduce_prod(self, params, keep_dims, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reduce(**params, op='ReduceProd', keep_dims=keep_dims,
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
@@ -175,7 +175,7 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reduce_mean(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,:
+    def test_reduce_mean(self, params, keep_dims, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reduce(**params, op='ReduceMean', keep_dims=keep_dims,
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

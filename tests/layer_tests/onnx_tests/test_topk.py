@@ -167,7 +167,7 @@ class TestTopK(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("sorted", [1, 0, None])
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_topk_opset11(self, params, ie_device, precision, ir_version, largest, sorted, temp_dir,:
+    def test_topk_opset11(self, params, ie_device, precision, ir_version, largest, sorted, temp_dir):
         self._test(*self.create_net(**params, largest=largest, sorted=sorted,
                                     opset=11, ir_version=ir_version), ie_device, precision,
                    ir_version,

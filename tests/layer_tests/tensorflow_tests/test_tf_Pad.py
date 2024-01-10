@@ -39,7 +39,7 @@ class TestPad(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_pad_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_pad_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_pad_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
@@ -83,7 +83,7 @@ class TestComplexPad(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_pad_complex(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,:
+    def test_pad_complex(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_pad_complex_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)

@@ -181,7 +181,7 @@ class TestPad(OnnxRuntimeLayerTest):
                                             ('reflect', None),
                                             ('edge', None)])
     @pytest.mark.nightly
-    def test_pad_opset_9(self, params, mode_value, ie_device, precision, ir_version, temp_dir,:
+    def test_pad_opset_9(self, params, mode_value, ie_device, precision, ir_version, temp_dir):
         mode, value = mode_value
         self._test(
             *self.create_net(**params, mode=mode, value=value, ir_version=ir_version, opset=9),
@@ -209,7 +209,7 @@ class TestPad(OnnxRuntimeLayerTest):
                                             ('reflect', None),
                                             ('edge', None)])
     @pytest.mark.nightly
-    def test_pad_opset_latest(self, params, mode_value, ie_device, precision, ir_version, temp_dir,:
+    def test_pad_opset_latest(self, params, mode_value, ie_device, precision, ir_version, temp_dir):
         mode, value = mode_value
         self._test(*self.create_net(**params, mode=mode, value=value, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

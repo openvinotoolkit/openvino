@@ -334,7 +334,7 @@ class TestSum(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", const_test_data_broadcasting)
     @pytest.mark.nightly
-    def test_sum_const_broadcasting(self, params, ie_device, precision, ir_version, temp_dir,:
+    def test_sum_const_broadcasting(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
                    temp_dir=temp_dir)
