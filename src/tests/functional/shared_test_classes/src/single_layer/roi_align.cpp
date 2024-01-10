@@ -4,9 +4,6 @@
 
 #include "shared_test_classes/single_layer/roi_align.hpp"
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset9.hpp>
-
 #include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
 
