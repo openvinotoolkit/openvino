@@ -89,11 +89,17 @@ macro(ov_find_package_tbb)
             set(PRETTY_NAME "${CMAKE_MATCH_1}")
             endif()
         endif()
+        set(PKG_CONFIG_SEARCH ON)
         if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
             set(_ov_minimal_tbb_version 2021.0)
         elseif(${PRETTY_NAME} MATCHES "Ubuntu 22" AND AARCH64)
-            # CVS-126984: system TBB is not very stable on Linux ARM64 (at least on Ubuntu 22.04)
+            # CVS-126984: system TBB is not very stable on Linux ARM64 (Ubuntu 22.04)
             set(_ov_minimal_tbb_version 2021.0)
+            # on Ubuntu22.04, tbb2020 can be installed by "apt install libtbb2-dev",
+            # after installation, TBB_VERSION is missed in tbb.pc,
+            # so here skip pkg_search_module for tbb to avoid using TBB 2020
+            # that does not meet the minimun version number requirements.
+            set(PKG_CONFIG_SEARCH OFF)
         else()
             set(_ov_minimal_tbb_version 2017.0)
         endif()
@@ -125,7 +131,7 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR)
 
             # try tbb.pc from system
-            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND)
+            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND AND PKG_CONFIG_SEARCH)
                 macro(_ov_pkg_config_tbb_unset)
                     # unset since it affects OpenVINOConfig.cmake.in
                     unset(tbb_FOUND)
