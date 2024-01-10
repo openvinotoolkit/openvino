@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 import numpy as np
 import pytest
+import time
 
 import openvino.runtime.opset13 as ops
 from openvino import (
@@ -17,11 +18,8 @@ from openvino import (
     Type,
     Tensor,
 )
-from openvino.runtime import ProfilingInfo
-from openvino.preprocess import PrePostProcessor
-
 from tests import skip_need_mock_op
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
+from tests.utils.helpers import generate_image, get_relu_model
 
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
@@ -44,16 +42,6 @@ def concat_model_with_data(device, ov_type, numpy_dtype):
     array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
 
     return request, tensor1, array1
-
-
-def create_model_with_memory(input_shape, data_type):
-    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
-    add = ops.add(rv, input_data, name="MemoryAdd")
-    node = ops.assign(add, "var_id_667")
-    res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
-    return model
 
 
 def abs_model_with_data(device, ov_type, numpy_dtype):
@@ -308,23 +296,120 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
             infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_shared_memory_deprecation(device, shared_flag):
-    compiled, request, _, input_data = abs_model_with_data(
-        device, Type.f32, np.float32)
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
+def test_cancel(device):
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    img = generate_image()
+    request = compiled_model.create_infer_request()
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = compiled(input_data, shared_memory=shared_flag)
+    request.start_async({0: img})
+    request.cancel()
+    with pytest.raises(RuntimeError) as e:
+        request.wait()
+    assert "[ INFER_CANCELLED ]" in str(e.value)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = request.infer(input_data, shared_memory=shared_flag)
+    request.start_async({"data": img})
+    request.cancel()
+    with pytest.raises(RuntimeError) as e:
+        request.wait_for(1)
+    assert "[ INFER_CANCELLED ]" in str(e.value)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        request.start_async(input_data, shared_memory=shared_flag)
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_start_async(device, share_inputs):
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    img = generate_image()
+    jobs = 3
+    requests = []
+    for _ in range(jobs):
+        requests.append(compiled_model.create_infer_request())
+
+    def callback(callbacks_info):
+        time.sleep(0.01)
+        callbacks_info["finished"] += 1
+
+    callbacks_info = {}
+    callbacks_info["finished"] = 0
+    for request in requests:
+        request.set_callback(callback, callbacks_info)
+        request.start_async({0: img}, share_inputs=share_inputs)
+    for request in requests:
+        request.wait()
+        assert request.latency > 0
+    assert callbacks_info["finished"] == jobs
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.bf16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, bool),
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
+    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
-    queue = AsyncInferQueue(compiled, jobs=1)
 
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        queue.start_async(input_data, shared_memory=shared_flag)
-    queue.wait_all()
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
+    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async(array1, share_inputs=share_inputs)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.start_async(tensor1, share_inputs=share_inputs)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_array_like_input_async(device, share_inputs):
+    class ArrayLikeObject:
+        # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
+        def __init__(self, array) -> None:
+            self.data = array
+
+        def __array__(self):
+            return np.array(self.data)
+
+    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    model_input_object = ArrayLikeObject(input_data.tolist())
+    model_input_list = [ArrayLikeObject(input_data.tolist())]
+    # Test single array-like object in InferRequest().start_async()
+    request.start_async(model_input_object, share_inputs=share_inputs)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
+
+    # Test list of array-like objects in InferRequest().start_async()
+    request.start_async(model_input_list)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))

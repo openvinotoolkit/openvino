@@ -22,6 +22,12 @@ public:
     void validate_and_infer_types() override {
         set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
     }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto hash_table_node = std::make_shared<HashTable>(m_decoder);
+        hash_table_node->set_attrs(get_attrs());
+        return hash_table_node;
+    }
 };
 
 }  // namespace tensorflow

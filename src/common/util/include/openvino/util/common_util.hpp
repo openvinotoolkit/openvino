@@ -118,5 +118,26 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
         return x == v;
     });
 }
+
+/**
+ * @brief Associative containers doesnt work with remove_if algorithm
+ * @tparam ContainerT
+ * @tparam PredicateT
+ * @param data An associative container
+ * @param predicate A predicate to remove values conditionally
+ */
+template <typename Container, typename PredicateT>
+inline void erase_if(Container& data, const PredicateT& predicate) {
+    for (auto it = std::begin(data); it != std::end(data);) {
+        if (predicate(*it)) {
+            it = data.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);
+
 }  // namespace util
 }  // namespace ov

@@ -143,4 +143,8 @@ namespace {
                              CompileModelLoadFromMemoryTestBase,
                              ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
                              CompileModelLoadFromMemoryTestBase::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
+                             CompileModelCacheRuntimePropertiesTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
+                             CompileModelCacheRuntimePropertiesTestBase::getTestCaseName);
 } // namespace

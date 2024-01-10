@@ -7,7 +7,7 @@ cmake-build*
 !__init__.py
 !__main__.py
 # and sphinx documentation folders
-!docs/_*
+!docs/sphinx_setup/_*
 
 # developer tools
 *.idea

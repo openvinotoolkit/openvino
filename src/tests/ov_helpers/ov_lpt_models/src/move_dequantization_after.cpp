@@ -5,7 +5,7 @@
 #include "ov_lpt_models/move_dequantization_after.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 

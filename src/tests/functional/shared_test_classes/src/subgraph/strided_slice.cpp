@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
-
 #include "shared_test_classes/subgraph/strided_slice.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -47,7 +45,7 @@ void StridedSliceTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(ssParams.inputShape))};
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ov::op::v0::Relu>(params[0]);
 
     ov::Shape constShape = {ssParams.begin.size()};
     auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, ssParams.begin.data());
@@ -64,7 +62,7 @@ void StridedSliceTest::SetUp() {
                                                         ssParams.shrinkAxisMask,
                                                         ssParams.ellipsisAxisMask);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "strided_slice");
 }
 

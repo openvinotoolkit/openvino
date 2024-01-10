@@ -9,7 +9,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/graph_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/abs.hpp"
@@ -26,6 +25,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "ov_models/ov_builders/broadcast.hpp"
 
 using namespace std;
 using namespace ov;
@@ -36,8 +36,8 @@ TEST(build_graph, build_simple) {
     auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_value(0).get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_value(1).get_node_shared_ptr(), arg0);
@@ -92,8 +92,8 @@ TEST(build_graph, function_undeclared_parameters) {
     auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);
@@ -438,8 +438,8 @@ TEST(build_graph, build_graph_parameters_autodetection) {
     auto arg1 = make_shared<op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ngraph::builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
 
     auto f = make_shared<Model>(OutputVector{dot});

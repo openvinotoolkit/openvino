@@ -17,6 +17,10 @@ void OVInferRequestWaitTests::SetUp() {
     output = execNet.output();
 }
 
+std::string OVInferRequestWaitTests::getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+    return OVInferRequestTests::getTestCaseName(obj);
+}
+
 void OVInferRequestWaitTests::TearDown() {
     req = {};
     input = {};
@@ -74,6 +78,12 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnGetTensorAfterAsyncInfer) {
         req.get_tensor(input);
     } catch (const ov::Busy&) {});
     OV_ASSERT_NO_THROW(req.wait());
+}
+
+TEST_P(OVInferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    ASSERT_THROW(req.wait_for(std::chrono::milliseconds{-1}), ov::Exception);
 }
 
 }  // namespace behavior

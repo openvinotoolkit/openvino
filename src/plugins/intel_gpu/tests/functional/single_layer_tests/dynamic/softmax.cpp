@@ -2,33 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ov_models/builders.hpp>
-#include "shared_test_classes/single_layer/shape_of.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
 
-typedef std::tuple<ElementType,           // netPrecision
-                   ov::test::InputShape,  // inputShape
-                   int64_t                // axis
-                   >
-    softmaxGPUTestParamsSet;
+typedef std::tuple<
+    ov::element::Type,     // model type
+    ov::test::InputShape,  // inputShape
+    int64_t>               // axis
+softmaxGPUTestParamsSet;
 
 class SoftMaxLayerGPUTest : public testing::WithParamInterface<softmaxGPUTestParamsSet>,
-                            virtual public SubgraphBaseTest {
+                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<softmaxGPUTestParamsSet>& obj) {
-        ElementType inType;
+        ov::element::Type model_type;
         ov::test::InputShape inShape;
         int64_t axis;
-        std::tie(inType, inShape, axis) = obj.param;
+        std::tie(model_type, inShape, axis) = obj.param;
 
         std::ostringstream result;
-        result << "netPRC=" << inType << "_";
+        result << "netPRC=" << model_type << "_";
         result << "IS=" << ov::test::utils::partialShape2str({inShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inShape.second) {
@@ -42,40 +42,39 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        ElementType inType;
+        ov::element::Type model_type;
         ov::test::InputShape inShape;
         int64_t axis;
-        std::tie(inType, inShape, axis) = this->GetParam();
+        std::tie(model_type, inShape, axis) = this->GetParam();
 
-        if (inType == element::Type_t::f16) {
+        if (model_type == ov::element::f16) {
             abs_threshold = 0.005;
         }
 
         init_input_shapes({inShape});
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        const auto softMax = std::make_shared<ngraph::opset1::Softmax>(params.at(0), axis);
-        auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
-            ResultVector results;
+        const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), axis);
+        auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+            ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
-            return std::make_shared<Function>(results, params, "ShapeOfLayerGPUTest");
+            return std::make_shared<ov::Model>(results, params, "ShapeOfLayerGPUTest");
         };
         function = makeFunction(params, softMax);
     }
 };
 
-TEST_P(SoftMaxLayerGPUTest, CompareWithRefs) {
+TEST_P(SoftMaxLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-const std::vector<ElementType> netPrecisions = {
-       ElementType::f32, ElementType::f16
+const std::vector<ov::element::Type> netPrecisions = {
+       ov::element::f32, ov::element::f16
 };
 
 const std::vector<int64_t> axis2D = {0, 1};
@@ -137,6 +136,4 @@ INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest5D,
                                             testing::ValuesIn(inputShapes5D),
                                             testing::ValuesIn(axis5D)),
                          SoftMaxLayerGPUTest::getTestCaseName);
-
 }  // namespace
-}  // namespace GPULayerTestsDefinitions

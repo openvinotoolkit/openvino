@@ -27,7 +27,7 @@
 # include <sys/mman.h>
 #endif
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_ie_scheduler.hpp"
@@ -59,9 +59,10 @@ static std::string getDeviceFullName() {
 #else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
-        char *ch = reinterpret_cast<char*>(&regs[0]);
+        char* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
-            brand_string += ch[j];
+            if (ch[j] != '\0')
+                brand_string += ch[j];
     }
 #else
 # error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
@@ -174,6 +175,8 @@ Engine::Engine() :
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
+    auto& ov_version = ov::get_openvino_version();
+    m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
 
 Engine::~Engine() {
@@ -532,7 +535,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
                                                                            ov::element::Type_t::f16,
                                                                            ov::element::Type_t::f32,
                                                                            ov::element::Type_t::f64,
-                                                                           ov::element::Type_t::boolean};
+                                                                           ov::element::Type_t::boolean,
+                                                                           ov::element::Type_t::string};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
@@ -688,6 +692,28 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
+    } else if (name == ov::internal::compiled_model_runtime_properties.name()) {
+        auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
+        return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
+            std::move(model_runtime_properties.as<std::string>()));
+    } else if (name == ov::log::level) {
+        return engConfig.logLevel;
+    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+        ov::Any res = true;
+        auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
+        if (it == options.end()) {
+            res = false;
+        } else {
+            ov::AnyMap input_map = it->second.as<ov::AnyMap>();
+            for (auto& item : m_compiled_model_runtime_properties) {
+                auto it = input_map.find(item.first);
+                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
+                    res = false;
+                    break;
+                }
+            }
+        }
+        return res;
     }
     return get_ro_property(name, options);
 }
@@ -738,7 +764,9 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     } else if (ov::internal::supported_properties.name() == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
@@ -784,6 +812,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::hint::enable_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
@@ -796,7 +825,9 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -834,7 +865,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     if(!ret.empty())
         return ret;
 
-    OPENVINO_THROW("Cannot get unsupport property: ", name);
+    OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START

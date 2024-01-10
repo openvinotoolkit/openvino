@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/convolution_relu_sequence.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -58,27 +59,18 @@ void ConvolutionReluSequenceTest::SetUp() {
         const auto biasesRange = 0.05f;
         std::vector<float> filter_weights;
         std::vector<float> biases;
-        if (targetDevice == ov::test::utils::DEVICE_GNA) {
-            auto filter_size = std::accumulate(std::begin(single.kernelSize), std::end(single.kernelSize), 1, std::multiplies<size_t>());
-            filter_weights = ov::test::utils::generate_float_numbers(single.numOutChannels * inputChannels * filter_size,
-                -filtersRange, filtersRange);
-            if (addBiases) {
-                biases = ov::test::utils::generate_float_numbers(single.numOutChannels,
-                    -biasesRange, biasesRange);
-            }
-        }
 
         std::shared_ptr<ngraph::Node> conv =
             std::dynamic_pointer_cast<ngraph::Node>(
-                ngraph::builder::makeConvolution(
+                ov::test::utils::make_convolution(
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
-                    dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
-        lastOutputs = std::make_shared<ngraph::opset1::Relu>(conv);
+                    dilation, ov::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
+        lastOutputs = std::make_shared<ov::op::v0::Relu>(conv);
         if (single.poolingWindow.size() == 2 &&
                 (single.poolingWindow[0] != 1 ||
                  single.poolingWindow[1] != 1)) {
-            lastOutputs = std::make_shared<ngraph::opset3::MaxPool>(lastOutputs, single.poolingStride,
+            lastOutputs = std::make_shared<ov::op::v1::MaxPool>(lastOutputs, single.poolingStride,
                 ngraph::Shape{ 0, 0 },
                 ngraph::Shape{ 0, 0 },
                 single.poolingWindow);
@@ -86,7 +78,7 @@ void ConvolutionReluSequenceTest::SetUp() {
         inputChannels = single.numOutChannels;
     }
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lastOutputs)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lastOutputs)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution_relu_sequence");
 }
 }  // namespace SubgraphTestsDefinitions

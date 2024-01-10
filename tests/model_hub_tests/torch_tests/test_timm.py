@@ -13,23 +13,29 @@ from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 def filter_timm(timm_list: list) -> list:
-    unique_models = set()
+    unique_models = dict()
     filtered_list = []
-    ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
-                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l",
-                  "xl"}
+    ignore_list = ["base", "xxtiny", "xxs", "pico", "xtiny", "xs", "nano", "tiny", "s", "mini", "small", "lite",
+                   "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_set = set(ignore_list)
     for name in sorted(timm_list):
         # first: remove datasets
         name_parts = name.split(".")
         _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
         # second: remove sizes
         name_set = set([n for n in _name.split("_") if not n.isnumeric()])
+        size_set = name_set.intersection(ignore_set)
+        size_idx = 100
+        if len(size_set) > 0:
+            size_idx = ignore_list.index(list(sorted(size_set))[0])
         name_set = name_set.difference(ignore_set)
-        name_join = "_".join(name_set)
+        name_join = "_".join(sorted(name_set))
         if name_join not in unique_models:
-            unique_models.add(name_join)
+            unique_models[name_join] = (size_idx, name)
             filtered_list.append(name)
-    return filtered_list
+        elif unique_models[name_join][0] > size_idx:
+            unique_models[name_join] = (size_idx, name)
+    return sorted([v[1] for v in unique_models.values()])
 
 
 def get_all_models() -> list:
@@ -68,7 +74,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
                                       "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k"])
+                                      "beit_base_patch16_224.in22k_ft_in22k",
+                                      "sequencer2d_l.in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)

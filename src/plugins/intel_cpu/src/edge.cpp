@@ -5,7 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include "nodes/input.h"
 
 using namespace dnnl;
 namespace ov {
@@ -52,19 +51,6 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::drop() {
-    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
-
-        if (myself != list.end())
-            list.erase(myself);
-    };
-
-    _drop_from(getParent()->childEdges);
-    _drop_from(getChild()->parentEdges);
-}
-
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
     if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
@@ -76,7 +62,12 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             }
         }
     } else {
-        result.push_back(this->getChild());
+        auto childNode = this->getChild();
+        if (Type::ShapeOf == childNode->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return;
+        }
+        result.push_back(childNode);
     }
 }
 
@@ -453,6 +444,7 @@ void Edge::init() {
         changeStatus(Status::NeedAllocation);
     } else {
         if (Type::Input == edgePtr->getParent()->getType() &&
+            Type::MemoryInput != getParent()->getType() &&
             edgePtr->getParent()->isConstant() &&
             !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
@@ -554,7 +546,8 @@ NodePtr Edge::modifiedInPlace() const {
         auto& outConfs = childSPD->getConfig().outConfs;
         for (size_t i = 0; i < outConfs.size(); ++i) {
             const auto& conf = outConfs[i];
-            if (childPort < 0 || conf.inPlace() != childPort) {
+            if (childPort < 0 || conf.inPlace() != childPort ||
+                Type::MemoryInput == childNode->getType()) { //exception type, it doesn't modify memory
                 continue;
             }
             if (childNode->isExecutable()) {

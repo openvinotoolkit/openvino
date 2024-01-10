@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/group_convolution.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
@@ -13,6 +13,7 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::opset1;
 using namespace ov::pass::low_precision;
@@ -83,7 +84,7 @@ std::shared_ptr<Node> createWeightsOriginal(
                     constantShape[1] = outputChannelsCount / groupCount;
                 }
             }
-            weights = ngraph::builder::makeFakeQuantize(
+            weights = ov::test::utils::make_fake_quantize(
                 weights,
                 precision,
                 fakeQuantizeOnWeights.quantizationLevel,

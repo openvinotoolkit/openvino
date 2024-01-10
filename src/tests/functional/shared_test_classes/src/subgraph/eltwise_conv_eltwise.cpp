@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/eltwise_conv_eltwise.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -64,30 +65,30 @@ void EltwiseAfterConvTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterConv };
 
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(conv, reshapePattern2, false);
 
     auto scale = ov::test::utils::generate_float_numbers(outFormShapes[1], -2.0f, 2.0f);
     auto shift = ov::test::utils::generate_float_numbers(outFormShapes[1], -2.0f, 2.0f);
-    auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, outFormShapes, scale);
-    auto mul = std::make_shared<ngraph::opset1::Multiply>(reshape2, mul_const);
-    auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, outFormShapes, shift);
-    auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
+    auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, outFormShapes, scale);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(reshape2, mul_const);
+    auto add_const = std::make_shared<ov::op::v0::Constant>(ngPrc, outFormShapes, shift);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
 
     function = std::make_shared<ngraph::Function>(mul, params, "EltwiseAfterConvTest");
 }
@@ -150,28 +151,28 @@ void EltwiseBeforeConvTest::SetUp() {
 
     auto scale = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
     auto shift = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
-    auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, inputShape, scale);
-    auto mul = std::make_shared<ngraph::opset1::Multiply>(params[0], mul_const);
-    auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, inputShape, shift);
-    auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
+    auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, inputShape, scale);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(params[0], mul_const);
+    auto add_const = std::make_shared<ov::op::v0::Constant>(ngPrc, inputShape, shift);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(mul, reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(mul, reshapePattern1, false);
 
     auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1,
+    auto conv = ov::test::utils::make_convolution(reshape1,
                                                  ngPrc,
                                                  {kernelShape[0], kernelShape[1]},
                                                  {kernelShape[0] > 1 ? stride : 1, stride},
                                                  {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterReshape };
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(conv, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "EltwiseBeforeConvTest");
 }
@@ -234,40 +235,40 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto filterWeights1 = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
     auto stride_h = kernelShape[0] > 1 ? stride : 1;
-    auto conv1 = ngraph::builder::makeConvolution(reshape1,
+    auto conv1 = ov::test::utils::make_convolution(reshape1,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {stride_h, stride},
                                                   {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights1);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights1);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterReshape };
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv1, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(conv1, reshapePattern2, false);
 
-    auto reshapePattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(params[1], reshapePattern3, false);
+    auto reshapePattern3 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(params[1], reshapePattern3, false);
 
     auto filterWeights2 = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv2 = ngraph::builder::makeConvolution(reshape3,
+    auto conv2 = ov::test::utils::make_convolution(reshape3,
                                                   ngPrc,
                                                   {kernelShape[0], kernelShape[1]},
                                                   {stride_h, stride},
                                                   {0, 0},
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights2);
+        { 0, 0 }, { 1, 1 }, ov::op::PadType::VALID, outputChannels, false, filterWeights2);
 
-    auto reshapePattern4 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(conv2, reshapePattern4, false);
+    auto reshapePattern4 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape4 = std::make_shared<ov::op::v1::Reshape>(conv2, reshapePattern4, false);
 
-    auto add = std::make_shared<ngraph::opset1::Add>(reshape2, reshape4);
+    auto add = std::make_shared<ov::op::v1::Add>(reshape2, reshape4);
     function = std::make_shared<ngraph::Function>(add, params, "EltwiseWithTwoConvsAsInputsTest");
 }
 

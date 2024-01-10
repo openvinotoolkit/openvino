@@ -5,7 +5,9 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/subgraph/memory_eltwise_reshape_concat.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -53,23 +55,23 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
     ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-    auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
+    auto memory_constant = ov::test::utils::deprecated::make_constant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
-    auto memory_read = std::make_shared<ngraph::opset5::ReadValue>(memory_constant, "memory");
+    auto memory_read = std::make_shared<ov::op::v3::ReadValue>(memory_constant, "memory");
     memory_read->set_friendly_name("memory_read");
 
-    auto mul = ngraph::builder::makeEltwise(input_parameter[0], memory_read, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(input_parameter[0], memory_read, ngraph::helpers::EltwiseTypes::MULTIPLY);
     mul->set_friendly_name("multiplication");
 
-    auto memory_write = std::make_shared<ngraph::opset5::Assign>(mul, "memory");
+    auto memory_write = std::make_shared<ov::op::v3::Assign>(mul, "memory");
     memory_write->set_friendly_name("memory_write");
 
-    auto reshape_1_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({inputSize, concatSize}));
+    auto reshape_1_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>({inputSize, concatSize}));
     reshape_1_pattern->set_friendly_name("reshape_pattern");
-    auto reshape_1 = std::make_shared<ngraph::opset5::Reshape>(mul, reshape_1_pattern, false);
+    auto reshape_1 = std::make_shared<ov::op::v1::Reshape>(mul, reshape_1_pattern, false);
     reshape_1->set_friendly_name("reshape");
 
-    auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
+    auto concat_constant = ov::test::utils::deprecated::make_constant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, reshape_1}, 0);
@@ -77,9 +79,9 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     memory_write->add_control_dependency(memory_read);
     concat->add_control_dependency(memory_write);
 
-    auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4},
+    auto final_reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4},
                                                                         std::vector<size_t>({1, 1, inputSize + 1, concatSize}));
-    auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(concat, final_reshape_pattern, false);
+    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(concat, final_reshape_pattern, false);
 
     function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "memory_multiply_reshape_concat");
 }
@@ -88,23 +90,23 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
     ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
-    auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
+    auto memory_constant = ov::test::utils::deprecated::make_constant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
 
-    auto mul = ngraph::builder::makeEltwise(input_parameter[0], memory_constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::make_eltwise(input_parameter[0], memory_constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
     mul->set_friendly_name("multiplication");
 
-    auto reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<size_t>({1, inputSize, concatSize}));
+    auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<size_t>({1, inputSize, concatSize}));
     reshape_pattern->set_friendly_name("reshape_pattern");
-    auto reshape = std::make_shared<ngraph::opset5::Reshape>(mul, reshape_pattern, false);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, reshape_pattern, false);
     reshape->set_friendly_name("reshape");
 
-    auto squeeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
+    auto squeeze_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
     squeeze_const->set_friendly_name("squeeze_const");
-    auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(reshape, squeeze_const);
+    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(reshape, squeeze_const);
     squeeze->set_friendly_name("squeeze");
 
-    auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
+    auto concat_constant = ov::test::utils::deprecated::make_constant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concat_constant, squeeze}, 0);
