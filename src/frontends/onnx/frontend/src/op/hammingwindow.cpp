@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include "op/hammingwindow.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "utils/common.hpp"
-#define _USE_MATH_DEFINES
-#include <math.h>
+
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
