@@ -26,7 +26,11 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       ov::intel_cpu::PlainTensor& buf_attn_score,
                       bool has_out_transpose,
                       bool auto_causal,
-                      float d_scale);
+                      float d_scale,
+                      const ov::intel_cpu::PlainTensor& k_zp,
+                      const ov::intel_cpu::PlainTensor& v_zp,
+                      const ov::intel_cpu::PlainTensor& k_scale,
+                      const ov::intel_cpu::PlainTensor& v_scale);
 
 }  // namespace XARCH
 }  // namespace Cpu

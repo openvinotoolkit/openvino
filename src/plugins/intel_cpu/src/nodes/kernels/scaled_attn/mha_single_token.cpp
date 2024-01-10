@@ -27,7 +27,7 @@ namespace XARCH {
 using namespace ov;
 
 template<typename T>
-void attn_acc_value(float* out, float weight, T* v, size_t S) {
+void attn_acc_value(float* out, float weight, T* v, size_t S, float scale, float zp) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
@@ -51,8 +51,32 @@ void attn_acc_value(float* out, float weight, T* v, size_t S) {
     }
 }
 
+static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float scale, float zp) {
+    size_t i = 0;
+// #if defined(HAVE_AVX512F)
+//     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
+//     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+//         auto v_value = mm512_uni_loadu_ps(v + i);
+//         auto v_out = mm512_uni_loadu_ps(out + i);
+//         v_out = _mm512_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
+//         _mm512_storeu_ps(out + i, v_out);
+//     }
+// #elif defined(HAVE_AVX2)
+//     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
+//     for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+//         auto v_value = mm256_uni_loadu_ps(v + i);
+//         auto v_out = mm256_uni_loadu_ps(out + i);
+//         v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
+//         mm256_uni_storeu_ps(out + i, v_out);
+//     }
+// #endif
+    for (; i < S; i++) {
+        out[i] += weight * (v[i] - zp) * scale;
+    }
+}
+
 template<typename TA, typename TB>
-float dot_product(TA* a, TB* b, size_t n) {
+float dot_product(TA* a, TB* b, size_t n, float scale, float zp) {
     size_t i = 0;
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
@@ -75,6 +99,34 @@ float dot_product(TA* a, TB* b, size_t n) {
 #endif
     for (; i < n; i++) {
         sum += a[i] * b[i];
+    }
+    return sum;
+}
+
+template<typename TA>
+float dot_product(TA* a, uint8_t* b, size_t n, float scale, float zp) {
+    size_t i = 0;
+    float sum = 0.0f;
+// #if defined(HAVE_AVX512F)
+//     auto vsum = _mm512_setzero_ps();
+//     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+//         auto va = mm512_uni_loadu_ps(a + i);
+//         auto vb = mm512_uni_loadu_ps(b + i);
+//         vsum = _mm512_fmadd_ps(va, vb, vsum);
+//     }
+//     sum = _mm512_reduce_add_ps(vsum);
+// #elif defined(HAVE_AVX2)
+//     auto vsum = _mm256_set1_ps(0.0f);
+//     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+//         auto va = mm256_uni_loadu_ps(a + i);
+//         auto vb = mm256_uni_loadu_ps(b + i);
+//         vsum = _mm256_fmadd_ps(va, vb, vsum);
+//     }
+//     hsum(vsum);
+//     sum = _mm256_cvtss_f32(vsum);
+// #endif
+    for (; i < n; i++) {
+        sum += a[i] * (b[i] - zp) * scale;
     }
     return sum;
 }
@@ -131,7 +183,11 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              ov::intel_cpu::PlainTensor& buf_attn_score,
                              bool has_out_transpose,
                              bool auto_causal,
-                             float d_scale) {
+                             float d_scale,
+                             const ov::intel_cpu::PlainTensor& k_zp,
+                             const ov::intel_cpu::PlainTensor& v_zp,
+                             const ov::intel_cpu::PlainTensor& k_scale,
+                             const ov::intel_cpu::PlainTensor& v_scale) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -166,7 +222,8 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                 buf_attn_w.at<float>({b, h, pq, pk}) =
-                    dot_product(&query.at<T>({b, h, pq, 0}), &present_key.at<T2>({b_kv, h_group, pk, 0}, true), S);
+                    dot_product(&query.at<T>({b, h, pq, 0}), &present_key.at<T2>({b_kv, h_group, pk, 0}, true), S,
+                        k_scale.at<float>({b_kv, h_group, pk}), k_zp.at<float>({b_kv, h_group, pk}));
             }
         }
     });
@@ -213,7 +270,9 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         attn_acc_value(&buf_attn_score.at<float>({ithr, b, pq, h, 0}),
                                     buf_attn_w.at<float>({b, h, pq, pv}),
                                     v,
-                                    S);
+                                    S,
+                                    v_scale.at<float>({b_kv, h_group, pv}),
+                                    v_zp.at<float>({b_kv, h_group, pv}));
                     }
                 }
                 if (is_abcd)
@@ -243,22 +302,66 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       ov::intel_cpu::PlainTensor& buf_attn_score,
                       bool has_out_transpose,
                       bool auto_causal,
-                      float d_scale) {
+                      float d_scale,
+                      const ov::intel_cpu::PlainTensor& k_zp,
+                      const ov::intel_cpu::PlainTensor& v_zp,
+                      const ov::intel_cpu::PlainTensor& k_scale,
+                      const ov::intel_cpu::PlainTensor& v_scale) {
     if (query.get_precision() == ov::element::bf16) {
-        mha_single_token_kernel<ov::bfloat16, ov::bfloat16>(query,
-                                                            present_key,
-                                                            present_value,
-                                                            alibi_mask,
-                                                            attention_mask,
-                                                            beams,
-                                                            output_emb,
-                                                            buf_attn_w,
-                                                            buf_attn_score,
-                                                            has_out_transpose,
-                                                            auto_causal,
-                                                            d_scale);
+        if (present_key.get_precision() == ov::element::u8) {
+            mha_single_token_kernel<ov::bfloat16, uint8_t>(query,
+                                                           present_key,
+                                                           present_value,
+                                                           alibi_mask,
+                                                           attention_mask,
+                                                           beams,
+                                                           output_emb,
+                                                           buf_attn_w,
+                                                           buf_attn_score,
+                                                           has_out_transpose,
+                                                           auto_causal,
+                                                           d_scale,
+                                                           k_zp,
+                                                           v_zp,
+                                                           k_scale,
+                                                           v_scale);
+        } else {
+            mha_single_token_kernel<ov::bfloat16, ov::bfloat16>(query,
+                                                                present_key,
+                                                                present_value,
+                                                                alibi_mask,
+                                                                attention_mask,
+                                                                beams,
+                                                                output_emb,
+                                                                buf_attn_w,
+                                                                buf_attn_score,
+                                                                has_out_transpose,
+                                                                auto_causal,
+                                                                d_scale,
+                                                                k_zp,
+                                                                v_zp,
+                                                                k_scale,
+                                                                v_scale);
+        }
     } else if (query.get_precision() == ov::element::f32) {
-        if (present_key.get_precision() == ov::element::f16) {
+        if (present_key.get_precision() == ov::element::u8) {
+            mha_single_token_kernel<float, uint8_t>(query,
+                                                    present_key,
+                                                    present_value,
+                                                    alibi_mask,
+                                                    attention_mask,
+                                                    beams,
+                                                    output_emb,
+                                                    buf_attn_w,
+                                                    buf_attn_score,
+                                                    has_out_transpose,
+                                                    auto_causal,
+                                                    d_scale,
+                                                    k_zp,
+                                                    v_zp,
+                                                    k_scale,
+                                                    v_scale);
+        } else if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<float, ov::float16>(query,
                                                         present_key,
                                                         present_value,
@@ -270,7 +373,11 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                         buf_attn_score,
                                                         has_out_transpose,
                                                         auto_causal,
-                                                        d_scale);
+                                                        d_scale,
+                                                        k_zp,
+                                                        v_zp,
+                                                        k_scale,
+                                                        v_scale);
         } else {
             mha_single_token_kernel<float, float>(query,
                                                 present_key,
@@ -283,7 +390,11 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                 buf_attn_score,
                                                 has_out_transpose,
                                                 auto_causal,
-                                                d_scale);
+                                                d_scale,
+                                                k_zp,
+                                                v_zp,
+                                                k_scale,
+                                                v_scale);
         }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
