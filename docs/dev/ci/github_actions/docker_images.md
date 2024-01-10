@@ -41,7 +41,7 @@ Some pros and cons of having own container registry are:
     * The registry does not mirror the images available on Docker Hub automatically
     * The needed images should be added manually to the registry
 
-As the number of enable workflows grew, so did the number of available Docker images.
+As the number of enabled workflows grew, so did the number of available Docker images.
 
 The available Docker images are using the following pattern for their names: `openvinogithubactions.azurecr.io/dockerhub/<image-name>:<image-tag>`.
 
