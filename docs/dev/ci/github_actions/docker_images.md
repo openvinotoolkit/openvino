@@ -31,13 +31,15 @@ it is optimal to use the Docker images hosted in an instance of [Azure Container
 
 The ACR used for the OpenVINO GHA CI is `openvinogithubactions.azurecr.io`.
 
-Up- and downsides of this approach are:
-* **\+** - no pull limits for the images; 
-  * there are [limits](https://docs.docker.com/docker-hub/download-rate-limit/) for the pulls from Docker Hub
-* **\+** - fast pulling speeds
-* **\-** - the registry should be populated with needed images before usage
-  * the registry does not mirror the images available on Docker Hub automatically
-  * The needed images should be added manually to the registry
+Some pros and cons of having own container registry are:
+* pros:
+  * No pull limits for the images
+    * There are [limits](https://docs.docker.com/docker-hub/download-rate-limit/) for the pulls from Docker Hub
+  * Fast pulling speeds
+* cons:
+  * The registry should be populated with needed images before usage
+    * The registry does not mirror the images available on Docker Hub automatically
+    * The needed images should be added manually to the registry
 
 As the number of enable workflows grew, so did the number of available Docker images.
 
