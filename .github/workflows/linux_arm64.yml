@@ -47,7 +47,7 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 150
+    timeout-minutes: 300
     defaults:
       run:
         shell: bash
@@ -72,6 +72,8 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: 'ubuntu20_aarch64_Release'
+      SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
+      SCCACHE_LOG: 'debug'
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -113,7 +115,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.4"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -122,6 +124,9 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           show-cache-info: 'true'
+
+      - name: Sleep
+        run: sleep 5h
 
       - name: Install python dependencies
         run: |
