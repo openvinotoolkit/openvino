@@ -17,7 +17,6 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 using namespace ov;
 
