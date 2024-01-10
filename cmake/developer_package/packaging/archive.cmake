@@ -31,7 +31,6 @@ macro(ov_archive_cpack_set_dirs)
     set(OV_CPACK_DEVREQDIR tools)
     set(OV_CPACK_PYTHONDIR python)
 
-
     if(USE_BUILD_TYPE_SUBFOLDER)
         set(build_type ${CMAKE_BUILD_TYPE})
     else()
