@@ -1745,8 +1745,9 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             }
         }
 
-        int peer_port = peerNode->getChildEdgeAt(childIdx)->getInputNum();
-        peerNode->getChildEdgeAt(childIdx)->drop();
+        auto peerEdge = peerNode->getChildEdgeAt(childIdx);
+        const int peer_port = peerEdge->getInputNum();
+        graph.RemoveEdge(peerEdge);
 
         int childPort = 1;
         auto* mergedConvNode = dynamic_cast<Convolution*>(mergedConv.get());
@@ -2612,7 +2613,7 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
             const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getGraphContext());
-            graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
+            graph.InsertNode(edge, cpuUnsqueeze, false);
 
             const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getGraphContext());
             graph.AddNode(cpuConstant);
@@ -2790,14 +2791,16 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdge = memInputNode->getParentEdgeAt(0);
             auto parent = parentEdge->getParent();
-            graph.CreateEdge(parent, memInputSdpa, parentEdge->getInputNum(), 0);
+            const auto inputNum = parentEdge->getInputNum();
             graph.RemoveEdge(parentEdge);
+            graph.CreateEdge(parent, memInputSdpa, inputNum, 0);
         }
 
         for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
             auto child = edge->getChild();
-            graph.CreateEdge(memInputSdpa, child, 0, edge->getOutputNum());
+            const auto outputNum = edge->getOutputNum();
             graph.RemoveEdge(edge);
+            graph.CreateEdge(memInputSdpa, child, 0, outputNum);
         }
 
         //create a stub memory output
@@ -2812,8 +2815,9 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             graph.getGraphContext());
 
         auto memOutputEdge = memOutput.getParentEdgeAt(0);
-        graph.CreateEdge(sdpa, memOutputStub, memOutputEdge->getInputNum(), 0);
+        const auto inputNum = memOutputEdge->getInputNum();
         graph.RemoveEdge(memOutputEdge);
+        graph.CreateEdge(sdpa, memOutputStub, inputNum, 0);
 
         memInputSdpa->registerOutputNode(memOutputStub.get());
 
