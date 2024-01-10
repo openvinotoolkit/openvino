@@ -2,28 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "single_layer_tests/experimental_detectron_topkrois.hpp"
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include "single_op_tests/experimental_detectron_topkrois.hpp"
 
 namespace {
+using ov::test::ExperimentalDetectronTopKROIsLayerTest;
+
 std::vector<int64_t> maxRois {
         1000,
         1500,
         2000
 };
 
-std::vector<ElementType> elementTypes {
-    ElementType::f16,
-    ElementType::f32
+std::vector<ov::element::Type_t> elementTypes {
+    ov::element::f16,
+    ov::element::f32
 };
 
-const std::vector<std::vector<InputShape>> staticInputShape = {
-        static_shapes_to_test_representation({{3000, 4}, {3000}}),
-        static_shapes_to_test_representation({{4200, 4}, {4200}}),
-        static_shapes_to_test_representation({{4500, 4}, {4500}})
+const std::vector<std::vector<ov::test::InputShape>> staticInputShape = {
+        ov::test::static_shapes_to_test_representation({{3000, 4}, {3000}}),
+        ov::test::static_shapes_to_test_representation({{4200, 4}, {4200}}),
+        ov::test::static_shapes_to_test_representation({{4500, 4}, {4500}})
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronTopKROIs_static, ExperimentalDetectronTopKROIsLayerTest,

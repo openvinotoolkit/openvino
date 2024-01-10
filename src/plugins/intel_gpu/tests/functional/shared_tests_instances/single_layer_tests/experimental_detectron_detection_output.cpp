@@ -2,20 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/experimental_detectron_detection_output.hpp"
-
-#include <vector>
-
-#include "common_test_utils/ov_tensor_utils.hpp"
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include "single_op_tests/experimental_detectron_detection_output.hpp"
 
 namespace {
+using ov::test::ExperimentalDetectronDetectionOutputLayerTest;
 
-const std::vector<ov::test::ElementType> netPrecisions = {
-    ov::element::Type_t::f16,
-    ov::element::Type_t::f32,
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f16,
+    ov::element::f32,
 };
 
 const std::vector<float> score_threshold = {0.01f, 0.8f};
@@ -46,15 +40,15 @@ const bool class_agnostic_box_regression_false = false;
 // specifies deltas of weights
 const std::vector<std::vector<float>> deltas_weights = {{10.0f, 10.0f, 5.0f, 5.0f}};
 
-const std::vector<std::vector<InputShape>> inputShapes = {
+const std::vector<ov::test::InputShape> inputShapes = {
     // inputRois / inputDeltas / inputScores / inputImInfos
-    static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
+    ov::test::static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
 };
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
                          ExperimentalDetectronDetectionOutputLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                         ::testing::Combine(::testing::Values(inputShapes),
                                             ::testing::ValuesIn(score_threshold),
                                             ::testing::ValuesIn(nms_threshold),
                                             ::testing::ValuesIn(max_delta_log_wh),
@@ -69,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutputMaxDetectionsPerImage,
                          ExperimentalDetectronDetectionOutputLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                         ::testing::Combine(::testing::Values(inputShapes),
                                             ::testing::ValuesIn(score_threshold),
                                             ::testing::ValuesIn(nms_threshold),
                                             ::testing::ValuesIn(max_delta_log_wh),
@@ -84,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutputMaxD
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                          ExperimentalDetectronDetectionOutputLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                         ::testing::Combine(::testing::Values(inputShapes),
                                             ::testing::ValuesIn(score_threshold),
                                             ::testing::ValuesIn(nms_threshold),
                                             ::testing::ValuesIn(max_delta_log_wh),
