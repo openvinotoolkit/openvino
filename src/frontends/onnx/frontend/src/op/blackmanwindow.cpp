@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #define _USE_MATH_DEFINES
-#include <math.h>
 
 #include "op/blackmanwindow.hpp"
+
+#include <math.h>
 
 #include <memory>
 

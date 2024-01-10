@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #define _USE_MATH_DEFINES
-#include <math.h>
 
 #include "op/hannwindow.hpp"
+
+#include <math.h>
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "utils/common.hpp"
-
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
