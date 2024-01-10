@@ -8,16 +8,15 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "ngraph/type.hpp"
+#include "openvino/core/type.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
-    py::class_<ngraph::DiscreteTypeInfo, std::shared_ptr<ngraph::DiscreteTypeInfo>> discrete_type_info(
-        m,
-        "DiscreteTypeInfo",
-        py::module_local());
-    discrete_type_info.doc() = "ngraph.impl.DiscreteTypeInfo wraps ngraph::DiscreteTypeInfo";
+    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m,
+                                                                                               "DiscreteTypeInfo",
+                                                                                               py::module_local());
+    discrete_type_info.doc() = "ngraph.impl.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
     // operator overloading
     discrete_type_info.def(py::self < py::self);
@@ -27,11 +26,11 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def(py::self == py::self);
     discrete_type_info.def(py::self != py::self);
 
-    discrete_type_info.def_readonly("name", &ngraph::DiscreteTypeInfo::name);
-    discrete_type_info.def_readonly("version_id", &ngraph::DiscreteTypeInfo::version_id);
-    discrete_type_info.def_readonly("parent", &ngraph::DiscreteTypeInfo::parent);
+    discrete_type_info.def_readonly("name", &ov::DiscreteTypeInfo::name);
+    discrete_type_info.def_readonly("version_id", &ov::DiscreteTypeInfo::version_id);
+    discrete_type_info.def_readonly("parent", &ov::DiscreteTypeInfo::parent);
 
-    discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
+    discrete_type_info.def("__repr__", [](const ov::DiscreteTypeInfo& self) {
         std::string name = std::string(self.name);
         std::string version = std::string(self.version_id);
         if (self.parent != nullptr) {

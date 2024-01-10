@@ -330,7 +330,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities = {
+    static std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
@@ -349,6 +349,8 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::jit_avx512_dw,
         impl_desc_type::jit_avx512_1x1,
         impl_desc_type::jit_avx512,
+        impl_desc_type::brgconv_avx2_1x1,
+        impl_desc_type::brgconv_avx2,
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,
@@ -369,11 +371,19 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
 
+    priorities.erase(std::remove_if(priorities.begin(),
+                                    priorities.end(),
+                                    [](impl_desc_type type) {
+                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
+                                    }),
+                     priorities.end());
+
     return priorities;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
     return isBrgConvAvailable;
 }
 
@@ -1634,12 +1644,13 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;
     }
-    // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni.
+    // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
-    if (inputZeroPointType == zpType::PerTensor &&
-        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
+    if (inputZeroPointType == zpType::PerTensor && (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
+                                                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
+                                                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     else
         inputZeroPointType = zpType::PerChannel;

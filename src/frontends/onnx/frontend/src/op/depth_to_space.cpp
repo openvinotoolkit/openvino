@@ -5,6 +5,7 @@
 #include "op/depth_to_space.hpp"
 
 #include "default_opset.hpp"
+#include "openvino/frontend/exception.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,7 +15,7 @@ namespace set_1 {
 OutputVector depth_to_space(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto& shape = data.get_partial_shape();
-    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
+    FRONT_END_GENERAL_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
 
     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
     default_opset::DepthToSpace::DepthToSpaceMode ngraph_mode;
@@ -23,7 +24,7 @@ OutputVector depth_to_space(const Node& node) {
     else if (mode == "CRD")
         ngraph_mode = default_opset::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
     else
-        NGRAPH_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
+        FRONT_END_GENERAL_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
 
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
     return OutputVector{std::make_shared<default_opset::DepthToSpace>(data, ngraph_mode, block_size)};
