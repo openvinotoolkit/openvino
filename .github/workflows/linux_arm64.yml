@@ -228,9 +228,7 @@ jobs:
           cmake \
             -DCPACK_GENERATOR=NPM \
             -DENABLE_SYSTEM_TBB=OFF -UTBB* \
-            -DOV_CPU_ARM_TARGET_ARCH="armv8.2-a" \
             -DENABLE_INTEL_GPU=OFF \
-            -DENABLE_MLAS_FOR_CPU=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           

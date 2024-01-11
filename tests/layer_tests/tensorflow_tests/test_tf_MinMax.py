@@ -59,8 +59,8 @@ class TestMinMaxOps(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_minmax_ops_placeholder_const(self, params, op_type, keep_dims, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_new_frontend):
         self._test(*self.create_minmax_ops_placeholder_const_net(**params, op_type=op_type, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend, keep_dims=keep_dims),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

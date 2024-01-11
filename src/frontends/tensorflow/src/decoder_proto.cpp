@@ -15,74 +15,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-namespace {
-
-template <typename T>
-void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
-    const auto tensor_content_size = tensor_content.size();
-    FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
-                            "Size of tensor_content (",
-                            tensor_content_size,
-                            ") is not a multiple of ",
-                            sizeof(T));
-
-    const T* tensor_values = reinterpret_cast<const T*>(tensor_content.data());
-    FRONT_END_GENERAL_CHECK(values->get_size() == tensor_content_size / sizeof(T),
-                            "Size of tensor is not equal to tensor_content size.");
-    std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
-}
-
-#if defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4244)  // possible loss of data
-#    pragma warning(disable : 4267)  // possible loss of data
-#endif
-template <typename T>
-void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
-                                       int64_t val_size,
-                                       ov::Tensor* values) {
-    auto val_lastsaved = static_cast<T>(0);
-    auto values_data = values->data<T>();
-    for (size_t i = 0; i < values->get_size(); i++) {
-        if (val_size == 0) {
-            values_data[i] = static_cast<T>(0);
-        } else if (static_cast<int64_t>(i) < val_size) {
-            auto val_i = static_cast<T>(0);
-            switch (values->get_element_type()) {
-            // TODO: there are more element types to support here
-            case ov::element::boolean:
-                val_i = tensor_proto.bool_val()[i];
-                break;
-            case ov::element::i32:
-                val_i = tensor_proto.int_val()[i];
-                break;
-            case ov::element::i64:
-                val_i = tensor_proto.int64_val()[i];
-                break;
-            case ov::element::f16:
-                val_i = float16::from_bits(tensor_proto.half_val()[i]);
-                break;
-            case ov::element::f32:
-                val_i = tensor_proto.float_val()[i];
-                break;
-            case ov::element::f64:
-                val_i = tensor_proto.double_val()[i];
-                break;
-            default:
-                FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
-            }
-            values_data[i] = val_i;
-            val_lastsaved = val_i;
-        } else {
-            values_data[i] = val_lastsaved;
-        }
-    }
-}
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-}  // namespace
-
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
@@ -113,9 +45,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
         auto atype = attrs[0].type();
-        if (atype == ::tensorflow::DT_STRING) {
-            return ov::Any("DT_STRING");
-        } else if (atype == ::tensorflow::DT_COMPLEX64) {
+
+        if (atype == ::tensorflow::DT_COMPLEX64) {
             return ov::Any("DT_COMPLEX64");
         } else if (atype == ::tensorflow::DT_COMPLEX128) {
             return ov::Any("DT_COMPLEX128");
@@ -160,11 +91,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
-                    res.emplace_back(get_ov_type(list.type(idx)));
-                } else {
-                    res.emplace_back(ov::element::dynamic);
-                }
+                res.emplace_back(get_ov_type(list.type(idx)));
             }
             return res;
         }
