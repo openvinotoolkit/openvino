@@ -19,6 +19,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -32,7 +33,7 @@ namespace tensorflow {
 void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     node->set_friendly_name(node_name);
-    if (outputs.size() == 1) {
+    if (outputs.size() == 1 && as_type_ptr<v0::Parameter>(node)) {
         set_out_name(node_name, outputs[0]);
     }
     for (size_t idx = 0; idx < outputs.size(); ++idx) {

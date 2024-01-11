@@ -35,8 +35,7 @@ public:
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names = nullptr,
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr,
                         const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader = nullptr,
-                        const bool native_format = false,
-                        const bool tensor_names_need_indices = true);
+                        const bool native_format = false);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
@@ -59,7 +58,6 @@ public:
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
     std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
     std::vector<std::string> get_input_names() const;
-    bool tensor_names_need_indices() const;
 };
 
 }  // namespace tensorflow

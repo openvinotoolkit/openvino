@@ -63,8 +63,7 @@ public:
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
                      const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
-                     const bool native_format = false,
-                     const bool tensor_names_need_indices = true);
+                     const bool native_format = false);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
@@ -92,7 +91,6 @@ public:
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
-    bool tensor_names_need_indices() const;
 
 private:
     void load_places();
@@ -120,7 +118,6 @@ private:
     std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     bool m_native_format;
-    bool m_tensor_names_need_indices;
     bool m_custom_inputs;
 
     // shows if some nodes might be deleted from graph
@@ -341,10 +338,6 @@ std::vector<std::string> InputModel::InputModelTFImpl::get_output_names() const 
     return m_output_names;
 }
 
-bool InputModel::InputModelTFImpl::tensor_names_need_indices() const {
-    return m_tensor_names_need_indices;
-}
-
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
@@ -519,8 +512,7 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
     const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
-    const bool native_format,
-    const bool tensor_names_need_indices)
+    const bool native_format)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
       m_telemetry(telemetry),
@@ -528,8 +520,7 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
       m_saved_model_input_names(saved_model_input_names),
       m_saved_model_output_names(saved_model_output_names),
       m_checkpoint_v1_reader(checkpoint_v1_reader),
-      m_native_format(native_format),
-      m_tensor_names_need_indices(tensor_names_need_indices) {
+      m_native_format(native_format) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     m_input_names = graph_iterator->get_input_names();
     m_output_names = graph_iterator->get_output_names();
@@ -708,8 +699,7 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
-                       const bool native_format,
-                       const bool tensor_names_need_indices)
+                       const bool native_format)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator,
                                                *this,
                                                telemetry,
@@ -717,8 +707,7 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                                                saved_model_input_names,
                                                saved_model_output_names,
                                                checkpoint_v1_reader,
-                                               native_format,
-                                               tensor_names_need_indices)} {}
+                                               native_format)} {}
 
 std::shared_ptr<VariablesIndex> InputModel::get_variables_index() {
     return _impl->get_variables_index();
@@ -742,10 +731,6 @@ std::vector<std::string> InputModel::get_input_names() const {
 
 std::vector<std::string> InputModel::get_output_names() const {
     return _impl->get_output_names();
-}
-
-bool InputModel::tensor_names_need_indices() const {
-    return _impl->tensor_names_need_indices();
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {

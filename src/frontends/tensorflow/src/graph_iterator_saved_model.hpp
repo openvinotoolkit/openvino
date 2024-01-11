@@ -65,10 +65,6 @@ public:
         return m_outputs_map;
     }
 
-    bool tensor_names_need_indices() const override {
-        return false;
-    }
-
 private:
     bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
 

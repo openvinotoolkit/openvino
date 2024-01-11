@@ -211,10 +211,6 @@ public:
     std::vector<std::string> get_output_names() const override {
         return m_output_names;
     }
-
-    bool tensor_names_need_indices() const override {
-        return true;
-    }
 };
 
 }  // namespace tensorflow

@@ -224,8 +224,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
                                                 nullptr,
-                                                true,
-                                                false);
+                                                true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -279,8 +278,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
                                                 nullptr,
-                                                true,
-                                                false);
+                                                true);
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -300,8 +298,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
                                                 nullptr,
-                                                true,
-                                                false);
+                                                true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -355,8 +352,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
                                                 nullptr,
-                                                true,
-                                                false);
+                                                true);
         }
     }
 #endif
@@ -379,8 +375,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                             input_names_map,
                                             output_names_map,
                                             nullptr,
-                                            false,
-                                            graph_iterator->tensor_names_need_indices());
+                                            false);
     }
 
     FRONT_END_GENERAL_CHECK(false,

@@ -13,7 +13,6 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/util/common_util.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -54,26 +53,6 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     return resulted_ops;
 };
 
-std::string make_output_tensor_name(std::string tensor_name, std::string node_name) {
-    std::string operation_name;
-    size_t port_index;
-    std::string port_type;
-    ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name, operation_name, port_index, port_type);
-
-    std::string op_name_from_res_node;
-    size_t port_index_node;
-    ov::frontend::tensorflow::extract_operation_name_and_port(node_name,
-                                                              op_name_from_res_node,
-                                                              port_index_node,
-                                                              port_type);
-
-    if (op_name_from_res_node == operation_name && tensor_name != "") {
-        return operation_name + ":" + std::to_string(port_index);
-    } else {
-        return op_name_from_res_node + ":" + std::to_string(port_index_node);
-    }
-}
-
 /// \brief Adjusts names of the tensor by mapping internal names to user specific ones using the model signature
 /// and mark unused tensor names that must be removed
 /// \param[in] ov_output ov::Output<ov::Node> for which names set should be corrected
@@ -81,8 +60,7 @@ std::string make_output_tensor_name(std::string tensor_name, std::string node_na
 /// \param[in] saved_model_output_names Map of for output names
 void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_input_names,
-                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names,
-                              bool tensor_names_need_indices) {
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
     // 1. check if it is the input or output tensor of the model
     // perform the adjustment only for the input and output tensors of the model
     auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
@@ -135,10 +113,6 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
             }
         } else {
             signature_passed = false;
-        }
-        if (tensor_names_need_indices) {
-            auto tensor_name = ov_output.get_names().size() > 0 ? ov_output.get_any_name() : "";
-            ov_output.set_names({make_output_tensor_name(tensor_name, results[0]->get_friendly_name())});
         }
     }
 
@@ -734,31 +708,25 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
-    // for example, serving_default_input_name:0 maps to input_name
-    // we need to re-write input and output internal tensor names to user specific.
-    // Outputs for TF1 formats are changed to have single output name with ":0".
+    if (saved_model_inputs || saved_model_outputs) {
+        // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
+        // for example, serving_default_input_name:0 maps to input_name
+        // we need to re-write input and output internal tensor names to user specific
 
-    // it makes sense to use set because Parameter and Results nodes may have the common tensor
-    std::set<ov::Output<ov::Node>> ov_tensors;
-    for (const auto& param : params) {
-        ov_tensors.insert(param->output(0));
-    }
-    for (const auto& result : results) {
-        ov_tensors.insert(result->input_value(0));
-    }
+        // it makes sense to use set because Parameter and Results nodes may have the common tensor
+        std::set<ov::Output<ov::Node>> ov_tensors;
+        for (const auto& param : params) {
+            ov_tensors.insert(param->output(0));
+        }
+        for (const auto& result : results) {
+            ov_tensors.insert(result->input_value(0));
+        }
 
-    // it iterates through these tensors and adjusts their names
-    // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
-
-    auto tf_input_model = std::dynamic_pointer_cast<ov::frontend::tensorflow::InputModel>(input_model);
-    FRONT_END_GENERAL_CHECK(tf_input_model, "Got unexpected InputModel class");
-
-    for (auto ov_tensor : ov_tensors) {
-        adjust_saved_model_names(ov_tensor,
-                                 saved_model_inputs,
-                                 saved_model_outputs,
-                                 tf_input_model->tensor_names_need_indices());
+        // it iterates through these tensors and adjusts their names
+        // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
+        for (auto ov_tensor : ov_tensors) {
+            adjust_saved_model_names(ov_tensor, saved_model_inputs, saved_model_outputs);
+        }
     }
 
     // reorder Parameter and Result nodes according to the requested order
