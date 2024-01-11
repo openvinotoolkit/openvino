@@ -32,16 +32,6 @@ inline __m256i get_mask(int N7) {
     return _mm256_loadu_si256(&mask[N7]);
 }
 
-inline void hmax(__m256& x) {
-    __m256 y;                             // x:  0 1 2 3   4 5 6 7
-    y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
-    x = _mm256_max_ps(x, y);              // X:  01 12 23 30  45 56 67 74
-    y = _mm256_permute_ps(x, 0x4e);       // y:  23 30 01 12  67 74 45 56
-    x = _mm256_max_ps(x, y);              // x: 0123 x x x   4567 x x x
-    y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
-    x = _mm256_max_ps(x, y);              // x: 01234567 x x x x x x x
-}
-
 inline void exp_ps_avx2(__m256& src) {
     static __m256 exp_ln_flt_min_f = _mm256_castsi256_ps(_mm256_set1_epi32(0xc2aeac50));  // log(FLT_MIN)
     static __m256 exp_ln_flt_max_f = _mm256_castsi256_ps(_mm256_set1_epi32(0x42b17218));  // log(FLT_MAX)

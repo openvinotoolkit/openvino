@@ -53,6 +53,7 @@ void attn_acc_value(float* out, float weight, T* v, size_t S, float scale, float
 
 static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float scale, float zp) {
     size_t i = 0;
+    weight *= scale;
 // #if defined(HAVE_AVX512F)
 //     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
 //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
@@ -61,17 +62,21 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
 //         v_out = _mm512_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
 //         _mm512_storeu_ps(out + i, v_out);
 //     }
-// #elif defined(HAVE_AVX2)
-//     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
-//     for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
-//         auto v_value = mm256_uni_loadu_ps(v + i);
-//         auto v_out = mm256_uni_loadu_ps(out + i);
-//         v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
-//         mm256_uni_storeu_ps(out + i, v_out);
-//     }
-// #endif
+#if defined(HAVE_AVX2)
+    auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
+    auto v_zp = _mm256_set1_ps(zp);
+    for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+        auto v_128 = _mm_loadu_si64(v + i);
+        auto v_256 = _mm256_cvtepu8_epi32(v_128);
+        auto v_value = _mm256_cvtepi32_ps(v_256);
+        v_value = _mm256_sub_ps(v_value, v_zp);
+        auto v_out = mm256_uni_loadu_ps(out + i);
+        v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
+        mm256_uni_storeu_ps(out + i, v_out);
+    }
+#endif
     for (; i < S; i++) {
-        out[i] += weight * (v[i] - zp) * scale;
+        out[i] += weight * (v[i] - zp);
     }
 }
 
@@ -115,20 +120,24 @@ float dot_product(TA* a, uint8_t* b, size_t n, float scale, float zp) {
 //         vsum = _mm512_fmadd_ps(va, vb, vsum);
 //     }
 //     sum = _mm512_reduce_add_ps(vsum);
-// #elif defined(HAVE_AVX2)
-//     auto vsum = _mm256_set1_ps(0.0f);
-//     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-//         auto va = mm256_uni_loadu_ps(a + i);
-//         auto vb = mm256_uni_loadu_ps(b + i);
-//         vsum = _mm256_fmadd_ps(va, vb, vsum);
-//     }
-//     hsum(vsum);
-//     sum = _mm256_cvtss_f32(vsum);
-// #endif
-    for (; i < n; i++) {
-        sum += a[i] * (b[i] - zp) * scale;
+#if defined(HAVE_AVX2)
+    auto vsum = _mm256_set1_ps(0.0f);
+    auto v_zp = _mm256_set1_ps(zp);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto va = mm256_uni_loadu_ps(a + i);
+        auto vb_128 = _mm_loadu_si64(b + i);
+        auto vb_256 = _mm256_cvtepu8_epi32(vb_128);
+        auto vb = _mm256_cvtepi32_ps(vb_256);
+        vb = _mm256_sub_ps(vb, v_zp);
+        vsum = _mm256_fmadd_ps(va, vb, vsum);
     }
-    return sum;
+    hsum(vsum);
+    sum = _mm256_cvtss_f32(vsum);
+#endif
+    for (; i < n; i++) {
+        sum += a[i] * (b[i] - zp);
+    }
+    return sum * scale;
 }
 
 template<typename T>

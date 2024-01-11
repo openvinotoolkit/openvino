@@ -30,6 +30,19 @@ static void quant_u8(TA* a, TB* b, size_t n, float& zp, float& scale) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
+#if defined(HAVE_AVX2)
+    auto v_max = _mm256_set1_ps(-FLT_MAX);
+    auto v_min = _mm256_set1_ps(FLT_MAX);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto v = mm256_uni_loadu_ps(b + i);
+        v_max = _mm256_max_ps(v_max, v);
+        v_min = _mm256_min_ps(v_min, v);
+    }
+    hmax(v_max);
+    hmin(v_min);
+    max = _mm256_cvtss_f32(v_max);
+    min = _mm256_cvtss_f32(v_min);
+#endif
     for (; i < n; i++) {
         float tmp = b[i];
         max = std::max(max, tmp);
@@ -37,7 +50,26 @@ static void quant_u8(TA* a, TB* b, size_t n, float& zp, float& scale) {
     }
     scale = (max - min) / 255;
     zp = -min / scale;
-    for (size_t i = 0; i < n; i++) {
+
+#if defined(HAVE_AVX2)
+    i = 0;
+    auto v_scale = _mm256_set1_ps(1 / scale);
+    auto v_zp = _mm256_set1_ps(zp);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto v = mm256_uni_loadu_ps(b + i);
+        v = _mm256_mul_ps(v, v_scale);
+        v = _mm256_add_ps(v, v_zp);
+        v = _mm256_round_ps(v, _MM_ROUND_NEAREST);
+        auto v_i32 = _mm256_cvtps_epi32(v);
+
+        auto high4 = _mm256_extractf128_si256(v_i32, 1);
+        auto low4 = _mm256_castsi256_si128(v_i32);
+        auto packed = _mm_packs_epi32(low4, high4);
+        packed = _mm_packus_epi16(packed, packed);
+        _mm_storeu_si64(a + i, packed);
+    }
+#endif
+    for (; i < n; i++) {
         float tmp = b[i];
         a[i] = tmp / scale + zp;
     }
