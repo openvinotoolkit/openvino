@@ -235,6 +235,7 @@ void EltwiseLayerCPUTest::SetUp() {
 std::string EltwiseLayerCPUTest::getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
                                                   const ov::element::Type_t& element_type,
                                                   const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+#if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
     if ((eltwise_type == ngraph::helpers::EltwiseTypes::ADD) ||
        (eltwise_type == ngraph::helpers::EltwiseTypes::MULTIPLY) ||
@@ -242,9 +243,10 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const ngraph::helpers::Eltwise
        (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE)) {
         return "jit";
     }
+#endif
     return "acl";
 #else
-    return getPrimitiveType();
+    return CPUTestsBase::getPrimitiveType();
 #endif
 }
 
