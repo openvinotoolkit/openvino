@@ -80,7 +80,7 @@ OutputVector PoolingFactory::make_avg_pool_10() const {
                                                      m_padding_below,
                                                      m_padding_above,
                                                      m_kernel_shape,
-                                                     !count_include_pad,
+                                                     count_include_pad,
                                                      m_ceil_mode,
                                                      m_rounding_type,
                                                      m_auto_pad)};
@@ -94,7 +94,7 @@ OutputVector PoolingFactory::make_avg_pool_11() const {
                                                      m_padding_above,
                                                      m_kernel_shape,
                                                      m_ceil_mode,
-                                                     !count_include_pad,
+                                                     count_include_pad,
                                                      m_rounding_type,
                                                      m_auto_pad)};
 }
