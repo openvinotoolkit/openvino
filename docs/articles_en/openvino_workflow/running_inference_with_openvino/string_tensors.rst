@@ -1,0 +1,207 @@
+.. {#openvino_docs_OV_UG_string_tensors}
+
+String Tensors
+==============
+
+
+.. meta::
+   :description: Learn how to pass and retrieve text to and from OpenVINO model.
+
+OpenVINO tensor can hold as its elements not only numerical data like floating point or integer numbers,
+but also can contain textual information that is represented as one or multiple strings.
+Such a tensor is called a string tensor.
+
+A string tensor can be passed as an input or retrieved as an output of OpenVINO model.
+Models with string inputs and/or outputs are dedicatedly designed to process textual information.
+For example, string tensors provide a way to feed and retrieve textual data when using OpenVINO
+`tokenizers and detokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__.
+
+While this section describes basic API to handle string tensors, more practical examples that leverage both
+string tensors and OpenVINO tokenizer can be found in
+`GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__.
+
+
+Representation
+##############
+
+String tensors are supported in C++ and Python APIs and represented as an instance of `ov::Tensor`
+class with `element_type` parameter equal to `ov::element::string`. Each element of a string tensor is a string
+of arbitrary length, including an empty string, and can be set independently of other elements in the same tensor.
+
+String tensor capable to represent any valid UTF-8 encoded symbol sequences and even arbitrary byte sequences not
+mandatory limited by UTF-8 in some circumstances.
+
+Depending on API used (C++ or Python) underlying data type that represents string when accessing tensor elements is
+different:
+
+ - std::string is used in C++
+
+ - `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used in Python as read-only copy of underlying C++ content
+
+As the string representation is more sophisticated in contrast to for example float or int data type,
+the underlying memory that is used for string tensor representation cannot be handled without proper construction and
+destroying of string objects.
+Also, in contrast to numerical data, C++ and Python do not share the same memory layout and hence there is no immediate
+sharing of tensor content between the two APIs. Python provides only a numpy-compatible view of the data
+allocated and held in C++ core as an array of `std::string` objects.
+
+The developer is required to consider these restrictions when writing code using string tensors and
+avoid treating the content as raw bytes.
+
+Create a String Tensor
+######################
+
+The following is an example of how to create a small 1D tensor pre-populated with three elements:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: py
+         :force:
+
+         import openvino as ov
+
+         tensor = ov.Tensor(['text', 'more text', 'even more text'])
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <vector>
+         #include <string>
+         #include <openvino/openvino.hpp>
+
+         std::vector<std::string> strings = {"text", "more text", "even more text"};
+         ov::Tensor tensor(ov::element::string, ov::Shape{strings.size()}, &strings[0]);
+
+The example demonstrates that similarly to tensors with numerical information,
+a tensor object can be created on top of existing memory in C++ by providing a pointer to a pre-allocated array of elements.
+Here an instance of std::vector is used to hold the memory and consists of three std::string objects.
+So `tensor` object in C++ example will share the same memory as `strings` vector.
+
+Note that `ov::Tensor`, when initialized with a pointer, requires pre-initialized memory with valid `std::string` objects
+created by calling one of the available `std::string` constructors even for empty string. It is undefined behaviour if
+not initialized memory is passed to this `ov::Tensor` constructor.
+
+In Python version of the example above, a regular list of strings is used as an initializer.
+No memory sharing is available this time in contrast to C++,
+and the strings from the initialization list are copied to separately allocated storage underneath `tensor` object.
+
+Besides a plain Python list of strings, an initializer can be one of the supported `numpy` arrays initialized
+with Unicode or byte strings:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+         :force:
+
+         import numpy as np
+
+         tensor = ov.Tensor(np.array(['text', 'more text', 'even more text']))
+         tensor = ov.Tensor(np.array([b'text', b'more text', b'even more text']))
+
+In case if `ov::Tensor` is created without providing initialization strings,
+a tensor of specified shape with empty strings as elements is created:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+         :force:
+
+         tensor = ov.Tensor(dtype=str, shape=[3])
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         ov::Tensor tensor(ov::element::string, ov::Shape{3});
+
+`ov::Tensor` allocates and initializes required number of `std::string` objects under the hood.
+
+
+Accessing Elements
+##################
+
+The code below prints all elements in 1D string tensor constructed above.
+In C++ code the same `.data` template method is used for other data types,
+and to access string data it should be called with `std::string` type.
+In Python, dedicated fields `std_data` or `byte_data` are used instead of `data` field for numerical data.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+         :force:
+
+         data = tensor.str_data  # use tensor.byte_data instead to access encoded strings as `bytes`
+         for i in range(tensor.get_size()):
+            print(data[i])
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <iostream>
+
+         std::string* data = tensor.data<std::string>();
+         for(size_t i = 0; i < tensor.get_size(); ++i)
+            std::cout << data[i] << '\n';
+
+In the case of Python, an object retrieved with `tensor.str_data` (or `tensor.bytes_data`) is numpy array
+with elements `numpy.str_` (or `numpy.bytes_` correspondingly). It is a copy of underlying data from
+the `tensor` object and cannot be used for tensor content modification.
+To set new values, the entire tensor content should be set as a list or as a `numpy` array as demonstrated
+below.
+
+In contrast to Python, when using `tensor.data<std::string>()` in C++, a pointer to underlying data
+storage is returned and it can be used for tensor element modification:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         # Unicode strings:
+         tensor.str_data = ['one', 'two', 'three']
+         # Do NOT use tensor.str_data[i] to set a new value, it won't update the tensor content
+
+         # Encoded strings:
+         tensor.str_data = [b'one', b'two', b'three']
+         # Do NOT use tensor.bytes_data[i] to set a new value, it won't update the tensor content
+
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         std::string new_content[] = {"one", "two", "three"};
+         std::string* data = tensor.data<std::string>();
+         for(size_t i = 0; i < tensor.get_size(); ++i)
+            data[i] = new_content[i];
+
+
+Additional Resources
+####################
+
+* Learn basic steps about how to integrate the inference in your application with :doc:`additional materials <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+
+* Use `OpenVINO tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
+to produce models that use string tensors to work with textual information as pre- and post-processing for the large language models.
+
+* Checkout `GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__ to see how string tensors are
+used in real-life applications.
+
