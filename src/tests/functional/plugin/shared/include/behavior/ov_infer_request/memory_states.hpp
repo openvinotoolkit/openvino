@@ -6,8 +6,6 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "openvino/runtime/auto/properties.hpp"
 
 namespace ov {
 namespace test {
