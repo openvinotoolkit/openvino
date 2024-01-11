@@ -1268,3 +1268,49 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
         NodeValidationFailure);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
+
+TEST(partial_shape, const_subscribe_operator) {
+    const auto shape = ov::PartialShape{-1, {2, 10}, 5, 6, 7};
+
+    EXPECT_EQ(shape[2], ov::Dimension(5));
+    EXPECT_EQ(shape[0], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[1], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[4], ov::Dimension(7));
+
+    EXPECT_EQ(shape[-3], ov::Dimension(5));
+    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[-1], ov::Dimension(7));
+}
+
+TEST(partial_shape, subscribe_operator) {
+    auto shape = ov::PartialShape{-1, {2, 10}, 5, 6, 7};
+
+    EXPECT_EQ(shape[2], ov::Dimension(5));
+    EXPECT_EQ(shape[0], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[1], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[4], ov::Dimension(7));
+
+    EXPECT_EQ(shape[-3], ov::Dimension(5));
+    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[-1], ov::Dimension(7));
+}
+
+TEST(partial_shape, const_subscribe_operator_throw_out_of_range) {
+    const auto shape = ov::PartialShape::dynamic(7);
+
+    EXPECT_THROW(shape[7], ov::Exception);
+    EXPECT_THROW(shape[1000], ov::Exception);
+    EXPECT_THROW(shape[-8], ov::Exception);
+    EXPECT_THROW(shape[-80000], ov::Exception);
+}
+
+TEST(partial_shape, subscribe_operator_throw_out_of_range) {
+    auto shape = ov::PartialShape::dynamic(7);
+
+    EXPECT_THROW(shape[7], ov::Exception);
+    EXPECT_THROW(shape[1000], ov::Exception);
+    EXPECT_THROW(shape[-8], ov::Exception);
+    EXPECT_THROW(shape[-80000], ov::Exception);
+}

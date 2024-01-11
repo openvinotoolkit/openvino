@@ -7,6 +7,8 @@
 #include <algorithm>
 
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 template <class TContainer, class TAxes>
@@ -56,6 +58,15 @@ Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::Aut
     OPENVINO_ASSERT(PartialShape::broadcast_merge_into(out_shape, second, broadcast_spec),
                     "Argument shapes are inconsistent");
     return out_shape.to_shape();
+}
+
+std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank) {
+    idx = normalize(idx, static_cast<int64_t>(rank));
+    if (static_cast<decltype(rank)>(idx) >= rank) {
+        OPENVINO_THROW("Accessing out-of-range dimension");
+    } else {
+        return idx;
+    }
 }
 }  // namespace util
 }  // namespace ov

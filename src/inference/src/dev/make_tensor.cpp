@@ -182,35 +182,28 @@ public:
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          auto num_elements = shape_size(shape);
                          auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
-                         init(data, element_type, shape);
+                         initialize_elements(data, element_type, shape);
                          return data;
                      }()},
           m_allocator{allocator} {}
 
     ~AllocatedTensor() {
-        auto num_elements = get_size();
-        destroy(0, num_elements);
-        m_allocator.deallocate(m_ptr, get_byte_size());
+        destroy_memory();
     }
 
     void set_shape(ov::Shape new_shape) override {
         if (m_shape == new_shape)
             return;
 
-        auto old_num_elements = get_size();
-        auto old_byte_size = get_byte_size();
         m_shape = std::move(new_shape);
-        auto new_num_elements = get_size();
 
-        if (get_byte_size() > old_byte_size) {
+        if (get_size() > get_capacity()) {
+            destroy_memory();
+
             // allocate buffer and initialize objects from scratch
-            destroy(0, old_num_elements);
-            m_allocator.deallocate(m_ptr, old_byte_size);
-            m_ptr = m_allocator.allocate(get_byte_size());
-            init(m_ptr, m_element_type, m_shape);
-        } else {
-            // destroy only not needed objects
-            destroy(new_num_elements, old_num_elements);
+            m_capacity = m_shape;
+            m_ptr = m_allocator.allocate(get_bytes_capacity());
+            initialize_elements(m_ptr, m_element_type, m_shape);
         }
 
         m_strides.clear();
@@ -218,7 +211,7 @@ public:
     }
 
 private:
-    void destroy(size_t begin_ind, size_t end_ind) {
+    void destroy_elements(size_t begin_ind, size_t end_ind) {
         // it removes elements from tail
         if (get_element_type() == element::Type_t::string) {
             auto strings = static_cast<std::string*>(m_ptr);
@@ -229,12 +222,26 @@ private:
         }
     }
 
-    void init(void* data, const element::Type& element_type, const Shape& shape) {
+    void destroy_memory() {
+        destroy_elements(0, get_capacity());
+        m_allocator.deallocate(m_ptr, get_bytes_capacity());
+        m_ptr = nullptr;
+    }
+
+    static void initialize_elements(void* data, const element::Type& element_type, const Shape& shape) {
         if (element_type == element::Type_t::string) {
             auto num_elements = shape_size(shape);
             auto string_ptr = static_cast<std::string*>(data);
             std::uninitialized_fill_n(string_ptr, num_elements, std::string());
         }
+    }
+
+    size_t get_capacity() const {
+        return shape_size(m_capacity);
+    }
+
+    size_t get_bytes_capacity() const {
+        return (get_capacity() * get_element_type().bitwidth() + 8 - 1) / 8;
     }
 
     Allocator m_allocator;
