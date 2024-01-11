@@ -75,11 +75,4 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             const op::PadType pad_type,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below);
-
-/// \brief Try to compute the maximum value of value
-/// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
-/// if not.
-/// \deprecated Use evaluate_upper_bound instead
-NGRAPH_API_DEPRECATED
-NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 }  // namespace ngraph

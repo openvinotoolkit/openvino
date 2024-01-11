@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "pooling_inst.h"
-#include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
-#include "ngraph/validation_util.hpp"
+#include "pooling/pooling_kernel_selector.h"
+#include "pooling_inst.h"
+#include "primitive_base.hpp"
+#include "validation_util.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -98,15 +97,13 @@ public:
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             pads_begin.clear();
             pads_end.clear();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                           kernel,
-                                           stride,
-                                           dilation,
-                                           auto_pad,
-                                           pads_end,
-                                           pads_begin);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::try_apply_auto_padding(input_layout.get_partial_shape(),
+                                             kernel,
+                                             stride,
+                                             dilation,
+                                             auto_pad,
+                                             pads_end,
+                                             pads_begin);
         }
         if (auto_pad == ov::op::PadType::VALID) {
             pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);

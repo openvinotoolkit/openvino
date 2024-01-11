@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-#include "kernel_base.h"
-#include "convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
-#include "ngraph/validation_util.hpp"
+#include "convolution_inst.h"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "kernel_base.h"
+#include "primitive_base.hpp"
+#include "validation_util.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -100,15 +100,13 @@ public:
             pads_begin.clear();
             pads_end.clear();
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                           kernel,
-                                           stride,
-                                           dilation,
-                                           auto_pad,
-                                           pads_end,
-                                           pads_begin);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::try_apply_auto_padding(input_layout.get_partial_shape(),
+                                             kernel,
+                                             stride,
+                                             dilation,
+                                             auto_pad,
+                                             pads_end,
+                                             pads_begin);
 
             pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
             pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);

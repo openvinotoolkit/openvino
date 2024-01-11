@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
-#include "sliding_window_utils.hpp"
-
-#include "ngraph/validation_util.hpp"
+#include <string>
 
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "primitive_type_base.h"
 #include "json_object.h"
-
-#include <string>
+#include "pooling_inst.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -224,15 +222,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
         pads_begin.clear();
         pads_end.clear();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::try_apply_auto_padding(input_shape,
-                                       kernel_size,
-                                       stride,
-                                       dilation,
-                                       auto_pad,
-                                       pads_end,
-                                       pads_begin);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::try_apply_auto_padding(input_shape, kernel_size, stride, dilation, auto_pad, pads_end, pads_begin);
     }
     if (auto_pad == ov::op::PadType::VALID) {
         pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);

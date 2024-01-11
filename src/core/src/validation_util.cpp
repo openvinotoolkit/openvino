@@ -279,22 +279,6 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
                                             {variance_element_type, variance_shape, "variance"}});
 }
 
-bool try_apply_auto_padding(const PartialShape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    return ov::util::try_apply_auto_padding(image_shape,
-                                            filter_shape,
-                                            filter_strides,
-                                            filter_dilations,
-                                            pad_type,
-                                            padding_above,
-                                            padding_below);
-}
-
 namespace {
 /// \brief Scalar variant describes value of an Output, for use in max shape determination
 ///
@@ -441,24 +425,6 @@ std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
     return {inputs.at(0)};
 }
 }  // namespace
-
-std::pair<bool, uint64_t> maximum_value(const Output<Node>& value) {
-    static ngraph::Evaluator<MaxValue>::op_handler_map handlers = {
-        {ov::op::v0::Concat::get_type_info_static(), exec_concat},
-        {ov::op::v0::Constant::get_type_info_static(), exec_constant},
-        {ov::op::v0::Convert::get_type_info_static(), exec_nop},
-        {ov::op::v1::Gather::get_type_info_static(), exec_gather},
-        {ov::op::v1::Minimum::get_type_info_static(), exec_minimum},
-        {ov::op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
-        {ov::op::v1::Reshape::get_type_info_static(), exec_nop},
-        {ov::op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
-        {ov::op::v0::Squeeze::get_type_info_static(), exec_nop},
-        {ov::op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
-    Evaluator<MaxValue>::value_map value_map;
-    Evaluator<MaxValue> evaluator(handlers, value_map);
-    auto val = evaluator.evaluate(value);
-    return std::pair<bool, uint64_t>(val.m_value < std::numeric_limits<uint64_t>::max(), val.m_value);
-}
 
 std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
     return std::make_shared<op::Negative>(arg0);
