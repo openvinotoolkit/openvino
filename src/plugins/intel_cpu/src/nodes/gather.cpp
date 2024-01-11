@@ -179,33 +179,6 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
-
-    // short 1D vector fast executor (typical in shape infer subgraph)
-    execSpecialCase = nullptr;
-    if ((dataSrcRank == 1) && isDataShapeStat && isAxisInputConst && !constIndices.empty() && dataTypeSize == 4) {
-        const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
-        auto dim0 = dataShape.getDims()[0];
-        if (dim0 <= 64) {
-            execSpecialCase = [this]() {
-                DEBUG_LOG(getName(), " uses short 1d vector executor");
-                auto mptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-                const auto* src = reinterpret_cast<const uint32_t*>(mptr->getData());
-                auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
-                auto axisDim = mptr->getStaticDims()[0];
-                for (size_t i = 0; i < constIndices.size(); i++) {
-                    auto ii = constIndices[i];
-                    if (ii < 0) {
-                        if (reverseIndexing)
-                            ii += axisDim;
-                        else
-                            ii = axisDim;
-                    }
-                    dst[i] = src[ii];
-                }
-            };
-            return;
-        }
-    }
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -295,6 +268,16 @@ void Gather::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
 
+    // short 1D vector fast execution impl (typical in shape infer subgraph)
+    canOptimize1DCase = false;
+    if ((dataSrcRank == 1) && !constIndices.empty() && dataTypeSize == 4) {
+        const auto& dataDims = dataMemPtr->getStaticDims();
+        if (dataDims[0] <= 64 && constIndices.size() <= 64) {
+            canOptimize1DCase = true;
+            return;
+        }
+    }
+
     if (!isAxisInputConst) {
         axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
         if (axis < 0)
@@ -345,8 +328,8 @@ void Gather::execute(dnnl::stream strm) {
         return;
     }
 
-    if (execSpecialCase) {
-        execSpecialCase();
+    if (canOptimize1DCase) {
+        exec1DCase();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -566,6 +549,24 @@ void Gather::execReference() {
             }
         }
     });
+}
+
+void Gather::exec1DCase() {
+    DEBUG_LOG(getName(), " exec1DCase");
+    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+    auto axisDim = srcMemPtr->getStaticDims()[0];
+    for (size_t i = 0; i < constIndices.size(); i++) {
+        auto ii = constIndices[i];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        dst[i] = src[ii];
+    }
 }
 
 bool Gather::created() const {

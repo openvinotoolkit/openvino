@@ -56,7 +56,8 @@ private:
     void initShortParams(threadExecParams& p, uint64_t start);
     void execReference();
 
-    std::function<void()> execSpecialCase;
+    bool canOptimize1DCase = false;
+    void exec1DCase();
 
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;

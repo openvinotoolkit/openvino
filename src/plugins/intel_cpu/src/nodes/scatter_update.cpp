@@ -227,35 +227,6 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfig,
                          {{LayoutType::ncsp, dataPrec}},
                           impl_desc_type::unknown);
-
-    // 1d short vector scatter update (data, indices, updates, axis)
-    execSpecialCase = nullptr;
-    if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
-        updateDim.size() <= 1 && indicesPrec == ov::element::i32 && dataPrec == ov::element::i32) {
-        if (srcDataDim[0] <= 64) {
-            execSpecialCase = [this]() {
-                DEBUG_LOG(getName(), " uses short 1d vector executor");
-                auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-                auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-                auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-                auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
-
-                int32_t* dstPtr = reinterpret_cast<int32_t*>(dstMemPtr->getData());
-                int32_t* srcPtr = reinterpret_cast<int32_t*>(srcMemPtr->getData());
-                int32_t* indicesPtr = reinterpret_cast<int32_t*>(indicesMemPtr->getData());
-                int32_t* updatePtr = reinterpret_cast<int32_t*>(updateMemPtr->getData());
-                auto srcLength = srcMemPtr->getStaticDims()[0];
-                for (size_t i = 0; i < srcLength; i++) {
-                    dstPtr[i] = srcPtr[i];
-                }
-                auto updateDims = updateMemPtr->getStaticDims();
-                auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
-                for (size_t i = 0; i < updateCnt; i++) {
-                    dstPtr[indicesPtr[i]] = updatePtr[i];
-                }
-            };
-        }
-    }
 }
 
 bool ScatterUpdate::needPrepareParams() const {
@@ -293,10 +264,6 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
-    if (execSpecialCase) {
-        execSpecialCase();
-        return;
-    }
     auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
@@ -310,6 +277,29 @@ void ScatterUpdate::execute(dnnl::stream strm) {
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t srcRank = srcDataDim.size();
+
+    // 1d short vector scatter update optimized for shape inference subgraph
+    if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
+        indicesPrec == ov::element::i32 && dataPrec == ov::element::i32 && srcDataDim[0] <= 64) {
+        auto updateDims = updateMemPtr->getStaticDims();
+        if (updateDims.size() <= 1) {
+            DEBUG_LOG(getName(), " exec1DCase");
+            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto srcLength = srcMemPtr->getStaticDims()[0];
+            auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
+            auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
+            for (size_t i = 0; i < srcLength; i++) {
+                pdst[i] = psrc[i];
+            }
+            auto* pindices = reinterpret_cast<int32_t*>(indicesPtr);
+            auto* pupdate = reinterpret_cast<int32_t*>(updatePtr);
+            for (size_t i = 0; i < updateCnt; i++) {
+                pdst[pindices[i]] = pupdate[i];
+            }
+            return;
+        }
+    }
+
     int axis = 0;
     if (axisRelaxed) {
         auto axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();

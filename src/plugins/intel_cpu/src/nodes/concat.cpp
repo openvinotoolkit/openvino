@@ -343,38 +343,23 @@ void Concat::prepareParams() {
         }
     }
 
-    execSpecialCase = nullptr;
+    canOptimize1DCase = false;
     if (outputShape.size() == 1 && outputStrides[0] == 1 && outputShape[0] <= 64 && elemSize == 4) {
         // output is small 1d vector (which is typical in shape inference subgraph),
         // in this case, inputs are also small 1d vector and single thread naive impl is faster
-        bool useSpecial = true;
+        canOptimize1DCase = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
             const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
             const auto& inputShape = srcMemDesc->getBlockDims();
             const auto& strides = srcMemDesc->getStrides();
             if (inputShape.size() != 1 || strides.size() != 1) {
-                useSpecial = false;
+                canOptimize1DCase = false;
                 break;
             }
         }
-        if (useSpecial) {
-            execSpecialCase = [this]() {
-                DEBUG_LOG(getName(), " uses short 1d vector executor");
-                auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
-                for (size_t i = 0; i < getParentEdges().size(); i++) {
-                    const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-                    const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
-                    const auto& inputShape = srcMemDesc->getBlockDims();
-
-                    const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
-                    for (size_t i = 0; i < inputShape[0]; i++) {
-                        *dst++ = src[i];
-                    }
-                }
-            };
+        if (canOptimize1DCase)
             return;
-        }
     }
 
     std::vector<memory::desc> srcs_d;
@@ -486,8 +471,8 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
-    if (execSpecialCase) {
-        execSpecialCase();
+    if (canOptimize1DCase) {
+        exec1DCase();
         return;
     }
 
@@ -517,6 +502,19 @@ void Concat::execute(dnnl::stream strm) {
 
 ov::element::Type Concat::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
+}
+
+void Concat::exec1DCase() {
+    DEBUG_LOG(getName(), " exec1DCase");
+    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcShape = srcMemPtr->getStaticDims();
+        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        for (size_t i = 0; i < srcShape[0]; i++) {
+            *dst++ = src[i];
+        }
+    }
 }
 
 void Concat::execNspcSpecCase() {
