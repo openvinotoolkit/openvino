@@ -66,80 +66,65 @@ std::string LayerTransformation::get_test_case_name_by_params(
     return result.str();
 }
 
-std::string LayerTransformation::get_runtime_precision(const std::string& layerName) {
-    const ov::CompiledModel& execNet = compiledModel;
+namespace {
+template <typename IsNodeF>
+std::string find_node_by_runtime_precision(const ov::CompiledModel& execNet, IsNodeF is_node_f) {
     const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
     for (const auto& op : execFunction->get_ops()) {
-        const auto name = op->get_friendly_name();
-        if (name == layerName) {
-            const auto& rtInfo = op->get_rt_info();
-            const auto& it = rtInfo.find("runtimePrecision");
-            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", name);
-            return it->second.as<std::string>();
-        }
+        if (!is_node_f(op))
+            continue;
+        const ov::RTMap& rtInfo = op->get_rt_info();
+        const auto& it = rtInfo.find("runtimePrecision");
+        OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", op->get_friendly_name());
+        return it->second.as<std::string>();
     }
 
     return "";
 }
+} // namespace
+
+std::string LayerTransformation::get_runtime_precision(const std::string& layerName) {
+    auto is_node_f = [layerName](const std::shared_ptr<ov::Node>& op) {
+        return op->get_friendly_name() == layerName;
+    };
+    return find_node_by_runtime_precision(compiledModel, is_node_f);
+}
 
 std::string LayerTransformation::get_runtime_precision_by_type(const std::string& layerType) {
-    const ov::CompiledModel& execNet = compiledModel;
-    const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
-
-    for (const auto& op : execFunction->get_ops()) {
+    auto is_node_f = [layerType](const std::shared_ptr<ov::Node>& op) {
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 
         OPENVINO_ASSERT(typeIt != rtInfo.end(), "Layer is not found for type: ", layerType);
-
-        auto type = typeIt->second.as<std::string>();
-        if (type == layerType) {
-            const auto& it = rtInfo.find("runtimePrecision");
-            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", type);
-            return it->second.as<std::string>();
-        }
-    }
-
-    return "";
+        return typeIt->second.as<std::string>() == layerType;
+    };
+    return find_node_by_runtime_precision(compiledModel, is_node_f);
 }
 
+namespace {
+bool has_layer(const std::string& names, const std::string& layer_name) {
+    size_t beginPosition = 0ul;
+    size_t endPosition;
+    while ((endPosition = names.find(',', beginPosition)) != std::string::npos) {
+        if (names.substr(beginPosition, endPosition - beginPosition) == layer_name)
+            return true;
+        beginPosition = endPosition + 1;
+    }
+
+    return names.substr(beginPosition, endPosition - beginPosition) == layer_name;
+}
+} // namespace
+
 std::string LayerTransformation::get_runtime_precision_by_fused_name(const std::string& layerName) {
-    const ov::CompiledModel& execNet = compiledModel;
-    const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
-
-    const auto parse = [](const std::string& originalLayersNames) -> std::set<std::string> {
-        std::set<std::string> names;
-
-        std::string tmp = originalLayersNames;
-        size_t beginPosition = 0ul;
-        size_t endPosition;
-        while ((endPosition = tmp.find(",", beginPosition)) != std::string::npos) {
-            names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
-            beginPosition = endPosition + 1;
-        }
-
-        names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
-        return names;
-    };
-
-    for (const auto& op : execFunction->get_ops()) {
+    auto is_node_f = [layerName](const std::shared_ptr<ov::Node>& op) {
         const auto& rtInfo = op->get_rt_info();
 
         const auto& nameIt = rtInfo.find("originalLayersNames");
         OPENVINO_ASSERT(nameIt != rtInfo.end(), "originalLayersNames is not found for node: ", layerName);
-        const auto fusedName = parse(nameIt->second.as<std::string>());
-        if (fusedName.find(layerName) == fusedName.end()) {
-            continue;
-        }
-
-        const auto& it = rtInfo.find("runtimePrecision");
-        OPENVINO_ASSERT(it != rtInfo.end(), "runtimePrecision is not found for node: ", layerName);
-        const auto rtPrecisionPtr = it->second.as<std::string>();
-        return rtPrecisionPtr;
-    }
-
-    return "";
+        return has_layer(nameIt->second.as<std::string>(), layerName);
+    };
+    return find_node_by_runtime_precision(compiledModel, is_node_f);
 }
 
 std::map<std::string, ov::Node::RTMap> LayerTransformation::get_runtime_info() {
