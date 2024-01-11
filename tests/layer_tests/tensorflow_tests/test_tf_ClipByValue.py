@@ -43,8 +43,8 @@ class TestClipByValue(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_clip_by_value_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend, use_old_api):
+                                 use_new_frontend):
         self._test(
             *self.create_clip_by_value_net(**params), ie_device,
             precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-            use_old_api=use_old_api, **params)
+            **params)
