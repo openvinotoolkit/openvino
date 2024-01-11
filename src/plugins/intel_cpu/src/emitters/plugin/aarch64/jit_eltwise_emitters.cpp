@@ -12,7 +12,6 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace Xbyak_aarch64;
@@ -54,14 +53,14 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "Can't create jit eltwise kernel";
+        OPENVINO_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        IE_THROW() << "unsupported precision: " << exec_prc_;
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -97,14 +96,14 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "Can't create jit eltwise kernel";
+        OPENVINO_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        IE_THROW() << "unsupported precision: " << exec_prc_;
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -113,8 +112,10 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     TReg src2 = TReg(in_vec_idxs[2]);
     TReg dst = TReg(out_vec_idxs[0]);
 
-    h->fmul(dst.s, src0.s, src1.s);
-    h->fadd(dst.s, dst.s, src2.s);
+    if (dst.getIdx() != src2.getIdx()) {
+        h->uni_orr(dst, src2, src2);
+    }
+    h->fmla(dst.s, src0.s, src1.s);
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
@@ -140,14 +141,14 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "Can't create jit eltwise kernel";
+        OPENVINO_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        IE_THROW() << "unsupported precision: " << exec_prc_;
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -175,7 +176,7 @@ jit_power_static_emitter::jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit
                                                      shift(shift) {
     auto powerStaticNode = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
-        IE_THROW() << "Can't cast to snippets::op::PowerStatic";
+        OPENVINO_THROW("Can't cast to snippets::op::PowerStatic");
     }
 
     prepare_table();
@@ -214,14 +215,14 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "Can't create jit eltwise kernel";
+        OPENVINO_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        IE_THROW() << "unsupported precision: " << exec_prc_;
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -327,18 +328,18 @@ void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const s
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "Can't create jit eltwise kernel";
+        OPENVINO_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_relu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        IE_THROW() << "unsupported precision: " << exec_prc_;
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
     if (alpha != 0.f) {
-        IE_THROW() << "not zero alpha is not supported";
+        OPENVINO_THROW("not zero alpha is not supported");
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
