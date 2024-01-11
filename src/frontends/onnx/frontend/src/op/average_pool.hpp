@@ -24,6 +24,17 @@ OutputVector average_pool(const Node& node);
 
 }  // namespace set_1
 
+namespace set_7 {
+/// \brief Convert ONNX AveragePool operation to an nGraph node.
+///
+/// \param node   The ONNX node object representing this operation.
+///
+/// \return The vector containing Ngraph nodes producing output of ONNX AveragePool
+///        operation.
+OutputVector average_pool(const Node& node);
+
+} // namespace set_7
+
 namespace set_10 {
 /// \brief Convert ONNX AveragePool operation to an nGraph node.
 ///

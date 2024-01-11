@@ -60,6 +60,19 @@ OutputVector PoolingFactory::make_avg_pool() const {
                                                      m_auto_pad)};
 }
 
+OutputVector PoolingFactory::make_avg_pool_7() const {
+    const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
+    return {std::make_shared<op::v10::AvgPool>(m_inputs.at(0),
+                                                     m_strides,
+                                                     m_padding_below,
+                                                     m_padding_above,
+                                                     m_kernel_shape,
+                                                     count_include_pad,
+                                                     m_ceil_mode,
+                                                     m_rounding_type,
+                                                     m_auto_pad)};
+}
+
 OutputVector PoolingFactory::make_avg_pool_10() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
     return {std::make_shared<op::v10::AvgPool>(m_inputs.at(0),
