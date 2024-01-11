@@ -262,11 +262,6 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
 #if defined(OV_CPU_WITH_ACL)
 std::string CPUTestsBase::getPrimitiveType() const {
     return "acl";
-// #if defined(OPENVINO_ARCH_ARM64)
-//     return "ref";
-// #else
-//     return "acl";
-// #endif
 }
 #else
 std::string CPUTestsBase::getPrimitiveType() const {
