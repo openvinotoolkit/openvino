@@ -31,4 +31,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVCompiledModelBaseTest,
                                  ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                  ::testing::ValuesIn(autoBatchConfigs())),
                          OVCompiledModelBaseTest::getTestCaseName);
+
+
+std::vector<ov::element::Type> convert_types = {ov::element::f16,
+                                                ov::element::i64};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CompiledModelSetType,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(convert_types),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                ::testing::ValuesIn(configs())),
+                        CompiledModelSetType::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, CompiledModelSetType,
+                         ::testing::Combine(
+                                ::testing::ValuesIn(convert_types),
+                                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                ::testing::ValuesIn(autoBatchConfigs())),
+                         CompiledModelSetType::getTestCaseName);
 }  // namespace
