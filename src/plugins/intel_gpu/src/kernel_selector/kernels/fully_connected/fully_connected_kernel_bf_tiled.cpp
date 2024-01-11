@@ -8,6 +8,8 @@
 #include <functional>
 #include "common_types.h"
 
+#define ENABLE_OUTER_LOOP
+
 static constexpr size_t simd = 16;
 
 namespace kernel_selector {
@@ -328,6 +330,34 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
+#if 1
+    if (params.outputs[0].Batch().v == 1 && !params.is_shape_agnostic) {
+        if ((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
+            (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) {
+                // selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+#if 0
+                tparams.tile_ofm = 8;
+                tparams.tile_ifm = 8;
+                tparams.tile_k = 1;
+#else
+                tparams.tile_ofm = 2;
+                tparams.tile_ifm = 1;
+                tparams.tile_k = 4;
+#endif
+        } else if ((params.outputs[0].Feature().v == 4096 && params.inputs[0].Feature().v == 13696)) {
+#if 1
+                tparams.tile_ofm = 2;
+                tparams.tile_ifm = 8;
+                tparams.tile_k = 4;
+#else
+                tparams.tile_ofm = 2;
+                tparams.tile_ifm = 1;
+                tparams.tile_k = 4;
+#endif
+        }
+    }
+#endif
+
     size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
     size_t batch_threads = params.outputs[0].Batch().v;
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
@@ -343,6 +373,14 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     dispatchData.gws[0] = can_use_slm ? feature_threads * simd
                                       : feature_threads * batch_threads * simd;
+#ifdef ENABLE_OUTER_LOOP
+    if (((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
+         (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) &&
+        !params.is_shape_agnostic && params.outputs[0].Batch().v == 1) {
+        GPU_DEBUG_INFO << "Apply outer_loop /=4 !!!!!!!!!!!!!!!!!" << std::endl;
+        dispatchData.gws[0] /= 4;
+    }
+#endif
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = can_use_slm ? aligned_batch : 1;
 
@@ -391,6 +429,15 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+#ifdef ENABLE_OUTER_LOOP
+        if ( ((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
+            (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) &&
+            !params.is_shape_agnostic && params.outputs[0].Batch().v == 1) {
+            jit.AddConstant(MakeJitConstant("MY_OUTER_LOOP", 1));
+        } else {
+            jit.AddConstant(MakeJitConstant("MY_OUTER_LOOP", 0));
+        }
+#endif
     }
 
     if (dispatchData.use_slm) {

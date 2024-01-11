@@ -1043,6 +1043,66 @@ public:
         }
     }
 
+    void test_compressed_int4_scale_perf(long int ifm = 1024, long int ofm = 1024, bool is_3d_ = true) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        long int batch_num = 1;
+        long int ifm_num = 256;
+        long int ofm_num = 256;
+        long int scales_group_size = 32;
+        std::cout << ifm << " x " << ofm << std::endl;
+        // ifm_num = 16;
+        // ofm_num = 128;  // FT:4
+        ifm_num = ifm;
+        // ofm_num = 4096;
+        // ifm_num = 4096;
+        ofm_num = ofm;
+        // ofm_num = 4096;
+
+        bool is_3d = is_3d_;
+
+        auto input_ps = is_3d ?  ov::PartialShape{ 1, batch_num, ifm_num } : ov::PartialShape{ batch_num, ifm_num};
+        auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weigths_data);
+
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
+        set_values(scale_mem, scale_data);
+
+        auto in_layout = layout{ input_ps, data_types::f16, format::bfyx };
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), is_3d ? 3 : 2, 2);
+        fc_prim.decompression_zero_point_scalar = 8;
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+        for (size_t i = 0; i < 2000; ++i) {
+            network->set_input_data("input", input_mem);
+
+            auto outputs = network->execute();
+            auto output_mem = outputs.begin()->second.get_memory();
+        }
+    }
+
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -2637,6 +2697,137 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
     this->test_compressed_scale_zp_bias(true);
 }
+
+//
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf00) {
+    this->test_compressed_int4_scale_perf(1024, 1024);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf01) {
+    this->test_compressed_int4_scale_perf(1024, 4096);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf02) {
+    this->test_compressed_int4_scale_perf(1024, 13696);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf03) {
+    this->test_compressed_int4_scale_perf(1024, 28392);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf04) {
+    this->test_compressed_int4_scale_perf(1024, 65536);
+}
+
+//
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf10) {
+    this->test_compressed_int4_scale_perf(4096, 1024);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf11) {
+    this->test_compressed_int4_scale_perf(4096, 4096);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf12) {
+    this->test_compressed_int4_scale_perf(4096, 13696);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf13) {
+    this->test_compressed_int4_scale_perf(4096, 28392);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf14) {
+    this->test_compressed_int4_scale_perf(4096, 65536);
+}
+
+//
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf20) {
+    this->test_compressed_int4_scale_perf(13696, 1024);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf21) {
+    this->test_compressed_int4_scale_perf(13696, 4096);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf22) {
+    this->test_compressed_int4_scale_perf(13696, 13696);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf23) {
+    this->test_compressed_int4_scale_perf(13696, 28392);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf24) {
+    this->test_compressed_int4_scale_perf(13696, 65536);
+}
+
+//
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf30) {
+    this->test_compressed_int4_scale_perf(28392, 1024);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf31) {
+    this->test_compressed_int4_scale_perf(28392, 4096);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf32) {
+    this->test_compressed_int4_scale_perf(28392, 13696);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf33) {
+    this->test_compressed_int4_scale_perf(28392, 28392);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf34) {
+    this->test_compressed_int4_scale_perf(28392, 65536);
+}
+
+//
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf40) {
+    this->test_compressed_int4_scale_perf(65536, 1024);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf41) {
+    this->test_compressed_int4_scale_perf(65536, 4096);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf42) {
+    this->test_compressed_int4_scale_perf(65536, 13696);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf43) {
+    this->test_compressed_int4_scale_perf(65536, 28392);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf44) {
+    this->test_compressed_int4_scale_perf(65536, 65536);
+}
+
+//     this->test_compressed_int4_scale_perf(1024, 4096);
+//     this->test_compressed_int4_scale_perf(1024, 13696);
+//     this->test_compressed_int4_scale_perf(1024, 28392);
+//     this->test_compressed_int4_scale_perf(1024, 65536);
+//     this->test_compressed_int4_scale_perf(4096, 1024);
+//     this->test_compressed_int4_scale_perf(4096, 4096);
+//     this->test_compressed_int4_scale_perf(1024, 13696);
+//     this->test_compressed_int4_scale_perf(4096, 28392);
+//     this->test_compressed_int4_scale_perf(4096, 65536);
+//     this->test_compressed_int4_scale_perf(13696, 1024);
+//     this->test_compressed_int4_scale_perf(13696, 4096);
+//     this->test_compressed_int4_scale_perf(13696, 13696);
+//     this->test_compressed_int4_scale_perf(13696, 28392);
+//     this->test_compressed_int4_scale_perf(13696, 65536);
+//     this->test_compressed_int4_scale_perf(28392, 1024);
+//     this->test_compressed_int4_scale_perf(28392, 4096);
+//     this->test_compressed_int4_scale_perf(28392, 13696);
+//     this->test_compressed_int4_scale_perf(28392, 28392);
+//     this->test_compressed_int4_scale_perf(28392, 65536);
+//     this->test_compressed_int4_scale_perf(65536, 1024);
+//     this->test_compressed_int4_scale_perf(65536, 4096);
+//     this->test_compressed_int4_scale_perf(65536, 13696);
+//     this->test_compressed_int4_scale_perf(65536, 28392);
+//     this->test_compressed_int4_scale_perf(65536, 65536);
+// }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
     this->test_compressed_int4_scale(false, false);

@@ -484,6 +484,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
     uint sglid = (uint)get_sub_group_local_id();
 
+#if MY_OUTER_LOOP == 1
+    uint gid0 = (uint)get_group_id(0);
+    for (uint ol = 0; ol < 4; ++ol) {
+        gid = 4 * gid0 + ol;
+#endif
+
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and
     // avoids requirement of threads being available for whole work-group.
@@ -942,6 +948,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
+#if MY_OUTER_LOOP == 1
+}   // outer_loop end
+#endif
     // =====================================================================================================================================
 }
 
