@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-using TypeToNameMap = InferenceEngine::details::caseless_unordered_map<std::string, Type>;
+using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 
 static const TypeToNameMap& get_type_to_name_tbl() {
     static const TypeToNameMap type_to_name_tbl = {

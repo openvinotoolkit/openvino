@@ -4,6 +4,7 @@
 
 #include "reference.h"
 #include "common/cpu_memcpy.h"
+#include "openvino/core/constant_fold_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -13,8 +14,11 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        OPENVINO_THROW_NOT_IMPLEMENTED(
-            "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented");
+        auto converted = util::convert_to_supported_precision(op);
+        if (!converted->has_evaluate()) {
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented");
+        }
     }
 
     setType(Type::Reference);
@@ -72,7 +76,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
     } else {
          THROW_CPU_NODE_ERR("got unexpected shape infer result status during the inference.");
     }
-    if (!ovCoreNode->evaluate(outputs, inputs)) {
+    if (!util::evaluate_node(ovCoreNode, inputs, outputs)) {
         THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
     if (ShapeInferStatus::skip == result.status) {

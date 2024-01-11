@@ -23,6 +23,7 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
+using ov::Dimension;
 
 Strides conv_default_strides(const Node* /* node */,
                              const PartialShape& data_batch_shape,
@@ -1138,11 +1139,20 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
                 node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
             }
         } else {
+            bool inputs_pushed_on_stack = false;
             for (size_t i = node->get_input_size(); i > 0; i--) {
                 auto input = original_node->input_value(i - 1);
                 if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
                     stack.push(input.get_node_shared_ptr());
+                    inputs_pushed_on_stack = true;
                 }
+            }
+            // if none of the inputs was pushed to stack, it means the node that was not constantfolded
+            // is processed the second time. If that case - the node is not constfoldable.
+            // A good example would be a node that all of its inputs are constants and yet it cannot be constantfolded
+            // for some reason (like lack of evaluate, it's a op::util::FrameworkNode, etc.).
+            if (!inputs_pushed_on_stack) {
+                return nullptr;
             }
         }
     }

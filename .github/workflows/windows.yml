@@ -656,14 +656,8 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter="smoke_Constant_With_Hardcoded_Refs/ReferenceConstantLayerTest_WithOp.CompareWithHardcodedRefs/iShape=[2,2,2]_iType=f16_oType=f16_tensor_constant_with_op:smoke_Range_V4_With_Hardcoded_Refs/ReferenceRangeV4LayerTest.RangeWithHardcodedRefs/iShape=[]_oShape=[10]_iType=bf16_oType=bf16_nType=bf16:smoke_Range_V4_With_Hardcoded_Refs/ReferenceRangeV4LayerTest.RangeWithHardcodedRefs/iShape=[]_oShape=[8]_iType=bf16_oType=bf16_nType=bf16" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
-      - name: Inference Engine C API tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
-        shell: cmd
-        run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineCAPITests.xml
-
       - name: OpenVINO C API tests
-        if: ${{ 'false' }} # Ticket: 123594
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
