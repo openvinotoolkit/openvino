@@ -66,7 +66,7 @@ The example below shows data-free 4-bit weight quantization applied on top of Op
          :language: python
          :fragment: [compression_4bit]
 
-For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/76a3f7d0dae076f1a0d4586611f7a4b7969128f2/examples/llm_compression/openvino>`__.
+For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__.
 
 .. note::
 
@@ -149,7 +149,7 @@ The table below shows examples of Text Generation models with different optimiza
 Additional Resources
 ####################
 
-- `Data-aware weight compression <https://github.com/openvinotoolkit/nncf/tree/76a3f7d0dae076f1a0d4586611f7a4b7969128f2/examples/llm_compression/openvino>`__
+- `Data-aware weight compression <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
