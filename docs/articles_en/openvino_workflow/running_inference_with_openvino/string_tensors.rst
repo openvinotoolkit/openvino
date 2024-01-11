@@ -28,15 +28,17 @@ String tensors are supported in C++ and Python APIs and represented as an instan
 class with `element_type` parameter equal to `ov::element::string`. Each element of a string tensor is a string
 of arbitrary length, including an empty string, and can be set independently of other elements in the same tensor.
 
-String tensor capable to represent any valid UTF-8 encoded symbol sequences and even arbitrary byte sequences not
-mandatory limited by UTF-8 in some circumstances.
-
 Depending on API used (C++ or Python) underlying data type that represents string when accessing tensor elements is
 different:
 
  - std::string is used in C++
 
  - `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used in Python as read-only copy of underlying C++ content
+
+String tensor implementation doesn't imply limitations on string encoding as underlying `std::string` doesn't have such limitations.
+It is capable of representing any valid UTF-8 encoded symbol sequences and even arbitrary byte sequences not
+mandatory limited by UTF-8.
+Users should pay extra attention when handling arbitrary byte sequences when accessing tensor content as encoded UTF-8 symbols.
 
 As the string representation is more sophisticated in contrast to for example float or int data type,
 the underlying memory that is used for string tensor representation cannot be handled without proper construction and
@@ -193,6 +195,14 @@ storage is returned and it can be used for tensor element modification:
          for(size_t i = 0; i < tensor.get_size(); ++i)
             data[i] = new_content[i];
 
+When reading or setting string tensor elements in Python, it is recommended to use `str` objects (or `numpy.str_` if used in numpy array)
+when it is known that an underlying byte sequence forms a valid UTF-8 encoded string.
+Otherwise, if arbitrary byte sequences are allowed,
+not mandatory UTF-8 encoded, use `bytes` strings (or `numpy.bytes_` correspondingly) instead.
+
+Accessing tensor content through `str_data` implicitly applies UTF-8 decoding.
+If some parts of the byte stream cannot be represented as a valid Unicode symbol,
+the replacement symbol � is used to signal errors in such invalid Unicode streams.
 
 Additional Resources
 ####################
