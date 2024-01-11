@@ -27,7 +27,6 @@
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 #include "ops_bridge.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
 #include "utils/legacy_conversion_extension.hpp"
