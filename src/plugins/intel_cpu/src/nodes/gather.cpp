@@ -270,9 +270,11 @@ void Gather::prepareParams() {
 
     // short 1D vector fast execution impl (typical in shape infer subgraph)
     canOptimize1DCase = false;
-    if ((dataSrcRank == 1) && !constIndices.empty() && dataTypeSize == 4) {
+    if (dataSrcRank <= 1 && dataMemPtr->getDesc().getPrecision() == ov::element::i32) {
         const auto& dataDims = dataMemPtr->getStaticDims();
-        if (dataDims[0] <= 64 && constIndices.size() <= 64) {
+        const auto& idxDims = idxMemPtr->getStaticDims();
+        if ((dataDims.size() == 0 || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
+            (idxDims.size() == 0 || (idxDims.size() == 1 && idxDims[0] <= 64))) {
             canOptimize1DCase = true;
             return;
         }
@@ -389,6 +391,10 @@ void Gather::execute(dnnl::stream strm) {
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
     if (isInPlace()) {
+        return;
+    }
+    if (canOptimize1DCase) {
+        exec1DCase();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -553,19 +559,24 @@ void Gather::execReference() {
 
 void Gather::exec1DCase() {
     DEBUG_LOG(getName(), " exec1DCase");
-    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* pdst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
     auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    const auto* psrc = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+    const auto* pidx = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+
+    const auto& idxDims = idxMemPtr->getStaticDims();
+    const auto idxCnt = (idxDims.size() == 0) ? 1 : idxDims[0];
     auto axisDim = srcMemPtr->getStaticDims()[0];
-    for (size_t i = 0; i < constIndices.size(); i++) {
-        auto ii = constIndices[i];
+    for (size_t i = 0; i < idxCnt; i++) {
+        auto ii = pidx[i];
         if (ii < 0) {
             if (reverseIndexing)
                 ii += axisDim;
             else
                 ii = axisDim;
         }
-        dst[i] = src[ii];
+        pdst[i] = psrc[ii];
     }
 }
 
