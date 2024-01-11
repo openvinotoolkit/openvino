@@ -18,8 +18,16 @@ JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decode
     });
 
     if (params.outputs_num == 2) {
+        if (params.inputs.size() == 3) {
+            jit.AddConstants({
+                MakeJitConstant("LEGACY_MULTIPLE_OUTPUTS", 1)
+            });
+        } else {
+            jit.AddConstants({
+                MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1)
+            });
+        }
         jit.AddConstants({
-            MakeJitConstant("LEGACY_MULTIPLE_OUTPUTS", 1),
             MakeJitConstant("N_", inp.Batch().v),
             MakeJitConstant("T_", inp.Feature().v)
         });
@@ -72,11 +80,11 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
                      2,  // input and sequence indicatiors
                      GetFusedPrimitiveInputsCount(params));
 
-    if (orgParams.use_multiple_outputs) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
-    } else {
-        if (orgParams.outputs_num == 2) {
+    if (orgParams.outputs_num == 2) {
+        if (orgParams.inputs.size() == 3) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        } else {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
         }
     }
 

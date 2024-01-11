@@ -18,7 +18,6 @@ struct ctc_greedy_decoder_params : public base_params {
     bool merge_repeated = true;
     uint32_t blank_index = 0;
     uint32_t outputs_num = 1;
-    bool use_multiple_outputs = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

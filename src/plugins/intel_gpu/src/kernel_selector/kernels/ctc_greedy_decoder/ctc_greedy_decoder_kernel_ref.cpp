@@ -37,14 +37,4 @@ KernelsData CTCGreedyDecoderKernelRef::GetKernelsData(const Params& params, cons
 KernelsPriority CTCGreedyDecoderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
-
-JitConstants CTCGreedyDecoderKernelRef::GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData dispatchData) const {
-    auto jit = CTCGreedyDecoderKernelBase::GetJitConstants(params, dispatchData);
-
-    if (params.use_multiple_outputs) {
-        jit.AddConstant(MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1));
-    }
-
-    return jit;
-}
 }  // namespace kernel_selector

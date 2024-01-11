@@ -86,8 +86,6 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
                     op->get_output_size());
         primitive.output_paddings = get_output_paddings();
         primitive.output_data_types = get_output_data_types();
-        if (num_outputs != 1)
-            primitive.use_multiple_outputs = true;
         p.add_primitive(*op, primitive);
     } else {
         uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
