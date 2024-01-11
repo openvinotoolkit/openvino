@@ -53,7 +53,6 @@
 #include "utils/general_utils.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/verbose.h"
-#include "utils/profiler.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -595,7 +594,6 @@ void Node::updateShapes() {
                     " with name: ",
                     getName());
     if (needShapeInfer()) {
-        PROFILE(_prof, "shapeInfer", getName());
         auto result = shapeInfer();
         if (ShapeInferStatus::success == result.status) {
             redefineOutputMemory(result.dims);
@@ -610,7 +608,6 @@ void Node::updateDynamicParams() {
                     " with name: ",
                     getName());
     if (isExecutable()) {
-        PROFILE(_prof, "prepareParams", getName());
         if (needPrepareParams()) {
             OPENVINO_ASSERT(inputShapesDefined(),
                             "Can't prepare params for ",
