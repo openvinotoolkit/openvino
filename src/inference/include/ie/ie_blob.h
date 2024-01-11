@@ -29,7 +29,6 @@
 #include <utility>
 #include <vector>
 
-#include "details/ie_blob_iterator.hpp"
 #include "details/ie_pre_allocator.hpp"
 #include "ie_allocator.hpp"
 #include "ie_common.h"
@@ -711,50 +710,6 @@ public:
 
     Blob::Ptr createROI(const std::vector<std::size_t>& begin, const std::vector<std::size_t>& end) const override {
         return Blob::Ptr(new TBlob<T>(*this, begin, end));
-    }
-
-    /**
-     * @brief Gets BlobIterator for the data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type T
-     */
-    details::BlobIterator<T> begin() {
-        return details::BlobIterator<T>(data());
-    }
-
-    /**
-     * @brief Gets BlobIterator for the end of data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type T representing end of the data
-     */
-    details::BlobIterator<T> end() {
-        return details::BlobIterator<T>(data(), size());
-    }
-
-    /**
-     * @brief Gets a const BlobIterator for the read-only data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type const T
-     */
-    details::BlobIterator<const T> begin() const {
-        return details::BlobIterator<const T>(readOnly());
-    }
-
-    /**
-     * @brief Gets a const BlobIterator for the end of read-only data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type const T representing end of data
-     */
-    details::BlobIterator<const T> end() const {
-        return details::BlobIterator<const T>(readOnly(), size());
     }
 
 protected:
