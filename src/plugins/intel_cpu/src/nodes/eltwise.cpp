@@ -1586,7 +1586,7 @@ public:
         if (mayiuse(aarch64::asimd)) {
             _pKernel.reset(new jit_uni_eltwise_generic<aarch64::asimd>(jep, eltwise_data, ops_list, post_ops));
         } else {
-            IE_THROW() << "Can't create jit eltwise kernel";
+            OPENVINO_THROW("Can't create jit eltwise kernel");
         }
 #endif // OPENVINO_ARCH_ARM64
 
@@ -2260,7 +2260,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     implType = (useJit && canUseOptimizedImpl) ? EltwiseImplType::optimized : EltwiseImplType::reference;
 #else
-    IE_THROW() << "Unknow CPU architecture";
+    OPENVINO_THROW("Unknow CPU architecture");
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
@@ -2454,7 +2454,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
                     impl_type = impl_desc_type::jit_asimd;
                 } else {
-                    IE_THROW() << "not supported architecture";
+                    OPENVINO_THROW("not supported architecture");
                 }
                 #else
                 if (mayiuse(x64::avx512_core)) {

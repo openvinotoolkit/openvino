@@ -216,6 +216,54 @@ const auto params_5D_dyn_param = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_fusing = {
+                {{1, 3, 16, 16}, {1}},
+        };
+        return inShapes_4D_fusing;
+}
+
+const auto params_fma_4D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_fusing_4D())),
+                ::testing::Values(utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                ::testing::ValuesIn(opTypes()),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::ValuesIn(additional_config())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+        ::testing::ValuesIn({fusingMultiplyAddPerChannel}),
+        ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_fma_4D, EltwiseLayerCPUTest, params_fma_4D, EltwiseLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_5D_fusing = {
+                {{1, 3, 16, 16, 16}, {1}},
+        };
+        return inShapes_5D_fusing;
+}
+
+const auto params_fma_5D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_fusing_5D())),
+                ::testing::Values(utils::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                ::testing::ValuesIn(opTypes()),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::ValuesIn(additional_config())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
+        ::testing::ValuesIn({fusingMultiplyAddPerChannel}),
+        ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_fma_5D, EltwiseLayerCPUTest, params_fma_5D, EltwiseLayerCPUTest::getTestCaseName);
+
 }  // namespace Eltwise
 }  // namespace test
 }  // namespace ov
