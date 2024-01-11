@@ -74,12 +74,12 @@ The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and d
 **Note**: This cache is enable for [self-hosted runners](./runners.md) only.
 
 `sccache` needs several things to work:
-* be installed
-* credential environment variables: `SCCACHE_AZURE_BLOB_CONTAINER`, `SCCACHE_AZURE_CONNECTION_STRING`
+* [be installed](#sccache-installation)
+* [credential environment variables: `SCCACHE_AZURE_BLOB_CONTAINER`, `SCCACHE_AZURE_CONNECTION_STRING`](#passing-credential-environment-variables)
   * They are already set up on the self-hosted runners
-  * They could be passed to a Docker containers via the `options` key under the `container` key. See the example below
-* `SCCACHE_AZURE_KEY_PREFIX` environment variable - essentially the folder where the cache for this OS/architecture will be saved
-* `CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables to enable `sccache` for caching C++/C build files
+  * They could be passed to a Docker containers via the `options` key under the `container` key
+* [`SCCACHE_AZURE_KEY_PREFIX` environment variable](#providing-sccache-prefix) - essentially the folder where the cache for this OS/architecture will be saved
+* [`CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables](#enabling-sccache-for-cc-files) to enable `sccache` for caching C++/C build files
 
 ### `sccache` Installation
 
@@ -95,8 +95,48 @@ This step should be placed somewhere in the workflow **before** the build step.
 
 ### Passing Credential Environment Variables
 
-If a job is running outside a container, the 
+The `SCCACHE_AZURE_BLOB_CONTAINER` and `SCCACHE_AZURE_CONNECTION_STRING` variables should be set in the environment so that `sccache` could communicate with Azure Blob Storage.
+
+These variables are already set in the environments of the self-hosted runners so if a job does not use a Docker container, there is no action required for these variables.
+
+If a job needs a Docker container, these variables should be passed via the `options` key under the `container` key:
+```yaml
+Build:
+  ...
+  runs-on: aks-linux-16-cores-32gb
+  container:
+    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    volumes:
+      - /mount:/mount
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+```
+
+This way they would be available inside the container for `sccache` to use.
 
 ### Providing `sccache` Prefix
 
-### Enabling `sccache` for 
+The folder in the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable.
+```yaml
+Build:
+  ...
+  env:
+    ...
+    CMAKE_CXX_COMPILER_LAUNCHER: sccache
+    CMAKE_C_COMPILER_LAUNCHER: sccache
+    ...
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+```
+
+### Enabling `sccache` for C++/C Files
+
+To tell CMake to use the caching tool, the `CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables should be set:
+```yaml
+Build:
+  ...
+  env:
+    ...
+    CMAKE_CXX_COMPILER_LAUNCHER: sccache
+    CMAKE_C_COMPILER_LAUNCHER: sccache
+    ...
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+```
