@@ -137,6 +137,7 @@ void ActivationLayerCPUTest::SetUp() {
 std::string ActivationLayerCPUTest::getPrimitiveType(const ngraph::helpers::ActivationTypes& activation_type,
                                                      const ov::element::Type_t& element_type,
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+#if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
     if ((element_type == ov::element::f32) && (activation_type == ngraph::helpers::ActivationTypes::Relu)) {
         return "jit";
@@ -146,10 +147,10 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const ngraph::helpers::Acti
         // operation is decomposed and executed by different kernels
         return "";
     }
-
+#endif
     return "acl";
 #else
-    return getPrimitiveType();
+    return CPUTestsBase::getPrimitiveType();
 #endif
 }
 
