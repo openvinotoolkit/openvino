@@ -403,9 +403,6 @@ void compare(const ov::Tensor& expected,
             throw std::runtime_error(out_stream.str());
         }
 
-        if (expected_value == 0.0 || actual_value == 0.0)
-            continue;
-
         double abs = std::fabs(expected_value - actual_value);
         double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
 
