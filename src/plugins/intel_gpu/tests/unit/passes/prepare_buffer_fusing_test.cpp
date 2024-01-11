@@ -886,6 +886,78 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     ASSERT_EQ(concat.can_be_optimized(), false);
 }
 
+TEST(prepare_buffer_fusing, skip_runtime_in_place_concat_padding_in_non_concat_axis) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                             data_types::f16, format::bfyx};
+
+    auto begin = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    set_values<int64_t>(begin, {0, 0, 0, 0});
+    set_values<int64_t>(end, {0, 0, 0, 9223372036854775807 });
+    set_values<int64_t>(strides, {1, 1, 1, 2});
+
+    auto concat_padding = padding({0,0,1,1}, {0,0,1,1});
+
+
+    auto in_static_layout = layout{ ov::PartialShape{1, 3, 320, 640}, data_types::f16, format::bfyx};
+    auto input1_mem = engine.allocate_memory(in_static_layout);
+    auto input2_mem = engine.allocate_memory(in_static_layout);
+    auto input3_mem = engine.allocate_memory(in_static_layout);
+    auto input4_mem = engine.allocate_memory(in_static_layout);
+
+    auto in1 = rg.generate_random_1d<ov::float16>(input1_mem->count(), 0, 1);
+    auto in2 = rg.generate_random_1d<ov::float16>(input2_mem->count(), 0, 1);
+    auto in3 = rg.generate_random_1d<ov::float16>(input3_mem->count(), 0, 1);
+    auto in4 = rg.generate_random_1d<ov::float16>(input4_mem->count(), 0, 1);
+    
+    set_values<ov::float16>(input1_mem, in1);
+    set_values<ov::float16>(input2_mem, in2);
+    set_values<ov::float16>(input3_mem, in3);
+    set_values<ov::float16>(input4_mem, in4);
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        input_layout("input3", in_layout),
+        input_layout("input4", in_layout),
+        data("begin", begin),
+        data("end", end),
+        data("strides", strides),
+        strided_slice("strided_slice1", input_info("input1"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice2", input_info("input2"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice3", input_info("input3"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice4", input_info("input4"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1, concat_padding),
+        reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*program);
+    ASSERT_NE(program, nullptr);
+
+    auto& concat = program->get_node("concat");
+    ASSERT_EQ(concat.can_be_optimized(), true);
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1_mem);
+    network.set_input_data("input2", input2_mem);
+    network.set_input_data("input3", input3_mem);
+    network.set_input_data("input4", input4_mem);
+    auto outputs = network.execute();
+
+    const auto& concat_inst = network.get_primitive("concat");
+    ASSERT_EQ(concat_inst->can_be_optimized(), false);
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
     auto& engine = get_test_engine();
