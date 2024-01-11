@@ -49,4 +49,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess_GPU,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PrePostProcessTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_PostProcess,
+    PostProcessTest,
+    ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_postprocess_functions()),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    PostProcessTest::getTestCaseName);
+
 }  // namespace

@@ -361,6 +361,12 @@ OutputModelInfo& OutputModelInfo::set_layout(const Layout& layout) {
     return *this;
 }
 
+OutputModelInfo& OutputModelInfo::set_color_format(const ov::preprocess::ColorFormat& format,
+                                                   const std::vector<std::string>& sub_names) {
+    m_impl->set_color_format(format);
+    return *this;
+}
+
 // --------------------- PostProcessSteps ------------------
 
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
@@ -378,6 +384,11 @@ PostProcessSteps& PostProcessSteps::convert_layout(const Layout& dst_layout) {
 
 PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) {
     m_impl->add_convert_layout_impl(dims);
+    return *this;
+}
+
+PostProcessSteps& PostProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) {
+    m_impl->add_convert_color_impl(dst_format);
     return *this;
 }
 

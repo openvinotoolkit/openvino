@@ -29,6 +29,21 @@ protected:
     void SetUp() override;
 };
 
+using postprocessParamsTuple = std::tuple<ov::builder::preprocess::postprocess_func,  // Function with postprocessing
+                                          std::string>;                               // Device name
+
+class PostProcessTest : public testing::WithParamInterface<postprocessParamsTuple>,
+                        virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<postprocessParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+
+public:
+    std::string func_name;
+};
+
 }  // namespace test
 }  // namespace ov
 
