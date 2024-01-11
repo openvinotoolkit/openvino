@@ -112,10 +112,9 @@ class TestMulTypes(PytorchLayerTest):
 class TestMulBool(PytorchLayerTest):
     def _prepare_input(self):
         shape = np.random.randint(1, 5, size=3)  # Random shape for each tensor
-        input_tensor = np.random.randint(0, 2, size=shape).astype(bool)
-        other_tensor = np.random.randint(0, 2, size=shape).astype(bool)
-        return (torch.tensor(input_tensor, dtype=torch.bool).numpy(),
-                torch.tensor(other_tensor, dtype=torch.bool).numpy())
+        input_tensor = np.random.randint(0, 2, size=shape)
+        other_tensor = np.random.randint(0, 2, size=shape)
+        return (input_tensor,other_tensor)
 
 
     def create_model(self):
@@ -124,12 +123,18 @@ class TestMulBool(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, input_tensor, other_tensor):
+                input_tensor = input_tensor.to(torch.bool)
+                other_tensor = other_tensor.to(torch.bool)
                 return input_tensor * other_tensor
 
         ref_net = None
 
         return aten_mul(), ref_net, "aten::mul"
-
+    
+    @pytest.mark.parametrize(("input_array", "other_array"), [
+        (np.array([True, False, True]), np.array([False, True, True])),
+        (np.array([[True, False], [True, True]]), np.array([[False, True], [True, False]])),
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mul_bool(self, input_array, other_array, ie_device, precision, ir_version):
