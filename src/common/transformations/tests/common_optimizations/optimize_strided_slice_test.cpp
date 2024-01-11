@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 #include <gtest/gtest.h>
 
@@ -22,6 +21,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
