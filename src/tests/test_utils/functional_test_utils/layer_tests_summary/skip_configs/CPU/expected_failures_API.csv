@@ -1657,6 +1657,9 @@ ov_plugin/CompileModelCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_boo
 ov_plugin/CompileModelCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_boolean_batch1_HETERO.CPU,0
 ov_plugin/CompileModelCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_boolean_batch1_BATCH.CPU,0
 ov_plugin/CompileModelCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_boolean_batch1_AUTO.CPU,0
+ov_plugin/OVCheckSetIncorrectRWMetricsPropsTests.ChangeIncorrectProperties/target_device=CPU_properties={ENABLE_MMAP:-10},1.0
+ov_plugin/OVCheckSetIncorrectRWMetricsPropsTests.ChangeIncorrectProperties/target_device=CPU_properties={LOG_LEVEL:-3},1.0
+ov_plugin/OVCheckSetIncorrectRWMetricsPropsTests.ChangeIncorrectProperties/target_device=CPU_properties={COMPILATION_NUM_THREADS:-1},1.0
 ov_infer_request_2/OVInferRequestDynamicTests.InferUpperBoundNetworkWithGetTensor/function=SplitAddConcat_inOutShape=(((1.4.20.20)_(1.2.20.40))((2.4.20.20)_(2.2.20.40)))_targetDevice=BATCH.CPU_,0
 ov_infer_request_2/OVInferRequestDynamicTests.InferUpperBoundNetworkAfterIOTensorsReshaping/function=SplitAddConcat_inOutShape=(((1.4.20.20)_(1.2.20.40))((2.4.20.20)_(2.2.20.40)))_targetDevice=BATCH.CPU_,0
 ov_infer_request_2/OVInferRequestDynamicTests.InferOutOfRangeShapeNetworkWithGetTensorUpper/function=SplitAddConcat_inOutShape=(((1.4.20.20)_(1.2.20.40))((2.4.20.20)_(2.2.20.40)))_targetDevice=BATCH.CPU_,0

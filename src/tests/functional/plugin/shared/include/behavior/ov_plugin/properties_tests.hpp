@@ -72,12 +72,15 @@ public:
     static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
 
     static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<std::string> props = {});
+    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(std::vector<std::string> props = {});
     static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(std::vector<std::string> props = {});
+    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(std::vector<std::string> props = {});
 
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
 using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
+using OVCheckSetIncorrectRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithCompileModelProps;
 using OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVPropertiesTestsWithCompileModelProps;
