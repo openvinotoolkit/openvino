@@ -8,9 +8,6 @@
 
 #include <cpu/x64/brgemm/brgemm.hpp>
 
-#ifdef SNIPPETS_DEBUG_CAPS
-#include "jit_segfault_detector_emitter.hpp"
-#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -60,8 +57,7 @@ private:
     std::vector<size_t> io_data_size {};
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    friend class jit_uni_segfault_detector_emitter;
-    std::shared_ptr<jit_uni_segfault_detector_emitter> segfault_detector_emitter = nullptr;
+    friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter);
 #endif
 };
 

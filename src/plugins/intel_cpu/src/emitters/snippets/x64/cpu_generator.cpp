@@ -34,10 +34,30 @@
 #include "emitters/snippets/x64/jit_perf_count_chrono_emitters.hpp"
 #include "emitters/snippets/x64/jit_perf_count_rdtsc_emitters.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#include "emitters/snippets/x64/jit_debug_emitter.hpp"
+#include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
+#include "emitters/verbose.hpp"
 #endif
 
 namespace ov {
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#define CREATE_SNIPPETS_EMITTER(e_type) { \
+    [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+        auto emitter = std::make_shared<e_type>(h.get(), isa, expr); \
+        if (custom_segfault_detector && is_segfault_detector_emitter(emitter.get())) { \
+            auto segfault_emitter = std::make_shared<jit_uni_segfault_detector_emitter>(h.get(), isa, emitter.get(), \
+                is_load_emitter(emitter.get()), is_store_emitter(emitter.get()), expr->get_node()->get_friendly_name()); \
+            return std::make_shared<jit_debug_emitter>(emitter, segfault_emitter, emit_debug_loc::pre_emit); \
+        } else { \
+            return emitter; \
+        } \
+    }, \
+    [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+}
+#else
 #define CREATE_SNIPPETS_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, expr); \
@@ -46,6 +66,7 @@ namespace ov {
         return e_type::get_supported_precisions(n); \
     } \
 }
+#endif
 
 #define CREATE_CPU_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \

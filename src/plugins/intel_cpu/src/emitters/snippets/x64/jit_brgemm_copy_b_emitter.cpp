@@ -66,11 +66,6 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     const bool isAMXSupported = mayiuse(avx512_core_amx);
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
     init_brgemm_copy(m_kernel, leading_dimension, m_N_blk, m_N_tail, m_LDB, m_K - m_K_tail, use_amx, dt_in0, dt_in1);
-#ifdef SNIPPETS_DEBUG_CAPS
-    DebugCapsConfig debugCaps;
-    if (!debugCaps.snippets_segfault_detector.empty())
-        segfault_detector_emitter.reset(new jit_uni_segfault_detector_emitter(h, isa, this, false, false, brgemm_repack->get_friendly_name()));
-#endif
 }
 
 void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
@@ -112,10 +107,6 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
 
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
-#ifdef SNIPPETS_DEBUG_CAPS
-    if (segfault_detector_emitter != nullptr)
-        segfault_detector_emitter->emit_code(in, out);
-#endif
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 src(static_cast<int>(in[0]));
         Xbyak::Reg64 dst(static_cast<int>(out[0]));

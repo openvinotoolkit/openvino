@@ -10,10 +10,6 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 
-#ifndef _WIN32
-#include <cxxabi.h>
-#endif
-
 using namespace ov::threading;
 
 namespace ov {
@@ -29,7 +25,7 @@ public:
 
     size_t get_inputs_num() const override;
 
-    void print();
+    const jit_emitter* get_target_emitter() const;
 
 private:
     // emit code is to save "this" pointer(jit_uni_segfault_detector_emitter) to global handler, then print info w/ it's target_emitter.
@@ -48,6 +44,8 @@ private:
     mutable size_t start_address = 0;
     mutable size_t current_address = 0;
     mutable size_t iteration = 0;
+
+    friend std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_detector_emitter *emitter);
 };
 
 }   // namespace intel_cpu
