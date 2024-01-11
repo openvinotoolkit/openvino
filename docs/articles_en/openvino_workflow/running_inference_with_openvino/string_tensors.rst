@@ -181,7 +181,7 @@ storage is returned and it can be used for tensor element modification:
          # Do NOT use tensor.str_data[i] to set a new value, it won't update the tensor content
 
          # Encoded strings:
-         tensor.str_data = [b'one', b'two', b'three']
+         tensor.bytes_data = [b'one', b'two', b'three']
          # Do NOT use tensor.bytes_data[i] to set a new value, it won't update the tensor content
 
       :sync: cpp
