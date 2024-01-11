@@ -105,7 +105,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    std::cout << "CompiledModel::CompiledModel - done " << std::endl;
+    // << "CompiledModel::CompiledModel - done " << std::endl;
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
