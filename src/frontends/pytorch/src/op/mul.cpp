@@ -18,22 +18,14 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
-    num_inputs_check(context, 2);
+    num_inputs_check(context, 2, 3);
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     auto dtype0 = context.get_input_type(0);
     auto dtype1 = context.get_input_type(1);
-    
-    // Checking for boolean inputs - input lhs
-    if (lhs.get_element_type() == element::boolean || (dtype0.is<element::Type>() && dtype0.as<element::Type>() == element::boolean)) {
-        lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, element::i64));
-        dtype0 = element::i64;  
-    }
-    
-    // Checking for boolean inputs - input rhs
-    if (rhs.get_element_type() == element::boolean || (dtype1.is<element::Type>() && dtype1.as<element::Type>() == element::boolean)) {
-        rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, element::i64));
-        dtype1 = element::i64;  
+
+    if (lhs.get_element_type() == element::boolean && rhs.get_element_type() == element::boolean){
+        // if it works FRONT_END_OP_CONVERSION_CHECK(true, "aten::add is used as OR logical operator, can convert");
     }
 
     // Handle inplace operation and type alignment
