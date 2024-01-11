@@ -14,12 +14,12 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace ov::op;
