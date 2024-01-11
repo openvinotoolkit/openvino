@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
@@ -14,7 +18,7 @@ from openvino import (
 def create_string_compiled_model(shape):
     parameter = ops.parameter(shape, Type.string)
     result = ops.result(parameter)
- 
+
     model = Model([result], [parameter])
     compiled = compile_model(model)
     return compiled
@@ -39,10 +43,9 @@ def as_string_array(data):
     [
         create_string_compiled_model([-1]).__call__,
         create_string_infer_request([-1]).infer,
-    ]
+    ],
 )
 def test_keyword_only_decode_fails(ov_func):
-    print(ov_func)
     with pytest.raises(TypeError) as error:
         _ = ov_func([], False, False, False)
     assert "takes from 1 to 4 positional arguments but 5 were given" in str(error.value)
