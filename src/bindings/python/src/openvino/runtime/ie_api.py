@@ -116,6 +116,14 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: False
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
@@ -337,6 +345,14 @@ class CompiledModel(CompiledModelBase):
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
