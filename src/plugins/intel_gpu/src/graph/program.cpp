@@ -216,6 +216,7 @@ program::~program() {
 }
 
 void program::init_program() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -228,7 +229,13 @@ void program::init_program() {
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
-    _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
+
+    size_t impls_cache_capacity = _impls_cache_capacity;
+    GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
+        impls_cache_capacity = debug_config->impls_cache_capacity;
+    }
+
+    _impls_cache = cldnn::make_unique<ImplementationsCache>(impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {

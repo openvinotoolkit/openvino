@@ -543,7 +543,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_params.output_layouts[0] = updated_layout;
 
     if (can_reuse_buffer) {
-        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
+                               << actual_layout.count() << "/" << max_output_layout_size
+                               << std::endl;
         if (_outputs[0]->get_layout() != actual_layout) {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
