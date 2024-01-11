@@ -256,14 +256,17 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }
 
-std::string CPUTestsBase::getPrimitiveType() const {
-#if defined(OPENVINO_ARCH_ARM64)
 #if defined(OV_CPU_WITH_ACL)
+std::string CPUTestsBase::getPrimitiveType() const {
     return "acl";
+// #if defined(OPENVINO_ARCH_ARM64)
+//     return "ref";
+// #else
+//     return "acl";
+// #endif
+}
 #else
-    return "ref";
-#endif
-#else
+std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
     if (ov::with_cpu_x86_avx512f()) {
         isaType = "jit_avx512";
@@ -275,8 +278,8 @@ std::string CPUTestsBase::getPrimitiveType() const {
         isaType = "ref";
     }
     return isaType;
-#endif
 }
+#endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
