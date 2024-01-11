@@ -509,8 +509,7 @@ py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool 
             }
             if (decode_strings) {
                 res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
-            }
-            else {
+            } else {
                 res[py::cast(out)] = string_helpers::bytes_array_from_tensor(std::move(t));
             }
         } else {
