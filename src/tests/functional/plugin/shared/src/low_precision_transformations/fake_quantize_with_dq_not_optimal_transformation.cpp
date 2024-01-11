@@ -61,6 +61,7 @@ void FakeQuantizeWithNotOptimalTransformation::run() {
 }
 
 TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 

@@ -56,6 +56,7 @@ void FullyConnectedTransformation::SetUp() {
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 };
 
