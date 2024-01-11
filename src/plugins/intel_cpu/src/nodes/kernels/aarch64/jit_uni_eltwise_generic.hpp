@@ -159,14 +159,14 @@ private:
 
     inline XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
-            IE_THROW(Unexpected) << "source vector ptr register " << idx << " is not supported";
+            OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
         return XReg(19 + idx);
     }
 
     inline XReg get_aux_gpr(const uint32_t idx) {
         if (idx > 2) {
-            IE_THROW(Unexpected) << "aux gpr register " << idx << " is not supported";
+            OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
         return XReg(26 + idx);
     }
@@ -193,21 +193,21 @@ private:
 
     inline TReg get_vmm_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
-            IE_THROW(Unexpected) << "source vector register " << idx << " is not supported";
+            OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(16 + idx);
     }
 
     inline SReg get_scl_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
-            IE_THROW(Unexpected) << "source scalar register " << idx << " is not supported";
+            OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
         }
         return SReg(16 + idx);
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
         if (idx > 2) {
-            IE_THROW(Unexpected) << "aux vector register " << idx << " is not supported";
+            OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);
     }
