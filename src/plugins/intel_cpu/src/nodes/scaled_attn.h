@@ -70,7 +70,6 @@ private:
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
 
-    ov::element::Type m_kvcache_precision = ov::element::undefined;
     PlainTensor m_tmp_reorder;
 };
 

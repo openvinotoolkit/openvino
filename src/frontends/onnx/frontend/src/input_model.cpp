@@ -12,7 +12,7 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
@@ -152,7 +152,7 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& shape) {
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -172,7 +172,7 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
         m_inputs_to_reshape[input_name] = shape;
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -193,8 +193,8 @@ ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Pt
     return m_editor->get_tensor_shape(tensor_name);
 }
 
-void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
-    std::map<std::string, ngraph::element::Type_t> m;
+void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
+    std::map<std::string, ov::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
