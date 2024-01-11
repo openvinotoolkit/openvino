@@ -453,27 +453,11 @@ TEST(pattern, matcher) {
     
     // Optional
     {
-        a->set_friendly_name("a");
-        b->set_friendly_name("b");
-        auto relu = std::make_shared<ov::op::v0::Abs>(b);
-        relu->set_friendly_name("relu");
-        auto add_0 = std::make_shared<op::v1::Add>(a, b);
-        add_0->set_friendly_name("add_0");
-        // auto add_1 = std::make_shared<op::v1::Add>(a, b);
-        // add_1->set_friendly_name("add_1");
-        auto add_2 = std::make_shared<op::v1::Add>(a, relu);
-        add_2->set_friendly_name("add_2");
-        ASSERT_TRUE(n.match(std::make_shared<pattern::op::Optional>(OutputVector{add_0}),
-                            add_2));
-        // ASSERT_TRUE(n.match(std::make_shared<pattern::op::Optional>(OutputVector{std::make_shared<op::v1::Add>(a, b),
-        //                                                                          std::make_shared<op::v1::Add>(a, relu)}),
-        //                     std::make_shared<op::v1::Add>(a, b)));
-        // ASSERT_TRUE(n.match(std::make_shared<pattern::op::Optional>(OutputVector{std::make_shared<op::v1::Add>(a, relu),
-        //                                                                          std::make_shared<op::v1::Add>(a, b)}),
-        //                     std::make_shared<op::v1::Add>(a, relu)));
-        // ASSERT_TRUE(n.match(std::make_shared<pattern::op::Optional>(OutputVector{std::make_shared<op::v1::Add>(a, b),
-        //                                                                          std::make_shared<op::v1::Add>(a, relu)}),
-        //                     std::make_shared<op::v1::Add>(a, relu)));
+        auto abs = std::make_shared<ov::op::v0::Abs>(b);
+        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs>(std::make_shared<op::v1::Add>(a, abs)),
+                            std::make_shared<op::v1::Add>(a, abs)));
+        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs>(std::make_shared<op::v1::Add>(a, abs)),
+                            std::make_shared<op::v1::Add>(a, b)));
     }
 
     // Branch
