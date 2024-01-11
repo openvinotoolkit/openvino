@@ -96,54 +96,42 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     const auto& shape_node = cp_to.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(first_cell->input_value(0)));
     const auto& zero = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
     const auto& batch_dimension = cp_to.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape_node, zero, axis_0));
-    // auto lstm_count_scalar = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, lstm_count);
-    // auto lstm_count_in =
-    //    cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(lstm_count_scalar, batch_dimension));
-    std::shared_ptr<ov::Node> sequence;
+    std::shared_ptr<ov::Node> multi_lstm;
     ov::OutputVector outputs(1);
     if (std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(first_cell)) {
-        sequence = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
-                                                              Ht_in,
-                                                              Ct_in,
-                                                              lstm_count,
-                                                              W_in,
-                                                              R_in,
-                                                              B_in,
-                                                              first_cell->get_hidden_size(),
-                                                              ov::op::RecurrentSequenceDirection::FORWARD,
-                                                              ov::op::LSTMWeightsFormat::IFCO,
-                                                              first_cell->get_activations_alpha(),
-                                                              first_cell->get_activations_beta(),
-                                                              first_cell->get_activations(),
-                                                              first_cell->get_clip());
+        multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
+                                                                Ht_in,
+                                                                Ct_in,
+                                                                lstm_count,
+                                                                W_in,
+                                                                R_in,
+                                                                B_in,
+                                                                first_cell->get_hidden_size(),
+                                                                ov::op::RecurrentSequenceDirection::FORWARD,
+                                                                ov::op::LSTMWeightsFormat::IFCO,
+                                                                first_cell->get_activations_alpha(),
+                                                                first_cell->get_activations_beta(),
+                                                                first_cell->get_activations(),
+                                                                first_cell->get_clip());
         outputs.resize(2);
-        outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
+        outputs[1] = cp_to.make<ov::op::v0::Squeeze>(multi_lstm->output(2), axis_1);
     }
-    /*
+
     if (!h_outputs_to_redirect.empty()) {
-        auto squeeze_Y = cp_to.make<ov::op::v0::Squeeze>(sequence->output(0), axis_1);
-        auto split = cp_to.make<ov::op::v1::Split>(squeeze_Y, axis_1, cells_cnt);
+        auto squeeze_Y = cp_to.make<ov::op::v0::Squeeze>(multi_lstm->output(0), axis_1);
+        auto split = cp_to.make<ov::op::v1::Split>(squeeze_Y, axis_1, lstm_count);
 
         for (auto it : h_outputs_to_redirect) {
-            auto Hi = split->output(cells_cnt - it.first);
+            auto Hi = split->output(lstm_count - it.first);
             auto friendly_name = it.second.get_node_shared_ptr()->get_friendly_name();
             if (it.first == 1) {
-                Hi = sequence->output(1);
+                Hi = multi_lstm->output(1);
             }
             auto squeeze = cp_to.make<ov::op::v0::Squeeze>(Hi, axis_1);
             it.second.replace(squeeze);
-            if (is_lstm) {
-                friendly_name += ":1";
-            }
             squeeze->set_friendly_name(friendly_name);
         }
     }
-    if (is_lstm) {
-        auto squeeze = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
-        last_cell->output(1).replace(squeeze);
-        squeeze->set_friendly_name(last_cell->get_friendly_name() + ":2");
-    }
-    */
 
     return true;
 }
