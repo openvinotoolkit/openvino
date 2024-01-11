@@ -9,8 +9,7 @@ KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
                                     ,__global OUTPUT_TYPE* output_sequences
 #ifdef LEGACY_MULTIPLE_OUTPUTS
                                     ,__global INPUT2_TYPE* second_output
-#endif
-#ifdef NEW_MULTIPLE_OUTPUTS
+#elif NEW_MULTIPLE_OUTPUTS
                                     ,__global OUTPUT1_TYPE* second_output
 #endif
                               )
