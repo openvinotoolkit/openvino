@@ -27,23 +27,18 @@ ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 ov_cpack_add_component(${OV_CPACK_COMP_SETUPVARS} HIDDEN)
 
 if(UNIX)
-    set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
+    set(_setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
 elseif(WIN32)
+    # setupvars.bat
     set(_setupvars_file "setupvars/setupvars.bat")
-    set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file}")
-    if(USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release)$")
-        # Patch primary configuration in setupvars.bat which is "Release" by default.
-        # Note setupvars secondary configuration is always "Debug".
-        message(STATUS "Patching content of ${_setupvars_file_full_path} for CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
-        file(READ "${_setupvars_file_full_path}" _setupvars_content)
-        string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content "${_setupvars_content}")
-        set(_setupvars_file_full_path "${OpenVINO_BINARY_DIR}/${_setupvars_file}")
-        message(STATUS "Writing patched content to ${_setupvars_file_full_path}")
-        file(WRITE "${_setupvars_file_full_path}" "${_setupvars_content}")
-    endif()
+    set(_setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file}")
+
+    # setupvars.ps1
+    set(_setupvars_file_pwsh "setupvars/setupvars.ps1")
+    list(APPEND _setupvars_files "${CMAKE_CURRENT_SOURCE_DIR}/${_setupvars_file_pwsh}")
 endif()
 
-install(PROGRAMS "${_setupvars_file_full_path}"
+install(PROGRAMS ${_setupvars_files}
         DESTINATION .
         COMPONENT ${OV_CPACK_COMP_SETUPVARS}
         ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
