@@ -80,20 +80,11 @@ macro(ov_find_package_tbb)
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
-        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)
-            cmake_host_system_information(RESULT PRETTY_NAME QUERY DISTRIB_PRETTY_NAME)
-        else()
-            execute_process(COMMAND lsb_release -a OUTPUT_VARIABLE output ERROR_QUIET)
-            string(REGEX MATCH "Description:[ \t]+([^\n]+)" match ${output})
-            if(match)
-            set(PRETTY_NAME "${CMAKE_MATCH_1}")
-            endif()
-        endif()
         set(PKG_CONFIG_SEARCH ON)
         if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
             set(_ov_minimal_tbb_version 2021.0)
-        elseif(${PRETTY_NAME} MATCHES "Ubuntu 22" AND AARCH64)
-            # CVS-126984: system TBB is not very stable on Linux ARM64 (Ubuntu 22.04)
+        elseif(LINUX AND AARCH64)
+            # CVS-126984: system TBB is not very stable on Linux ARM64
             set(_ov_minimal_tbb_version 2021.0)
             # on Ubuntu22.04, tbb2020 can be installed by "apt install libtbb2-dev",
             # after installation, TBB_VERSION is missed in tbb.pc,
