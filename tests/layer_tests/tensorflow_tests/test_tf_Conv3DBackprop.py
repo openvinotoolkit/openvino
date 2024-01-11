@@ -72,8 +72,8 @@ class TestConv3DBackprop(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conv3dbackprop_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_new_frontend):
         self._test(*self.create_conv3dbackprop_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
