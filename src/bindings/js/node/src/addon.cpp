@@ -20,25 +20,16 @@ void init_class(Napi::Env env,
                 Napi::Object exports,
                 std::string class_name,
                 Prototype func,
-                Napi::FunctionReference* reference) {
+                Napi::FunctionReference& reference) {
     const auto& prototype = func(env);
 
-    *reference = Napi::Persistent(prototype);
+    reference = Napi::Persistent(prototype);
     exports.Set(class_name, prototype);
 }
 
 /** @brief Initialize native add-on */
 Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();
-    addon_data->compiled_model = new Napi::FunctionReference();
-    addon_data->core = new Napi::FunctionReference();
-    addon_data->const_output = new Napi::FunctionReference();
-    addon_data->infer_request = new Napi::FunctionReference();
-    addon_data->model = new Napi::FunctionReference();
-    addon_data->output = new Napi::FunctionReference();
-    addon_data->partial_shape = new Napi::FunctionReference();
-    addon_data->ppp = new Napi::FunctionReference();
-    addon_data->tensor = new Napi::FunctionReference();
     env.SetInstanceData<AddonData>(addon_data);
 
     init_class(env, exports, "Model", &ModelWrap::get_class, addon_data->model);

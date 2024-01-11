@@ -33,11 +33,11 @@ Napi::Function PartialShapeWrap::get_class(Napi::Env env) {
 }
 
 Napi::Object PartialShapeWrap::wrap(Napi::Env env, ov::PartialShape partial_shape) {
-    const auto prototype = env.GetInstanceData<AddonData>()->partial_shape;
+    const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to PartialShape prototype.");
     }
-    auto obj = prototype->New({});
+    auto obj = prototype.New({});
     const auto t = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(obj);
     t->_partial_shape = partial_shape;
 

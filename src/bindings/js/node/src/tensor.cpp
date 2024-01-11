@@ -56,11 +56,11 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
-    const auto prototype = env.GetInstanceData<AddonData>()->tensor;
+    const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");
     }
-    auto tensor_js = prototype->New({});
+    auto tensor_js = prototype.New({});
     const auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_js);
     t->set_tensor(tensor);
     return tensor_js;

@@ -28,11 +28,11 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 
 Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->model;
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }
-    const auto& model_js = prototype->New({});
+    const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;

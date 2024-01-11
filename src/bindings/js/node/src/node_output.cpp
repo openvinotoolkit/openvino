@@ -26,11 +26,11 @@ ov::Output<ov::Node> Output<ov::Node>::get_output() const {
 }
 
 Napi::Object Output<ov::Node>::wrap(Napi::Env env, ov::Output<ov::Node> output) {
-    const auto prototype = env.GetInstanceData<AddonData>()->output;
+    const auto& prototype = env.GetInstanceData<AddonData>()->output;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Output prototype.");
     }
-    const auto& obj = prototype->New({});
+    const auto& obj = prototype.New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;
@@ -69,11 +69,11 @@ ov::Output<const ov::Node> Output<const ov::Node>::get_output() const {
 }
 
 Napi::Object Output<const ov::Node>::wrap(Napi::Env env, ov::Output<const ov::Node> output) {
-    const auto prototype = env.GetInstanceData<AddonData>()->const_output;
+    const auto& prototype = env.GetInstanceData<AddonData>()->const_output;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to ConstOutput prototype.");
     }
-    const auto& obj = prototype->New({});
+    const auto& obj = prototype.New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;
