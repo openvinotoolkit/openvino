@@ -184,6 +184,7 @@ public:
     ///
     /// \brief      Constructs a RNNMultiCellBase class.
     ///
+    /// \param[in]  lstm_count         The number of LSTMSequence units.
     /// \param[in]  hidden_size        The number of hidden units for recurrent cell.
     /// \param[in]  clip               The value defining clipping range [-clip, clip]
     ///                                on input of activation functions.
@@ -195,6 +196,7 @@ public:
     ///                                functions in order respective to activation list.
     ///
     RNNMultiCellBase(const OutputVector& args,
+                std::size_t lstm_count,
                 std::size_t hidden_size,
                 float clip,
                 const std::vector<std::string>& activations,
@@ -223,6 +225,9 @@ public:
     }
     float get_clip() const {
         return m_clip;
+    }
+    size_t get_lstm_count() const {
+        return m_lstm_count;
     }
     const std::vector<std::string>& get_activations() const {
         return m_activations;
@@ -284,6 +289,7 @@ protected:
     std::shared_ptr<Node> clip(const Output<Node>& data) const;
 
 protected:
+    std::size_t m_lstm_count;
     std::size_t m_hidden_size;
     float m_clip;
     std::vector<std::string> m_activations;

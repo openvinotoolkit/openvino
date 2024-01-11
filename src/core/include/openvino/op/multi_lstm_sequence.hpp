@@ -39,6 +39,7 @@ public:
     explicit MultiLSTMSequence(const Output<Node>& X,
                           const Output<Node>& initial_hidden_state,
                           const Output<Node>& initial_cell_state,
+                          size_t lstm_count,
                           const Output<Node>& W,
                           const Output<Node>& R,
                           const Output<Node>& B,
@@ -51,6 +52,7 @@ public:
                           const float clip_threshold = 0.f,
                           const bool input_forget = false)
         : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
+                      lstm_count,
                       hidden_size,
                       clip_threshold,
                       activations,
@@ -74,6 +76,7 @@ public:
     }
 
 private:
+    std::size_t lstm_count;
     direction m_direction{direction::FORWARD};
     LSTMWeightsFormat m_weights_format;
 };
