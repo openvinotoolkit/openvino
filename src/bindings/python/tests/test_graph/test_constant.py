@@ -422,7 +422,7 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
     import openvino as ov
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344, 100000, -100000], dtype=numpy_dtype)
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -437,7 +437,7 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
     target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
               0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
               -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344] + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+              448, 512, 512, 57344]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
@@ -482,7 +482,7 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
     import openvino as ov
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344, 100000, -100000], dtype=numpy_dtype)
+                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)
@@ -498,7 +498,7 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
     target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
               0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
               -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344] + ([65504, -65504] if ov_type == Type.f16 else [np.inf, -np.inf])
+              448, 512, 512, 57344]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)

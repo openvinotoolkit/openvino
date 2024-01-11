@@ -26,6 +26,42 @@ TEST(F8E5M2Test, to_string) {
     EXPECT_EQ(std::to_string(f8), "0.750000");
 }
 
+TEST(F8E5M2Test, f32_inf) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::infinity());
+
+    EXPECT_EQ(f8.to_bits(), 0b01111100);
+}
+
+TEST(F8E5M2Test, f32_minus_inf) {
+    const auto f8 = ov::float8_e5m2(-std::numeric_limits<float>::infinity());
+
+    EXPECT_EQ(f8.to_bits(), 0b11111100);
+}
+
+TEST(F8E5M2Test, f32_ge_f8_max_round_to_inf) {
+    const auto f8 = ov::float8_e5m2(65520.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111100);
+}
+
+TEST(F8E5M2Test, f32_ge_f8_max_round_to_max) {
+    const auto f8 = ov::float8_e5m2(65519.9f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111011);
+}
+
+TEST(F8E5M2Test, f32_ge_f8_max_round_to_minus_inf) {
+    const auto f8 = ov::float8_e5m2(-65520.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111100);
+}
+
+TEST(F8E5M2Test, f32_ge_f8_max_round_to_lowest) {
+    const auto f8 = ov::float8_e5m2(-65519.9f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111011);
+}
+
 template <class TContainer>
 std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TContainer& values) {
     std::vector<std::tuple<int, typename TContainer::value_type>> enum_values;
