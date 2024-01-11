@@ -105,7 +105,7 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
         state.reset();
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
-        auto state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        auto state_tensor = ov::Tensor(state_val.get_element_type(), ov::Shape({1, element_count}));
         std::fill_n(state_tensor.data<float>(), element_count, new_state_val);
         state.set_state(state_tensor);
     }
@@ -131,7 +131,7 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        auto state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        auto state_tensor = ov::Tensor(state_val.get_element_type(), ov::Shape({1, element_count}));
         std::fill_n(state_tensor.data<float>(), element_count, new_state_val);
         state.set_state(state_tensor);
     }
@@ -168,7 +168,7 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        auto state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        auto state_tensor = ov::Tensor(state_val.get_element_type(), ov::Shape({1, element_count}));
         std::fill_n(state_tensor.data<float>(), element_count, new_state_val);
         state.set_state(state_tensor);
     }
@@ -219,7 +219,7 @@ TEST_P(OVInferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
         auto state_val = state.get_state();
         auto element_count = state_val.get_size();
 
-        auto state_tensor = ov::Tensor(ov::element::f32, ov::Shape({1, element_count}));
+        auto state_tensor = ov::Tensor(state_val.get_element_type(), ov::Shape({1, element_count}));
         std::fill_n(state_tensor.data<float>(), element_count, new_state_val);
         state.set_state(state_tensor);
     }
