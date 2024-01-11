@@ -98,20 +98,20 @@ class TestBiasAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
     def test_bias_add_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend, use_old_api):
+                                           use_new_frontend):
         self._test(*self.create_bias_add_placeholder_const_net(**params, ir_version=ir_version,
                                                                use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
     def test_bias_add_2_consts_2D(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_bias_add_2_consts_net(**params, ir_version=ir_version,
                                                       use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_3D = [
         pytest.param(dict(shape=[1, 1, 224]), marks=pytest.mark.xfail(reason="*-19053")),
@@ -121,20 +121,20 @@ class TestBiasAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_bias_add_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend, use_old_api):
+                                           use_new_frontend):
         self._test(*self.create_bias_add_placeholder_const_net(**params, ir_version=ir_version,
                                                                use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_bias_add_2_consts_3D(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_bias_add_2_consts_net(**params, ir_version=ir_version,
                                                       use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_4D = [
         dict(shape=[1, 1, 100, 224]),
@@ -146,20 +146,20 @@ class TestBiasAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_bias_add_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend, use_old_api):
+                                           use_new_frontend):
         self._test(*self.create_bias_add_placeholder_const_net(**params, ir_version=ir_version,
                                                                use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_bias_add_2_consts_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_bias_add_2_consts_net(**params, ir_version=ir_version,
                                                       use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_5D = [
         dict(shape=[1, 1, 50, 100, 224]),
@@ -170,17 +170,17 @@ class TestBiasAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_bias_add_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend, use_old_api):
+                                           use_new_frontend):
         self._test(*self.create_bias_add_placeholder_const_net(**params, ir_version=ir_version,
                                                                use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_bias_add_2_consts_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_bias_add_2_consts_net(**params, ir_version=ir_version,
                                                       use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
