@@ -51,7 +51,7 @@ void Reference::createPrimitive() {}
 void Reference::execute(dnnl::stream strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
-    if (!ovCoreNode->evaluate(outputs, inputs)) {
+    if (!util::evaluate_node(ovCoreNode, inputs, outputs)) {
         THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
 }
