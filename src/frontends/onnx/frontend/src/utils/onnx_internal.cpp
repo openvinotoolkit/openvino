@@ -71,12 +71,12 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
         if (auto raw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node)) {
             if (auto subgraph_node = std::dynamic_pointer_cast<frontend::ONNXSubgraphFrameworkNode>(node)) {
                 subgraph_node->infer_inputs_from_parent();
-                for (auto& function : subgraph_node->get_subgraph_functions()) {
-                    convert_decoded_function(function);
+                for (auto& model : subgraph_node->get_subgraph_models()) {
+                    convert_decoded_function(model);
                 }
             }
-            auto ng_nodes = raw_node->get_ng_nodes(onnx_graph);
-            replace_node(raw_node, ng_nodes);
+            auto ov_nodes = raw_node->get_ov_nodes(onnx_graph);
+            replace_node(raw_node, ov_nodes);
         } else {
             // Have to revalidate node because new intpus can affect shape/type
             // propagation for already translated nodes
