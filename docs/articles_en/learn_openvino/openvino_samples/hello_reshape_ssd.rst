@@ -15,8 +15,7 @@ using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`. Befor
 using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample accepts any file format supported by `core.read_model <openvino.runtime.Core.html#openvino.runtime.Core.read_model>`__ .
 - The sample has been validated with: :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`,
   :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`
   models and the NCHW layout format.

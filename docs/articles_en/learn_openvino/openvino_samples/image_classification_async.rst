@@ -14,8 +14,7 @@ using Asynchronous Inference Request API. Before using the sample, refer to the
 following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample accepts any file format supported by `core.read_model <openvino.runtime.Core.html#openvino.runtime.Core.read_model>`__ .
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>` models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.

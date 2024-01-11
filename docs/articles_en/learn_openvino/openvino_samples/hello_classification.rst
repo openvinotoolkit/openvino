@@ -13,8 +13,7 @@ This sample demonstrates how to do inference of image classification models usin
 Synchronous Inference Request API. Before using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample accepts any file format supported by `core.read_model <openvino.runtime.Core.html#openvino.runtime.Core.read_model>`__ .
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`,
   :doc:`googlenet-v1 <omz_models_model_googlenet_v1>` models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
@@ -24,8 +23,8 @@ How It Works
 ####################
 
 At startup, the sample application reads command-line parameters, prepares input data,
-loads a specified model and image to the OpenVINO™ Runtime plugin (Inference Engine in C API),
-performs synchronous inference, and processes output data, logging each step in a standard output stream.
+loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous
+inference, and processes output data, logging each step in a standard output stream.
 
 .. tab-set::
 

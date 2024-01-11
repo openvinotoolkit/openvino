@@ -58,7 +58,12 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
 
-            Python samples do not require building. You can run the code samples in your development environment.
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/samples/python/<SAMPLE_DIR>
+               python3 -m pip install -r ./requirements.txt
 
          .. tab-item:: C and C++
             :sync: cpp
@@ -120,7 +125,12 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
 
-            Python samples do not require building. You can run the code samples in your development environment.
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>\samples\python\<SAMPLE_DIR>
+               python -m pip install -r requirements.txt
 
          .. tab-item:: C and C++
             :sync: c-cpp
@@ -152,7 +162,12 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
 
-            Python samples do not require building. You can run the code samples in your development environment.
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/samples/python/<SAMPLE_DIR>
+               python3 -m pip install -r ./requirements.txt
 
          .. tab-item:: C and C++
             :sync: cpp

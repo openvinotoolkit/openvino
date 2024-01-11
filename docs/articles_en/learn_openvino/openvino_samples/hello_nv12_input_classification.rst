@@ -14,8 +14,7 @@ This sample demonstrates how to execute an inference of image classification mod
 with images in NV12 color format using Synchronous Inference Request API. Before
 using the sample, refer to the following requirements:
 
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample accepts any file format supported by `ov::Core::read_model <classov_1_1_core.html>`__
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>` model and
   uncompressed images in the NV12 color format - \*.yuv
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
@@ -26,10 +25,9 @@ How It Works
 
 At startup, the sample application reads command line parameters, loads the
 specified model and an image in the NV12 color format to an OpenVINO™ Runtime
-plugin (Inference Engine plugin in C API). Then, the sample creates an synchronous
-inference request object. When inference is done, the application outputs data to
-the standard output stream. You can place labels in ``.labels`` file near the
-model to get pretty output.
+plugin. Then, the sample creates an synchronous inference request object. When
+inference is done, the application outputs data to the standard output stream.
+You can place labels in ``.labels`` file near the model to get pretty output.
 
 .. tab-set::
 
