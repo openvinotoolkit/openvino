@@ -37,27 +37,27 @@ public:
         return no_default_index();
     }
     explicit MultiLSTMSequence(const Output<Node>& X,
-                          const Output<Node>& initial_hidden_state,
-                          const Output<Node>& initial_cell_state,
-                          size_t lstm_count,
-                          const Output<Node>& W,
-                          const Output<Node>& R,
-                          const Output<Node>& B,
-                          const std::int64_t hidden_size,
-                          const direction lstm_direction,
-                          LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
-                          const std::vector<float>& activations_alpha = {},
-                          const std::vector<float>& activations_beta = {},
-                          const std::vector<std::string>& activations = {"sigmoid", "tanh", "tanh"},
-                          const float clip_threshold = 0.f,
-                          const bool input_forget = false)
+                               const Output<Node>& initial_hidden_state,
+                               const Output<Node>& initial_cell_state,
+                               size_t lstm_count,
+                               const Output<Node>& W,
+                               const Output<Node>& R,
+                               const Output<Node>& B,
+                               const std::int64_t hidden_size,
+                               const direction lstm_direction,
+                               LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+                               const std::vector<float>& activations_alpha = {},
+                               const std::vector<float>& activations_beta = {},
+                               const std::vector<std::string>& activations = {"sigmoid", "tanh", "tanh"},
+                               const float clip_threshold = 0.f,
+                               const bool input_forget = false)
         : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
-                      lstm_count,
-                      hidden_size,
-                      clip_threshold,
-                      activations,
-                      activations_alpha,
-                      activations_beta),
+                           lstm_count,
+                           hidden_size,
+                           clip_threshold,
+                           activations,
+                           activations_alpha,
+                           activations_beta),
           m_direction(lstm_direction),
           m_weights_format(weights_format) {
         constructor_validate_and_infer_types();
@@ -76,7 +76,6 @@ public:
     }
 
 private:
-    std::size_t lstm_count;
     direction m_direction{direction::FORWARD};
     LSTMWeightsFormat m_weights_format;
 };

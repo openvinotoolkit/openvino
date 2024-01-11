@@ -6,18 +6,18 @@
 
 #include <memory>
 
+#include "itt.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multi_lstm_sequence.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/util/rnn_cell_base.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
-
-
+#include "openvino/op/util/rnn_cell_base.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool is_equal_cells(const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_1, const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_2) {
+bool is_equal_cells(const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_1,
+                    const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_2) {
     bool is_equal = true;
     auto rnn_cell_1 = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(lstm_1);
     auto rnn_cell_2 = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(lstm_2);
@@ -31,19 +31,19 @@ bool is_equal_cells(const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_1, con
 }
 
 std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry& cp_from,
-                                        ov::pass::NodeRegistry& cp_to,
-                                        const std::shared_ptr<ov::op::v5::LSTMSequence>& current_lstm,
-                                        ov::OutputVector& x_to_concat,
-                                        ov::OutputVector& weights_to_concat,
-                                        ov::OutputVector& recurrence_weights_to_concat,
-                                        std::map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
-                                        int& lstm_count,
-                                        const std::shared_ptr<ov::Node>& axis_1) {
+                                                          ov::pass::NodeRegistry& cp_to,
+                                                          const std::shared_ptr<ov::op::v5::LSTMSequence>& current_lstm,
+                                                          ov::OutputVector& x_to_concat,
+                                                          ov::OutputVector& weights_to_concat,
+                                                          ov::OutputVector& recurrence_weights_to_concat,
+                                                          std::map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
+                                                          int& lstm_count,
+                                                          const std::shared_ptr<ov::Node>& axis_1) {
     lstm_count = 1;
     std::shared_ptr<ov::op::v5::LSTMSequence> current = current_lstm;
     while (true) {
         cp_from.add(current);
-        
+
         // go to the Squeeze node
         auto prev_squeeze = current->input_value(1).get_node_shared_ptr();
         auto prev_squeeze_ptr = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(prev_squeeze);
@@ -86,7 +86,6 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      int lstm_count,
                      const std::shared_ptr<ov::Node>& axis_0,
                      const std::shared_ptr<ov::Node>& axis_1) {
-
     const auto X_in = cp_to.make<ov::op::v0::Concat>(x_to_concat, 1);
     const auto Ht_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(1), axis_1);
     const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
@@ -97,27 +96,26 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     const auto& shape_node = cp_to.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(first_cell->input_value(0)));
     const auto& zero = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
     const auto& batch_dimension = cp_to.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape_node, zero, axis_0));
-    auto lstm_count_scalar = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, lstm_count);
-    auto lstm_count_in =
-        cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(lstm_count_scalar, batch_dimension));
+    // auto lstm_count_scalar = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, lstm_count);
+    // auto lstm_count_in =
+    //    cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(lstm_count_scalar, batch_dimension));
     std::shared_ptr<ov::Node> sequence;
     ov::OutputVector outputs(1);
     if (std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(first_cell)) {
-        
         sequence = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
-                                                        Ht_in,
-                                                        Ct_in,
-                                                        lstm_count_in,
-                                                        W_in,
-                                                        R_in,
-                                                        B_in,
-                                                        first_cell->get_hidden_size(),
-                                                        ov::op::RecurrentSequenceDirection::FORWARD,
-                                                        ov::op::LSTMWeightsFormat::IFCO,
-                                                        first_cell->get_activations_alpha(),
-                                                        first_cell->get_activations_beta(),
-                                                        first_cell->get_activations(),
-                                                        first_cell->get_clip());
+                                                              Ht_in,
+                                                              Ct_in,
+                                                              lstm_count,
+                                                              W_in,
+                                                              R_in,
+                                                              B_in,
+                                                              first_cell->get_hidden_size(),
+                                                              ov::op::RecurrentSequenceDirection::FORWARD,
+                                                              ov::op::LSTMWeightsFormat::IFCO,
+                                                              first_cell->get_activations_alpha(),
+                                                              first_cell->get_activations_beta(),
+                                                              first_cell->get_activations(),
+                                                              first_cell->get_clip());
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
     }
@@ -150,7 +148,6 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     return true;
 }
 
-
 ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequenceFusion() {
     MATCHER_SCOPE(LSTMSequenceToMultiLSTMSequenceFusion);
 
@@ -166,14 +163,13 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         // check if LSTMSequence's output doesn't lead to another LSTMSequence
         // essentially check if it's the last LSTMSequence in the series
         for (const auto& target : lstm->get_output_target_inputs(0)) {
-
             // detect Squeeze inbetween two LSTMSequence nodes
             auto squeeze = std::dynamic_pointer_cast<op::v0::Squeeze>(target.get_node()->shared_from_this());
             for (const auto& target_2 : squeeze->get_output_target_inputs(0)) {
                 auto lstm_1 = std::dynamic_pointer_cast<op::v5::LSTMSequence>(target_2.get_node()->shared_from_this());
                 if (squeeze && lstm_1 && is_equal_cells(lstm_1, current_lstm)) {
                     return false;
-            }
+                }
             }
             auto lstm_node = squeeze->get_output_target_inputs(0);
         }

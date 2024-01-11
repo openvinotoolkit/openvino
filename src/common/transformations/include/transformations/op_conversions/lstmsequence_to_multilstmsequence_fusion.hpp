@@ -15,6 +15,11 @@ class TRANSFORMATIONS_API LSTMSequenceToMultiLSTMSequenceFusion;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief LSTMSequenceToMultiLSTMSequenceFusion transformation replaces a sequence of
+ * LSTMSequence operations with a MultiLSTMSequence operator.
+ */
 class ov::pass::LSTMSequenceToMultiLSTMSequenceFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("LSTMSequenceToMultiLSTMSequenceFusion", "0");

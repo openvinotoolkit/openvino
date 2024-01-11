@@ -196,12 +196,12 @@ public:
     ///                                functions in order respective to activation list.
     ///
     RNNMultiCellBase(const OutputVector& args,
-                std::size_t lstm_count,
-                std::size_t hidden_size,
-                float clip,
-                const std::vector<std::string>& activations,
-                const std::vector<float>& activations_alpha,
-                const std::vector<float>& activations_beta);
+                     std::size_t lstm_count,
+                     std::size_t hidden_size,
+                     float clip,
+                     const std::vector<std::string>& activations,
+                     const std::vector<float>& activations_alpha,
+                     const std::vector<float>& activations_beta);
 
     RNNMultiCellBase();
     //~RNNMultiCellBase() override = default;

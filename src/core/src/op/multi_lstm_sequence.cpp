@@ -22,19 +22,19 @@ std::shared_ptr<Node> op::v13::MultiLSTMSequence::clone_with_new_inputs(const Ou
     check_new_args_count(this, new_args);
     if (new_args.size() == 7) {
         return std::make_shared<op::v13::MultiLSTMSequence>(new_args.at(0),  // X
-                                                      new_args.at(1),  // initial_hidden_state
-                                                      new_args.at(2),  // initial_cell_state
-                                                      new_args.at(3),  // W
-                                                      new_args.at(4),  // R
-                                                      new_args.at(5),  // B
-                                                      m_lstm_count,
-                                                      m_hidden_size,
-                                                      m_direction,
-                                                      m_weights_format,
-                                                      m_activations_alpha,
-                                                      m_activations_beta,
-                                                      m_activations,
-                                                      m_clip);
+                                                            new_args.at(1),  // initial_hidden_state
+                                                            new_args.at(2),  // initial_cell_state
+                                                            m_lstm_count,
+                                                            new_args.at(4),  // W
+                                                            new_args.at(5),  // R
+                                                            new_args.at(6),  // B
+                                                            m_hidden_size,
+                                                            m_direction,
+                                                            m_weights_format,
+                                                            m_activations_alpha,
+                                                            m_activations_beta,
+                                                            m_activations,
+                                                            m_clip);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
@@ -61,10 +61,10 @@ void op::v13::MultiLSTMSequence::validate_and_infer_types() {
         set_input_is_relevant_to_shape(i);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
     auto output_shapes = shape_infer(this, input_shapes);
-    
+
     // Set output size, type and shape
     set_output_type(0, result_et, output_shapes[0]);
     set_output_type(1, result_et, output_shapes[1]);

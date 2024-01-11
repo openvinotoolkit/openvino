@@ -90,7 +90,6 @@ ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
 
 bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_RNNCellBase_visit_attributes);
-    visitor.on_attribute("lstm_count", m_lstm_count);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -100,12 +99,12 @@ bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
 }
 
 ov::op::util::RNNMultiCellBase::RNNMultiCellBase(const OutputVector& args,
-                                            size_t lstm_count,
-                                            size_t hidden_size,
-                                            float clip,
-                                            const std::vector<std::string>& activations,
-                                            const std::vector<float>& activations_alpha,
-                                            const std::vector<float>& activations_beta)
+                                                 size_t lstm_count,
+                                                 size_t hidden_size,
+                                                 float clip,
+                                                 const std::vector<std::string>& activations,
+                                                 const std::vector<float>& activations_alpha,
+                                                 const std::vector<float>& activations_beta)
     : Op(args),
       m_lstm_count(lstm_count),
       m_hidden_size(hidden_size),
