@@ -114,7 +114,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
     manager.register_pass<pass::ResolveNameCollisions>();
     manager.run_passes(model);
 }
