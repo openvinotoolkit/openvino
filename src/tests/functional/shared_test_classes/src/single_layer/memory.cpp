@@ -7,7 +7,6 @@
 #include <signal.h>
 
 #include <functional_test_utils/core_config.hpp>
-#include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include "ngraph/opsets/opset7.hpp"

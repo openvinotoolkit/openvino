@@ -16,7 +16,6 @@
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
-#include "ie_compound_blob.h"
 #include "ie_icore.hpp"
 #include "ie_input_info.hpp"
 #include "ie_layouts.h"
@@ -551,18 +550,6 @@ public:
         }
     }
 
-    void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
-        try {
-            std::vector<ov::SoPtr<ov::ITensor>> tensors;
-            for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::make_tensor(blob, true));
-            }
-            m_request->set_tensors(find_port(name), tensors);
-        } catch (const ov::Exception& ex) {
-            IE_THROW(GeneralError) << ex.what();
-        }
-    }
-
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
         auto port = find_port(name);
         auto& rt_info = port.get_rt_info();
@@ -572,22 +559,6 @@ public:
             desc = it->second.as<InferenceEngine::TensorDesc>();
         }
         return tensor_to_blob(m_request->get_tensor(port), true, desc);
-    }
-
-    InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
-        auto port = find_port(name);
-        auto& rt_info = port.get_rt_info();
-        auto it = rt_info.find("ie_legacy_td");
-        InferenceEngine::TensorDesc desc;
-        if (it != rt_info.end()) {
-            desc = it->second.as<InferenceEngine::TensorDesc>();
-        }
-        auto tensors = m_request->get_tensors(port);
-        std::vector<InferenceEngine::Blob::Ptr> blobs;
-        for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor, true, desc));
-        }
-        return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
 
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
@@ -759,41 +730,15 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
         const auto& name = get_legacy_name_from_port(port);
-        OPENVINO_ASSERT(!m_request->GetBlobs(name),
-                        "get_tensor shall not be used together with batched "
-                        "set_tensors/set_input_tensors for name '",
-                        name,
-                        "'");
         auto blob = m_request->GetBlob(name);
         ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(blob);
         if (!tensor._so)
             tensor._so = m_request->getPointerToSo();
         return tensor;
     }
+
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
         m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor, m_unwrap_tensor));
-    }
-
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {
-        auto blobs = m_request->GetBlobs(get_legacy_name_from_port(port));
-        std::vector<ov::SoPtr<ov::ITensor>> ret;
-        if (!blobs)
-            return ret;
-        for (size_t i = 0; i < blobs->size(); i++) {
-            ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(blobs->getBlob(i));
-            if (!tensor._so)
-                tensor._so = m_request->getPointerToSo();
-            ret.emplace_back(tensor);
-        }
-        return ret;
-    }
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {
-        std::vector<InferenceEngine::Blob::Ptr> blobs;
-        for (const auto& tensor : tensors) {
-            blobs.emplace_back(ov::tensor_to_blob(tensor, m_unwrap_tensor));
-        }
-        m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
