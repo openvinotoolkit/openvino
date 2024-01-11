@@ -36,7 +36,6 @@
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
