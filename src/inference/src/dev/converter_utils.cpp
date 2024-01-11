@@ -30,17 +30,14 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "remote_context_wrapper.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -252,17 +249,6 @@ public:
              m_plugin._so});
     }
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
-        const InferenceEngine::CNNNetwork& network,
-        const std::map<std::string, std::string>& config,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context) override {
-        return ov::legacy_convert::convert_compiled_model(
-            {m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
-                                     ov::any_copy(config),
-                                     ov::legacy_convert::convert_remote_context(context)),
-             m_plugin._so});
-    }
-
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const std::string& modelPath,
         const std::map<std::string, std::string>& config) override {
@@ -296,15 +282,6 @@ public:
         return m_plugin->get_property(name, options);
     }
 
-    std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
-        return ov::legacy_convert::convert_remote_context(m_plugin->create_context(params));
-    }
-
-    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(
-        const InferenceEngine::ParamMap& params) override {
-        return ov::legacy_convert::convert_remote_context(m_plugin->get_default_context(params));
-    }
-
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) override {
@@ -318,17 +295,6 @@ public:
         const std::map<std::string, std::string>& config) override {
         return ov::legacy_convert::convert_compiled_model(
             {m_plugin->import_model(networkModel, ov::any_copy(config)), m_plugin._so});
-    }
-
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
-        std::istream& networkModel,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override {
-        return ov::legacy_convert::convert_compiled_model(
-            {m_plugin->import_model(networkModel,
-                                    ov::legacy_convert::convert_remote_context(context),
-                                    ov::any_copy(config)),
-             m_plugin._so});
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
@@ -450,10 +416,6 @@ public:
             }
         }
         return m_model->get_property(name);
-    }
-
-    std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override {
-        return ov::legacy_convert::convert_remote_context(m_model->get_context());
     }
 
     ov::SoPtr<ov::ICompiledModel> get_compiled_model() {
@@ -798,60 +760,6 @@ ov::SoPtr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
     }
     return {std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request, plugin_name),
             request->getPointerToSo()};
-}
-
-namespace InferenceEngine {
-const std::shared_ptr<InferenceEngine::RemoteContext>& IRemoteContextWrapper::get_context() {
-    return m_context;
-}
-
-const std::string& IRemoteContextWrapper::get_device_name() const {
-    m_name = m_context->getDeviceName();
-    return m_name;
-}
-
-const ov::AnyMap& IRemoteContextWrapper::get_property() const {
-    m_params = m_context->getParams();
-    return m_params;
-}
-
-ov::SoPtr<ov::IRemoteTensor> IRemoteContextWrapper::create_tensor(const ov::element::Type& type,
-                                                                  const ov::Shape& shape,
-                                                                  const ov::AnyMap& params) {
-    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                     shape,
-                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
-    auto blob = m_context->CreateBlob(desc, params);
-    blob->allocate();
-    auto tensor = ov::make_tensor(blob);
-    return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
-}
-
-ov::SoPtr<ov::ITensor> IRemoteContextWrapper::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                     shape,
-                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
-    auto blob = m_context->CreateHostBlob(desc);
-    blob->allocate();
-    return ov::make_tensor(blob);
-}
-
-}  // namespace InferenceEngine
-
-std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remote_context(
-    const ov::SoPtr<ov::IRemoteContext>& context) {
-    if (auto ctx = std::dynamic_pointer_cast<InferenceEngine::IRemoteContextWrapper>(context._ptr)) {
-        return ctx->get_context();
-    }
-    return std::make_shared<ov::RemoteContextWrapper>(context);
-}
-
-ov::SoPtr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
-    const std::shared_ptr<InferenceEngine::RemoteContext>& context) {
-    if (auto ctx = std::dynamic_pointer_cast<ov::RemoteContextWrapper>(context)) {
-        return ctx->get_context();
-    }
-    return {std::make_shared<InferenceEngine::IRemoteContextWrapper>(context)};
 }
 
 namespace ov {

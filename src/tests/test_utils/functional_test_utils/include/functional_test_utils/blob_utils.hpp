@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "blob_transform.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -591,26 +590,6 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(const Inferenc
     return blob;
 }
 
-inline InferenceEngine::Blob::Ptr convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
-                                                    InferenceEngine::Layout layout) {
-    IE_ASSERT(in != nullptr) << "Got NULL pointer";
-
-    const auto& inDesc = in->getTensorDesc();
-
-    if (inDesc.getLayout() == layout) {
-        return in;
-    }
-
-    const auto outDesc = InferenceEngine::TensorDesc(inDesc.getPrecision(), inDesc.getDims(), layout);
-
-    const auto out = make_blob_with_precision(outDesc);
-    out->allocate();
-
-    InferenceEngine::blob_copy(in, out);
-
-    return out;
-}
-
 template <typename dType>
 inline void fillInputsBySinValues(dType* data, size_t size) {
     if (std::is_same<dType, float>::value) {
@@ -674,7 +653,6 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 enum class BlobType {
     Memory,
-    Batched,
     Compound,
     Remote,
 };
@@ -683,10 +661,6 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
     switch (type) {
     case BlobType::Memory:
         return os << "Memory";
-    case BlobType::Batched:
-        return os << "Batched";
-    case BlobType::Compound:
-        return os << "Compound";
     case BlobType::Remote:
         return os << "Remote";
     default:

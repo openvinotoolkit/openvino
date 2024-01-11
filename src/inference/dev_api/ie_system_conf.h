@@ -18,17 +18,6 @@
 namespace InferenceEngine {
 
 /**
- * @brief      Checks whether OpenMP environment variables are defined
- * @ingroup    ie_dev_api_system_conf
- *
- * @param[in]  includeOMPNumThreads  Indicates if the omp number threads is included
- * @return     `True` if any OpenMP environment variable is defined, `false` otherwise
- */
-inline bool checkOpenMpEnvVars(bool includeOMPNumThreads = true) {
-    return ov::check_open_mp_env_vars(includeOMPNumThreads);
-}
-
-/**
  * @brief      Returns available CPU NUMA nodes (on Linux, and Windows [only with TBB], single node is assumed on all
  * other OSes)
  * @ingroup    ie_dev_api_system_conf
@@ -59,18 +48,6 @@ inline std::vector<int> getAvailableCoresTypes() {
  */
 inline int getNumberOfCPUCores(bool bigCoresOnly = false) {
     return ov::get_number_of_cpu_cores(bigCoresOnly);
-}
-
-/**
- * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original
- * parallel API of choice, which uses the 'all' logical cores). call function with 'false' to get #logical cores of
- * all types call function with 'true' to get #logical 'Big' cores number of 'Little' = 'all' - 'Big'
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
- * @return     Number of logical CPU cores.
- */
-inline int getNumberOfLogicalCPUCores(bool bigCoresOnly = false) {
-    return ov::get_number_of_logical_cpu_cores(bigCoresOnly);
 }
 
 /**

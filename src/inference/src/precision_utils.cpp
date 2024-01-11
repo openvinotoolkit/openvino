@@ -17,12 +17,6 @@ void f16tof32Arrays(float* dst, const short* src, size_t nelem, float scale, flo
     }
 }
 
-void f32tof16Arrays(short* dst, const float* src, size_t nelem, float scale, float bias) {
-    for (size_t i = 0; i < nelem; i++) {
-        dst[i] = PrecisionUtils::f32tof16(src[i] * scale + bias);
-    }
-}
-
 // Function to convert F32 into F16
 // F32: exp_bias:127 SEEEEEEE EMMMMMMM MMMMMMMM MMMMMMMM.
 // F16: exp_bias:15  SEEEEEMM MMMMMMMM

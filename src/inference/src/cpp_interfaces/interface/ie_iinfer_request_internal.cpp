@@ -19,7 +19,6 @@
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_preprocess.hpp"
-#include "ie_remote_context.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -121,8 +120,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     const auto input = findInputByNodeName(name);
     const auto output = findOutputByNodeName(name);
 
-    const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
-    if (!remoteBlobPassed && userBlob->buffer() == nullptr)
+    if (userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (userBlob->size() == 0 && !((input && input->get_output_partial_shape(0).is_dynamic()) ||
                                    (output && output->get_output_partial_shape(0).is_dynamic()))) {
@@ -322,8 +320,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
     if (!isDynamic && refSize != blob->size()) {
         IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
-    const bool remoteBlobPassed = blob->is<RemoteBlob>();
-    if (!remoteBlobPassed && blob->buffer() == nullptr)
+    if (blob->buffer() == nullptr)
         IE_THROW() << strNotAllocated;
 }
 

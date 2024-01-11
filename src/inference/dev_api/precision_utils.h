@@ -65,20 +65,6 @@ INFERENCE_ENGINE_API_CPP(float) f16tof32(ie_fp16 x);
 INFERENCE_ENGINE_API_CPP(void)
 f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
-/**
- * @brief      Converts a single-precision floating point array to a half-precision floating point array
- *             and applies `scale` and `bias` if needed
- * @ingroup    ie_dev_api_precision
- *
- * @param      dst    A destination array of half-precision floating point values
- * @param[in]  src    A sources array of single-precision floating point values
- * @param[in]  nelem  A number of elements in arrays
- * @param[in]  scale  An optional scale parameter
- * @param[in]  bias   An optional bias parameter
- */
-INFERENCE_ENGINE_API_CPP(void)
-f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
-
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)

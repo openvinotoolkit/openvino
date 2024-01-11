@@ -6,8 +6,6 @@
 
 #include <cpp/ie_cnn_network.h>
 
-#include <ie_remote_context.hpp>
-
 #include "any_copy.hpp"
 #include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -209,8 +207,7 @@ private:
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
         const InferenceEngine::CNNNetwork& model,
         ov::Plugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig,
-        const InferenceEngine::RemoteContext::Ptr& context);
+        const std::map<std::string, std::string>& parsedConfig);
 
 public:
     CoreImpl(bool _newAPI);
@@ -245,13 +242,6 @@ public:
                                             bool frontendMode = false) const override;
 
     bool isNewAPI() const override;
-
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override;
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
-        const InferenceEngine::CNNNetwork& network,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const std::string& deviceNameOrig,
@@ -290,16 +280,6 @@ public:
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override;
-
-    /**
-     * @brief Create a new shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
-     * @param deviceName Name of a device to create new shared context on.
-     * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
-     */
-    InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
-                                                      const InferenceEngine::ParamMap& params) override;
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;

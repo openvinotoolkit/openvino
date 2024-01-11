@@ -39,8 +39,6 @@
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
 
-class RemoteBlob;
-
 /**
  * @brief This class represents a universal container in the Inference Engine
  *
@@ -81,7 +79,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(getHardwareBlob()) != nullptr;
+        return dynamic_cast<T*>(this) != nullptr;
     }
 
     /**
@@ -94,7 +92,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(getHardwareBlob()) != nullptr;
+        return dynamic_cast<const T*>(this) != nullptr;
     }
 
     /**
@@ -105,25 +103,9 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <
-        typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
-    T* as() noexcept {
-        return dynamic_cast<T*>(getHardwareBlob());
-    }
-
-    /**
-     * @brief Casts this Blob object to the type RemoteBlob.
-     *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Blob
-     * @return Raw pointer to the object of the type T or nullptr on error
-     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
     }
@@ -136,27 +118,11 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <
-        typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
-    const T* as() const noexcept {
-        return dynamic_cast<const T*>(getHardwareBlob());
-    }
-
-    /**
-     * @brief Casts this Blob object to the type RemoteBlob.
-     *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Blob
-     * @return Raw pointer to the object of the type T or nullptr on error
-     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<const T*>(this);
     }
 
     /**
@@ -319,9 +285,6 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
-
-    const Blob* getHardwareBlob() const;
-    Blob* getHardwareBlob();
 };
 
 /**
