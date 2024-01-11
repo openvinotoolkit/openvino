@@ -147,6 +147,10 @@ This mode is going to be deprecated soon. GNA supports the ``i16`` and ``i8`` qu
 
 :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
 
+For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
+`Model and Operation Limitations section <#model-and-operation-limitations>`__.
+
+
 Supported Features
 ###########################################################
 
