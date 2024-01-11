@@ -3,9 +3,6 @@
 //
 
 #include "shared_test_classes/single_op/scatter_elements_update.hpp"
-#include "ov_models/builders.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-using ov::op::operator<<;
 
 namespace ov {
 namespace test {
@@ -80,7 +77,7 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
     result << "IndicesShape=" << ov::test::utils::vec2str(input_shapes.at(1).second) << "_";
     result << "Axis=" << axis << "_";
-    //result << "ReduceMode=" << reduceMode << "_";
+    result << "ReduceMode=" << as_string(reduceMode) << "_";
     result << "UseInitVal=" << useInitVal << "_";
     result << "Indices=" << ov::test::utils::vec2str(indices_value) << "_";
     result << "modelType=" << model_type.to_string() << "_";
