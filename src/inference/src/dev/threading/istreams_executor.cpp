@@ -586,10 +586,8 @@ void IStreamsExecutor::Config::update_executor_config() {
         const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
         const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
-        if ((proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
-             _thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) ||
-            (proc_type_table[0][MAIN_CORE_PROC] == 0 && proc_type_table[0][HYPER_THREADING_PROC] == 0 &&
-             _thread_preferred_core_type == IStreamsExecutor::Config::BIG) ||
+        if ((total_num_little_cores == 0 && _thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) ||
+            (total_num_big_cores == 0 && _thread_preferred_core_type == IStreamsExecutor::Config::BIG) ||
             (proc_type_table.size() > 1 && _thread_preferred_core_type == IStreamsExecutor::Config::BIG)) {
             _thread_preferred_core_type = IStreamsExecutor::Config::ANY;
         }
