@@ -127,7 +127,7 @@ void permute_inst::on_execute() {
 
 
 void permute_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
     if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
@@ -137,6 +137,8 @@ void permute_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;
 }
