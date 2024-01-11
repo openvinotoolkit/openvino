@@ -88,11 +88,11 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& pool_aux_vec_idxs,
                                    const std::vector<size_t>& pool_aux_gpr_idxs) const {
     if (pool_aux_vec_idxs.size() < get_aux_vecs_count()) {
-        IE_THROW() << "Failed to allocate required number of vector registers";
+        OPENVINO_THROW("Failed to allocate required number of vector registers");
     }
 
     if (pool_aux_gpr_idxs.size() < get_aux_gprs_count()) {
-        IE_THROW() << "Failed to allocate required number of gpr registers";
+        OPENVINO_THROW("Failed to allocate required number of gpr registers");
     }
 
     for (auto idx : pool_aux_vec_idxs) {
