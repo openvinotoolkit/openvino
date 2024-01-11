@@ -10,7 +10,7 @@ scipy>=1.7; python_version <= "3.8"
 scipy>=1.11.1; python_version >= "3.9"
 wheel>=0.38.1
 defusedxml>=0.7.1
-fastjsonschema~=2.17.1
+fastjsonschema~=2.19.1
 tensorflow>=2.5,<2.15.0
 test-generator==0.1.2
 requests>=2.25.1
