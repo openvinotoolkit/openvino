@@ -27,6 +27,7 @@
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 #include "ops_bridge.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
 #include "utils/legacy_conversion_extension.hpp"
@@ -114,6 +115,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager;
+    manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
     manager.register_pass<pass::ResolveNameCollisions>();
     manager.run_passes(model);
 }

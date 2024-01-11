@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -174,6 +175,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
     manager.register_pass<ov::pass::ConvertConvertLike>();
+    manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
