@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "validation_util.hpp"
 
 namespace ov {
