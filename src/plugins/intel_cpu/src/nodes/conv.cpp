@@ -373,7 +373,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 
     priorities.erase(std::remove_if(priorities.begin(),
                                     priorities.end(),
-                                    [](impl_desc_type type) {
+                                    [&](impl_desc_type type) {
                                         return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
                                     }),
                      priorities.end());
@@ -382,8 +382,12 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+    const bool isAvx2INT8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2) &&
+                                    canBeExecutedInInt8();
+    //AVX2-VNNI brgconv has perf regression on INT8 than forked JIT.
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !isAvx2INT8;;
     return isBrgConvAvailable;
 }
 
