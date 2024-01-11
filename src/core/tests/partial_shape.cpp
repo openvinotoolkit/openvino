@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_tools.hpp"
-#include "ngraph/shape_util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -689,52 +688,6 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s1.relaxes(s2));
     ASSERT_FALSE(s2.refines(s1));
     ASSERT_FALSE(s2.relaxes(s1));
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-TEST(partial_shape, partial_shape_project_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = ngraph::project(s1, AxisSet{284, 0, 103});
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_project_rank_static_dynamic) {
-    PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = ngraph::project(s1, AxisSet{0, 3});
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{Dimension::dynamic(), 3}));
-}
-
-TEST(partial_shape, partial_shape_reduce_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = ngraph::reduce(s1, AxisSet{284, 0, 103}, false);
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_reduce_rank_static_dynamic) {
-    PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = ngraph::reduce(s1, AxisSet{0, 3}, false);
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{2, Dimension::dynamic()}));
-}
-
-TEST(partial_shape, partial_shape_inject_pairs_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 =
-        ngraph::inject_pairs(s1, std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {207, 909}});
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_inject_pairs_rank_static) {
-    PartialShape s1{1, Dimension::dynamic()};
-    PartialShape s2 = ngraph::inject_pairs(
-        s1,
-        std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {2, 909}, {4, Dimension::dynamic()}});
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{Dimension::dynamic(), 1, 909, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(partial_shape, merge_rank_dyn_dyn) {
