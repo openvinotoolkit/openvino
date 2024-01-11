@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -147,7 +147,13 @@ void calculate_auto_pads(const Shape& data_shape,
         // Extract kernel shape - remove (N,C) channels
         Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
         OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::infer_auto_padding(data_shape, kernel_shape, strides, dilations, pad_type, padding_above, padding_below);
+        ov::util::infer_auto_padding(data_shape,
+                                     kernel_shape,
+                                     strides,
+                                     dilations,
+                                     pad_type,
+                                     padding_above,
+                                     padding_below);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }

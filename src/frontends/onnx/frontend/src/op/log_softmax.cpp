@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
+#include "validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -39,16 +39,12 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axis(node.get_description(), axis, data_rank);
         result = std::make_shared<default_opset::LogSoftmax>(data, 0);
         break;
     }
     default: {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;

@@ -5,7 +5,6 @@
 #include "op/hardmax.hpp"
 
 #include "exceptions.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -16,6 +15,7 @@
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
+#include "validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -28,9 +28,7 @@ OutputVector hardmax(const Node& node) {
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     if (input_shape.rank().is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
@@ -69,9 +67,7 @@ OutputVector hardmax(const Node& node) {
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
 
     const auto input_runtime_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
     Output<ngraph::Node> row_size =

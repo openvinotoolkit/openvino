@@ -4,7 +4,6 @@
 
 #include "bound_evaluate.hpp"
 
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -429,10 +428,8 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
         unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_0_maximum_value = ngraph::get_constant_max_of_type(low_0.get_element_type());
-    auto input_1_maximum_value = ngraph::get_constant_max_of_type(low_1.get_element_type());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto input_0_maximum_value = ov::util::get_constant_max_of_type(low_0.get_element_type());
+    auto input_1_maximum_value = ov::util::get_constant_max_of_type(low_1.get_element_type());
     if (input_0_maximum_value == nullptr || input_1_maximum_value == nullptr)
         return false;
 
@@ -514,9 +511,7 @@ bool ov::tensor_is_non_negative(const Tensor& bound) {
 bool ov::tensor_has_max_value(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto max_constant = ngraph::get_constant_max_of_type(bound.get_element_type());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto max_constant = ov::util::get_constant_max_of_type(bound.get_element_type());
     OutputVector equal(1);
 
     bool folded = std::make_shared<op::v1::Equal>(bound_constant, max_constant)

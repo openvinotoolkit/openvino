@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -41,9 +41,7 @@ OutputVector clip(const Node& node) {
     if (inputs.size() > 1 && !ov::op::util::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        min = ngraph::get_constant_lowest_of_type(data_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        min = ov::util::get_constant_lowest_of_type(data_type);
     }
 
     // If third input is provided, assign to max input, otherwise set maximum
@@ -51,9 +49,7 @@ OutputVector clip(const Node& node) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs.at(2))) {
         max = inputs.at(2);
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        max = ngraph::get_constant_max_of_type(data_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        max = ov::util::get_constant_max_of_type(data_type);
     }
 
     const auto max_of_min_and_data = std::make_shared<default_opset::Maximum>(min, data);
