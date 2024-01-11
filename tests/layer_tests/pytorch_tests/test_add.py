@@ -143,8 +143,8 @@ class TestAddLists(PytorchLayerTest):
 class TestAddBool(PytorchLayerTest): 
 
     def _prepare_input(self):
-        input1 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)
-        input2 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)  # Additional input
+        input2 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(np.bool_)
+        input1 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(np.bool_)
         return (input1, input2)  
 
     def create_model(self):
@@ -154,9 +154,9 @@ class TestAddBool(PytorchLayerTest):
                 super(aten_add, self).__init__()
 
             def forward(self, x1, x2):
-                x1 = x1.to(torch.bool)
-                x2 = x2.to(torch.bool)
-                return x1 + x2     #Uses + inplace of 'add'  
+                # x1 = x1.to(torch.bool)
+                # x2 = x2.to(torch.bool)
+                return torch.add(x1, x2)     #Uses + inplace of 'add'  
         ref_net = None
 
         return aten_add(), ref_net, "aten::add"
