@@ -14,7 +14,7 @@ This sample demonstrates how to execute an inference of image classification mod
 with images in NV12 color format using Synchronous Inference Request API. Before
 using the sample, refer to the following requirements:
 
-- The sample accepts any file format supported by `ov::Core::read_model <classov_1_1_core.html>`__
+- The sample accepts any file format supported by ``ov::Core::read_model``.
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>` model and
   uncompressed images in the NV12 color format - \*.yuv
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`

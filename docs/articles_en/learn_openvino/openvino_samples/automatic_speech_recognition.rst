@@ -29,8 +29,7 @@ preprocessing (feature extraction) to get a feature vector from a speech signal,
 as well as postprocessing (decoding) to produce text from scores. Before using the
 sample, refer to the following requirements:
 
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  format that does not require preprocessing.
+- The sample accepts any file format supported by ``core.read_model``.
 - The sample has been validated with an acoustic model based on Kaldi neural models
   (see :ref:`Model Preparation <model-preparation-speech>` section)
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
