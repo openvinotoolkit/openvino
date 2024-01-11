@@ -15,6 +15,7 @@ class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API KeepConstAndDecompression;
 class TRANSFORMATIONS_API KeepConstantsPrecisionAndAddConverts;
+class TRANSFORMATIONS_API KeepFWPrecisionFor16BitFloatConstants;
 
 }  // namespace pass
 }  // namespace ov
@@ -57,4 +58,14 @@ class ov::pass::KeepConstantsPrecisionAndAddConverts : public MatcherPass {
 public:
     OPENVINO_RTTI("KeepConstantsPrecisionAndAddConverts", "0");
     KeepConstantsPrecisionAndAddConverts();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Prevents ConstantFolding for f16/bf16 Const + Convert to f32 to keep original FW float Constants
+ */
+class ov::pass::KeepFWPrecisionFor16BitFloatConstants : public MatcherPass {
+public:
+    OPENVINO_RTTI("KeepFWPrecisionFor16BitFloatConstants", "0");
+    KeepFWPrecisionFor16BitFloatConstants();
 };

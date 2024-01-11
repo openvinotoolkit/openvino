@@ -36,6 +36,7 @@
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
@@ -566,6 +567,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+    manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
     manager.register_pass<ov::pass::ResolveNameCollisions>();
     manager.run_passes(model);
 }
