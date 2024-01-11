@@ -1854,11 +1854,11 @@ TEST(pre_post_process, postprocess_convert_color_format_unsupported) {
 
     EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
                  p.output().postprocess().convert_color(ColorFormat::GRAY);
-                 f = p.build(), ov::AssertFailure);
+                 f = p.build(), ov::Exception);
 
     EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
                  p.output().postprocess().convert_color(ColorFormat::UNDEFINED);
-                 f = p.build(), ov::AssertFailure);
+                 f = p.build(), ov::Exception);
     EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_color_format(ColorFormat::UNDEFINED);
                  p.output().postprocess().convert_color(ColorFormat::BGR);
                  f = p.build(), ov::AssertFailure);
