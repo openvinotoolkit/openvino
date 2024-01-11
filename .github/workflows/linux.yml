@@ -304,7 +304,7 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || matrix.TEST_TYPE == 'OP' && 20 }}
     defaults:
       run:
         shell: bash
