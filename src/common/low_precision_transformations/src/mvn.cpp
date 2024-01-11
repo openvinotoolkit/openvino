@@ -27,7 +27,7 @@ using namespace ov::pass::low_precision;
 namespace mvn {
 
 template<typename T>
-std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Constant& originalConst) {
+std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Constant& originalConst, const ov::element::Type& precision) {
     std::vector<T> source = originalConst.cast_vector<T>();
 
     std::vector<T> newData(source.size());
@@ -35,8 +35,7 @@ std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Con
         newData[i] = source[i] < 0 ? T{-1} : T{1};
     }
 
-    const ov::element::Type type = originalConst.get_output_element_type(0);
-    return ov::op::v0::Constant::create(type, originalConst.get_shape(), newData);
+    return ov::op::v0::Constant::create(precision, originalConst.get_shape(), newData);
 }
 
 } // namespace mvn
@@ -138,21 +137,20 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn, defaultPrecisions);
     const auto scalesConst = dequantization.multiplyConstant;
-    const auto type = scalesConst->get_element_type();
 
     auto newScalesConst = scalesConst;
     if (normalizeVariance) {
-        switch (type) {
+        switch (deqPrecision) {
             case ov::element::Type_t::f16: {
-                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f16>::value_type>(*scalesConst);
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f16>::value_type>(*scalesConst, deqPrecision);
                 break;
             }
             case ov::element::Type_t::f32: {
-                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f32>::value_type>(*scalesConst);
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f32>::value_type>(*scalesConst, deqPrecision);
                 break;
             }
             default: {
-                THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << type;
+                THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << deqPrecision;
             }
         }
     }

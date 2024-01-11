@@ -139,6 +139,21 @@ const std::vector<MVNTransformationTestValues> testValues = {
         true,
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
+            ov::element::f16,
+            {{ov::element::f16}, {}, {{0.45f}, ov::element::f16, {}, false, 1ul, ov::element::f16}}
+        },
+        {
+            ov::element::f16,
+            { },
+            ov::element::f32,
+            {{}, {}, {1.f}},
+        }
+    },
+    {
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
             ov::element::u8,
             {{ov::element::f32}, {-0.32f}, {0.45f}}
         },
