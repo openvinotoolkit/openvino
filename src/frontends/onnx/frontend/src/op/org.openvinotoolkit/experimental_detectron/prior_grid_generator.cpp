@@ -4,16 +4,17 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/prior_grid_generator.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector experimental_detectron_prior_grid_generator(const Node& node) {
-    using PriorGridGenerator = ngraph::op::v6::ExperimentalDetectronPriorGridGenerator;
+    using PriorGridGenerator = v6::ExperimentalDetectronPriorGridGenerator;
 
     auto inputs = node.get_ng_inputs();
     auto priors = inputs[0];

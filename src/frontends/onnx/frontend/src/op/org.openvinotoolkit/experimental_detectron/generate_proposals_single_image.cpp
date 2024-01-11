@@ -4,17 +4,18 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector experimental_detectron_generate_proposals(const Node& node) {
-    using GenerateProposalsSingleImage = ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+    using GenerateProposalsSingleImage = v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
     const auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 4,
