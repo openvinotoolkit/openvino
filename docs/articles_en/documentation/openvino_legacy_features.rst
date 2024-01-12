@@ -13,9 +13,16 @@ Legacy Features and Components
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
+<<<<<<< HEAD
    Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
 
 
+=======
+   Post-training Optimization Tool <pot_introduction>
+
+
+
+>>>>>>> 7cb5206755 (Remove mxnet caffe kaldi and speech sample)
 Since OpenVINO has grown very rapidly in recent years, some of its features
 and components have been replaced by other solutions. Some of them are still
 supported to assure OpenVINO users are given enough time to adjust their projects,
@@ -71,16 +78,6 @@ offering.
 |   :doc:`See the Open Model ZOO documentation <model_zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
-
-| **Apache MXNet, Caffe, and Kaldi model formats**
-|   *New solution:* conversion to ONNX via external tools
-|   *Old solution:* model support will be discontinued with OpenVINO 2024.0
-|
-|   Since these three model formats proved to be far less popular among OpenVINO users
-    than the remaining ones, their support has been discontinued. Converting them to the
-    ONNX format is a possible way of retaining them in the OpenVINO-based pipeline.
-|   :doc:`See the previous conversion instructions <mxnet_caffe_kaldi>`
-|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
 
 
 | **Post-training Optimization Tool (POT)**
