@@ -21,7 +21,7 @@ OutputVector constant_of_shape(const onnx_import::Node& node) {
     Output<ngraph::Node> constant_value;
     if (node.has_attribute("value")) {
         auto value_tensor = node.get_attribute_value<Tensor>("value");
-        constant_value = value_tensor.get_ng_constant();
+        constant_value = value_tensor.get_ov_constant();
         constant_value = reshape::interpret_as_scalar(constant_value);
     } else {
         constant_value = default_opset::Constant::create(element::f32, {}, {0});

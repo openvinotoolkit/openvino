@@ -148,27 +148,26 @@ class TestReciprocal(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_reciprocal_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reciprocal_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_reciprocal(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reciprocal(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_reciprocal_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_old_api):
+    def test_reciprocal_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_reciprocal_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reciprocal_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
