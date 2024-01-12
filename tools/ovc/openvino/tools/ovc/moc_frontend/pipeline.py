@@ -39,27 +39,9 @@ def get_enabled_and_disabled_transforms():
 
 def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
     for new_node in new_nodes:
+        node = new_node['node']
 
-        node_found = False
-        for item in model_inputs_or_outputs:
-            if is_input:
-                name = new_node['input_name']
-                if name in item.get_names():
-                    node_found = True
-                    break
-                elif name.endswith(":0") and name[0:-2] in item.get_names():
-                    node_found = True
-                    break
-            else:
-                name = new_node['output_name']
-                if name in item.get_names():
-                    node_found = True
-                    break
-                elif name.endswith(":0") and name[0:-2] in item.get_names():
-                    node_found = True
-                    break
-
-        if not node_found:
+        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
             if is_input:
                 raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
             else:
