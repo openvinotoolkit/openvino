@@ -16,24 +16,12 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     }
 }
 
-Napi::Function PrePostProcessorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function PrePostProcessorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
                        {InstanceMethod("input", &PrePostProcessorWrap::input),
                         InstanceMethod("output", &PrePostProcessorWrap::output),
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
-}
-
-Napi::Object PrePostProcessorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->ppp_prototype = ref;
-
-    exports.Set("PrePostProcessor", prototype);
-    return exports;
 }
 
 Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {

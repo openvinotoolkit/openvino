@@ -3,7 +3,7 @@
 
 #include "preprocess/preprocess.hpp"
 
-
+#include "addon.hpp"
 
 namespace preprocess {
   Napi::Object init(Napi::Env env, Napi::Object exports) {
@@ -19,7 +19,8 @@ namespace preprocess {
       auto preprocess = Napi::Object::New(env);
       auto resizeAlgorithm = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
 
-      PrePostProcessorWrap::init(env, preprocess);
+      const auto data = env.GetInstanceData<AddonData>();
+      init_class(env, preprocess, "PrePostProcessor", &PrePostProcessorWrap::get_class, data->ppp);
       preprocess.DefineProperty(resizeAlgorithm);
 
       return preprocess;
