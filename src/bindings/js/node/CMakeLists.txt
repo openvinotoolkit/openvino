@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Disable building for vcpkg
+if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
+    return()
+endif()
+
 if(WIN32)
     return()
 endif()
