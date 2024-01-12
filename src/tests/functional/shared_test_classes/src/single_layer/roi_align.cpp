@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset3.hpp>
-
 #include "openvino/core/enum_names.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/roi_align.hpp"
 
