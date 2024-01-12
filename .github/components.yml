@@ -157,6 +157,11 @@ Python_API:
     - samples
     - MO
     - tools
+    - ONNX_FE
+    - PDPD_FE
+    - TF_FE
+    - TFL_FE
+    - PyTorch_FE
   build:
     - CPU
     - HETERO
@@ -164,11 +169,6 @@ Python_API:
     - TEMPLATE
     - AUTO
     - IR_FE
-    - ONNX_FE
-    - PDPD_FE
-    - TF_FE
-    - TFL_FE
-    - PyTorch_FE
 
 JS_API:
   revalidate:
