@@ -4,7 +4,7 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only 1 input and output are supported.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html)
 
 ## Requirements
 
@@ -14,8 +14,7 @@ For more detailed information on how this sample works, check the dedicated [art
 |                             | [googlenet-v1](https://docs.openvino.ai/2023.3/omz_models_model_googlenet_v1.html)                                    |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                             |
 | Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                   |
-| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_hello_classification_README.html),            |
-|                             | [C](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_c_samples_hello_classification_README.html)  |
+| Other language realization  | [C++, C](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html),            |
 
 The following Python API is used in the application:
 

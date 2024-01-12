@@ -16,9 +16,7 @@ Test performance with the benchmark_app
 
 You can run OpenVINO benchmarks in both C++ and Python APIs, yet the experience differs in each case.
 The Python one is part of OpenVINO Runtime installation, while C++ is available as a code sample.
-For a detailed description, see: 
-* :doc:`benchmark_app for C++ <openvino_inference_engine_samples_benchmark_app_README>` 
-* :doc:`benchmark_app for Python <openvino_inference_engine_tools_benchmark_tool_README>`.
+For a detailed description, see: :doc:`benchmark_app <openvino_sample_benchmark_tool>`.
 
 Make sure to install the latest release package with support for frameworks of the models you want to test.
 For the most reliable performance benchmarks, :doc:`prepare the model for use with OpenVINO <openvino_docs_model_processing_introduction>`. 
@@ -87,7 +85,7 @@ slower than the subsequent ones, an aggregated value can be used for the executi
 
 When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap the exact inference execution (for examples, see :doc:`Benchmark app <openvino_inference_engine_samples_benchmark_app_README>`).
+-	Wrap the exact inference execution (for examples, see :doc:`Benchmark app <openvino_sample_benchmark_tool>`).
 -	Do not include model loading time.
 -	Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
 -	In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <openvino_docs_OV_UG_Preprocessing_Overview>`.
@@ -98,7 +96,7 @@ Internal Inference Performance Counters and Execution Graphs
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 More detailed insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
-Both :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` and :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` 
+Both :doc:`C++ and Python <openvino_sample_benchmark_tool>` 
 versions of the *benchmark_app* support a ``-pc`` command-line parameter that outputs internal execution breakdown.
 
 For example, the table shown below is part of performance counters for quantized 

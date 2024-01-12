@@ -45,5 +45,5 @@ How to Run the Example
    - ``-s``, ``--subset_size`` option. Defines subset size for calibration;
    - ``-o``, ``--output`` option. Defines output folder for the quantized model.
 
-3. Validate your INT8 model using ``./speech_example`` from the Inference Engine examples. Follow the :doc:`speech example description link <openvino_inference_engine_samples_speech_sample_README>` for details.
+3. Validate your INT8 model using ``./speech_example`` from the Inference Engine examples. Follow the :doc:`speech example description link <openvino_sample_automatic_speech_recognition>` for details.
 

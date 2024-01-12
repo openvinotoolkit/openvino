@@ -949,7 +949,7 @@ Compare performance object detection models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 

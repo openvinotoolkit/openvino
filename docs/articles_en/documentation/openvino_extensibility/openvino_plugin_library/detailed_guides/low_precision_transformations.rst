@@ -329,7 +329,7 @@ After that you should quantize model by the :doc:`Model Quantizer <omz_tools_dow
 Inference
 +++++++++
 
-The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <openvino_inference_engine_samples_benchmark_app_README>`.
+The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <openvino_sample_benchmark_tool>`.
 
 .. code-block:: sh 
 

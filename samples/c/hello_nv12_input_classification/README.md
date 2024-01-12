@@ -4,7 +4,7 @@ This sample demonstrates how to execute an inference of image classification net
 
 Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_sample_hello_nv12_input_classification.html)
 
 ## Requirements
 
@@ -14,7 +14,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | Model Format                | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                       |
 | Validated images            | An uncompressed image in the NV12 color format - \*.yuv                                                              |
 | Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                  |
-| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_hello_nv12_input_classification_README.html) |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_sample_hello_nv12_input_classification.html)                          |
 
 The following C++ API is used in the application:
 
@@ -28,6 +28,6 @@ The following C++ API is used in the application:
 |                           | ``ov_preprocess_preprocess_steps_convert_color``          |                                                        |
 
 
-Basic Inference Engine API is covered by [Hello Classification C sample](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_c_samples_hello_classification_README.html).
+Basic Inference Engine API is covered by [Hello Classification C sample](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html).
 
 

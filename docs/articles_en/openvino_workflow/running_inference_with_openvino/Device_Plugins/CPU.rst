@@ -64,7 +64,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``i8`` (Intel® x86-64)
   - ``u1`` (Intel® x86-64)
 
-:doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
 
 
 Quantized Data Types Specifics

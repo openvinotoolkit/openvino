@@ -630,7 +630,7 @@ Compare Inference Speed
 
 
 Measure inference speed with the `OpenVINO Benchmark
-App <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+App <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 
 Benchmark App is a command line tool that measures raw inference
 performance for a specified OpenVINO IR model. Run
@@ -640,7 +640,7 @@ the ``-m`` parameter with asynchronous inference on CPU, for one minute.
 Use the ``-d`` parameter to test performance on a different device, for
 example an Intel integrated Graphics (iGPU), and ``-t`` to set the
 number of seconds to run inference. See the
-`documentation <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+`documentation <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 for more information.
 
 This tutorial uses a wrapper function from `Notebook

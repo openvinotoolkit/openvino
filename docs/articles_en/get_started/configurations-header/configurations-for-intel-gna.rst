@@ -84,8 +84,8 @@ Now you are ready to try out OpenVINO™. You can use the following tutorials to
 
 * Developing in C/C++:
 
-  * :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
-  * :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`
-  * :doc:`Hello Reshape SSD C++ Sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+  * :doc:`Image Classification Async C++ Sample <openvino_sample_image_classification_async>`
+  * :doc:`Hello Classification C++ Sample <openvino_sample_hello_classification>`
+  * :doc:`Hello Reshape SSD C++ Sample <openvino_sample_hello_reshape_ssd>`
 
 

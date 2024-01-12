@@ -35,7 +35,7 @@ Device Naming Convention
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
-For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 .. code-block:: sh
    
@@ -135,7 +135,7 @@ Floating-point precision of a GPU primitive is selected based on operation preci
    The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
    Hardware support of ``u8``/``i8`` acceleration can be queried via the ``ov::device::capabilities`` property.
 
-:doc:`Hello Query Device C++ Sample<openvino_inference_engine_samples_hello_query_device_README>` can be used to print out the supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out the supported data types for all detected devices.
 
 
 Supported Features

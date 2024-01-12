@@ -123,7 +123,7 @@ Here is an example command to evaluate performance of CPU + GPU:
    ./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 
 
-For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
+For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
 
 
 .. note::

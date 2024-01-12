@@ -382,7 +382,7 @@ Compare Performance of the Original and Quantized Models
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 - an inference performance measurement tool in OpenVINO.
 
    **NOTE**: For more accurate performance, it is recommended to run
