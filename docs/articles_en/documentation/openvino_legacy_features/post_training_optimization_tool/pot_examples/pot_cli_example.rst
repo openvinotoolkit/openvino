@@ -52,7 +52,7 @@ For more information about Model Conversion API, refer to its :doc:`documentatio
 Performance Benchmarking of Full-Precision Models
 #################################################
 
-Check the performance of the full-precision model in the IR format using :doc:`Deep Learning Benchmark <openvino_inference_engine_tools_benchmark_tool_README>` tool:
+Check the performance of the full-precision model in the IR format using :doc:`Deep Learning Benchmark <openvino_sample_benchmark_tool>` tool:
 
 .. code-block:: sh
 
@@ -206,7 +206,7 @@ Model Quantization
 Performance Benchmarking of Quantized Model
 ###########################################
 
-Check the performance of the quantized model using :doc:`Deep Learning Benchmark <openvino_inference_engine_tools_benchmark_tool_README>` tool:
+Check the performance of the quantized model using :doc:`Deep Learning Benchmark <openvino_sample_benchmark_tool>` tool:
 
 .. code-block:: sh
 
