@@ -103,7 +103,7 @@ To add new resources, contact someone from the CI team for assistance.
 This cache is used for sharing OpenVINO build artefacts between runs. 
 The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and download build files to/from [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs).
 
-**Note**: This cache is enabled for [self-hosted runners](./runners.md) only.0
+**Note**: This cache is enabled for [self-hosted runners](./runners.md) only.
 
 `sccache` needs several things to work:
 * [be installed](#sccache-installation)
@@ -131,7 +131,7 @@ The `SCCACHE_AZURE_BLOB_CONTAINER` and `SCCACHE_AZURE_CONNECTION_STRING` variabl
 
 These variables are already set in the environments of the self-hosted runners so if a job does not use a Docker container, there is no action required for these variables.
 
-If a job needs a Docker container, these variables should be passed via the `options` key under the `container` key:
+If a job needs a [Docker container](./docker_images.md), these variables should be passed via the `options` key under the `container` key:
 ```yaml
 Build:
   ...
@@ -147,7 +147,7 @@ This way they would be available inside the container for `sccache` to use.
 
 ### Providing `sccache` Prefix
 
-The folder in the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable under the job's `env` key:
+The folder on the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable under the job's `env` key:
 ```yaml
 Build:
   ...
@@ -172,3 +172,4 @@ Build:
     ...
     SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 ```
+or in the CMake configuration command.
