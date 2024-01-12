@@ -334,6 +334,16 @@ TEST_P(CoreThreadingTest, smoke_GetVersions) {
     });
 }
 
+// tested function: get_property, UnregisterPlugin
+TEST_P(CoreThreadingTest, smoke_GetMetric) {
+    ov::Core core;
+
+    runParallel([&] () {
+        core.get_property(target_device, ov::internal::supported_properties);
+        safePluginUnload(core, target_device);
+    });
+}
+
 // tested function: set_property for already created plugins
 TEST_P(CoreThreadingTest, smoke_SetProperty_PluginExists) {
     ov::Core core;

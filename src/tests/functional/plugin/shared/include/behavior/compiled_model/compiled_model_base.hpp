@@ -454,6 +454,19 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     }
 }
 
+TEST_P(OVCompiledModelBaseTest, CheckExecGraphInfoSerialization) {
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
+    std::string out_xml_path = filePrefix + ".xml";
+    std::string out_bin_path = filePrefix + ".bin";
+
+    std::shared_ptr<const ov::Model> runtime_model;
+
+    auto compiled_model = core->compile_model(function, target_device, configuration);
+    ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
+    ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
 TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 

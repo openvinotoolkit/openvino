@@ -518,6 +518,18 @@ TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
     OV_ASSERT_NO_THROW(ie.get_versions(target_device));
 }
 
+TEST_P(OVClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    bool value = false;
+    ASSERT_NO_THROW(ie.set_property({ov::force_tbb_terminate(true)}));
+    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_TRUE(value);
+
+    ASSERT_NO_THROW(ie.set_property({{ov::force_tbb_terminate(false)}}));
+    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_FALSE(value);
+}
+
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_HETERO, ov::enable_profiling(true)));
