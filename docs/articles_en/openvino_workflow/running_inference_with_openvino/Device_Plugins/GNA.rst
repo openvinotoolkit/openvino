@@ -145,7 +145,7 @@ model loading time. Therefore, a model can be run without calibration. However, 
 because the internal quantization algorithm is based on heuristics, the efficiency of which depends on the model and dynamic range of input data.
 This mode is going to be deprecated soon. GNA supports the ``i16`` and ``i8`` quantized data types as inference precision of internal primitives.
 
-:doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
 
 For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
 `Model and Operation Limitations section <#model-and-operation-limitations>`__.
@@ -210,13 +210,8 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-<<<<<<< HEAD
 To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or
 :doc:`Speech C++ Sample <openvino_sample_automatic_speech_recognition>`.
-=======
-To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or
-:doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
->>>>>>> e606223fc3 (Removal of docs for deprecated POT)
 
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
