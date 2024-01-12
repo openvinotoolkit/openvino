@@ -5,7 +5,6 @@
 #include <thread>
 #include <future>
 
-#include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/io_tensor.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "openvino/op/parameter.hpp"
