@@ -10,7 +10,7 @@
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset11.hpp"
-// #include "openvino/opsets/opset19.hpp"
+#include "openvino/opsets/opset19.hpp"
 #include "exceptions.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "openvino/frontend/exception.hpp"
