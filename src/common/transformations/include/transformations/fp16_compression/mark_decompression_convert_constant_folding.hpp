@@ -62,7 +62,10 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Prevents ConstantFolding for f16/bf16 Const + Convert to f32 to keep original FW float Constants
+ * @brief Prevents ConstantFolding for f16/bf16 Const + Convert_To_FP32 to keep original FW float Constants.
+ * Original precision should be kept as long as possible, this prevents redundant conversions and saves memory.
+ * E.g. if original FW model was already compressed no need to upcast during CF, store intermediate f32 consts and
+ * then again compress them to f16 during save_model.
  */
 class ov::pass::MarkCompressedFloatConstants : public MatcherPass {
 public:

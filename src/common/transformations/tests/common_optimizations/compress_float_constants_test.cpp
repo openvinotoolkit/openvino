@@ -546,7 +546,6 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
             {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
         auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
-        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f16);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
                                                               ov::Strides{1, 1},
@@ -587,7 +586,6 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
             {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
         auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
-        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f16);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
                                                               ov::Strides{1, 1},
