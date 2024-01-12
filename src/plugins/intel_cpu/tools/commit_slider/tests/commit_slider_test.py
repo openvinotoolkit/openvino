@@ -9,5 +9,5 @@ from test_util import checkTestCase
 class TryTesting(TestCase):
     @skip_commit_slider_devtest
     def testFbv(self):
-        self.assertTrue(checkTestCase())
+        self.assertTrue(checkTestCase("FirstBadVersion"))
 

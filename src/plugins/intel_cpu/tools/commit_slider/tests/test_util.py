@@ -9,12 +9,12 @@ from os import path
 sys.path.append('../')
 from utils.helpers import getMeaningfullCommitTail
 
-def getVersionList(rsc):
+def getVersionList(caseName, rsc):
     patternPrefix = rsc['CommonRes']['patchGeneratorPrefix']
     patternPostfix = rsc['CommonRes']['patchGeneratorPostfix']
     pattern = "{pre}(.+?){post}".format(pre=patternPrefix, post=patternPostfix)
 
-    with open('main.cpp', 'r') as file:
+    with open(rsc[caseName]['patchedFile'], 'r') as file:
         data = file.read()
 
     stats_re = re.compile(pattern, re.MULTILINE | re.DOTALL)
@@ -41,15 +41,10 @@ def getVersionList(rsc):
     return versionList
 
 
-def makeRepoContent(repoPath, repoName):
+def makeRepoContent(repoPath, repoName, rsc):
     fullPath = path.join(repoPath, repoName)
-    cmakeLists = '''cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-project({repoName} VERSION 1.0)
-add_executable("${{PROJECT_NAME}}" "main.cpp")
-'''.format(repoName=repoName)
+    cmakeLists = rsc['CommonRes']['cmakeTemplate']
+    cmakeLists = cmakeLists.format(repoName=repoName)
 
     filePath = path.join(fullPath, "CMakeLists.txt")
     with open(filePath, "w") as text_file:
@@ -87,17 +82,41 @@ def runCmd(cmd, cwd, verbose=True):
     proc.communicate()
     return output
 
-def createRepo(repoPath, repoName, rsc):
+
+def formatJSON(content, markedVersionList):
+    if isinstance(content, dict):
+        for k, value in content.items():
+            content[k] = formatJSON(value, markedVersionList)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            content[id] = formatJSON(item, markedVersionList)
+    elif isinstance(content, str):
+        # todo: load from test
+        content = content.format(
+            appCmd="./testRepo",
+            appPath="tests/testRepo/build",
+            buildPath="tests/testRepo/build",
+            gitPath="tests/testRepo",
+            start=markedVersionList[0]['commit'],
+            end=markedVersionList[-1]['commit']
+        )
+    else:
+        # bool or digit object
+        pass
+    return content
+
+
+def createRepo(caseName, repoPath, repoName, rsc):
     repoPath = os.path.abspath(repoPath)
     cmd = "mkdir {}".format(repoName)
     runCmd(cmd, repoPath)
     innerPath = path.join(repoPath, repoName)
     cmd = "git init"
     runCmd(cmd, innerPath)
-    makeRepoContent(repoPath, repoName)
+    makeRepoContent(repoPath, repoName, rsc)
     cmd = "git add CMakeLists.txt .gitignore main.cpp"
     runCmd(cmd, innerPath)
-    return commitPatchList(getVersionList(rsc), innerPath, "main.cpp")
+    return commitPatchList(getVersionList(caseName, rsc), innerPath, "main.cpp")
 
 def commitPatchList(versionList, innerPath, fileName):
     markedVersionList = []
@@ -115,40 +134,21 @@ def commitPatchList(versionList, innerPath, fileName):
         markedVersionList.append(markedVersion)
     return markedVersionList
 
-def checkTestCase():
+def checkTestCase(caseName):
     rsc = {}
     with open("tests_res.json") as cfgFile:
         rsc = json.load(cfgFile)
     cfgFile.close()
 
-    markedVersionList = createRepo("./", "testRepo", rsc)
+    markedVersionList = createRepo(caseName, "./", "testRepo", rsc)
     breakCommit = markedVersionList[[
         i for i in range(
             len(markedVersionList)
         ) if markedVersionList[i]['state'] == 'BREAK'][0]]['commit']
     with open("tests_res.json") as cfgFile:
         rsc = json.load(cfgFile)
-        cfg = rsc["FirstBadVersionTestRes"]["cfg"]
-        repl = cfg["appCmd"]
-        repl = repl.format(appCmd="./testRepo")
-        cfg["appCmd"] = repl
-        repl = cfg["appPath"]
-        repl = repl.format(appPath="tests/testRepo/build")
-        cfg["appPath"] = repl
-        repl = cfg["buildPath"]
-        repl = repl.format(buildPath="tests/testRepo/build")
-        cfg["buildPath"] = repl
-        repl = cfg["gitPath"]
-        repl = repl.format(gitPath="tests/testRepo")
-        cfg["gitPath"] = repl
-        repl = cfg["runConfig"]
-        gitCmd = repl["commitList"]["getCommitListCmd"]
-        gitCmd = gitCmd.format(
-            start=markedVersionList[0]['commit'],
-            end=markedVersionList[-1]['commit']
-        )
-        repl["commitList"] = {"getCommitListCmd" : gitCmd}
-        cfg["runConfig"] = repl
+        cfg = rsc[caseName]["cfg"]
+        cfg = formatJSON(cfg, markedVersionList)
     cfgFile.close()
     with open("test_cfg.json", "w+") as customCfg:
         customCfg.truncate(0)
@@ -157,13 +157,12 @@ def checkTestCase():
     # run slider
     sliderOutput = runCmd(
         "python3.8 commit_slider.py -cfg tests/test_cfg.json",
-        "../")[0]
-
+        "../")
+    sliderOutput = '\n'.join(map(str, sliderOutput))
     breakCommit = getMeaningfullCommitTail(breakCommit)
     foundCommit = re.search(
             "Break commit: (.*),", sliderOutput, flags=re.MULTILINE
         ).group(1)
-    # print(breakCommit==foundCommit)
     shutil.rmtree("testRepo")
     shutil.rmtree("../slider_cache")
     shutil.rmtree("../log")
