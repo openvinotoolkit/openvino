@@ -175,7 +175,7 @@ public:
         }
     }
     // The method checks the loops (LoopInfo) that the target expression is marked with and update the corresponding loop ports if needed:
-    //   - If parent of the the target expression and this expression are marked by one Loop and the parent was exit port of this Loop,
+    //   - If parent of the target expression and this expression are marked by one Loop and the parent is an exit port of this Loop,
     //     the method replace parent output port with the target expression output ports as new exit LoopPorts.
     //     If there are other consumers of parent output port that are not by the same Loop (like in the example below),
     //     the method just adds inserted expression output ports to existing parent output port as new exit LoopPorts.

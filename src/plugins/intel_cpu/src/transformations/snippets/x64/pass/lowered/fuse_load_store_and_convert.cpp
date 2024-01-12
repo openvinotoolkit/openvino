@@ -48,7 +48,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
     }
 
-    convert_it = linear_ir.replace_with_node(load_convert, {load_expr, convert_expr});
+    convert_it = linear_ir.replace_with_node({load_expr, convert_expr}, load_convert);
 
     return true;
 }
@@ -87,7 +87,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
     }
 
-    convert_it = linear_ir.replace_with_node(store_convert, {convert_expr, store_expr});
+    convert_it = linear_ir.replace_with_node({convert_expr, store_expr}, store_convert);
 
     return true;
 }

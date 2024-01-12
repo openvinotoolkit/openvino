@@ -47,7 +47,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
 
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), *outshape.rbegin(), load->get_offset());
-            expr_it = linear_ir.replace_with_node(broadcastload, { parent_expr, expr });
+            expr_it = linear_ir.replace_with_node({ parent_expr, expr }, broadcastload);
             modified |= true;
         }
     }

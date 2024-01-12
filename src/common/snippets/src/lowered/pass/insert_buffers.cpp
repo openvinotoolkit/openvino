@@ -181,7 +181,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            linear_ir.insert_node(buffer, buffer_loop_ids, false, pos, { *entry_port });
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
         }
     }
 
@@ -276,7 +276,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            linear_ir.insert_node(buffer, buffer_loop_ids, false, pos, { potential_consumers });
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
         }
     }
 }

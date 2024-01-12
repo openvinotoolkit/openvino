@@ -138,11 +138,13 @@ public:
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
-     * @brief Creates new Expression from `new_node` with PortConnectors `new_inputs`,
+     * @brief Creates new Expression from `new_node` with inputs `inputs`,
      *        sets `loops_ids` as loop identifiers and inserts the expression on the `place` in LinearIR.
      *        Also connects output ports to `consumers`
      * @param new_node the target node
-     * @param new_inputs vector of PortConnectorsPtr that will be inputs of the expression
+     * @param inputs template argument that might be:
+     *        - vector of PortConnectorsPtr that will be inputs of the expression
+     *        - vector of output ExpressionPort that will be source parent ports
      * @param loop_ids vector of loops ids that will be set for the expression
      * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
      * @param place before this place expression will be inserted
@@ -150,12 +152,15 @@ public:
      *        The vector may be empty or size of vector must be equal to output port count
      * @return new expression iterator in LinearIR
      */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs, const std::vector<size_t>& loop_ids,
-                       bool update_loop_ports, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers = {});
+    template<typename T>
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<T>& inputs, const std::vector<size_t>& loop_ids,
+                       bool update_loop_ports, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers);
     /**
-     * @brief Creates new Expression from `new_node` with PortConnectors that are output PortConnectors of parent Expressions.
-     *        The notes are the same as in helper above
+     * @brief The same helper as the helpers above but for case when new_node has only one output.
      * @param new_node the target node
+     * @param inputs template argument that might be:
+     *        - vector of PortConnectorsPtr that will be inputs of the expression
+     *        - vector of output ExpressionPort that will be source parent ports
      * @param loop_ids vector of loops ids that will be set for the expression
      * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
      * @param place before this place expression will be inserted
@@ -163,20 +168,12 @@ public:
      *        The vector may be empty or size of vector must be equal to output port count
      * @return new expression iterator in LinearIR
      */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
-                       const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers);
-    /**
-     * @brief The same helper as the helper above but for case when new_node has only one output.
-     *        So we don't need to pass vector of ExpressionPort sets
-     * @param new_node the target node
-     * @param loop_ids vector of loops ids that will be set for the expression
-     * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
-     * @param place before this place expression will be inserted
-     * @param consumers set of expression ports. These expression ports will be consumers of the expression output.
-     * @return new expression iterator in LinearIR
-     */
-    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids, bool update_loop_ports,
-                       const constExprIt& place, const std::set<ExpressionPort>& consumers = {});
+    template<typename T>
+    exprIt insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<T>& inputs, const std::vector<size_t>& loop_ids,
+                       bool update_loop_ports, const constExprIt& place, const std::set<ExpressionPort>& consumers = {}) {
+        const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
+        return insert_node(new_node, inputs, loop_ids, update_loop_ports, place, consumers_py_port);
+    }
     /**
      * @brief Replace the several existing expressions with the one new expression that contains `new_node`.
      *        Calls the helper `insert_node` and performs substitution: removes `old_exprs`.
@@ -187,22 +184,22 @@ public:
      *           and all sources of the `old_exprs` must be expression from this seq as well or must be source of `new_inputs`
      *        - The helper set output PortDescriptors - clones from last removable expression
      *        - The helpers updates LoopPorts of the corresponding loops using information about removable expressions
-     * @param new_node the target node
      * @param old_exprs the sequence of removable expressions
+     * @param new_node the target node
      * @param loop_ids vector of loops ids that will be set for the expression
      * @param place before this place expression will be inserted
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_with_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs, const std::vector<size_t>& loop_ids,
+    exprIt replace_with_node(const std::vector<ExpressionPtr>& old_exprs, const std::shared_ptr<ov::Node>& new_node, const std::vector<size_t>& loop_ids,
                              const constExprIt& place);
     /**
      * @brief Replace the several existing expressions with the one new expression that contains `new_node` that are in the same loops.
      *        Insert new expression on the place of last `old_exprs`
-     * @param new_node the target node
      * @param old_exprs the sequence of removable expressions
+     * @param new_node the target node
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_with_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPtr>& old_exprs);
+    exprIt replace_with_node(const std::vector<ExpressionPtr>& old_exprs, const std::shared_ptr<ov::Node>& new_node);
     /**
      * @brief Replace the several existing expressions with the one new expression.
      *        The helper move consumers from last expression in `old_exprs` to the new expression.
@@ -211,20 +208,20 @@ public:
      *           It means that consumers of the expression in seq are expressions from this sequence (except of the last expr)
      *           and all sources of the `old_exprs` must be expression from this seq as well or must be source of `new_inputs`
      *        - The helpers updates LoopPorts of the corresponding loops using information about removable expressions
-     * @param new_expr the new expr
      * @param old_exprs the sequence of removable expressions
+     * @param new_expr the new expr
      * @param place before this place expression will be inserted
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_with_expr(const ExpressionPtr& new_expr, const std::vector<ExpressionPtr>& old_exprs, const constExprIt& place);
+    exprIt replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr, const constExprIt& place);
     /**
      * @brief Replace the several existing expressions with the one new expression that are in the same loops.
      *        Insert new expression on the place of last `old_exprs`
-     * @param new_expr the new expr
      * @param old_exprs the sequence of removable expressions
+     * @param new_expr the new expr
      * @return new expression iterator in LinearIR
      */
-    exprIt replace_with_expr(const ExpressionPtr& new_expr, const std::vector<ExpressionPtr>& old_exprs);
+    exprIt replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr);
 
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

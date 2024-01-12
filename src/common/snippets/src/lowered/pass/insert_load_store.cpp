@@ -39,14 +39,16 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
     }
     const auto& data_ngraph_output = data_expr->get_node()->output(0);
     bool was_inserted = false;
-    for (const auto& consumer_input : data_expr->get_output_port_connector(0)->get_consumers()) {
+    const auto& data_out = data_expr->get_output_port_connector(0);
+    for (const auto& consumer_input : data_out->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer_expr->get_node());
         if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
             return false;
 
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port_descriptor(0)));
-        linear_ir.insert_node(load, consumer_expr->get_loop_ids(), true, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
+        linear_ir.insert_node(load, std::vector<PortConnectorPtr>{ data_out }, consumer_expr->get_loop_ids(),
+                              true, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
         was_inserted = true;
     }
 
@@ -66,7 +68,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto& loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
-    linear_ir.insert_node(store, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
+    linear_ir.insert_node(store, std::vector<ExpressionPort>{ parent_output }, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
     return true;
 }
 
