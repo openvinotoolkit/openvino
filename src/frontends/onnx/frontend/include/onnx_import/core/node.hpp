@@ -20,7 +20,6 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
-//
 #include "onnx_import/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE {

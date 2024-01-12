@@ -8,7 +8,6 @@
 
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
-//
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
