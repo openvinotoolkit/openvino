@@ -186,7 +186,7 @@ Report questions, issues and suggestions, using:
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
-* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/wPuqAujS)
+* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
 
 ## Additional Resources
 
