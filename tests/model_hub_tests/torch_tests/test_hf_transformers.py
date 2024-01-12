@@ -99,6 +99,7 @@ class TestTransformersModel(TestTorchConvertModel):
         self.cuda_available, self.gptq_postinit = None, None
 
     def load_model(self, name, type):
+        import torch
         name_suffix = ''
         from transformers import AutoConfig
         if name.find(':') != -1:
