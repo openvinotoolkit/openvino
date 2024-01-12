@@ -8,6 +8,7 @@
 #include "openvino/op/log.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pruning.hpp"
 
@@ -38,19 +39,19 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
                 Coordinate begin(shape.size(), 0);
                 Coordinate end(shape);
 
-                begin[dim] = value;
-                end[dim] = value + 1;
-
                 bool skip_dim_value = false;
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                ov::CoordinateTransform iter(shape, begin, end);
-                for (const Coordinate& coord : iter) {
-                    if (!condition(values.at(iter.index(coord)))) {
+
+                auto narrow_shape = shape;
+                narrow_shape[dim] = 1;
+                ov::CoordinateTransformBasic iter(narrow_shape);
+                for (auto coord : iter) {
+                    coord[dim] = value;
+                    if (!condition(values.at(coordinate_index(coord, shape)))) {
                         skip_dim_value = true;
                         break;
                     }
                 }
-                OPENVINO_SUPPRESS_DEPRECATED_END
+
                 if (!skip_dim_value) {
                     mask->at(dim).insert(value);
                 }
