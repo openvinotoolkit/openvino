@@ -526,7 +526,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_layout = layout(ov::Shape(current_buf_size.begin(), current_buf_size.end()), updated_layout.data_type, updated_layout.format);
     }
 
-    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size;
+    bool can_reuse_buffer = _outputs[0]
+                    && updated_layout.count() <= max_output_layout_size    /* Do not reuse if exising buffer is smaller */
+                    && updated_layout.count() * 10 > max_output_layout_size;  /* Do not reuse if existing buffer is too large */
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
