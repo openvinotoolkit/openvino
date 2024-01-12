@@ -6,6 +6,13 @@
 
 #include <iterator>
 
+#include "default_opset.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
+// #include "openvino/opsets/opset19.hpp"
+#include "exceptions.hpp"
+#include "ngraph/coordinate_diff.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
@@ -65,20 +72,20 @@ OutputVector PoolingFactory::make_avg_pool() const {
 
 OutputVector PoolingFactory::make_avg_pool_7() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
-    return {std::make_shared<op::v7::AvgPool>(m_inputs.at(0),
+    return {std::make_shared<ov::op::v7::AvgPool>(m_inputs.at(0),
                                                      m_strides,
                                                      m_padding_below,
                                                      m_padding_above,
                                                      m_kernel_shape,
                                                      count_include_pad,
-                                                     m_ceil_mode,
                                                      m_rounding_type,
                                                      m_auto_pad)};
 }
 
 OutputVector PoolingFactory::make_avg_pool_10() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
-    return {std::make_shared<op::v10::AvgPool>(m_inputs.at(0),
+    const bool m_ceil_mode = m_onnx_node.get_attribute_value<std::int64_t>("ceil_mode", 0);
+    return {std::make_shared<ov::op::v10::AvgPool>(m_inputs.at(0),
                                                      m_strides,
                                                      m_padding_below,
                                                      m_padding_above,
@@ -91,7 +98,8 @@ OutputVector PoolingFactory::make_avg_pool_10() const {
 
 OutputVector PoolingFactory::make_avg_pool_11() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
-    return {std::make_shared<op::v11::AvgPool>(m_inputs.at(0),
+    const bool m_ceil_mode = m_onnx_node.get_attribute_value<std::int64_t>("ceil_mode", 0);
+    return {std::make_shared<ov::op::v11::AvgPool>(m_inputs.at(0),
                                                      m_strides,
                                                      m_padding_below,
                                                      m_padding_above,
@@ -104,27 +112,28 @@ OutputVector PoolingFactory::make_avg_pool_11() const {
 
 OutputVector PoolingFactory::make_avg_pool_19() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
-    return {std::make_shared<op::v19::AvgPool>(m_inputs.at(0),
+    const bool m_ceil_mode = m_onnx_node.get_attribute_value<std::int64_t>("ceil_mode", 0);
+    return {std::make_shared<ov::op::v19::AvgPool>(m_inputs.at(0),
                                                      m_strides,
                                                      m_dilations,
                                                      m_padding_below,
                                                      m_padding_above,
                                                      m_kernel_shape,
                                                      m_ceil_mode,
-                                                     !count_include_pad,
+                                                     count_include_pad,
                                                      m_rounding_type,
                                                      m_auto_pad)};
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 OutputVector PoolingFactory::make_max_pool() const {
-    return {std::make_shared<v1::MaxPool>(m_inputs.at(0),
-                                          m_strides,
-                                          m_padding_below,
-                                          m_padding_above,
-                                          m_kernel_shape,
-                                          m_rounding_type,
-                                          m_auto_pad)};
+    return {std::make_shared<ov::op::v1::MaxPool>(m_inputs.at(0),
+                                              m_strides,
+                                              m_padding_below,
+                                              m_padding_above,
+                                              m_kernel_shape,
+                                              m_rounding_type,
+                                              m_auto_pad)};
 }
 
 OutputVector PoolingFactory::make_max_pool_with_indices() const {

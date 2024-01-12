@@ -42,6 +42,30 @@ public:
     OutputVector make_avg_pool() const;
 
     ///
+    /// \brief      Creates average pooling ONNX operation.
+    /// \return     Vector of output nodes.
+    ///
+    OutputVector make_avg_pool_7() const;
+
+    ///
+    /// \brief      Creates average pooling ONNX operation.
+    /// \return     Vector of output nodes.
+    ///
+    OutputVector make_avg_pool_10() const;
+
+    ///
+    /// \brief      Creates average pooling ONNX operation.
+    /// \return     Vector of output nodes.
+    ///
+    OutputVector make_avg_pool_11() const;
+
+    ///
+    /// \brief      Creates average pooling ONNX operation.
+    /// \return     Vector of output nodes.
+    ///
+    OutputVector make_avg_pool_19() const;
+
+    ///
     /// \brief      Creates max pooling ONNX operation.
     /// \return     Vector of output nodes.
     ///
