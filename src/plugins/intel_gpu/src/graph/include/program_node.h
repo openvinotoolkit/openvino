@@ -180,7 +180,7 @@ public:
     }
 
     layout get_input_layout(size_t idx = 0) const {
-       return get_dependency(idx).get_output_layout(false);
+        return get_dependency(idx).get_output_layout(false, get_dependency_with_port(idx).second);
     }
 
     ov::PartialShape get_input_pshape(size_t idx = 0) const {
