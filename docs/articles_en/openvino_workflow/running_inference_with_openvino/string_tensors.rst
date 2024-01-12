@@ -48,7 +48,7 @@ sharing of tensor content between the two APIs. Python provides only a numpy-com
 allocated and held in C++ core as an array of `std::string` objects.
 
 The developer is required to consider these restrictions when writing code using string tensors and
-avoid treating the content as raw bytes.
+avoid treating the content as raw bytes or as a view of data in Python.
 
 Create a String Tensor
 ######################
