@@ -111,29 +111,29 @@ class TestLRN(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_lrn_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_lrn(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         # onnxruntime only supports 4D tensors for LRN
         self.skip_framework = True
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_lrn_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self.skip_framework = False
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

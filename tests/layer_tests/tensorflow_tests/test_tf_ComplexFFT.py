@@ -62,11 +62,11 @@ class TestComplexFFT(CommonTFLayerTest):
                        reason='Ticket - 126314')
     def test_complex_fft_basic(self, params, fft_op,
                                ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         self._test(
             *self.create_complex_fft_net(**params, fft_op=fft_op),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api, custom_eps=1e-2)
+            use_new_frontend=use_new_frontend, custom_eps=1e-2)
 
 
 class TestComplexAbs(CommonTFLayerTest):
@@ -106,11 +106,11 @@ class TestComplexAbs(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_abs_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         self._test(
             *self.create_complex_abs_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)
 
 
 class TestComplexRFFT(CommonTFLayerTest):
@@ -149,11 +149,11 @@ class TestComplexRFFT(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, use_old_api):
+                                use_new_frontend):
         self._test(
             *self.create_complex_rfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)
 
 
 class TestComplexIRFFT(CommonTFLayerTest):
@@ -195,8 +195,8 @@ class TestComplexIRFFT(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_irfft_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend, use_old_api):
+                                 use_new_frontend):
         self._test(
             *self.create_complex_irfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)
