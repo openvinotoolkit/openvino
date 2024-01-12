@@ -26,6 +26,8 @@
 
 namespace ov {
 
+using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
+
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
 struct Parsed {
@@ -124,7 +126,7 @@ private:
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
-        InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
+        CreateExtensionFunc* extensionCreateFunc = nullptr;
 
         PluginDescriptor() = default;
 
@@ -138,7 +140,7 @@ private:
 
         PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
                          const ov::AnyMap& defaultConfig = {},
-                         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr) {
+                         CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;
             this->defaultConfig = defaultConfig;
             this->extensionCreateFunc = extensionCreateFunc;
