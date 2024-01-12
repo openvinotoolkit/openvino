@@ -85,11 +85,13 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     size_t concat_axis_index = concat_axis < 0 ? concat_axis + concat_params.get_output_layout().get_rank() : concat_axis;
     auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
     // If static padding exists in non dyn_pad axis, returns false to avoid optimized out.
-    for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
-        if (j != concat_axis_index) {
-            if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
-                || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
-                return false;
+    if (concat_node.is_dynamic()) {
+        for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
+            if (j != concat_axis_index) {
+                if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
+                    || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
+                    return false;
+            }
         }
     }
 

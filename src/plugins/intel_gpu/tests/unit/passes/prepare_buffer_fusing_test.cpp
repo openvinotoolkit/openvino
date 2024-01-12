@@ -886,7 +886,7 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     ASSERT_EQ(concat.can_be_optimized(), false);
 }
 
-TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis) {
+TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_dynamic) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto in_layout = layout{ ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
@@ -939,6 +939,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*program);
