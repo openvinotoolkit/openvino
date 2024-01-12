@@ -202,8 +202,6 @@ MO:
   revalidate:
     - PyTorch_FE
     - TF_FE
-    - ONNX_FE
-    - PDPD_FE
   build:
     - Python_API
 
