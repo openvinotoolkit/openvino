@@ -3,7 +3,6 @@
 #
 
 if(NOT ENABLE_JS)
-    message("JS API is disabled")
     return()
 endif()
 
