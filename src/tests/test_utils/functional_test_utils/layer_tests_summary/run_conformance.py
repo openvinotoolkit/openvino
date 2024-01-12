@@ -287,7 +287,7 @@ class Conformance:
     def __summarize(self, xml_report_path: os.path, report_dir: os.path):
         if self._type == constants.OP_CONFORMANCE:
             summary_root = ET.parse(xml_report_path).getroot()
-            rel_weights_path = os.path.join("/home/efode/repo/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary/utils/rel",
+            rel_weights_path = os.path.join(self._model_path,
                                             constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR,
                                                                                    self._special_mode))
             create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
