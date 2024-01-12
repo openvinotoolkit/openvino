@@ -19,8 +19,7 @@ sets ``uint8``, while the sample uses default model precision which is usually `
 
 Before using the sample, refer to the following requirements:
 
-- The sample accepts models in OpenVINO Intermediate Representation (.xml + .bin)
-  and ONNX (.onnx) formats, that do not require preprocessing.
+- The sample accepts any file format supported by ``core.read_model``.
 - The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`,
   :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`, :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,
   :doc:`face-detection-0200 <omz_models_model_face_detection_0200>` models.
@@ -81,20 +80,11 @@ Running
 To run the sample, you need to specify a model. You can get a model specific for
 your inference task from one of model repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub.
 
-.. note::
-
-   Before running the sample with a trained model, make sure the model is converted
-   to the intermediate representation (IR) format (\*.xml + \*.bin) using
-   :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-
-   The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
-
-
 Example
 ++++++++++++++++++++
 
 1. Download a pre-trained model.
-2. If a model is not in the IR or ONNX format, it must be converted by using:
+2. You can convert it by using:
 
    .. tab-set::
 
@@ -115,13 +105,6 @@ Example
          .. code-block:: console
 
             ovc ./models/googlenet-v1
-
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. code-block:: console
-
-            mo --input_model ./models/googlenet-v1
 
 
 3. Perform benchmarking, using the ``googlenet-v1`` model on a ``CPU``:

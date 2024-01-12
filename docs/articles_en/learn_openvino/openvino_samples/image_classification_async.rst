@@ -164,7 +164,7 @@ Example
 
 
 1. Download a pre-trained model:
-2. If a model is not in the IR or ONNX format, it must be converted by using:
+2. You can convert it by using:
 
    .. tab-set::
 
