@@ -29,7 +29,7 @@ template <class T,
                                   std::is_same<bfloat16, typename std::decay<T>::type>::value>::type* = nullptr>
 T sign(const T v) {
     if (std::isnan(static_cast<float>(v)))
-        return static_cast<T>(v);
+        return v;
     else
         return static_cast<T>((T{0} < v) - (v < T{0}));
 }
