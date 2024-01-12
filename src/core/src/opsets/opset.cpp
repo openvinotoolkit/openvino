@@ -5,7 +5,6 @@
 #include "ngraph/opsets/opset.hpp"
 
 #include "itt.hpp"
-#include "ngraph/log.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"

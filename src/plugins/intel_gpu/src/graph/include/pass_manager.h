@@ -414,9 +414,9 @@ private:
     void run(program& p) override;
 };
 
-class dynamic_shape_gather_opts : public base_pass {
+class mark_runtime_skippable_nodes : public base_pass {
 public:
-    dynamic_shape_gather_opts() : base_pass("dynamic_shape_gather_opts") {}
+    mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
 
 private:
     void run(program& p) override;

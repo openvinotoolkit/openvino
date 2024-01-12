@@ -19,7 +19,7 @@ namespace set_1 {
 OutputVector cast(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
-    element::Type elem_type = common::get_ngraph_element_type(target_type);
+    element::Type elem_type = common::get_ov_element_type(target_type);
 
     return {std::make_shared<default_opset::Convert>(data, elem_type)};
 }

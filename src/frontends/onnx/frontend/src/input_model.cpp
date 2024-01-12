@@ -4,17 +4,15 @@
 
 #include "input_model.hpp"
 
-#include <openvino/frontend/exception.hpp>
-#include <openvino/util/file_util.hpp>
-
-#include "ngraph/log.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
@@ -154,7 +152,7 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& shape) {
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -174,7 +172,7 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
         m_inputs_to_reshape[input_name] = shape;
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -195,8 +193,8 @@ ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Pt
     return m_editor->get_tensor_shape(tensor_name);
 }
 
-void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
-    std::map<std::string, ngraph::element::Type_t> m;
+void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
+    std::map<std::string, ov::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
@@ -273,24 +271,24 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
 
     extract_subgraph({}, expected_valid_outputs);
 
-    NGRAPH_CHECK(std::all_of(std::begin(expected_valid_outputs),
-                             std::end(expected_valid_outputs),
-                             [](const ov::frontend::Place::Ptr& place) {
-                                 return place->is_output();
-                             }),
-                 "Not all provided arguments of override_all_outputs are new outputs of the model");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(expected_valid_outputs),
+                                        std::end(expected_valid_outputs),
+                                        [](const ov::frontend::Place::Ptr& place) {
+                                            return place->is_output();
+                                        }),
+                            "Not all provided arguments of override_all_outputs are new outputs of the model");
 
     const auto current_outputs = get_outputs();
-    NGRAPH_CHECK(std::all_of(std::begin(current_outputs),
-                             std::end(current_outputs),
-                             [&](const Place::Ptr& current_out) {
-                                 return std::find_if(std::begin(expected_valid_outputs),
-                                                     std::end(expected_valid_outputs),
-                                                     [&](const Place::Ptr& expected_out) {
-                                                         return expected_out->is_equal(current_out);
-                                                     }) != std::end(current_outputs);
-                             }),
-                 "Some other than expected outputs were created during override_all_outputs");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(current_outputs),
+                                        std::end(current_outputs),
+                                        [&](const Place::Ptr& current_out) {
+                                            return std::find_if(std::begin(expected_valid_outputs),
+                                                                std::end(expected_valid_outputs),
+                                                                [&](const Place::Ptr& expected_out) {
+                                                                    return expected_out->is_equal(current_out);
+                                                                }) != std::end(current_outputs);
+                                        }),
+                            "Some other than expected outputs were created during override_all_outputs");
 }
 
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
@@ -307,23 +305,23 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({expected_valid_inputs}, {});
 
-    NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
-                            std::end(outputs_before_extraction),
-                            std::begin(m_editor->model_outputs())),
-                 "All outputs should be preserved after override_all_inputs. Provided inputs does "
-                 "not satisfy all outputs");
+    FRONT_END_GENERAL_CHECK(std::equal(std::begin(outputs_before_extraction),
+                                       std::end(outputs_before_extraction),
+                                       std::begin(m_editor->model_outputs())),
+                            "All outputs should be preserved after override_all_inputs. Provided inputs does "
+                            "not satisfy all outputs");
 
     const auto current_inputs = get_inputs();
-    NGRAPH_CHECK(std::all_of(std::begin(current_inputs),
-                             std::end(current_inputs),
-                             [&](const Place::Ptr& current_in) {
-                                 return std::find_if(std::begin(expected_valid_inputs),
-                                                     std::end(expected_valid_inputs),
-                                                     [&](const Place::Ptr& expected_in) {
-                                                         return expected_in->is_equal(current_in);
-                                                     }) != std::end(current_inputs);
-                             }),
-                 "Some other than expected inputs were created during override_all_inputs");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(current_inputs),
+                                        std::end(current_inputs),
+                                        [&](const Place::Ptr& current_in) {
+                                            return std::find_if(std::begin(expected_valid_inputs),
+                                                                std::end(expected_valid_inputs),
+                                                                [&](const Place::Ptr& expected_in) {
+                                                                    return expected_in->is_equal(current_in);
+                                                                }) != std::end(current_inputs);
+                                        }),
+                            "Some other than expected inputs were created during override_all_inputs");
 }
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
@@ -356,7 +354,7 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
     } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port)) {
-        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
+        FRONT_END_GENERAL_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
         return nullptr;
@@ -468,7 +466,8 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output)) {
             const auto output_port = tensor->get_producing_port();
             const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port);
-            NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
+            FRONT_END_GENERAL_CHECK(onnx_output_edge,
+                                    "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(output)) {
             op->check_if_valid();

@@ -24,35 +24,18 @@ class Model;
 // of ONNX generated wrappers.
 using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.type());
 
-namespace error {
-namespace attribute {
-namespace detail {
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct Attribute : ngraph_error {
-    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph_error{msg} {}
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-}  // namespace detail
-
-struct InvalidData : detail::Attribute {
-    explicit InvalidData(AttributeProto_AttributeType type) : Attribute{"invalid attribute type", type} {}
-};
-
-struct UnsupportedType : detail::Attribute {
-    explicit UnsupportedType(AttributeProto_AttributeType type) : Attribute{"unsupported attribute type", type} {}
-};
-
-}  // namespace attribute
-
-}  // namespace error
-
 namespace detail {
 namespace attribute {
 template <typename T>
 inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    throw ngraph::onnx_import::error::attribute::UnsupportedType{attribute.type()};
+    OPENVINO_THROW("Unsupported attribute type");
 }
+
+#define ONNX_INVALID_ATTR(attr, expected)                                   \
+    OPENVINO_THROW("Invalid attribute type ",                               \
+                   ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr), \
+                   " expected: ",                                           \
+                   expected)
 
 template <>
 inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
@@ -62,7 +45,7 @@ inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
         return attribute.f();
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, FLOAT");
     }
 }
 
@@ -78,7 +61,7 @@ inline std::vector<float> get_value(const ONNX_NAMESPACE::AttributeProto& attrib
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS:
         return {std::begin(attribute.floats()), std::end(attribute.floats())};
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
     }
 }
 
@@ -90,7 +73,7 @@ inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
         return static_cast<double>(attribute.i());
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, FLOAT");
     }
 }
 
@@ -110,7 +93,7 @@ inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attri
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS:
         return {std::begin(attribute.floats()), std::end(attribute.floats())};
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
     }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
@@ -120,7 +103,7 @@ inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attri
 template <>
 inline std::size_t get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_INT) {
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT");
     }
     return static_cast<std::size_t>(attribute.i());
 }
@@ -133,14 +116,14 @@ inline std::vector<std::size_t> get_value(const ONNX_NAMESPACE::AttributeProto& 
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.ints()), std::end(attribute.ints())};
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, INTS");
     }
 }
 
 template <>
 inline int64_t get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_INT) {
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT");
     }
     return attribute.i();
 }
@@ -153,14 +136,14 @@ inline std::vector<int64_t> get_value(const ONNX_NAMESPACE::AttributeProto& attr
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.ints()), std::end(attribute.ints())};
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "INT, INTS");
     }
 }
 
 template <>
 inline std::string get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_STRING) {
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "STRING");
     }
     return attribute.s();
 }
@@ -173,7 +156,7 @@ inline std::vector<std::string> get_value(const ONNX_NAMESPACE::AttributeProto& 
     case ONNX_NAMESPACE::AttributeProto_AttributeType_STRINGS:
         return {std::begin(attribute.strings()), std::end(attribute.strings())};
     default:
-        throw error::attribute::InvalidData{attribute.type()};
+        ONNX_INVALID_ATTR(attribute.type(), "STRING, STRINGS");
     }
 }
 
@@ -320,7 +303,7 @@ public:
         if (is_tensor()) {
             return Tensor{m_attribute_proto->t(), m_model_dir, m_mmap_cache};
         }
-        throw error::attribute::InvalidData{m_attribute_proto->type()};
+        ONNX_INVALID_ATTR(m_attribute_proto->type(), "TENSOR");
     }
 
     template <typename T, typename std::enable_if<std::is_same<T, std::vector<Tensor>>::value, bool>::type = true>
@@ -330,7 +313,7 @@ public:
         } else if (is_tensor_array()) {
             return get_tensor_array();
         }
-        throw error::attribute::InvalidData{m_attribute_proto->type()};
+        ONNX_INVALID_ATTR(m_attribute_proto->type(), "TENSOR, TENSORS");
     }
 
     template <typename T, typename std::enable_if<std::is_same<T, SparseTensor>::value, bool>::type = true>
@@ -338,7 +321,7 @@ public:
         if (is_sparse_tensor()) {
             return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir, m_mmap_cache};
         }
-        throw error::attribute::InvalidData{m_attribute_proto->type()};
+        ONNX_INVALID_ATTR(m_attribute_proto->type(), "SPARSE_TENSOR");
     }
 
     template <typename T, typename std::enable_if<std::is_same<T, std::vector<SparseTensor>>::value, bool>::type = true>
@@ -348,7 +331,7 @@ public:
         } else if (is_sparse_tensor_array()) {
             return get_sparse_tensor_array();
         }
-        throw error::attribute::InvalidData{m_attribute_proto->type()};
+        ONNX_INVALID_ATTR(m_attribute_proto->type(), "SPARSE_TENSOR, SPARSE_TENSORS");
     }
 
     ov::Any get_any() const;
