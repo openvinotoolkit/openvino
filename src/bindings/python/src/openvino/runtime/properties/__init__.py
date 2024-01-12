@@ -4,10 +4,12 @@
 
 # Enums
 from openvino._pyopenvino.properties import Affinity
+from openvino._pyopenvino.properties import CacheMode
 
 # Properties
 from openvino._pyopenvino.properties import enable_profiling
 from openvino._pyopenvino.properties import cache_dir
+from openvino._pyopenvino.properties import cache_mode
 from openvino._pyopenvino.properties import auto_batch_timeout
 from openvino._pyopenvino.properties import num_streams
 from openvino._pyopenvino.properties import inference_num_threads

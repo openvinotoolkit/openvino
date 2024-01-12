@@ -53,6 +53,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.CacheMode,
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
+                (props.CacheMode.OPTIMIZE_SPEED, "CacheMode.OPTIMIZE_SPEED", 1),
+            ),
+        ),
+        (
             hints.Priority,
             (
                 (hints.Priority.LOW, "Priority.LOW", 0),
@@ -205,6 +212,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             props.cache_dir,
             "CACHE_DIR",
             (("./test_cache", "./test_cache"),),
+        ),
+        (
+            props.cache_mode,
+            "CACHE_MODE",
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, props.CacheMode.OPTIMIZE_SIZE),
+                (props.CacheMode.OPTIMIZE_SPEED, props.CacheMode.OPTIMIZE_SPEED),
+            ),
         ),
         (
             props.auto_batch_timeout,

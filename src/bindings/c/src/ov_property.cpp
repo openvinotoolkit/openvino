@@ -19,6 +19,7 @@ const char* ov_property_key_max_batch_size = "MAX_BATCH_SIZE";
 
 // Read-write property key
 const char* ov_property_key_cache_dir = "CACHE_DIR";
+const char* ov_property_key_cache_mode = "CACHE_MODE";
 const char* ov_property_key_num_streams = "NUM_STREAMS";
 const char* ov_property_key_affinity = "AFFINITY";
 const char* ov_property_key_inference_num_threads = "INFERENCE_NUM_THREADS";
