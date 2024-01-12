@@ -19,21 +19,30 @@ public:
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& query = input_shapes.front().get();
-        VectorDims past_kv = input_shapes.back().get();
+        const auto& query_dims = input_shapes.front().get();
+        VectorDims present_kv_dims = input_shapes.back().get();
+        const auto& beam_idx_dims = input_shapes.end()[-3].get();
         const auto& permute_axes = m_config.permute_axes;
-        const size_t length_index = permute_axes.empty() ? query.size() - 2 : permute_axes[permute_axes.size() - 2];
 
-        past_kv[length_index] += query[length_index];
-
-        VectorDims output = query;
-        if (!permute_axes.empty()) {
-            // query needs permute to BHLS
-            for (size_t i = 0; i < query.size(); i++) {
-                output[i] = query[permute_axes[i]];
-            }
+        if (permute_axes.empty()) {
+            // [B, H, L, S]
+            present_kv_dims[0] = beam_idx_dims[0];
+            present_kv_dims[2] += query_dims[2];
+            return {{query_dims, present_kv_dims, present_kv_dims}, ShapeInferStatus::success};
         }
-        return {{output, past_kv, past_kv}, ShapeInferStatus::success};
+
+        // permute_axes[0,1,2,3] gives axis indices of B,H,L,S for query & present_kv
+        const size_t batch_index = permute_axes[0];
+        const size_t length_index = permute_axes[2];
+        present_kv_dims[batch_index] = beam_idx_dims[0];
+        present_kv_dims[length_index] += query_dims[length_index];
+
+        auto n_dims = query_dims.size();
+        VectorDims output_dims(n_dims);
+        for (size_t i = 0; i < n_dims; i++) {
+            output_dims[i] = query_dims[permute_axes[i]];
+        }
+        return {{output_dims, present_kv_dims, present_kv_dims}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -46,10 +55,12 @@ private:
 
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     if (auto sdpa = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(m_op)) {
-        return std::make_shared<SDPAShapeInfer>(sdpa->get_config());
-    } else {
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+        const auto& config = sdpa->get_config();
+        if (config.output_BLHxS == false)
+            return std::make_shared<SDPAShapeInfer>(config);
     }
+    // fallback to ngraph shape infer on non-perf-critical case
+    return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
 }
 
 }  // namespace node
