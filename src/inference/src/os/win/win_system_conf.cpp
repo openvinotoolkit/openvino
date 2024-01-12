@@ -39,6 +39,18 @@ CPU::CPU() {
                              _proc_type_table,
                              _cpu_mapping_table);
     _org_proc_type_table = _proc_type_table;
+
+    // ensure that get_org_numa_id and get_org_socket_id can return the correct value
+    for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
+        auto numa_id = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
+        auto socket_id = _cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+        if (_numaid_mapping_table.find(numa_id) == _numaid_mapping_table.end()) {
+            _numaid_mapping_table.insert({numa_id, numa_id});
+        }
+        if (_socketid_mapping_table.find(socket_id) == _socketid_mapping_table.end()) {
+            _socketid_mapping_table.insert({socket_id, socket_id});
+        }
+    }
 }
 
 void parse_processor_info_win(const char* base_ptr,
