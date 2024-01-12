@@ -886,7 +886,7 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     ASSERT_EQ(concat.can_be_optimized(), false);
 }
 
-TEST(prepare_buffer_fusing, skip_runtime_in_place_concat_padding_in_non_concat_axis) {
+TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto in_layout = layout{ ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
@@ -945,7 +945,7 @@ TEST(prepare_buffer_fusing, skip_runtime_in_place_concat_padding_in_non_concat_a
     ASSERT_NE(program, nullptr);
 
     auto& concat = program->get_node("concat");
-    ASSERT_EQ(concat.can_be_optimized(), true);
+    ASSERT_EQ(concat.can_be_optimized(), false);
 
     network network(engine, topology, config);
     network.set_input_data("input1", input1_mem);
