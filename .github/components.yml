@@ -199,6 +199,9 @@ IE_Tests:
     - IR_FE
 
 MO:
+  revalidate:
+    - PyTorch_FE
+    - TF_FE
   build:
     - Python_API
 
