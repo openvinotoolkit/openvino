@@ -49,13 +49,8 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
                                           "shape not compatiable at index ",
                                           i);
                 }
-            } else if (i == length_index) {
-                continue;
             } else {
-                NODE_VALIDATION_CHECK(this,
-                                        q_ps[i].compatible(past_kv_ps[i]),
-                                        "shape not compatiable at index ",
-                                        i);
+                continue;
             }
         }
         // batch_size can be dynamically changed by gather logic

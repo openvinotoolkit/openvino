@@ -61,10 +61,10 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
     @pytest.mark.parametrize("merge_repeated", [False, True])
     @pytest.mark.nightly
     def test_ctcgreedydecoder_placeholder_const(self, params, merge_repeated, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104860')
         self._test(*self.create_ctcgreedydecoder_placeholder_const_net(**params, ir_version=ir_version,
                                                              use_new_frontend=use_new_frontend, merge_repeated=merge_repeated),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, merge_repeated=merge_repeated)
+                   use_new_frontend=use_new_frontend, merge_repeated=merge_repeated)
