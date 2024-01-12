@@ -256,7 +256,6 @@ const std::vector<CPUSpecificParams> CPUParams_1D_I8 = {
         conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
         conv_avx512_1D_nspc,
-        conv_avx512_1D_nspc_brgconv
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32, ConvolutionLayerCPUTest,

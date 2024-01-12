@@ -1649,7 +1649,6 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
     if (inputZeroPointType == zpType::PerTensor && (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
-                                                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
                                                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     else
