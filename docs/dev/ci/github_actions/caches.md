@@ -26,7 +26,7 @@ The jobs in the workflows utilize appropriate caches based on job's needs.
 
 This cache is used for sharing small dependencies or artefacts between runs. Refer to the [GitHub Actions official documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) for a complete reference.
 
-The `CPU functional tests` job in the `linux.yml` workflow uses this cache for sharing tests execution time to speed up the subsequent runs. First, the artefacts are saved with `actions/cache/save`:
+The `CPU functional tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses this cache for sharing tests execution time to speed up the subsequent runs. First, the artefacts are saved with `actions/cache/save`:
 ```yaml
 CPU_Functional_Tests:
   name: CPU functional tests
@@ -64,14 +64,44 @@ Refer to the [`actions/cache`'s documentation](https://github.com/actions/cache)
 
 ## Shared Drive Cache Usage and Structure
 
-**Note**: This cache is enable for [self-hosted runners](./runners.md) only.
+This cache could be used to store dependencies and large assets (models, dataset, etc.) that are to be used by different workflow jobs. 
+
+**Note**: This cache is enabled for the Linux [self-hosted runners](./runners.md) only.
+
+The drive is available on the self-hosted machines, and to make it available inside [the Docker containers](./docker_images.md), 
+the mounting point should be added under the `container`'s `options` key in a job configuration:
+```yaml
+Build:
+  ...
+  runs-on: aks-linux-16-cores-32gb
+  container:
+    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    volumes:
+      - /mount:/mount
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+```
+
+This way the resources on the shared drive will be accessible through the `/mount` path in the Docker container.
+
+### Available Resources
+
+* `pip` cache
+  * Accessible via an environment variable `PIP_CACHE_PATH: /mount/caches/pip/linux` defined on a workflow level
+  * Used in the jobs that have Python usage 
+* onnx models for tests
+  * Accessible by the path: `/mount/onnxtestdata`
+  * Used in the `ONNX Models tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow
+* Linux RISC-V with Conan build artefacts
+  * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
+
+To add new resources, contact someone from the CI team for assistance.
 
 ## Cloud Storage via Azure Blob Storage
 
 This cache is used for sharing OpenVINO build artefacts between runs. 
 The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and download build files to/from [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs).
 
-**Note**: This cache is enable for [self-hosted runners](./runners.md) only.
+**Note**: This cache is enabled for [self-hosted runners](./runners.md) only.0
 
 `sccache` needs several things to work:
 * [be installed](#sccache-installation)
@@ -115,7 +145,7 @@ This way they would be available inside the container for `sccache` to use.
 
 ### Providing `sccache` Prefix
 
-The folder in the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable.
+The folder in the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable under the job's `env` key:
 ```yaml
 Build:
   ...
@@ -129,7 +159,7 @@ Build:
 
 ### Enabling `sccache` for C++/C Files
 
-To tell CMake to use the caching tool, the `CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables should be set:
+To tell CMake to use the caching tool, the `CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables should be set under the job's `env` key:
 ```yaml
 Build:
   ...
