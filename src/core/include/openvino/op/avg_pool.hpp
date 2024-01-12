@@ -313,6 +313,7 @@ public:
     /// \param      arg            The output producing the input data batch tensor.<br>
     ///                            `[d1, dn]`
     /// \param      strides        The strides.<br> `[n]`
+    /// \param      dilations      The dilations of the pooling filter.<br> `[n]`
     /// \param      pads_begin     The beginning of padding shape.<br> `[n]`
     /// \param      pads_end       The end of padding shape.<br> `[n]`
     /// \param      kernel         The kernel shape.<br> `[n]`
@@ -326,6 +327,7 @@ public:
     ///
     AvgPool(const Output<Node>& arg,
             const Strides& strides,
+            const Strides& dilations,
             const Shape& pads_begin,
             const Shape& pads_end,
             const Shape& kernel,
@@ -344,6 +346,13 @@ public:
     /// \return The strides.
     const Strides& get_strides() const;
     void set_strides(const Strides& strides);
+    /// \return The pooling filter's dilations.
+    const Strides& get_dilations() const noexcept {
+        return m_dilations;
+    }
+    void set_dilations(const Strides& dilations) {
+        m_dilations = dilations;
+    }
     /// \return The beginning of padding shape.
     const Shape& get_pads_begin() const;
     void set_pads_begin(const Shape& pads_begin);
@@ -361,6 +370,7 @@ public:
 protected:
     Shape m_kernel;
     Strides m_strides;
+    Strides m_dilations;
     Shape m_pads_begin;
     Shape m_pads_end;
     bool m_exclude_pad{true};
