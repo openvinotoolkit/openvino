@@ -1082,7 +1082,7 @@ class TestOutputTensorName(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf1_from_memory_single_tensor_name(self):
-        from openvino import convert_model
+        from openvino.tools.ovc import convert_model
 
         model, _, _ = create_tf_graph_def(None)
 
@@ -1124,7 +1124,7 @@ class TestOutputTensorName(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf2_from_memory_single_tensor_name(self):
-        from openvino import convert_model
+        from openvino.tools.ovc import convert_model
 
         model, _, _ = create_keras_model(None)
 
@@ -1135,3 +1135,24 @@ class TestOutputTensorName(unittest.TestCase):
             assert len(out_tensors) == 1
             out_tensor = list(out_tensors)[0]
             assert ":" not in out_tensor
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_output_with_identity(self):
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            add = tf.add(x, y, name="add")
+            result1 = tf.identity(add, name="result1")
+            result2 = tf.identity(add, name="result2")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        for tensor in out_tensors:
+            assert tensor.endswith(":0")
