@@ -166,18 +166,17 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
 /// POWER ///
 jit_power_static_emitter::jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                                   const float power,
-                                                   const float scale,
-                                                   const float shift,
-                                                   const std::shared_ptr<ov::Node>& node)
-                                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)),
-                                                     power(power),
-                                                     scale(scale),
-                                                     shift(shift) {
+                                                   const std::shared_ptr<ov::Node>& node,
+                                                   const ov::element::Type exec_prc)
+                                                   : jit_emitter(host, host_isa, node, exec_prc) {
     auto powerStaticNode = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
         OPENVINO_THROW("Can't cast to snippets::op::PowerStatic");
     }
+
+    power = powerStaticNode->get_power();
+    scale = 1.f;
+    shift = 0.f;
 
     prepare_table();
 }
