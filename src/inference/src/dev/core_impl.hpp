@@ -27,6 +27,7 @@
 namespace ov {
 
 using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
@@ -125,7 +126,7 @@ private:
         ov::util::FilePath libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
-        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
+        CreatePluginEngineFunc* pluginCreateFunc = nullptr;
         CreateExtensionFunc* extensionCreateFunc = nullptr;
 
         PluginDescriptor() = default;
@@ -138,7 +139,7 @@ private:
             this->listOfExtentions = listOfExtentions;
         }
 
-        PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
+        PluginDescriptor(CreatePluginEngineFunc* pluginCreateFunc,
                          const ov::AnyMap& defaultConfig = {},
                          CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;

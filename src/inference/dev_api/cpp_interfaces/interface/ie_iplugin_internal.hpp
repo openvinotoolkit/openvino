@@ -379,11 +379,6 @@ protected:
 };
 
 /**
- * @private
- */
-using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
-
-/**
  * @def IE_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
  * @ingroup ie_dev_api_plugin_api
@@ -424,10 +419,3 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
         ie_plugin->SetVersion(version);                                               \
         plugin = convert_plugin(ie_plugin);                                           \
     }
-
-/**
- * @private
- */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
-    INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false)
