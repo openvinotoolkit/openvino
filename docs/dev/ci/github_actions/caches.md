@@ -40,7 +40,9 @@ CPU_Functional_Tests:
         key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
     ...
 ```
-with a particular key: `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`. Then it could be seen in the [repository's cache](https://github.com/openvinotoolkit/openvino/actions/caches):
+with a particular key: `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`. 
+
+Then it could be seen in the [repository's cache](https://github.com/openvinotoolkit/openvino/actions/caches):
 ![gha_cache_example](../../../sphinx_setup/_static/images/ci/gha_cache_example.png)
 
 The next runs could download the artefact from the repository's cache with `actions/cache/restore` and use it:
@@ -64,12 +66,12 @@ Refer to the [`actions/cache`'s documentation](https://github.com/actions/cache)
 
 ## Shared Drive Cache Usage and Structure
 
-This cache could be used to store dependencies and large assets (models, dataset, etc.) that are to be used by different workflow jobs. 
+This cache could be used to store dependencies and large assets (models, datasets, etc.) that are to be used by different workflow jobs. 
 
 **Note**: This cache is enabled for the Linux [self-hosted runners](./runners.md) only.
 
 The drive is available on the self-hosted machines, and to make it available inside [the Docker containers](./docker_images.md), 
-the mounting point should be added under the `container`'s `options` key in a job configuration:
+the mounting point should be added under the `container`'s `volumes` key in a job configuration:
 ```yaml
 Build:
   ...
@@ -81,7 +83,7 @@ Build:
     options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
 ```
 
-This way the resources on the shared drive will be accessible through the `/mount` path in the Docker container.
+The first `/mount` in `- /mount:/mount` is the path on the runner, the second `/mount` is the path in the Docker container by which the resources will be available.
 
 ### Available Resources
 
