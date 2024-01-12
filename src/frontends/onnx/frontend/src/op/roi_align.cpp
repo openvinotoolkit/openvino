@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "openvino/op/roi_align.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/roi_align.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -32,14 +32,14 @@ OutputVector roi_align(const Node& node) {
     const auto aligned_mode = ov::op::v9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
 
     return {std::make_shared<ov::op::v9::ROIAlign>(data,
-                                               rois,
-                                               num_rois,
-                                               pooled_h,
-                                               pooled_w,
-                                               sampling_ratio,
-                                               spatial_scale,
-                                               pooling_mode,
-                                               aligned_mode)};
+                                                   rois,
+                                                   num_rois,
+                                                   pooled_h,
+                                                   pooled_w,
+                                                   sampling_ratio,
+                                                   spatial_scale,
+                                                   pooling_mode,
+                                                   aligned_mode)};
 }
 }  // namespace set_1
 namespace set_16 {
@@ -68,14 +68,14 @@ OutputVector roi_align(const Node& node) {
     }
 
     return {std::make_shared<ov::op::v9::ROIAlign>(data,
-                                               rois,
-                                               num_rois,
-                                               static_cast<int>(pooled_h),
-                                               static_cast<int>(pooled_w),
-                                               static_cast<int>(sampling_ratio),
-                                               spatial_scale,
-                                               pooling_mode,
-                                               aligned_mode)};
+                                                   rois,
+                                                   num_rois,
+                                                   static_cast<int>(pooled_h),
+                                                   static_cast<int>(pooled_w),
+                                                   static_cast<int>(sampling_ratio),
+                                                   spatial_scale,
+                                                   pooling_mode,
+                                                   aligned_mode)};
 }
 }  // namespace set_16
 
