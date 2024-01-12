@@ -285,7 +285,7 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();

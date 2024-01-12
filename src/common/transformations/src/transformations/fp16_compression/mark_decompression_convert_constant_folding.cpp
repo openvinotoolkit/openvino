@@ -120,8 +120,8 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
     this->register_matcher(m, callback);
 }
 
-pass::KeepFWPrecisionFor16BitFloatConstants::KeepFWPrecisionFor16BitFloatConstants() {
-    MATCHER_SCOPE(KeepFWPrecisionFor16BitFloatConstants);
+pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
+    MATCHER_SCOPE(MarkCompressedFloatConstants);
 
     auto constant = pattern::wrap_type<ov::op::v0::Constant>();
     auto convert = pattern::wrap_type<ov::op::v0::Convert>({constant});

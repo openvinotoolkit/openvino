@@ -534,7 +534,7 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
                                                               ov::Strides{1, 1});
         model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -575,7 +575,7 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
                                                               ov::Strides{1, 1});
         model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::KeepFWPrecisionFor16BitFloatConstants>();
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
