@@ -9,7 +9,7 @@
 
 namespace TemplateExtension {
 
-class FFTOp : public ngraph::op::Op {
+class FFTOp : public ov::op::Op {
 public:
     OPENVINO_OP("FFT", "custom_opset");
 

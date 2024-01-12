@@ -3,11 +3,10 @@
 //
 #pragma once
 
-#include "common_test_utils/test_common.hpp"
-
-
-#include <ngraph/opsets/opset8.hpp>
 #include <ie/ie_core.hpp>
+
+#include "common_test_utils/test_common.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace InferenceEngine;
 

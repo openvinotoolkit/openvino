@@ -12,12 +12,7 @@
 #include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/interpolate.hpp>
-#include <ngraph/op/op.hpp>
 #include <ngraph/op/parameter.hpp>
-#include <ngraph/op/relu.hpp>
-#include <ngraph/op/result.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <sstream>
 #include <string>
@@ -30,6 +25,10 @@
 #include "ie_common.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -42,8 +41,8 @@ TEST_F(NGraphReshapeTests, getBatchSize) {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -62,7 +61,7 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
         ngraph::element::Type type(ngraph::element::Type_t::f32);
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         param->set_friendly_name("A");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
 
         ngraph::ParameterVector params = {param};
 
@@ -88,8 +87,8 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
         ngraph::element::Type type(ngraph::element::Type_t::f32);
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         param->set_friendly_name("data");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -124,8 +123,8 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
         ngraph::element::Type type(ngraph::element::Type_t::f32);
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         param->set_friendly_name("data");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -153,7 +152,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(cnnNetwork.getInputsInfo()["data"]->getInputData()->getDims(), (SizeVector{1, 3, 25, 25}));
 }
 
-class CustomTestOp : public ngraph::op::Op {
+class CustomTestOp : public ov::op::Op {
 public:
     OPENVINO_OP("CustomTestLayer", "test_extension");
 
@@ -381,7 +380,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     auto inp = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4, 5});
     inp->set_friendly_name("test");
 
-    ngraph::op::v0::InterpolateAttrs attrs;
+    ov::op::v0::Interpolate::Attributes attrs;
     attrs.pads_begin.push_back(0);
     attrs.pads_end.push_back(0);
     attrs.axes = ngraph::AxisSet{2, 3};
@@ -390,10 +389,10 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     attrs.antialias = false;
 
     std::vector<int64_t> shape = {8, 10};
-    auto out_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
-    auto interp = std::make_shared<ngraph::op::v0::Interpolate>(inp, out_shape, attrs);
+    auto out_shape = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
+    auto interp = std::make_shared<ov::op::v0::Interpolate>(inp, out_shape, attrs);
 
-    auto output = std::make_shared<ngraph::op::Result>(interp);
+    auto output = std::make_shared<ov::op::v0::Result>(interp);
     auto ngraph_function =
         std::make_shared<ngraph::Function>(ngraph::ResultVector{output}, ngraph::ParameterVector{inp});
 

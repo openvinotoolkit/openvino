@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/reverse.hpp"
-
-#include <ngraph/opsets/opset1.hpp>
-
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/reverse.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;

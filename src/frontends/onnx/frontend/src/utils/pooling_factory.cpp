@@ -62,24 +62,24 @@ OutputVector PoolingFactory::make_avg_pool() const {
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 OutputVector PoolingFactory::make_max_pool() const {
-    return {std::make_shared<op::v1::MaxPool>(m_inputs.at(0),
-                                              m_strides,
-                                              m_padding_below,
-                                              m_padding_above,
-                                              m_kernel_shape,
-                                              m_rounding_type,
-                                              m_auto_pad)};
+    return {std::make_shared<ov::op::v1::MaxPool>(m_inputs.at(0),
+                                                  m_strides,
+                                                  m_padding_below,
+                                                  m_padding_above,
+                                                  m_kernel_shape,
+                                                  m_rounding_type,
+                                                  m_auto_pad)};
 }
 
 OutputVector PoolingFactory::make_max_pool_with_indices() const {
-    const auto max_pool = std::make_shared<op::v8::MaxPool>(m_inputs.at(0),
-                                                            m_strides,
-                                                            m_dilations,
-                                                            m_padding_below,
-                                                            m_padding_above,
-                                                            m_kernel_shape,
-                                                            m_rounding_type,
-                                                            m_auto_pad);
+    const auto max_pool = std::make_shared<ov::op::v8::MaxPool>(m_inputs.at(0),
+                                                                m_strides,
+                                                                m_dilations,
+                                                                m_padding_below,
+                                                                m_padding_above,
+                                                                m_kernel_shape,
+                                                                m_rounding_type,
+                                                                m_auto_pad);
     if (m_storage_order == StorageOrder::COLUMN_MAJOR) {
         const auto transposition_axes = transposition_axis_order(m_inputs.at(0).get_partial_shape().rank());
         const auto transposed_indices =

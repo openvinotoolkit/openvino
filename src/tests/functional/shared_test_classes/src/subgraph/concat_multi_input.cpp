@@ -115,8 +115,8 @@ void ConcatMultiInput::GenerateMemoryModel() {
     int axis = 1;
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
 
-    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ov::Shape(inputShapes[0]),
-                                                                            ngraph::element::dynamic, "concat_input_memory"});
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::Shape(inputShapes[0]), ngraph::element::dynamic, "concat_input_memory"});
     auto mem_i = std::make_shared<ov::op::v0::Constant>(ngPrc, inputShapes[0]);
     auto mem_r = std::make_shared<ov::op::v6::ReadValue>(mem_i, variable);
 
@@ -128,7 +128,8 @@ void ConcatMultiInput::GenerateMemoryModel() {
     auto mem_w = std::make_shared<ov::op::v6::Assign>(input.at(0), variable);
 
     auto res = std::make_shared<ov::op::v0::Result>(concat);
-    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::SinkVector{mem_w}, input, "ConcatMemory");
+    function =
+        std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ov::SinkVector{mem_w}, input, "ConcatMemory");
 }
 
 }  // namespace SubgraphTestsDefinitions

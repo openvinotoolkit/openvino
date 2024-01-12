@@ -7,8 +7,8 @@
 #include <cstring>
 #include <memory>
 
-#include "ngraph/op/constant.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ngraph;
 using namespace std;

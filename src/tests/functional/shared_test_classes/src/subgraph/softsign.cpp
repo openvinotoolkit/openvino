@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include "shared_test_classes/subgraph/softsign.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 

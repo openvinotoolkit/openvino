@@ -8,7 +8,7 @@
 
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
+//
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -70,7 +70,7 @@ protected:
         return parameter;
     }
 
-    std::shared_ptr<ngraph::op::Constant> get_ov_constant(const Tensor& tensor) const {
+    std::shared_ptr<ov::op::v0::Constant> get_ov_constant(const Tensor& tensor) const {
         return tensor.get_ov_constant();
     }
 

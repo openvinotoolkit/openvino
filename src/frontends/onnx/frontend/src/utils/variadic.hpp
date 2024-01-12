@@ -8,7 +8,6 @@
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/add.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"

@@ -10,10 +10,10 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
-#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
@@ -955,10 +955,6 @@ std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t)
 bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
     return (tensor_vector.size() == size) &&
            std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
-}
-
-std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
-    return std::make_shared<op::Negative>(arg0);
 }
 }  // namespace ngraph
 

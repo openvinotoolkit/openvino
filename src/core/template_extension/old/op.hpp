@@ -9,7 +9,7 @@
 //! [op:header]
 namespace TemplateExtension {
 
-class Operation : public ngraph::op::Op {
+class Operation : public ov::op::Op {
 public:
     OPENVINO_OP("Template", "custom_opset");
 

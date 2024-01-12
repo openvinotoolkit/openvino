@@ -15,7 +15,7 @@ namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> get_filter_zero_point(const OutputVector& inputs) {
     const auto& original_zero_point =
-        (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {}, {0});
+        (inputs.size() > 3) ? inputs.at(3) : default_opset::Constant::create(ngraph::element::i32, {}, {0});
 
     const auto filter_zero_point_rank = original_zero_point.get_partial_shape().rank();
     if (filter_zero_point_rank.is_static() && filter_zero_point_rank.get_length() == 0) {
@@ -28,7 +28,7 @@ std::shared_ptr<ngraph::Node> get_filter_zero_point(const OutputVector& inputs) 
         const auto& input_rank = std::make_shared<default_opset::ShapeOf>(input_shape, element::i32);
         const auto& input_rank_scalar = reshape::interpret_as_scalar(input_rank);
 
-        const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {}, {1});
+        const auto& one_node = default_opset::Constant::create(ngraph::element::i32, {}, {1});
         const auto& missing_dimensions =
             std::make_shared<default_opset::Range>(one_node, input_rank_scalar, one_node, element::i32);
 
@@ -45,7 +45,7 @@ OutputVector conv_integer(const Node& node) {
     const auto& input = inputs.at(0);
     const auto& filter = inputs.at(1);
     const auto& input_zero_point =
-        (inputs.size() > 2) ? inputs.at(2) : ngraph::op::Constant::create(ngraph::element::i32, {}, {0});
+        (inputs.size() > 2) ? inputs.at(2) : default_opset::Constant::create(ngraph::element::i32, {}, {0});
 
     const auto& converted_input = std::make_shared<default_opset::Convert>(input, element::i32);
     const auto& converted_filter = std::make_shared<default_opset::Convert>(filter, element::i32);

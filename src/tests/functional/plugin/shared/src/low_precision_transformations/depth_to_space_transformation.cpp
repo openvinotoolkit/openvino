@@ -2,31 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/depth_to_space_transformation.hpp"
-
+#include <ie_core.hpp>
 #include <memory>
+#include <ngraph/function.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <string>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-
-#include "ov_models/pass/convert_prc.hpp"
-#include "ov_models/builders.hpp"
-
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <ngraph/op/depth_to_space.hpp>
-
+#include "functional_test_utils/plugin_cache.hpp"
+#include "low_precision_transformations/depth_to_space_transformation.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
 

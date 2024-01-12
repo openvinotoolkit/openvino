@@ -140,7 +140,7 @@ std::string extract_name(const T& input_or_initializer) {
 
 void modify_initializer(TensorProto& initializer,
                         const std::string& name,
-                        const std::shared_ptr<ngraph::op::Constant> values,
+                        const std::shared_ptr<ov::op::v0::Constant> values,
                         ValueInfoProto* input) {
     const auto elem_type = values->get_element_type();
     OPENVINO_ASSERT(is_supported_ov_type(elem_type),
@@ -540,7 +540,7 @@ std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
-    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values) {
+    const std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>& input_values) {
     auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input : input_values) {

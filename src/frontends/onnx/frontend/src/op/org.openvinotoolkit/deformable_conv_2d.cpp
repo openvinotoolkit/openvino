@@ -18,7 +18,6 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 
 namespace ngraph {

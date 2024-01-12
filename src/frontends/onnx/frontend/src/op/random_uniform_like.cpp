@@ -6,9 +6,8 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -38,12 +37,12 @@ OutputVector random_uniform_like(const Node& node) {
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape,
-                                                            low_const,
-                                                            high_const,
-                                                            target_type,
-                                                            global_seed,
-                                                            seed_uint64)};
+    return {std::make_shared<ov::opset8::RandomUniform>(target_shape,
+                                                        low_const,
+                                                        high_const,
+                                                        target_type,
+                                                        global_seed,
+                                                        seed_uint64)};
 }
 
 }  // namespace set_1

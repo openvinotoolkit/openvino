@@ -62,7 +62,7 @@ OutputVector loop(const Node& node) {
          ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
-        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
+        trip_count = default_opset::Constant::create(ngraph::element::i64, {1}, {-1});
     } else {
         trip_count = ng_inputs.at(0);
     }
@@ -70,7 +70,7 @@ OutputVector loop(const Node& node) {
     Output<ngraph::Node> termination_cond;                             // true means that first interation should be run
     if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
-        termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+        termination_cond = default_opset::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
                        ->cast_vector<bool>()[0] == false) {
@@ -90,7 +90,7 @@ OutputVector loop(const Node& node) {
     }
 
     const int64_t concat_axis = 0;
-    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+    const auto concat_axis_const = default_opset::Constant::create(ngraph::element::i64, {1}, {concat_axis});
     // add dimension along which scan outputs will be concatenated
     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i) {
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
@@ -100,7 +100,7 @@ OutputVector loop(const Node& node) {
     const auto& cond_out = body_outputs[0];
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
-        body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+        body_outputs[0] = default_opset::Constant::create(ngraph::element::boolean, {1}, {true});
     }
 
     CHECK_VALID_NODE(node,

@@ -8,9 +8,6 @@
 #include <type_traits>
 
 #include "ngraph/node.hpp"
-#include "ngraph/op/avg_pool.hpp"
-#include "ngraph/op/max_pool.hpp"
-#include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"

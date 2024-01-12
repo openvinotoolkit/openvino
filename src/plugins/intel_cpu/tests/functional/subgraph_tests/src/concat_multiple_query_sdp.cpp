@@ -186,7 +186,7 @@ public:
             results.push_back(pastk_shapeof);
             results.push_back(pastv_shapeof);
         }
-        SinkVector sinks{pastk_assign, pastv_assign};
+        ov::SinkVector sinks{pastk_assign, pastv_assign};
         function = std::make_shared<Function>(results, sinks, inputParams, "ConcatTranposeSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
 

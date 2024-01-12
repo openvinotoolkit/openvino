@@ -72,12 +72,12 @@ private:
     const std::shared_ptr<ngraph::Node> node;
 };
 
-class CustomAbs : public ngraph::op::Op {
+class CustomAbs : public ov::op::Op {
 public:
     OPENVINO_RTTI("CustomAbs", "custom_opset");
 
     CustomAbs() = default;
-    CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
+    CustomAbs(const ngraph::Output<ngraph::Node>& arg) : ov::op::Op({arg}) {
         constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override {

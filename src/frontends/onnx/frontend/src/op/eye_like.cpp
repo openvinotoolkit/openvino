@@ -23,11 +23,11 @@ namespace {
 
 /// \brief Split a shape returned by a ShapeOf operation into two outputs: width and height.
 OutputVector get_shape_width_and_height(const Output<ngraph::Node>& shape) {
-    const auto axis = ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
+    const auto axis = ov::op::v0::Constant::create(ngraph::element::i64, {1}, {0});
     const auto height =
-        std::make_shared<ov::op::v8::Gather>(shape, ngraph::op::Constant::create(ngraph::element::i64, {1}, {0}), axis);
+        std::make_shared<ov::op::v8::Gather>(shape, ov::op::v0::Constant::create(ngraph::element::i64, {1}, {0}), axis);
     const auto width =
-        std::make_shared<ov::op::v8::Gather>(shape, ngraph::op::Constant::create(ngraph::element::i64, {1}, {1}), axis);
+        std::make_shared<ov::op::v8::Gather>(shape, ov::op::v0::Constant::create(ngraph::element::i64, {1}, {1}), axis);
 
     return {width, height};
 }

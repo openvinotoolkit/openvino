@@ -54,19 +54,7 @@ public:
     }
 };
 
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset1();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset2();
 NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset3();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset4();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset5();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset6();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset7();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset8();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset9();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset10();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset11();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset12();
-NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset13();
 NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>&
 get_available_opsets();
 }  // namespace ngraph

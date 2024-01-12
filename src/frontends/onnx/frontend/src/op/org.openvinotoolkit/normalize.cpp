@@ -5,7 +5,6 @@
 #include "op/org.openvinotoolkit/normalize.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/op/normalize_l2.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
