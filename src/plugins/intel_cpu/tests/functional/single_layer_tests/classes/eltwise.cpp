@@ -526,6 +526,20 @@ const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const() {
     return inShapes_4D_dyn_const;
 }
 
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_fusing = {
+                {{1, 3, 16, 16}, {1}},
+        };
+        return inShapes_4D_fusing;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_5D_fusing = {
+                {{1, 3, 16, 16, 16}, {1}},
+        };
+        return inShapes_5D_fusing;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant() {
     static const std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
