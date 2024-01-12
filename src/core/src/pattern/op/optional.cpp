@@ -10,20 +10,18 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_
     return optional_types;
 }
 
-bool ov::pass::pattern::op::Optional::match_value(
-    Matcher* matcher,
-    const Output<Node>& pattern_value,
-    const Output<Node>& graph_value) {
+bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
+                                                  const Output<Node>& pattern_value,
+                                                  const Output<Node>& graph_value) {
     auto& pattern_map = matcher->get_pattern_value_map();
     auto saved = matcher->start_match();
     auto updated_pattern_value = input_value(0);
 
     // find first pattern matched node from the end to the last node of the graph excluding optional operations
     // return true in case matched nodes were found. Otherside false
-    const auto find_matched_node = [&matcher, &pattern_map](
-        Output<Node>& p_value,
-        const Output<Node>& g_value,
-        const std::vector<ov::DiscreteTypeInfo>& optional_types) {
+    const auto find_matched_node = [&matcher, &pattern_map](Output<Node>& p_value,
+                                                            const Output<Node>& g_value,
+                                                            const std::vector<ov::DiscreteTypeInfo>& optional_types) {
         do {
             auto& matched_values = matcher->get_matched_values();
             if (matcher->match_value(p_value, g_value) ||
@@ -34,7 +32,8 @@ bool ov::pass::pattern::op::Optional::match_value(
 
             const auto pattern_node = p_value.get_node_shared_ptr();
             // optional op types should contain only one input to be replaced without extra input nodes
-            if (std::find(optional_types.begin(), optional_types.end(), pattern_node->get_type_info()) == optional_types.end() ||
+            if (std::find(optional_types.begin(), optional_types.end(), pattern_node->get_type_info()) ==
+                    optional_types.end() ||
                 pattern_node->get_input_size() != 1) {
                 return false;
             }

@@ -12,7 +12,7 @@ namespace pass {
 namespace pattern {
 namespace op {
 /// A submatch on the graph value which contains optional op types defined in constructor.
-/// The match is succeed in case of full graphs matching or partually graph matching without 
+/// The match is succeed in case of full graphs matching or partually graph matching without
 /// excepted optional op types. Otherside fails.
 class OPENVINO_API Optional : public Pattern {
 public:
@@ -21,10 +21,9 @@ public:
     /// \param type_infos Optional operation types to exclude them from the matching
     /// in case the following op types do not exist in a graph to match
     /// \param patterns The pattern to match a graph. Should contains optional op types
-    Optional(const std::vector<DiscreteTypeInfo>& type_infos,
-             const Output<Node>& pattern) :
-             Pattern({pattern}),
-             optional_types(type_infos) {};
+    Optional(const std::vector<DiscreteTypeInfo>& type_infos, const Output<Node>& pattern)
+        : Pattern({pattern}),
+          optional_types(type_infos){};
 
     bool match_value(pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
@@ -42,7 +41,9 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     type_info_vec.push_back(NodeType::get_type_info_static());
 }
 
-template <class NodeType, class... NodeTypeArgs, typename std::enable_if<sizeof...(NodeTypeArgs) != 0, bool>::type = true>
+template <class NodeType,
+          class... NodeTypeArgs,
+          typename std::enable_if<sizeof...(NodeTypeArgs) != 0, bool>::type = true>
 void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     collect_type_info<NodeType>(type_info_vec);
     collect_type_info<NodeTypeArgs...>(type_info_vec);
