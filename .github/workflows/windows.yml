@@ -198,7 +198,7 @@ jobs:
         if: ${{ 'false' }} # 128689
         # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
-          cmake -DENABLE_JS=ON -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
           
           cmake --build ${{ env.BUILD_DIR }} --parallel
           

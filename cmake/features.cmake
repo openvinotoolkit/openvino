@@ -177,6 +177,9 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
     "ENABLE_PYTHON;UNIX" OFF)
 
+ov_dependent_option (ENABLE_JS "Enables JS API building" ON
+    "NOT WIN32;NOT CMAKE_TOOLCHAIN_FILE MATCHES 'vcpkg';NOT DEFINED VCPKG_VERBOSE" OFF)
+
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
