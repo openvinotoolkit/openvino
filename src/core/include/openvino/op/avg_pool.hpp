@@ -347,12 +347,8 @@ public:
     const Strides& get_strides() const;
     void set_strides(const Strides& strides);
     /// \return The pooling filter's dilations.
-    const Strides& get_dilations() const noexcept {
-        return m_dilations;
-    }
-    void set_dilations(const Strides& dilations) {
-        m_dilations = dilations;
-    }
+    const Strides& get_dilations() const;
+    void set_dilations(const Strides& dilations);
     /// \return The beginning of padding shape.
     const Shape& get_pads_begin() const;
     void set_pads_begin(const Shape& pads_begin);
