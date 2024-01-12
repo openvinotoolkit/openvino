@@ -178,7 +178,7 @@ ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in
     "ENABLE_PYTHON;UNIX" OFF)
 
 ov_dependent_option (ENABLE_JS "Enables JS API building" ON
-    "NOT WIN32;NOT CMAKE_TOOLCHAIN_FILE MATCHES 'vcpkg';NOT DEFINED VCPKG_VERBOSE" OFF)
+    "NOT WIN32" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
