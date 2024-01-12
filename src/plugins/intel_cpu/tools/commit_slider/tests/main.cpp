@@ -14,7 +14,7 @@ int main () {
     {
         "str": "std::cout << \"prefix\\nfailed_1\\n\";",
         "comment": "error_1",
-        "mark": "BREAK"
+        "state": "BREAK"
     },
     {
         "str": "std::cout << \"prefix\\nfailed_2\\n\";",

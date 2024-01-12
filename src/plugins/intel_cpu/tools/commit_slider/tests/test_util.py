@@ -9,9 +9,9 @@ from os import path
 sys.path.append('../')
 from utils.helpers import getMeaningfullCommitTail
 
-def getVersionList():
-    patternPrefix = "const char \*patchGenerator = R\"V0G0N\("
-    patternPostfix = "\)V0G0N\";"
+def getVersionList(rsc):
+    patternPrefix = rsc['CommonRes']['patchGeneratorPrefix']
+    patternPostfix = rsc['CommonRes']['patchGeneratorPostfix']
     pattern = "{pre}(.+?){post}".format(pre=patternPrefix, post=patternPostfix)
 
     with open('main.cpp', 'r') as file:
@@ -28,12 +28,15 @@ def getVersionList():
     postfixPos = re.search(patternPostfix, data, re.DOTALL).span()[1]
     versionList = []
     for patch in patchList:
-        mark = 'EMPTY'
-        if 'mark' in patch:
-            mark = patch['mark']
+        state = 'EMPTY'
+        if 'state' in patch:
+            state = patch['state']
         sub = patch['str']
         newData = data[:prefixPos] + sub + "\n" + data[postfixPos + 1:]
-        newVersion = {"content": newData, "mark": mark, "comment": patch['comment']}
+        newVersion = {
+            "content": newData,
+            "state": state,
+            "comment": patch['comment']}
         versionList.append(newVersion)
     return versionList
 
@@ -60,9 +63,12 @@ add_executable("${{PROJECT_NAME}}" "main.cpp")
     with open(filePath, "w") as text_file:
         text_file.write("")
 
-    os.mkdir(path.join(fullPath, "build"))
+    dir = path.join(fullPath, "build")
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
+    os.makedirs(dir)
 
-def runCmd(cmd, cwd, verbose=False):
+def runCmd(cmd, cwd, verbose=True):
     if verbose:
         print("run command: {}".format(cmd))
     proc = subprocess.Popen(
@@ -81,7 +87,7 @@ def runCmd(cmd, cwd, verbose=False):
     proc.communicate()
     return output
 
-def createRepo(repoPath, repoName):
+def createRepo(repoPath, repoName, rsc):
     repoPath = os.path.abspath(repoPath)
     cmd = "mkdir {}".format(repoName)
     runCmd(cmd, repoPath)
@@ -91,7 +97,7 @@ def createRepo(repoPath, repoName):
     makeRepoContent(repoPath, repoName)
     cmd = "git add CMakeLists.txt .gitignore main.cpp"
     runCmd(cmd, innerPath)
-    return commitPatchList(getVersionList(), innerPath, "main.cpp")
+    return commitPatchList(getVersionList(rsc), innerPath, "main.cpp")
 
 def commitPatchList(versionList, innerPath, fileName):
     markedVersionList = []
@@ -103,7 +109,7 @@ def commitPatchList(versionList, innerPath, fileName):
         hash = runCmd("git rev-parse HEAD", innerPath)[0]
         markedVersion = {
             "commit": hash.strip(),
-            "mark": version['mark'],
+            "state": version['state'],
             "comment": version['comment']
         }
         markedVersionList.append(markedVersion)
@@ -115,11 +121,11 @@ def checkTestCase():
         rsc = json.load(cfgFile)
     cfgFile.close()
 
-    markedVersionList = createRepo("./", "testRepo")
+    markedVersionList = createRepo("./", "testRepo", rsc)
     breakCommit = markedVersionList[[
         i for i in range(
             len(markedVersionList)
-        ) if markedVersionList[i]['mark'] == 'BREAK'][0]]['commit']
+        ) if markedVersionList[i]['state'] == 'BREAK'][0]]['commit']
     with open("tests_res.json") as cfgFile:
         rsc = json.load(cfgFile)
         cfg = rsc["FirstBadVersionTestRes"]["cfg"]
