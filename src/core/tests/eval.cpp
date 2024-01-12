@@ -14,7 +14,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"

@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_tools.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/op/parameter.hpp"

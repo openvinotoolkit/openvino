@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -18,10 +18,8 @@
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-using ov::Dimension;
+namespace ov {
+namespace util {
 
 struct ChannelShapedInputSpec {
     element::Type m_element_type;
@@ -139,159 +137,10 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
                                             {mean_element_type, mean_shape, "mean"},
                                             {variance_element_type, variance_shape, "variance"}});
 }
+}  // namespace util
+}  // namespace ov
 
-namespace {
-/// \brief Scalar variant describes value of an Output, for use in max shape determination
-///
-/// For tensor values, we use the maximum value in the tensor
-struct MaxValue {
-    /// \brief No information known about the output
-    MaxValue() = default;
-    /// \brief uint64_t assoiated with the output
-    MaxValue(uint64_t value) : m_value(value) {}
-    MaxValue(const std::vector<uint64_t>& slices, int64_t slice_axis) : m_slices(slices), m_slice_axis(slice_axis) {
-        m_value = *max_element(m_slices.begin(), m_slices.end());
-    }
-    uint64_t m_value{std::numeric_limits<uint64_t>::max()};
-    std::vector<uint64_t> m_slices;
-    int64_t m_slice_axis{-1};
-};
-
-std::vector<MaxValue> exec_constant(Node* node, std::vector<MaxValue>& inputs) {
-    auto result = MaxValue();
-    auto op = ov::as_type<ov::op::v0::Constant>(node);
-    auto element_type = op->get_output_element_type(0);
-    if (element_type.is_integral()) {
-        uint64_t max_val = 0;
-        if (element_type.is_signed()) {
-            for (auto elt : op->cast_vector<int64_t>()) {
-                if (max_val < static_cast<uint64_t>(elt)) {
-                    max_val = elt;
-                }
-            }
-        } else {
-            for (auto elt : op->cast_vector<uint64_t>()) {
-                if (max_val < elt) {
-                    max_val = elt;
-                }
-            }
-        }
-        result = MaxValue(max_val);
-    }
-    return {result};
-}
-
-std::vector<MaxValue> exec_minimum(Node* node, std::vector<MaxValue>& inputs) {
-    uint64_t min_value = std::numeric_limits<uint64_t>::max();
-    switch (node->get_output_element_type(0)) {
-    case element::Type_t::i8:
-        min_value = std::numeric_limits<int8_t>::max();
-        break;
-    case element::Type_t::i16:
-        min_value = std::numeric_limits<int16_t>::max();
-        break;
-    case element::Type_t::i32:
-        min_value = std::numeric_limits<int32_t>::max();
-        break;
-    case element::Type_t::i64:
-        min_value = std::numeric_limits<int64_t>::max();
-        break;
-    case element::Type_t::u8:
-        min_value = std::numeric_limits<uint8_t>::max();
-        break;
-    case element::Type_t::u16:
-        min_value = std::numeric_limits<uint16_t>::max();
-        break;
-    case element::Type_t::u32:
-        min_value = std::numeric_limits<uint32_t>::max();
-        break;
-    case element::Type_t::u64:
-        min_value = std::numeric_limits<uint64_t>::max();
-        break;
-    default:
-        break;
-    }
-    min_value = std::min(min_value, inputs.at(0).m_value);
-    min_value = std::min(min_value, inputs.at(1).m_value);
-    return {MaxValue(min_value)};
-}
-
-std::vector<MaxValue> exec_concat(Node* node, std::vector<MaxValue>& inputs) {
-    auto op = ov::as_type<ov::op::v0::Concat>(node);
-    std::vector<uint64_t> slice_maxen;
-    for (const auto& input : inputs) {
-        slice_maxen.push_back(input.m_value);
-    }
-    auto axis = op->get_concatenation_axis();
-    return {MaxValue(slice_maxen, axis)};
-}
-
-std::vector<MaxValue> exec_reduce_min(Node* node, std::vector<MaxValue>& inputs) {
-    auto data = inputs.at(0);
-    if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
-        if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
-            if (indices_const->get_output_element_type(0).is_integral()) {
-                const auto& indices_shape = indices_const->get_output_shape(0);
-                if (indices_shape == Shape{1}) {
-                    auto indices = indices_const->cast_vector<int64_t>();
-                    auto axis = indices.at(0);
-                    if (axis == data.m_slice_axis) {
-                        return {MaxValue(*min_element(data.m_slices.begin(), data.m_slices.end()))};
-                    }
-                }
-            }
-        }
-    }
-    // Noting we can do
-    return {MaxValue(data.m_value)};
-}
-
-std::vector<MaxValue> exec_shape_of(Node* node, std::vector<MaxValue>& inputs) {
-    const auto& inputPS = node->get_input_partial_shape(0);
-    std::vector<uint64_t> shapeDims;
-    for (int64_t i = 0; i < inputPS.rank().get_length(); i++) {
-        if (inputPS[i].is_static()) {
-            shapeDims.push_back(inputPS[i].get_length());
-        } else {
-            shapeDims.push_back(std::numeric_limits<uint64_t>::max());
-        }
-    }
-
-    return {MaxValue(shapeDims, 0)};
-}
-
-std::vector<MaxValue> exec_gather(Node* node, std::vector<MaxValue>& inputs) {
-    auto gather = ov::as_type<ov::op::v1::Gather>(node);
-
-    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
-
-    if (!indices || !axis) {
-        return {MaxValue()};
-    }
-
-    if (gather->get_axis() != 0) {
-        return {MaxValue()};
-    }
-
-    const auto& indicesVec = indices->cast_vector<int64_t>();
-    if (indicesVec.size() != 1 || indicesVec[0] >= static_cast<int64_t>(inputs[0].m_slices.size())) {
-        return {MaxValue()};
-    }
-
-    return {MaxValue(inputs[0].m_slices[indicesVec[0]])};
-}
-
-std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
-    return {inputs.at(0)};
-}
-}  // namespace
-
-std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
-    return std::make_shared<op::Negative>(arg0);
-}
-}  // namespace ngraph
-
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::infer_auto_padding(const Shape& image_shape,
                             const Shape& filter_shape,
                             const Strides& filter_strides,
@@ -307,6 +156,7 @@ void ov::infer_auto_padding(const Shape& image_shape,
                                  padding_above,
                                  padding_below);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
@@ -628,6 +478,7 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void infer_auto_padding(const Shape& image_shape,
                         const Shape& filter_shape,
                         const Strides& filter_strides,
@@ -645,6 +496,7 @@ void infer_auto_padding(const Shape& image_shape,
                            padding_above,
                            padding_below);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
     Tensor lb, ub;

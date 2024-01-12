@@ -12,7 +12,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
 #include "op/topk.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"

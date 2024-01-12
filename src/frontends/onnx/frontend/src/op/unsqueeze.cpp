@@ -9,7 +9,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

@@ -126,6 +126,19 @@ OPENVINO_API void infer_auto_padding(const Shape& image_shape,
                                      CoordinateDiff& padding_above,
                                      CoordinateDiff& padding_below);
 
+OPENVINO_API std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    element::Type mean_element_type,
+    element::Type variance_element_type,
+    const PartialShape& input_shape,
+    const PartialShape& gamma_shape,
+    const PartialShape& beta_shape,
+    const PartialShape& mean_shape,
+    const PartialShape& variance_shape);
+
 /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would be represented as partial
 /// shape object using Dimension(min, max) for each element.
 ///

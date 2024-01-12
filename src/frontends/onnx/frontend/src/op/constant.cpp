@@ -11,7 +11,6 @@
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

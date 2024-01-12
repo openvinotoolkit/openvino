@@ -14,10 +14,10 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
+#include "validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -108,17 +108,13 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_low)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(input_low)) {
         input_low = constant;
     }
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_high)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(input_high)) {
         input_high = constant;
     }
 
@@ -178,9 +174,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = normalize_axis(node.get_description(), axis, x_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();

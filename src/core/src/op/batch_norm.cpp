@@ -7,9 +7,9 @@
 #include <sstream>
 
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 
@@ -42,20 +42,18 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
-        ngraph::infer_batch_norm_forward(this,
-                                         get_input_element_type(INPUT_DATA),
-                                         get_input_element_type(INPUT_GAMMA),
-                                         get_input_element_type(INPUT_BETA),
-                                         get_input_element_type(INPUT_MEAN),
-                                         get_input_element_type(INPUT_VARIANCE),
-                                         get_input_partial_shape(INPUT_DATA),
-                                         get_input_partial_shape(INPUT_GAMMA),
-                                         get_input_partial_shape(INPUT_BETA),
-                                         get_input_partial_shape(INPUT_MEAN),
-                                         get_input_partial_shape(INPUT_VARIANCE));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::infer_batch_norm_forward(this,
+                                           get_input_element_type(INPUT_DATA),
+                                           get_input_element_type(INPUT_GAMMA),
+                                           get_input_element_type(INPUT_BETA),
+                                           get_input_element_type(INPUT_MEAN),
+                                           get_input_element_type(INPUT_VARIANCE),
+                                           get_input_partial_shape(INPUT_DATA),
+                                           get_input_partial_shape(INPUT_GAMMA),
+                                           get_input_partial_shape(INPUT_BETA),
+                                           get_input_partial_shape(INPUT_MEAN),
+                                           get_input_partial_shape(INPUT_VARIANCE));
     set_output_type(0, result_et, result_batch_shape);
 }
 
@@ -99,20 +97,18 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
-        ngraph::infer_batch_norm_forward(this,
-                                         get_input_element_type(INPUT_DATA),
-                                         get_input_element_type(INPUT_GAMMA),
-                                         get_input_element_type(INPUT_BETA),
-                                         get_input_element_type(INPUT_MEAN),
-                                         get_input_element_type(INPUT_VARIANCE),
-                                         get_input_partial_shape(INPUT_DATA),
-                                         get_input_partial_shape(INPUT_GAMMA),
-                                         get_input_partial_shape(INPUT_BETA),
-                                         get_input_partial_shape(INPUT_MEAN),
-                                         get_input_partial_shape(INPUT_VARIANCE));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::infer_batch_norm_forward(this,
+                                           get_input_element_type(INPUT_DATA),
+                                           get_input_element_type(INPUT_GAMMA),
+                                           get_input_element_type(INPUT_BETA),
+                                           get_input_element_type(INPUT_MEAN),
+                                           get_input_element_type(INPUT_VARIANCE),
+                                           get_input_partial_shape(INPUT_DATA),
+                                           get_input_partial_shape(INPUT_GAMMA),
+                                           get_input_partial_shape(INPUT_BETA),
+                                           get_input_partial_shape(INPUT_MEAN),
+                                           get_input_partial_shape(INPUT_VARIANCE));
     set_output_type(0, result_et, result_batch_shape);
 }
 
