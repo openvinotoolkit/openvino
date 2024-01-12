@@ -59,6 +59,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn();
 const std::vector<CPUSpecificParams>& cpuParams_4D();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D();
 const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const();
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D();
 const std::vector<InputShape>& inShapes_4D_dyn_param();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D_1D();
 const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode();
@@ -71,6 +72,7 @@ const std::vector<InputShape>& inShapes_5D_dyn_const();
 const std::vector<InputShape>& inShapes_5D_dyn_param();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter();
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesI32();
 
