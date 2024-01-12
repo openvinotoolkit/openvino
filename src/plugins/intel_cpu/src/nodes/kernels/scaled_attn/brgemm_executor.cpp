@@ -49,8 +49,6 @@ brgemmExecutor::brgemmExecutor(size_t M,
     // K must be round up by K_BLK, otherwise copy B kernel may fail if K < K_BLK
     packedBSize = rnd_up(K, K_blk) * rnd_up(N, N_blk) * brgPrc.size();
     packedASize = M_blk * rnd_up(K, K_blk) * brgPrc.size();
-    //scrach buffer for AMX;
-    wsp.resize(wsp_size_per_thread);
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
@@ -280,7 +278,7 @@ void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void brgemmExecutor::executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
+void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
     auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -291,7 +289,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b,
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
     size_t K0_step0 = brgCtxs0[brgIdx0].K;
-
+    bool is_M_tail = m_blk < M_blk;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
         // only copy tailed data;
@@ -332,7 +330,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b,
                         local_a_ptr,
                         weight_ptr,
                         out_ptr,
-                        wsp.data());
+                        wsp);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -345,7 +343,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b,
     }
 }
 
-void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* scratch_a, void* scratch_b) {
+void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_B = reinterpret_cast<uint8_t*>(b);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
@@ -358,7 +356,7 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* scratch_a, voi
         auto cur_M_blk = is_M_tail ? M_tail : M_blk;
         auto ptr_a = ptr_A + (mb * M_blk * lda) * dataType.size();
         auto ptr_c = ptr_C + (mb * M_blk * ldc) * dataType.size();
-        executeGemm(cur_M_blk, is_M_tail, ptr_a, b, ptr_c, scratch_a, scratch_b);
+        executeGemm(cur_M_blk, ptr_a, b, wsp, ptr_c, scratch_a, scratch_b);
     }
 }
 void brgemmExecutor::callBrgemm(brgemmCtx& ctx,

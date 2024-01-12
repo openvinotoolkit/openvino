@@ -223,6 +223,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     PlainTensor qk_scratch_b;
     PlainTensor wv_scratch_a;
     PlainTensor wv_scratch_b;
+    std::vector<size_t> wsp;
+    size_t wsp_size_per_thread = 4 * 1024;
     dnnl::matmul qk_prim;
     dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
@@ -317,7 +319,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         wv_gemm_ptr = wv_result.first;
 
         size_t nthr = static_cast<size_t>(parallel_get_max_threads());
-
+        wsp.resize(nthr * wsp_size_per_thread);
         if (head_size % qk_gemm_ptr->get_k_blk() != 0) {
             qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / 2});
         }
@@ -330,11 +332,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
-            if (has_out_transpose) {
-                fp32_out.resize<float>({B, q_len, H, head_size});
-            } else {
-                fp32_out.resize<float>({B, H, q_len, head_size});
-            }
+        }
+        if (has_out_transpose) {
+            fp32_out.resize<float>({B, q_len, H, head_size});
+        } else {
+            fp32_out.resize<float>({B, H, q_len, head_size});
         }
         return;
     }
@@ -417,16 +419,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
-            bool is_m_tail = m_cnt < m_block_size;
             size_t tid = parallel_get_thread_num();
             bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
             bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* c_ptr = &score.at<float>({b, h, m_start, 0});
             qk_gemm_ptr->executeGemm(m_cnt,
-                                     is_m_tail,
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
+                                     wsp.data() + tid * wsp_size_per_thread,
                                      qk_scratch_a ? &qk_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
                                      &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
             float* alibi_ptr = nullptr;
@@ -458,7 +459,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              &weight.at<bfloat16>({b, h, m, 0}),
                              d_scale,
                              alibi_ptr + m * alibi_stride,
-                             attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr,
+                             attn_mask_ptr + m * attn_mask_stride,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
@@ -471,10 +472,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             float* fp32_out_ptr =
                 has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
             wv_gemm_ptr->executeGemm(m_cnt,
-                                     is_m_tail,
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
+                                     wsp.data() + tid * wsp_size_per_thread,
                                      wv_scratch_a ? &wv_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
                                      &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
         });
@@ -546,7 +547,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                             d_scale);
             return;
         }
-
         prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
         exec_qk(strm, query, present_key);
 
@@ -1065,10 +1065,10 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             }
         }
         // using mha should be better for static shapes
-        if (!op->is_dynamic()) {
-            errorMessage = "Only run in dynamic mode";
-            return false;
-        }
+        // if (!op->is_dynamic()) {
+        //     errorMessage = "Only run in dynamic mode";
+        //     return false;
+        // }
     } catch (...) {
         return false;
     }

@@ -24,9 +24,9 @@ public:
                    size_t ldc,
                    bool b_transposed = false);
     // execute all M
-    void executeGemm(void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute m_blk
-    void executeGemm(size_t m_blk, bool is_M_tail, void* a, void* b, void* c, void* scratch_a = nullptr, void* scratch_b = nullptr);
+    void executeGemm(size_t m_blk, void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
 
     void copy_buffer_a();
     void copy_buffer_b(void* b, void* scratch_b);
@@ -48,8 +48,6 @@ private:
     size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
-    size_t wsp_size_per_thread = 4 * 1024;
-    std::vector<size_t> wsp;
     static constexpr size_t N_blk = 32;
     static constexpr size_t K_blk = 32;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
