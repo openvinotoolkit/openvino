@@ -94,6 +94,8 @@ OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_index_add);
+OP_CONVERTER(translate_index_add_);
 OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
@@ -390,6 +392,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardtanh_", op::inplace_op<op::quantizable_op<op::translate_hardtanh>>},
         {"aten::im2col", op::translate_im2col},
         {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
+        {"aten::index_add", op::translate_index_add},
+        {"aten::index_add_", op::translate_index_add_},
         {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
