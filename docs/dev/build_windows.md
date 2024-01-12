@@ -51,7 +51,7 @@ Supported configurations:
 ### Additional Build Options
 
 - To build the OpenVINO Runtime Python API:
-  1. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+  1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
      -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
