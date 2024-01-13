@@ -28,6 +28,11 @@ if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
 
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
 find_package(OpenVINODeveloperScripts REQUIRED
