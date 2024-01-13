@@ -5,7 +5,9 @@
 #pragma once
 
 #include <node.h>
+#if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/gather_uni_kernel.hpp"
+#endif
 
 #include <memory>
 #include <string>
@@ -87,7 +89,9 @@ private:
     static constexpr size_t GATHER_INDICES = 1;
     static constexpr size_t GATHER_AXIS = 2;
 
+#if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<jitGatherKernelBase> jitKernel;
+#endif
 };
 
 }   // namespace node

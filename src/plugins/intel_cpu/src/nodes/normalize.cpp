@@ -11,10 +11,12 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "dnnl_extension_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#endif
 #include "common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "selective_build.h"
@@ -28,9 +30,11 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
@@ -790,13 +794,23 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecision == ov::element::bf16 || outputPrecision == ov::element::bf16) {
-        if (!mayiuse(avx512_core))
+#if defined(OPENVINO_ARCH_X86_64)
+        const bool mayiuse_avx512_core = mayiuse(avx512_core);
+#else
+        const bool mayiuse_avx512_core = false;
+#endif
+        if (!mayiuse_avx512_core)
             inputPrecision = outputPrecision = ov::element::f32;
         else
             inputPrecision = outputPrecision = ov::element::bf16;
     }
 
-    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const bool sse41 = mayiuse(cpu::x64::sse41);
+#else
+        const bool sse41 = false;
+#endif
+    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && sse41) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 
@@ -834,6 +848,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type impl_type = impl_desc_type::unknown;
 
+#if defined(OPENVINO_ARCH_X86_64)
     // only plain layout support when w/o sse42
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
@@ -845,6 +860,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             }
         }
     }
+#endif
     if (canBeInplace)
         config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);

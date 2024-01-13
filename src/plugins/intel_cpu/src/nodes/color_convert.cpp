@@ -10,13 +10,18 @@
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/core/type.hpp>
 #include "openvino/core/parallel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/jit_kernel.hpp"
+#endif
 #include "shape_inference/custom/color_convert.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -278,11 +283,15 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto sse41 = mayiuse(cpu_isa_t::sse41);
+#else
+    const auto sse41 = false;
+#endif
+
     descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
                         std::vector<PortConfigurator> { { layout, precision } },
-                        mayiuse(cpu_isa_t::sse41)
-                            ? impl_desc_type::jit_uni
-                            : impl_desc_type::ref,
+                        sse41 ? impl_desc_type::jit_uni : impl_desc_type::ref,
                         true);
 
     return descs;
@@ -628,11 +637,15 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto sse41 = mayiuse(cpu_isa_t::sse41);
+#else
+    const auto sse41 = false;
+#endif
     descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
                         std::vector<PortConfigurator> { { layout, precision } },
-                        mayiuse(cpu_isa_t::sse41)
-                            ? impl_desc_type::jit_uni
-                            : impl_desc_type::ref,
+                        sse41 ? impl_desc_type::jit_uni
+                              : impl_desc_type::ref,
                         true);
 
     return descs;

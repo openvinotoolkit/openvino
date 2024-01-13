@@ -6,7 +6,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "dnnl_extension_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "common/blocked_desc_creator.h"
 
 #include "common/cpu_memcpy.h"
@@ -21,7 +23,9 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -92,16 +96,16 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         THROW_SHCH_ERROR("has unsupported precision: ", precision.get_type_name());
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
+#endif
 
     // use ncsp as default for non-quantized networks and nspc for quantized
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;

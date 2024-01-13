@@ -11,16 +11,22 @@
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
+#endif
+
 #include "common/primitive_hashing_utils.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "nodes/executors/common/ref_transpose.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 

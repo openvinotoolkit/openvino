@@ -10,11 +10,15 @@
 #include "openvino/opsets/opset1.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/gather_uni_kernel.hpp"
+#endif
 #include <partitioned_mem_mgr.h>
 #include "shape_inference/custom/gather.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
+#endif
 
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
@@ -438,6 +442,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (!jitKernel)
         THROW_ERROR("has uninitialized kernel in function initShortParams.");
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
@@ -502,6 +507,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
         p.specIdxAndAfterAxIterB = (start * dataTypeSize) % specIdxAndAfterAxSizeB;
     }
+#endif
 }
 
 void Gather::execReference() {

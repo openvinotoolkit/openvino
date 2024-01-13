@@ -13,7 +13,9 @@
 
 #include "dnnl_types.h"
 #include "dnnl_extension_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include <common/dnnl_thread.hpp>
 
 #include "openvino/core/parallel.hpp"
@@ -36,10 +38,14 @@
 
 using namespace dnnl;
 using namespace ov;
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+
+using namespace dnnl::impl;
+
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -1264,7 +1270,11 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
         } else {
             if (one_of(dims.size(), 4u, 5u)) {
                 if (getAxis() == 1) {
+#if defined(OPENVINO_ARCH_X86_64)
                     auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+#else
+                    auto blkFormat = LayoutType::nCsp8c;
+#endif
                     return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
                 } else {
                     return { LayoutType::ncsp };
@@ -1325,15 +1335,14 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
@@ -1343,6 +1352,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
             outputPrecision = ov::element::f32;
         }
     }
+#endif
 
     std::vector<LayoutType> dataFormats;
     // reference implementation supports only planar format

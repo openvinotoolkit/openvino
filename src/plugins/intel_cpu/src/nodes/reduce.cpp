@@ -12,15 +12,17 @@
 #include "onednn/dnnl.h"
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "openvino/core/parallel.hpp"
 #include <algorithm>
 
+#if defined(OPENVINO_ARCH_X86_64)
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#endif
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "common/primitive_hashing_utils.hpp"
@@ -28,9 +30,12 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) IB = batch;   \
                                                                 IC = channel; \
@@ -1910,6 +1915,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     jit_mode = canApplyJIT(input_prec, output_prec);
 
+#if defined(OPENVINO_ARCH_X86_64)
     auto is_precision_sensitive_reduce = [](const Algorithm &algorithm) {
         return algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
                algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax;
@@ -1926,6 +1932,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 output_prec = ov::element::f32;
         }
     }
+#endif
 
     intermediate_prec = fuse_low_precision ? ov::element::f32 : output_prec;
     precision_change = input_prec != intermediate_prec;
@@ -1991,6 +1998,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             return;
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (jit_mode) {
         impl_desc_type impl_type = impl_desc_type::jit_sse42;
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -2023,6 +2031,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     } else {
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
     }
+#else
+    pushDesc(LayoutType::ncsp, LayoutType::ncsp, ov::element::f32, ov::element::f32, impl_desc_type::ref);
+#endif
 }
 
 bool Reduce::isExecutable() const {
@@ -2139,15 +2150,16 @@ void Reduce::createPrimitive() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     compile_post_kernel = true;
-#else
-    compile_post_kernel = false;
-#endif // OPENVINO_ARCH_X86_64
 
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else {
         blk_size = 8;
     }
+#else
+    compile_post_kernel = false;
+    blk_size = 8;
+#endif // OPENVINO_ARCH_X86_64
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -2278,7 +2290,12 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
             size_t ob = ReduceN ? 0 : ib; GET_PTR_N_PLN;
             if (!ReduceC && !ReduceD && ReduceW) {
                 size_t work_amount = ReduceH ? IH * IW : IW;
-                if (work_amount < blk_size && mayiuse(cpu::x64::avx2)) {
+#if defined(OPENVINO_ARCH_X86_64)
+                const auto avx2 = mayiuse(cpu::x64::avx2);
+#else
+                const auto avx2 = false;
+#endif
+                if (work_amount < blk_size && avx2) {
                     size_t outer_size = ReduceH ? IC * ID : IC * ID * IH;
                     size_t inner_size = ReduceH ? IH * IW : IW;
                     size_t output_inner_size = ReduceH ? OH * OW : OW;
@@ -2958,9 +2975,14 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
 
 inline void Reduce::create_hybrid_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto avx512_core = mayiuse(cpu::x64::avx512_core);
+#else
+    const auto avx512_core = false;
+#endif
     memory::format_tag format = (layout == ReduceLayoutType::reduce_nspc) ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
-                                        : (rank == 4 ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
-                                                     : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
+                                        : (rank == 4 ? (avx512_core ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
+                                                     : (avx512_core ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::ElementTypeToDataType(output_prec), format);
     prc_mem = dnnl::memory(desc, getEngine());
@@ -3315,6 +3337,7 @@ std::vector<int> Reduce::update_src_dims() {
 }
 
 bool Reduce::canApplyJIT(const ov::element::Type &input_prec, const ov::element::Type &output_prec) const {
+#if defined(OPENVINO_ARCH_X86_64)
     static const ov::element::Type supportedPrecisions[] = {
             ov::element::f32,
             ov::element::f16,
@@ -3327,6 +3350,9 @@ bool Reduce::canApplyJIT(const ov::element::Type &input_prec, const ov::element:
     return (mayiuse(cpu::x64::sse41)) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), input_prec) != std::end(supportedPrecisions) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) != std::end(supportedPrecisions);
+#else
+    return false;
+#endif
 }
 
 int Reduce::getFusingAxis() const {

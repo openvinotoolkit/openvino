@@ -11,8 +11,10 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "concat.h"
 #include "cpu/cpu_primitive.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "dnnl_extension_utils.h"
 #include "dnnl_types.h"
 #include "eltwise.h"
@@ -382,9 +384,13 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 }
 
 const bool Convolution::isBrgConvAvailable() {
+#if defined(OPENVINO_ARCH_X86_64)
     static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
                                            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
     return isBrgConvAvailable;
+#else
+    return false;
+#endif
 }
 
 void Convolution::getSupportedDescriptors() {
@@ -1009,6 +1015,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     }
     // Try 2 attributes.
     attrs.resize(2);
+#if defined(OPENVINO_ARCH_X86_64)
     if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
@@ -1019,6 +1026,10 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
         setPostOps(attrs[1], outputShape, false);
     }
+#else
+    DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
+    setPostOps(attrs[1], outputShape, false);
+#endif
     addZeroPoints(attrs[1]);
 }
 
@@ -1035,8 +1046,13 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     int attrId = attrs.size() == 1 ? 0 :
         descId % 2 == 0 ? 0 : 1;
 
+#if defined(OPENVINO_ARCH_X86_64)
     preferLegacyPostOps = (attrId == 0 || (attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
                                       dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
+#else
+    preferLegacyPostOps = attrId == 0;
+#endif
+
     //attr[0] for legacy zero point.
     //attr[1] for stock per-tensor zero point.
     preferLegacyZeroPoint = (attrId == 0);
@@ -1129,6 +1145,7 @@ ov::element::Type Convolution::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 bool Convolution::isNspcAvailable() const {
     using impl::cpu::x64::mayiuse;
 
@@ -1203,6 +1220,7 @@ bool Convolution::isNspcAvailable() const {
 
     return true;
 }
+#endif
 
 void Convolution::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
@@ -1635,6 +1653,7 @@ void Convolution::appendZeroPointsArgs() {
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty())
         OPENVINO_THROW("input zero point is not empty '", getName(), "'");
     if (inputZpSize)
@@ -1654,6 +1673,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     else
         inputZeroPointType = zpType::PerChannel;
+#endif
 }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {

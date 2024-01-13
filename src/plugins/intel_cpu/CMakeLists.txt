@@ -91,7 +91,8 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()

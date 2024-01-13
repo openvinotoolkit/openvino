@@ -9,20 +9,25 @@
 #include "onednn/dnnl.h"
 #include "dnnl_extension_utils.h"
 #include <utils/bfloat16.hpp>
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "selective_build.h"
 #include <openvino/opsets/opset9.hpp>
 
+#if defined(OPENVINO_ARCH_X86_64)
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
+
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -770,7 +775,12 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
     if (inputPrec0 != ov::element::f32 || outputPrec != ov::element::f32) {
-        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && mayiuse(avx512_core)) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto mayiuse_avx512_core = mayiuse(avx512_core);
+#else
+        const auto mayiuse_avx512_core = false;
+#endif
+        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && mayiuse_avx512_core) {
             outputPrec = inputPrec0 = ov::element::bf16;
         } else {
             outputPrec = inputPrec0 = ov::element::f32;
@@ -781,21 +791,27 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
+#endif
+
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
             {LayoutType::ncsp, LayoutType::ncsp}
     };
 
-    if (mayiuse(cpu::x64::sse41)) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto sse41 = mayiuse(cpu::x64::sse41);
+#else
+        const auto sse41 = false;
+#endif
+    if (sse41) {
         supportedFormats.push_back(std::make_pair(LayoutType::nspc, LayoutType::nspc));
         if (impl_desc_type::jit_avx512 == impl_type) {
             supportedFormats.push_back(std::make_pair(LayoutType::nCsp16c, LayoutType::nCsp16c));

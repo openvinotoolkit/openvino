@@ -5,20 +5,24 @@
 #include "softmax.h"
 
 #include "openvino/core/parallel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 #include "onednn/dnnl.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <vector>
 
 using namespace dnnl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#endif
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
@@ -229,7 +233,12 @@ private:
 SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc)
     : input_prec(inpPrc), output_prec(outPrc) {
     if (ov::element::bf16 == output_prec) {
-        if (!mayiuse(avx512_core)) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto avx512_core = mayiuse(x64::avx512_core);
+#else
+        const auto avx512_core = false;
+#endif
+        if (!avx512_core) {
             OPENVINO_THROW("SoftmaxGeneric doesn't support BF16 precision on this target.");
         }
     }

@@ -12,9 +12,10 @@
 
 #include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "common/primitive_hashing_utils.hpp"
 
 #include <string>
@@ -25,9 +26,12 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
+
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
 
@@ -433,21 +437,25 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
+    auto const mayiuse_avx512_core = mayiuse(avx512_core);
+#else
+    auto const mayiuse_avx512_core = false;
+#endif
+
+    auto format = mayiuse_avx512_core ? LayoutType::nCsp16c : LayoutType::nCsp8c;
 
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
-    if (!mayiuse(avx512_core)) {
+    if (!mayiuse_avx512_core) {
         if (refParams.src_prc == ov::element::bf16)
             refParams.src_prc = ov::element::f32;
     }
@@ -467,8 +475,13 @@ void ROIPooling::createPrimitive() {
     if (!selectedPD)
         OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
 
-    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;;
-    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
+#if defined(OPENVINO_ARCH_X86_64)
+    auto const mayiuse_avx512_core = mayiuse(avx512_core);
+#else
+    auto const mayiuse_avx512_core = false;
+#endif
+    refParams.c_block = mayiuse_avx512_core ? 16 : 8;;
+    refParams.nb_c_blocking = mayiuse_avx512_core ? 15 : 7;
     refParams.alg = getAlgorithm();
 
     const auto& config = selectedPD->getConfig();

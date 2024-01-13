@@ -6,8 +6,10 @@
 
 #include "common/arbitrary_order_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -33,7 +35,9 @@
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -1191,7 +1195,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     ov::element::Type kvcache_precision;
     auto rtPrecision = getRuntimePrecision();
-    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
+#if defined(OPENVINO_ARCH_X86_64)
+    const bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
+#else
+    const bool enableKVCacheFP16 = false;
+#endif
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
     return kvcache_precision;

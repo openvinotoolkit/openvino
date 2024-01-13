@@ -4,13 +4,18 @@
 
 #include "input.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
+#endif
+
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -289,7 +294,7 @@ void Input::cloneBlobIfRequired() {
     auto isBlobAligned = [&, this] () {
         const void *ptr = constOp->get_data_ptr();
         bool blobAlignedOnSSE = true;
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
@@ -344,6 +349,7 @@ void Input::cloneBlobIfRequired() {
     };
 
     // WA for CVS-46304
+#if defined(OPENVINO_ARCH_X86_64)
     auto isWA = [&, this] () {
         auto outputs = constOp->outputs();
         for (const auto& output : outputs) {
@@ -364,6 +370,11 @@ void Input::cloneBlobIfRequired() {
         }
         return false;
     };
+#else
+    auto isWA = [] () {
+        return false;
+    };
+#endif
 
     auto blobKey = [&, this] () {
         char ptr[32];

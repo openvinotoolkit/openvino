@@ -16,8 +16,15 @@
 #include "common/cpu_memcpy.h"
 #include <openvino/opsets/opset7.hpp>
 
+#if defined(OPENVINO_ARCH_X86_64)
+#include "cpu/x64/jit_generator.hpp"
+#include "kernels/x64/dft_uni_kernel.hpp"
+#endif
+
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -521,12 +528,12 @@ bool DFT::created() const {
 }
 
 void DFT::prepareParams() {
-    bool hasDFT = false;
-    bool hasFFT = false;
-
     axes = getAxes();
     const auto outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
+#if defined(OPENVINO_ARCH_X86_64)
+    bool hasDFT = false;
+    bool hasFFT = false;
     for (size_t axis : axes) {
         size_t nComplex = outputShape[axis];
         if (!IsPowerOfTwo(nComplex)) {
@@ -538,6 +545,7 @@ void DFT::prepareParams() {
     if (mayiuse(cpu::x64::sse41)) {
         createJITKernels(hasDFT, hasFFT);
     }
+#endif
 }
 
 std::vector<int32_t> DFT::getAxes() const {

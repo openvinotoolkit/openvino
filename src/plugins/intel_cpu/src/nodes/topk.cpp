@@ -5,10 +5,12 @@
 #include "topk.h"
 
 #include "common/cpu_memcpy.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
-#include "dnnl_extension_utils.h"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
+#include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
@@ -21,9 +23,12 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -1886,21 +1891,20 @@ void TopK::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
-
-#if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
+    const auto mayiuse_avx512_core = mayiuse(avx512_core);
 #else
     jit_mode = false;
+    const auto mayiuse_avx512_core = false;
 #endif
 
     static const ov::element::Type supportedPrecision[] = {
@@ -1912,7 +1916,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     };
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core))
+    if (dataPrecision == ov::element::bf16 && mayiuse_avx512_core)
         OPENVINO_THROW(errorPrefix, " gets incorrect isa for BF16! AVX512 must be supported!");
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision)
                                      != std::end(supportedPrecision);
@@ -1958,11 +1962,13 @@ void TopK::preset_params() {
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 8;
     }
+#endif
 
     if (isDynamicNode()) {
         if (stable) {
@@ -2248,7 +2254,11 @@ inline void TopK::prepare_original_idx() {
                 }
             }
         } else {
+#if defined(OPENVINO_ARCH_X86_64)
             size_t blk_len = mayiuse(cpu::x64::avx2) ? blk_size : 4;
+#else
+            size_t blk_len = 4;
+#endif
             if (vec_idx_block.empty()) {
                 vec_idx_block.resize(axis_dim * blk_len);
                 for (size_t i = 0; i < axis_dim; i++) {

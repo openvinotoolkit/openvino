@@ -4,7 +4,60 @@
 
 #pragma once
 
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/dft_uni_kernel.hpp"
+#else
+#include <assert.h>
+#include <stddef.h>
+struct jit_args_dft {
+    const float* src;
+    float* dst;
+    const float* twiddles;
+
+    size_t work_amount;
+    size_t index;
+};
+
+struct jit_uni_dft_kernel {
+    void (*ker_)(const jit_args_dft*);
+
+    void operator()(const jit_args_dft* args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    jit_uni_dft_kernel() : ker_(nullptr) {}
+    virtual ~jit_uni_dft_kernel() {}
+
+    virtual void create_ker() = 0;
+};
+
+struct jit_args_fft {
+    const float* src;
+    float* dst;
+    const float* twiddles;
+
+    size_t num_blocks;
+    size_t work_amount;
+    size_t n_complex;
+};
+
+struct jit_uni_fft_kernel {
+    void (*ker_)(const jit_args_fft*);
+
+    void operator()(const jit_args_fft* args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    jit_uni_fft_kernel() : ker_(nullptr) {}
+    virtual ~jit_uni_fft_kernel() {}
+
+    virtual void create_ker() = 0;
+};
+#endif
 #include "node.h"
 
 namespace ov {

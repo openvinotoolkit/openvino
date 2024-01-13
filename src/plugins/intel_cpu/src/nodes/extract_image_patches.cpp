@@ -4,7 +4,9 @@
 
 #include "extract_image_patches.h"
 #include "common/primitive_hashing_utils.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 
@@ -12,10 +14,13 @@
 #include <cstring>
 #include <string>
 
+using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
-using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -383,8 +388,12 @@ void ExtractImagePatches::prepareParams() {
     const auto& out_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
     ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
-    const auto isJit = mayiuse(x64::sse41);
-    auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
+    auto buildExecutor = [](const ExtractImagePatchesKey& key) -> executorPtr {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto isJit = mayiuse(x64::sse41);
+#else
+        const auto isJit = false;
+#endif
         if (isJit) {
             return std::make_shared<ExtractImagePatchesJitExecutor>(key.inDims,
                                                                     key.outDims,
@@ -571,15 +580,16 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     }
 
     jpp.dtype_size = prcSize;
+    jpp.block_size = 1;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(x64::avx512_core)) {
         jpp.block_size = cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
         jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
         jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / prcSize;
-    } else {
-        jpp.block_size = 1;
     }
+#endif
 
     return jpp;
 }

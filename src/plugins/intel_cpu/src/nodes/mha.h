@@ -9,10 +9,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#if defined(OPENVINO_ARCH_X86_64)
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -151,6 +153,7 @@ private:
         float beta = 0.0f;
     };
 
+#if defined(OPENVINO_ARCH_X86_64)
     template <typename in1_type>
     void mhaImpl();
 
@@ -159,9 +162,9 @@ private:
         size_t K, size_t K_blk, size_t K_tail, size_t LDA, dnnl_data_type_t dt_in0);
     void init_brgemm_copy_b(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
         size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K, bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1);
-
     void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                     const void* pin0, const void* pin1, void* pout, void* wsp);
+#endif
 
     size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
@@ -192,6 +195,7 @@ private:
     VectorDims dimsMatMul1In1;
     VectorDims dimsMatMul1Out;
 
+#if defined(OPENVINO_ARCH_X86_64)
     size_t batch0 = 0, batch1 = 0;
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K0 = 0, K0_blk = 0, K0_tail = 0, N0 = 0, N0_blk = 0, N0_tail = 0;
@@ -205,6 +209,7 @@ private:
     size_t bufferCompensation0Size = 0;
     size_t bufferCompensation1Size = 0;
     size_t wsp_size_per_thread = 4 * 1024;
+#endif
 
     std::vector<uint8_t> bufferMatMul0In0;
     std::vector<uint8_t> bufferMatMul0In1;
@@ -215,7 +220,9 @@ private:
     std::vector<int32_t> bufferCompensation1;
     std::vector<size_t> wsp;
 
+#if defined(OPENVINO_ARCH_X86_64)
     bool isMulFirst;
+#endif
     ov::element::Type fqPrc2;
 
     std::vector<float> mulScales;
@@ -224,16 +231,24 @@ private:
     std::vector<float> fqScales2;
     std::vector<float> fqScales3;
 
+#if defined(OPENVINO_ARCH_X86_64)
     size_t brg0VnniFactor = 0;
+#endif
     brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
+#if defined(OPENVINO_ARCH_X86_64)
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel0;
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel0;
+#endif
 
+#if defined(OPENVINO_ARCH_X86_64)
     size_t brg1VnniFactor = 0;
+#endif
     brgemmCtx brgCtxs1[MHA_BRGEMM_KERNELS_NUM];
+#if defined(OPENVINO_ARCH_X86_64)
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels1[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel1;
+#endif
 
     std::unique_ptr<jit_uni_mul_add_softmax_kernel> mulAddSoftmaxKernel;
     std::unique_ptr<jit_uni_convert_reorder_kernel> convertReorderKernel;

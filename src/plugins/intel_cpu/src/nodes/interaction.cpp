@@ -7,11 +7,13 @@
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "dnnl_extension_utils.h"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
+#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
@@ -21,8 +23,10 @@
 #include <string>
 #include <vector>
 
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -181,12 +185,16 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
 void Interaction::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+#if defined(OPENVINO_ARCH_X86_64)
     dataPrecision = getOriginalInputPrecisionAtPort(0);
     if (dataPrecision != ov::element::f32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         dataPrecision = ov::element::bf16;
     } else {
         dataPrecision = ov::element::f32;
     }
+#else
+    dataPrecision = ov::element::f32;
+#endif
 
     if (fqScales.empty()) {
         outputDataType = dataPrecision;

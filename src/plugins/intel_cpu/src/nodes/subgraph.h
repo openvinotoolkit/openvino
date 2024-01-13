@@ -4,7 +4,26 @@
 
 #pragma once
 
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
+#else
+#include <stddef.h>
+struct jit_snippets_compile_args {
+    size_t parallel_executor_ndims = 1;
+};
+
+#define SNIPPETS_MAX_SNIPPETS_DIMS 12
+struct jit_snippets_call_args {
+    const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    void *buffer_scratchpad_ptr = nullptr;
+};
+#endif
+
 #include "node.h"
 #include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
@@ -62,8 +81,10 @@ private:
     size_t inputNum = 0;
     size_t outputNum = 0;
 
+#if defined(OPENVINO_ARCH_X86_64)
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+#endif
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};

@@ -14,10 +14,12 @@
 #include "dnnl_types.h"
 #include "dnnl_extension_utils.h"
 #include "openvino/core/parallel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 #include "utils/general_utils.h"
 #include "openvino/opsets/opset1.hpp"
 #include "utils/cpu_utils.hpp"
@@ -35,10 +37,13 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
+using namespace dnnl::impl::utils;
+
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
-using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -917,6 +922,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
 
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(x64::avx512_core)) {
             implType = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
@@ -926,6 +932,9 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         } else {
             implType = impl_desc_type::ref;
         }
+#else
+        implType = impl_desc_type::ref;
+#endif
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }

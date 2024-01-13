@@ -5,13 +5,15 @@
 #include "mha.h"
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
-#include "cpu/x64/jit_generator.hpp"
 #include "dnnl_extension_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
+#endif
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
@@ -19,9 +21,11 @@
 #include <vector>
 
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
+#endif
 
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
@@ -670,6 +674,7 @@ private:
 #endif // OPENVINO_ARCH_X86_64
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
         if (!mha) {
@@ -743,6 +748,9 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     }
 
     return true;
+#else
+    return false;
+#endif
 }
 
 MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
@@ -752,6 +760,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
     mulScales = mha->get_mul_scales();
     isMulFirst = mha->get_is_mul_first();
@@ -760,6 +769,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     fqScales2 = mha->get_fq_scales2();
     fqScales3 = mha->get_fq_scales3();
     fqPrc2 = mha->get_fq2_output_type();
+#endif
 }
 
 void MHA::initSupportedPrimitiveDescriptors() {
@@ -798,8 +808,8 @@ void MHA::initSupportedPrimitiveDescriptors() {
                          ref_any);
 }
 
-void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
 #ifdef OPENVINO_ARCH_X86_64
+void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
@@ -826,9 +836,6 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
         THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
-#else
-    THROW_ERROR("is not supported on non-x86_64");
-#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCopyKernel, size_t K, size_t K_blk, size_t K_tail,
@@ -848,9 +855,7 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = false;
 
-#if defined(OPENVINO_ARCH_X86_64)
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
-#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCopyKernel, size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
@@ -884,14 +889,14 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-#if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if ( ret != dnnl::impl::status_t::dnnl_success )
         THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
-#endif // OPENVINO_ARCH_X86_64
 }
+#endif
 
 void MHA::prepareParams() {
+#if defined(OPENVINO_ARCH_X86_64)
     auto transpose = [](const std::vector<size_t>& vec, const std::vector<size_t>& order) -> std::vector<size_t> {
         std::vector<size_t> new_vec(vec.size());
         for (size_t i = 0; i < vec.size(); i++) {
@@ -1184,6 +1189,7 @@ void MHA::prepareParams() {
             selectedPD->setImplementationType(jit_sse42);
         }
     }
+#endif
 }
 
 template<typename srcT, typename dstT>
@@ -1196,8 +1202,8 @@ static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& di
     }
 }
 
-void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) {
 #if defined(OPENVINO_ARCH_X86_64)
+void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) {
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
@@ -1206,9 +1212,6 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
     } else {
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
-#else
-    THROW_ERROR("is not supported on non-x64 platforms");
-#endif // OPENVINO_ARCH_X86_64
 }
 
 template <typename in1_type>
@@ -1416,8 +1419,10 @@ void MHA::mhaImpl() {
         }
     });
 }
+#endif
 
 void MHA::execute(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {
@@ -1427,6 +1432,9 @@ void MHA::execute(dnnl::stream strm) {
     } else {
         THROW_ERROR("doesn't support provided input precisions");
     }
+#else
+    THROW_ERROR("not supported platform");
+#endif
 }
 
 void MHA::executeDynamicImpl(dnnl::stream strm) {

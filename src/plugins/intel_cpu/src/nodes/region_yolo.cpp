@@ -11,13 +11,17 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/opsets/opset1.hpp"
 #include "common/cpu_convert.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 #include "utils/bfloat16.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
+#endif
 using namespace dnnl::impl::utils;
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -282,21 +286,25 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     }
 
     if (ov::element::bf16 == output_prec) {
+#if defined(OPENVINO_ARCH_X86_64)
         if (!mayiuse(avx512_core)) {
             output_prec = ov::element::f32;
         }
+#else
+        output_prec = ov::element::f32;
+#endif
     }
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
+#endif
 
     addSupportedPrimDesc({{LayoutType::ncsp, input_prec}},
                          {{LayoutType::ncsp, output_prec}},

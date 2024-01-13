@@ -7,8 +7,10 @@
 #include <cmath>
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#endif
 #include "common/primitive_hashing_utils.hpp"
 
 #include "rdft.h"
@@ -20,7 +22,9 @@
 #include <openvino/op/constant.hpp>
 
 using namespace dnnl::impl;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
+#endif
 
 namespace ov {
 namespace intel_cpu {

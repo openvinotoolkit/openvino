@@ -38,7 +38,6 @@
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <openvino/op/bitwise_and.hpp>
 #include <openvino/op/bitwise_not.hpp>
 #include <openvino/op/bitwise_or.hpp>

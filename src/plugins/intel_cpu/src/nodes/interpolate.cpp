@@ -5,15 +5,17 @@
 #include "interpolate.h"
 
 #include "common/cpu_memcpy.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
-#include "dnnl_extension_utils.h"
-#include "eltwise.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
+#include "dnnl_extension_utils.h"
+#include "eltwise.h"
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
@@ -33,10 +35,12 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
+using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
-using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
@@ -1954,11 +1958,13 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             if (isAxesSpecified) {
                 axes = std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
+#if defined(OPENVINO_ARCH_X86_64)
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
                     NCHWAsNHWC = true;
                     axes[0] = 2;
                     axes[1] = 3;
                 }
+#endif
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
@@ -2038,9 +2044,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
+#endif
 
     auto targetShapeType = ov::element::i32;
     auto scalesType = ov::element::f32;
@@ -2116,6 +2124,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             return;
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
         if (dataRank == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
                 if (NCHWAsNHWC)
@@ -2134,6 +2143,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                     pushDesc(LayoutType::nspc, jit_sse42, true);
             }
         }
+#endif
         pushDesc(LayoutType::ncsp, ref, true);
     } else {
         const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
@@ -2148,16 +2158,26 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             return;
 #endif
 
-        if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const bool sse41 = mayiuse(cpu::x64::sse41);
+        const bool avx2 = mayiuse(cpu::x64::avx2);
+        const bool avx512_core = mayiuse(cpu::x64::avx512_core);
+#else
+        const bool sse41 = false;
+        const bool avx2 = false;
+        const bool avx512_core = false;
+#endif
+
+        if (!sse41 || interpAttrs.mode == InterpolateMode::linear) {
             pushDesc(LayoutType::ncsp, ref, false);
         } else {
             // blk and by_channel JIT kernel on sse41 or above machine
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-                if (mayiuse(cpu::x64::avx512_core)) {
+                if (avx512_core) {
                     pushDesc(LayoutType::nspc, jit_avx512, false);
                     if (isBlkApplied)
                         pushDesc(LayoutType::nCsp16c, jit_avx512, false);
-                } else if (mayiuse(cpu::x64::avx2)) {
+                } else if (avx2) {
                     pushDesc(LayoutType::nspc, jit_avx2, false);
                     if (isBlkApplied)
                         pushDesc(LayoutType::nCsp8c, jit_avx2, false);
@@ -2172,7 +2192,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             // 1.ref on machine w/o avx2(no fuse)
             // 2.JIT kernel for avx2(gatherps is available).(with fuse)
             if (inputPrecision == ov::element::f32) {
-                if (mayiuse(cpu::x64::avx2))
+                if (avx2)
                     pushDesc(LayoutType::ncsp, jit_avx2, false);
                 else
                     pushDesc(LayoutType::ncsp, ref, false);
@@ -2329,10 +2349,17 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
+#if defined(OPENVINO_ARCH_X86_64)
+        const bool sse41 = mayiuse(cpu::x64::sse41);
+        const bool avx2 = mayiuse(cpu::x64::avx2);
+#else
+        const bool sse41 = false;
+        const bool avx2 = false;
+#endif
         if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
             key.nodeAttrs.mode == InterpolateMode::cubic) &&
-            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-                (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32))) {
+            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && sse41) ||
+                (avx2 && key.nodeAttrs.inPrc == ov::element::f32))) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
@@ -2504,7 +2531,11 @@ void Interpolate::execute(dnnl::stream strm) {
                 });
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::block) {
+#if defined(OPENVINO_ARCH_X86_64)
                 size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#else
+                size_t blkSize = false;
+#endif
                 size_t CB = div_up(srcDimPad5d[1], blkSize);
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
@@ -2573,7 +2604,11 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, ui
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#if defined(OPENVINO_ARCH_X86_64)
+            const int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#else
+            const int blk_size = 8;
+#endif
             int CB = div_up(C, blk_size);
             const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -2676,7 +2711,12 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_
 
     bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
+#if defined(OPENVINO_ARCH_X86_64)
     int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#else
+    int blkSize = 8;
+#endif
+
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int workAmount = isByChannel ? C : CB;
@@ -2734,7 +2774,11 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_,
     int *yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     float *yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#if defined(OPENVINO_ARCH_X86_64)
+    const int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+#else
+    const int blkSize = 8;
+#endif
     int CB = div_up(C, blkSize);
     int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
@@ -2996,7 +3040,11 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
             weightPtr[4] = reinterpret_cast<float*>(&auxTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = mayiuse(cpu::x64::sse41) ? srcDataSize : 1;
+#if defined(OPENVINO_ARCH_X86_64)
+        const int scale = mayiuse(cpu::x64::sse41) ? srcDataSize : 1;
+#else
+        const int scale = 1;
+#endif
 
         for (int oz = 0; oz < OD; oz++) {
             int izF, izE;
@@ -3973,11 +4021,18 @@ size_t Interpolate::getSpatialDimsNum(const Dim rank) {
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41) ||
+#if defined(OPENVINO_ARCH_X86_64)
+    const bool sse41 = mayiuse(cpu::x64::sse41);
+    const bool avx2 = mayiuse(cpu::x64::avx2);
+#else
+    const bool sse41 = false;
+    const bool avx2 = false;
+#endif
+    if (!sse41 ||
         interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow ||
         interpAttrs.mode == InterpolateMode::bicubic_pillow ||
-        (!one_of(dataRank, 4u, 5u) && !mayiuse(cpu::x64::avx2))) {
+        (!one_of(dataRank, 4u, 5u) && !avx2)) {
         return false;
     }
 

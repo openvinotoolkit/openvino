@@ -5,7 +5,9 @@
 
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "emitters/snippets/x64/cpu_generator.hpp"
+#endif
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -21,6 +23,7 @@
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
@@ -30,6 +33,7 @@
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
+#endif
 #include "utils/cpu_utils.hpp"
 
 #include <algorithm>
@@ -37,9 +41,11 @@
 #include <vector>
 
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -120,6 +126,7 @@ bool SnippetKey::operator==(const SnippetKey& rhs) const {
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, SnippetShapeInferFactory(op)) {
+#if defined(OPENVINO_ARCH_X86_64)
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
@@ -127,11 +134,9 @@ Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     snippetAttrs.snippet = tmp_snippet->clone();
     snippetAttrs.bodyHash = get_body_hash(tmp_snippet);
 
-#if defined(OPENVINO_ARCH_X86_64)
     snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
 #else
     OPENVINO_THROW("CPU plugin: Snippets code-generator is not supported on non-x64 platforms");
-
 #endif // OPENVINO_ARCH_X86_64
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -199,7 +204,11 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
+#if defined(OPENVINO_ARCH_X86_64)
                 size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+#else
+                size_t blockSize = 8;
+#endif
 
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
@@ -263,11 +272,13 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         }
 
         impl_desc_type impl_type = impl_desc_type::unknown;
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
         }
+#endif
         return {config, impl_type};
     };
 
@@ -367,10 +378,14 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         output_precisions.push_back(p);
 
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
+#if defined(OPENVINO_ARCH_X86_64)
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
     snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
                                                     std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+#else
+    OPENVINO_THROW("CPU plugin: Snippets code-generator is not supported on non-x64 platforms");
+#endif
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
