@@ -3,7 +3,6 @@
 //
 
 #include <vector>
-#include <ngraph/opsets/opset3.hpp>
 
 #include "single_op_tests/depth_to_space.hpp"
 #include "common_test_utils/test_constants.hpp"

@@ -4,7 +4,6 @@
 #include "shared_test_classes/single_layer/eye.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/constant_folding.hpp>
 

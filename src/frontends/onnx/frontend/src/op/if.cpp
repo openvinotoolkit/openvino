@@ -6,8 +6,8 @@
 
 #include "core/graph.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/if.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -30,7 +30,7 @@ OutputVector if_op(const Node& node) {
     auto else_branch =
         std::make_shared<Function>(else_subgraph->get_ov_outputs(), else_params, else_subgraph->get_name());
 
-    auto if_node = std::make_shared<ngraph::opset8::If>(ng_inputs.at(0));
+    auto if_node = std::make_shared<ov::op::v8::If>(ng_inputs.at(0));
     if_node->set_then_body(then_branch);
     if_node->set_else_body(else_branch);
 

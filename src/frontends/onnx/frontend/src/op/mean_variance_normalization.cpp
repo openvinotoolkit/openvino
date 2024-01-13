@@ -10,7 +10,6 @@
 #include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/mvn.hpp"
-#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/validation_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -23,7 +22,7 @@ OutputVector mean_variance_normalization(const Node& node) {
     bool across_channels = node.get_attribute_value<std::int64_t>("across_channels", 0);
     bool normalize_variance = node.get_attribute_value<std::int64_t>("normalize_variance", 1);
 
-    return {std::make_shared<ngraph::opset5::MVN>(data, across_channels, normalize_variance)};
+    return {std::make_shared<ov::op::v0::MVN>(data, across_channels, normalize_variance)};
 }
 
 }  // namespace set_1
@@ -37,8 +36,7 @@ OutputVector mean_variance_normalization(const Node& node) {
         ngraph::normalize_axes(node.get_description(), axes, data.get_partial_shape().rank());
     OPENVINO_SUPPRESS_DEPRECATED_END
     auto const_axes = default_opset::Constant::create(element::i64, Shape{normalized_axes.size()}, normalized_axes);
-    return {
-        std::make_shared<ngraph::op::v6::MVN>(data, const_axes, true, 1e-09f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
+    return {std::make_shared<ov::op::v6::MVN>(data, const_axes, true, 1e-09f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
 }  // namespace set_9

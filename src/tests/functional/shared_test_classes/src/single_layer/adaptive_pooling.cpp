@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
-
 #include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/single_layer/adaptive_pooling.hpp"
