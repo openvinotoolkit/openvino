@@ -13,9 +13,9 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
-#include "ngraph/builder/norm.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/validation_util.hpp"
+#include "ov_models/ov_builders/norm.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -42,7 +42,7 @@ OutputVector lp_norm(const Node& node) {
 
     const auto normalize_axis_const = default_opset::Constant::create(element::i64, {}, {normalize_axis});
     std::shared_ptr<ngraph::Node> norm =
-        ngraph::builder::opset1::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
+        ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
 
     return {std::make_shared<default_opset::Divide>(data, norm)};
 }
