@@ -43,67 +43,113 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
         }
     }
 
-    uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
-    if (reordered_inputs.size() == 3) {
-        auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (!blank_index_node) {
-            OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    if (p.use_new_shape_infer()) {
+        size_t num_outputs = op->get_output_size();
+
+        auto get_output_paddings = [&]() {
+            std::vector<cldnn::padding> output_paddings;
+            for (size_t i = 0; i < num_outputs; i++)
+                output_paddings.push_back(cldnn::padding());
+            return output_paddings;
+        };
+
+        auto get_output_data_types = [&]() {
+            std::vector<cldnn::optional_data_type> output_data_types;
+            for (size_t i = 0; i < num_outputs; i++) {
+                auto type = op->get_output_element_type(i);
+                output_data_types.push_back(cldnn::element_type_to_data_type(type));
+            }
+            return output_data_types;
+        };
+
+        uint32_t blank_index = UINT32_MAX;
+        if (reordered_inputs.size() == 3) {
+            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (!blank_index_node) {
+                OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            float val;
+            if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
+                OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            blank_index = static_cast<uint32_t>(val);
+            reordered_inputs.pop_back();
         }
-        float val;
-        if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
-            OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+
+        auto primitive = cldnn::ctc_greedy_decoder(
+                    layer_type_name_ID(op),
+                    reordered_inputs,
+                    blank_index,
+                    ctc_merge_repeated,
+                    cldnn::padding({0, 0, 0, 0}, 0),
+                    cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                    op->get_output_size());
+        primitive.output_paddings = get_output_paddings();
+        primitive.output_data_types = get_output_data_types();
+        p.add_primitive(*op, primitive);
+    } else {
+        uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
+        if (reordered_inputs.size() == 3) {
+            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (!blank_index_node) {
+                OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            float val;
+            if (ov::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
+                OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
+            blank_index = static_cast<uint32_t>(val);
+            reordered_inputs.pop_back();
         }
-        blank_index = static_cast<uint32_t>(val);
-        reordered_inputs.pop_back();
-    }
 
-    std::size_t num_output = op->get_output_size();
+        std::size_t num_output = op->get_output_size();
 
-    std::vector<cldnn::memory::ptr> shared_memory;
-    if (num_output == 2) {
-        auto mutable_precision = op->get_output_element_type(1);
-         if (mutable_precision == ov::element::i64) {
-            mutable_precision = ov::element::i32;
+        std::vector<cldnn::memory::ptr> shared_memory;
+        if (num_output == 2) {
+            auto mutable_precision = op->get_output_element_type(1);
+            if (mutable_precision == ov::element::i64) {
+                mutable_precision = ov::element::i32;
+            }
+
+            cldnn::layout mutableLayout = cldnn::layout(
+                cldnn::element_type_to_data_type(mutable_precision),
+                cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                tensor_from_dims(op->get_output_shape(1)));
+
+            GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayout));
+
+            cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
+            auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,
+                                                        shared_memory[0]);
+            p.add_primitive(*op, ctc_gd_mutable_prim);
+            reordered_inputs.push_back(ctc_gd_mutable_id_w);
         }
 
-        cldnn::layout mutableLayout = cldnn::layout(
-            cldnn::element_type_to_data_type(mutable_precision),
-            cldnn::format::get_default_format(op->get_output_shape(1).size()),
-            tensor_from_dims(op->get_output_shape(1)));
+        auto CTCGreedyDecoderLayerName = num_output == 2 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
+        auto primitive = cldnn::ctc_greedy_decoder(
+                    CTCGreedyDecoderLayerName,
+                    reordered_inputs,
+                    blank_index,
+                    ctc_merge_repeated,
+                    tensor_from_dims(op->get_output_shape(0)));
 
-        GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-        shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayout));
+        // GPU primitive supports only i32 as output data type
+        primitive.output_data_types = {cldnn::element_type_to_data_type(ov::element::i32)};
 
-        cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-        auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,
-                                                       shared_memory[0]);
-        p.add_primitive(*op, ctc_gd_mutable_prim);
-        reordered_inputs.push_back(ctc_gd_mutable_id_w);
-    }
+        if (num_output == 2) {
+            primitive.second_output = reordered_inputs.back().pid;
+        }
 
-    auto CTCGreedyDecoderLayerName = num_output == 2 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
-    auto primitive = cldnn::ctc_greedy_decoder(
-                CTCGreedyDecoderLayerName,
-                reordered_inputs,
-                blank_index,
-                ctc_merge_repeated,
-                tensor_from_dims(op->get_output_shape(0)));
+        p.add_primitive(*op, primitive);
 
-    // GPU primitive supports only i32 as output data type
-    primitive.output_data_types = {cldnn::element_type_to_data_type(ov::element::i32)};
-
-    if (num_output == 2) {
-        primitive.second_output = reordered_inputs.back().pid;
-    }
-
-    p.add_primitive(*op, primitive);
-
-    if (num_output == 2) {
-        cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".out1";
-        auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r,
-                                                         { cldnn::input_info(CTCGreedyDecoderLayerName) },
-                                                         shared_memory[0]);
-        p.add_primitive(*op, ctc_gd_mutable_prim_r);
+        if (num_output == 2) {
+            cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".out1";
+            auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r,
+                                                            { cldnn::input_info(CTCGreedyDecoderLayerName) },
+                                                            shared_memory[0]);
+            p.add_primitive(*op, ctc_gd_mutable_prim_r);
+        }
     }
 }
 
