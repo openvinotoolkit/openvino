@@ -109,6 +109,7 @@ typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const T
 
 template <typename TI, typename TO>
 void convert(const TI* arg, TO* out, const size_t count) {
+    std::cout << "convert " << typeid(TI).name() << " -> " << typeid(TO).name() << std::endl;
     std::transform(arg, arg + count, out, detail::convert<TI, TO>);
 }
 

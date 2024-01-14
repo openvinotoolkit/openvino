@@ -21,9 +21,8 @@ public:
     int64_t getAddAttr() const {
         return add;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:

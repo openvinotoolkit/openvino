@@ -50,9 +50,9 @@ void MemoryTest::SetUp() {
         ApplyLowLatency();
     }
 
-    auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
+    auto tensor = ov::Tensor(ngPrc, inputShape);
     auto variable_context = ov::op::util::VariableContext();
-    auto variable_value = std::make_shared<VariableValue>(hostTensor);
+    auto variable_value = std::make_shared<VariableValue>(tensor);
     variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
     eval_context["VariableContext"] = variable_context;
 }
@@ -116,21 +116,19 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<element::Type>(inputs.size());
-    HostTensorVector inputTensors;
+    ov::TensorVector inputTensors;
     for (auto& input : inputs) {
         const auto& dataSize = input->byteSize();
         const auto& tensorDesc = input->getTensorDesc();
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-        IE_ASSERT(memory);
+        OPENVINO_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto buffer = lockedMemory.as<const std::uint8_t*>();
 
-        auto hostTensor =
-            std::make_shared<HostTensor>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(tensorDesc.getPrecision()),
-                                         tensorDesc.getDims());
-        hostTensor->write(buffer, dataSize);
-        inputTensors.push_back(hostTensor);
+        inputTensors.emplace_back(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(tensorDesc.getPrecision()),
+                                  tensorDesc.getDims());
+        std::memcpy(inputTensors.back().data(), buffer, dataSize);
     }
 
     // evaluate method is not implemented for TI op.
@@ -139,19 +137,14 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     manager.run_passes(function);
 
     const auto& outInfo = executableNetwork.GetOutputsInfo();
-    HostTensorVector outputTensors(outInfo.size());
-    for (auto& outTensor : outputTensors) {
-        outTensor = std::make_shared<HostTensor>();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    ov::TensorVector outputTensors(outInfo.size());
     function->evaluate(outputTensors, inputTensors, eval_context);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
     for (size_t idx = 0; idx < outInfo.size(); ++idx) {
-        outputs[idx].first = outputTensors[idx]->get_element_type();
-        outputs[idx].second.resize(outputTensors[idx]->get_size_in_bytes());
-        outputTensors[idx]->read(outputs[idx].second.data(), outputTensors[idx]->get_size_in_bytes());
+        outputs[idx].first = outputTensors[idx].get_element_type();
+        outputs[idx].second.resize(outputTensors[idx].get_byte_size());
+        std::memcpy(outputs[idx].second.data(), outputTensors[idx].data(), outputTensors[idx].get_byte_size());
     }
     return outputs;
 }
@@ -213,4 +206,3 @@ void MemoryTest::ApplyLowLatency() {
 }
 
 }  // namespace LayerTestsDefinitions
-

@@ -472,11 +472,13 @@ void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
 
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count) {
+    std::cout << " f16 -> f32\n";
     convert_impl(arg, out, count);
 }
 
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count) {
+    std::cout << " f32 -> f16\n";
     convert_impl(arg, out, count);
 }
 

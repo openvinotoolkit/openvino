@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 

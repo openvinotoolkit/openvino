@@ -8,7 +8,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-void GraphCache::emplace_node(const std::string& name, Output<ov::Node>&& node) {
+void GraphCache::emplace_node(const std::string& name, ov::Output<ov::Node>&& node) {
     m_graph_cache_map[name] = std::move(node);
 }
 
@@ -19,7 +19,7 @@ void GraphCache::remove_node(const std::string& name) {
     }
 }
 
-Output<ov::Node> GraphCache::get_node(const std::string& name) const {
+ov::Output<ov::Node> GraphCache::get_node(const std::string& name) const {
     try {
         return m_graph_cache_map.at(name);
     } catch (const std::out_of_range&) {

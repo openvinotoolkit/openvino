@@ -47,16 +47,17 @@ void implementation(const T* input, T* output, int64_t add, size_t size) {
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate_op(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, int64_t add) {
-    size_t size = ngraph::shape_size(arg0->get_shape());
-    implementation(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), add, size);
+bool evaluate_op(const ov::Tensor& arg0, const ov::Tensor& out, int64_t add) {
+    size_t size = ngraph::shape_size(arg0.get_shape());
+    using T = ov::fundamental_type_for<ET>;
+    implementation(arg0.data<const T>(), out.data<T>(), add, size);
     return true;
 }
 
 }  // namespace
 
-bool Operation::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
-    switch (inputs[0]->get_element_type()) {
+bool Operation::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    switch (inputs[0].get_element_type()) {
     case ngraph::element::Type_t::i8:
         return evaluate_op<ngraph::element::Type_t::i8>(inputs[0], outputs[0], getAddAttr());
     case ngraph::element::Type_t::i16:

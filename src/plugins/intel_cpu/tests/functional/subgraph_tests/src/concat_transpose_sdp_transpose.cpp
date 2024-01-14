@@ -132,8 +132,12 @@ public:
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
@@ -159,7 +163,7 @@ public:
         auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
         auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true);  // BLHS -> B,L,HxS
 
-        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");
