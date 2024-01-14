@@ -17,6 +17,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "low_precision_transformations/depth_to_space_transformation.hpp"
+#include "openvino/op/depth_to_space.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"

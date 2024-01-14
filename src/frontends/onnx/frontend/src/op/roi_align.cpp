@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/roi_align.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -30,10 +30,10 @@ OutputVector roi_align(const Node& node) {
     const auto sampling_ratio = static_cast<int>(node.get_attribute_value<int64_t>("sampling_ratio", 1));
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
-    const auto pooling_mode = EnumNames<ov::opset9::ROIAlign::PoolingMode>::as_enum(mode);
-    const auto aligned_mode = ov::opset9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
+    const auto pooling_mode = EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
+    const auto aligned_mode = ov::op::v9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
 
-    return {std::make_shared<ov::opset9::ROIAlign>(data,
+    return {std::make_shared<ov::op::v9::ROIAlign>(data,
                                                    rois,
                                                    num_rois,
                                                    pooled_h,
@@ -59,17 +59,17 @@ OutputVector roi_align(const Node& node) {
     const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 1);
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
-    const auto pooling_mode = EnumNames<ov::opset9::ROIAlign::PoolingMode>::as_enum(mode);
+    const auto pooling_mode = EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
 
     const auto coordinate_transformation_mode =
         node.get_attribute_value<std::string>("coordinate_transformation_mode", "");
-    auto aligned_mode = ov::opset9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN;  // Match ONNX ROIAlign-16 default
+    auto aligned_mode = ov::op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN;  // Match ONNX ROIAlign-16 default
 
     if (coordinate_transformation_mode == "output_half_pixel") {
-        aligned_mode = ov::opset9::ROIAlign::AlignedMode::ASYMMETRIC;
+        aligned_mode = ov::op::v9::ROIAlign::AlignedMode::ASYMMETRIC;
     }
 
-    return {std::make_shared<ov::opset9::ROIAlign>(data,
+    return {std::make_shared<ov::op::v9::ROIAlign>(data,
                                                    rois,
                                                    num_rois,
                                                    static_cast<int>(pooled_h),

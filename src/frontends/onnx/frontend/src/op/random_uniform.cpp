@@ -31,7 +31,7 @@ OutputVector random_uniform(const Node& node) {
     // TODO: This multiplication leads to a mismatch in accuracy. Issue: 123003
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ov::opset8::RandomUniform>(target_shape_const,
+    return {std::make_shared<ov::op::v8::RandomUniform>(target_shape_const,
                                                         low_const,
                                                         high_const,
                                                         target_type,

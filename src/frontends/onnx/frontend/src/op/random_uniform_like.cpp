@@ -37,7 +37,7 @@ OutputVector random_uniform_like(const Node& node) {
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ov::opset8::RandomUniform>(target_shape,
+    return {std::make_shared<ov::op::v8::RandomUniform>(target_shape,
                                                         low_const,
                                                         high_const,
                                                         target_type,

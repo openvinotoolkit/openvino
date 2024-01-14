@@ -16,7 +16,10 @@
 #include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
-using namespace ov::opset7;
+using ov::op::v1::Add;
+using ov::op::v0::TensorIterator;
+using ov::op::v0::Result;
+
 namespace LayerTestsDefinitions {
 
 std::string MemoryTest::getTestCaseName(const testing::TestParamInfo<MemoryTestParams>& obj) {
@@ -190,9 +193,9 @@ void MemoryTest::CreateCommonFunc() {
                                    : ov::op::util::VariableInfo{inputShape, ngPrc, "v0"};
     auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
     auto read_value = CreateReadValueOp(param.at(0), variable);
-    auto add = std::make_shared<Add>(read_value, param.at(0));
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
-    auto res = std::make_shared<Result>(add);
+    auto res = std::make_shared<ov::op::v0::Result>(add);
     function = std::make_shared<Function>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
