@@ -64,7 +64,7 @@ public:
             OPENVINO_SUPPRESS_DEPRECATED_START
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
+                                                   std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
             core.add_extension(extension);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {

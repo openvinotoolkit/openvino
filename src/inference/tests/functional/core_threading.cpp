@@ -63,7 +63,7 @@ public:
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
+                                                   std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");

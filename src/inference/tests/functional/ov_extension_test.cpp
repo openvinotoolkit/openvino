@@ -20,7 +20,7 @@ std::string getOVExtensionPath() {
 
 std::string getOldExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("template_extension") + OV_BUILD_POSTFIX);
+                                              std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
