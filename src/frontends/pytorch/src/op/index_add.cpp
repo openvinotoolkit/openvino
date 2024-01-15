@@ -39,6 +39,10 @@ OutputVector translate_index_add(const NodeContext& context) {
     auto const_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto const_one_0d = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto inp_rank = std::get<1>(input_shape_rank);
+    // ScatterElementsUpdate required that index, source and update have the same rank
+    // in aten::index_add index represents as 1d-array for specific dim and update may have different size
+    // from source in non-indexing axes
+    // slice src for having only relevant data
     auto src_broadcast_shape = context.mark_node(std::make_shared<v3::Broadcast>(const_one, inp_rank));
     auto src_broadcasted = context.mark_node(
         std::make_shared<v3::Broadcast>(alpha_src, src_broadcast_shape, BroadcastType::BIDIRECTIONAL));
@@ -62,6 +66,8 @@ OutputVector translate_index_add(const NodeContext& context) {
     new_shape = context.mark_node(std::make_shared<v3::ShapeOf>(new_shape, element::i32));
     auto src_ =
         context.mark_node(std::make_shared<v3::Broadcast>(src_broadcasted, new_shape, BroadcastType::BIDIRECTIONAL));
+    auto src_input_dtype = context.mark_node(std::make_shared<v1::ConvertLike>(src_, input));
+    // brodcast index to input rank size
     src_rank = context.mark_node(std::make_shared<v3::ShapeOf>(new_shape, element::i32));
     auto new_index_shape = context.mark_node(std::make_shared<v3::Broadcast>(const_one, src_rank));
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
@@ -71,6 +77,7 @@ OutputVector translate_index_add(const NodeContext& context) {
                                                                        const_minus_one,
                                                                        const_zero,
                                                                        v12::ScatterElementsUpdate::Reduction::NONE));
+    // precerve indicies location for spicifc dim
     auto reshaped_index = context.mark_node(std::make_shared<v1::Reshape>(index, new_index_shape, false));
     auto broadcasted_index =
         context.mark_node(std::make_shared<v3::Broadcast>(reshaped_index, new_shape, BroadcastType::BIDIRECTIONAL));
