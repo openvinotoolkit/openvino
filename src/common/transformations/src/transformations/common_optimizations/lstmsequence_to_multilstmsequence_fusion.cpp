@@ -18,12 +18,11 @@
 
 bool is_equal_cells(const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_1,
                     const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_2) {
-    bool is_equal = lstm_1->get_type_name() == lstm_2->get_type_name() &&
-               lstm_1->get_hidden_size() == lstm_2->get_hidden_size() &&
-               lstm_1->get_activations() == lstm_2->get_activations() &&
-               lstm_1->get_activations_alpha() == lstm_2->get_activations_alpha() &&
-               lstm_1->get_activations_beta() == lstm_2->get_activations_beta() &&
-               lstm_1->get_clip() == lstm_2->get_clip();
+    bool is_equal =
+        lstm_1->get_type_name() == lstm_2->get_type_name() && lstm_1->get_hidden_size() == lstm_2->get_hidden_size() &&
+        lstm_1->get_activations() == lstm_2->get_activations() &&
+        lstm_1->get_activations_alpha() == lstm_2->get_activations_alpha() &&
+        lstm_1->get_activations_beta() == lstm_2->get_activations_beta() && lstm_1->get_clip() == lstm_2->get_clip();
     return is_equal;
 }
 
