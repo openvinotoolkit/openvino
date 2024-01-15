@@ -28,24 +28,28 @@ public:
 
     virtual ~Extension();
 };
+}  // namespace ov
 
+#ifndef OV_CREATE_EXTENSION
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
  * @param vector of extensions
  */
 OPENVINO_EXTENSION_C_API
-void create_extensions(std::vector<Extension::Ptr>&);
+void create_extensions(std::vector<ov::Extension::Ptr>&);
 
-}  // namespace ov
+#    define OV_CREATE_EXTENSION create_extensions
+
+#endif
 
 /**
  * @brief Macro generates the entry point for the library
  *
  * @param vector of extensions
  */
-#define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
-    OPENVINO_EXTENSION_C_API                                               \
-    void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
-        ext = extensions;                                                  \
+#define OPENVINO_CREATE_EXTENSIONS(extensions)                                                \
+    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext);  \
+    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext) { \
+        ext = extensions;                                                                     \
     }
