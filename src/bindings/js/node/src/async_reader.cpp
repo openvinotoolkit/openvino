@@ -14,7 +14,7 @@ void ReaderWorker::Execute() {
 
 void ReaderWorker::OnOK() {
     Napi::HandleScope scope(Env());
-    Napi::Object mw = ModelWrap::get_class_constructor(Env()).New({});
+    Napi::Object mw = ModelWrap::get_class(Env()).New({});
     ModelWrap* m = Napi::ObjectWrap<ModelWrap>::Unwrap(mw);
     m->set_model(_model);
 
