@@ -1103,6 +1103,126 @@ public:
         }
     }
 
+        void test_compressed_int4_scale_my(bool is_caching_test, bool is_dynamic) {
+       tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        // if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        //     GTEST_SKIP();
+
+        long int batch_num = 1;
+        long int ifm_num = 256;
+        long int ofm_num = 256;
+        // long int scales_group_size = 1;
+        long int scales_group_size = 32;
+
+        // ifm_num = 16;
+        // ofm_num = 32;
+        // ifm_num = 128; // 128;
+        // ofm_num = 32;
+        ifm_num = 13696;
+        ofm_num = 4096;
+        // ifm_num = 4096;
+        // ofm_num = 27392;
+        bool is_3d = false;
+
+        auto input_ps = is_3d ?  ov::PartialShape{ 1, batch_num, ifm_num } : ov::PartialShape{ batch_num, ifm_num};
+        auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        // auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 1, 1);
+        set_values(weights_mem, weigths_data);
+
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
+        // auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 1.0f, 1.0f);
+        set_values(scale_mem, scale_data);
+
+        auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
+                                    : layout{ input_ps, data_types::f16, format::bfyx };
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), is_3d ? 3 : 2, 2);
+        // auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "", "", data_types::f16, padding(), 2, 2); // error w/o scale
+        // fc_prim.decompression_zero_point_scalar = 8;
+        fc_prim.decompression_zero_point_scalar = 0;
+
+        auto get_ref_results = [&]() {
+            topology topology(
+                input_layout("input", in_layout),
+                data("weights", weights_mem),
+                data("scale", scale_mem),
+                fc_prim
+            );
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", { format::bfyx, "fully_connected_gpu_bfyx_ref"}}}));
+
+            network network(engine, topology, config);
+            network.set_input_data("input", input_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
+
+            auto output_layout = outputs.begin()->second.get_layout();
+            auto output_mem = outputs.begin()->second.get_memory();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        if (is_dynamic) {
+            auto inst = network->get_primitive("fc_prim");
+            auto impl = inst->get_impl();
+            ASSERT_EQ(impl->get_kernels().size(), size_t(2)); // Two shape-agnostic kernels
+        }
+
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
+
+        auto ref_output_mem = get_ref_results();
+        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
+
+        size_t count = 0;
+        float max_diff = 0.f;
+        float avg = 0.f;
+        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
+            auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
+            if (max_diff < abs_diff)
+                max_diff = abs_diff;
+            avg += abs_diff;
+            count++;
+            // ASSERT_FLOAT_EQ(output_ptr_ref[i], output_ptr[i]) << "i = " << i;
+            // if (i < 10)
+            std::cout << i << " : " << output_ptr_ref[i] << " : " << output_ptr[i] << std::endl;
+        }
+        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+    }
+
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -2803,31 +2923,9 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_perf44) {
     this->test_compressed_int4_scale_perf(65536, 65536);
 }
 
-//     this->test_compressed_int4_scale_perf(1024, 4096);
-//     this->test_compressed_int4_scale_perf(1024, 13696);
-//     this->test_compressed_int4_scale_perf(1024, 28392);
-//     this->test_compressed_int4_scale_perf(1024, 65536);
-//     this->test_compressed_int4_scale_perf(4096, 1024);
-//     this->test_compressed_int4_scale_perf(4096, 4096);
-//     this->test_compressed_int4_scale_perf(1024, 13696);
-//     this->test_compressed_int4_scale_perf(4096, 28392);
-//     this->test_compressed_int4_scale_perf(4096, 65536);
-//     this->test_compressed_int4_scale_perf(13696, 1024);
-//     this->test_compressed_int4_scale_perf(13696, 4096);
-//     this->test_compressed_int4_scale_perf(13696, 13696);
-//     this->test_compressed_int4_scale_perf(13696, 28392);
-//     this->test_compressed_int4_scale_perf(13696, 65536);
-//     this->test_compressed_int4_scale_perf(28392, 1024);
-//     this->test_compressed_int4_scale_perf(28392, 4096);
-//     this->test_compressed_int4_scale_perf(28392, 13696);
-//     this->test_compressed_int4_scale_perf(28392, 28392);
-//     this->test_compressed_int4_scale_perf(28392, 65536);
-//     this->test_compressed_int4_scale_perf(65536, 1024);
-//     this->test_compressed_int4_scale_perf(65536, 4096);
-//     this->test_compressed_int4_scale_perf(65536, 13696);
-//     this->test_compressed_int4_scale_perf(65536, 28392);
-//     this->test_compressed_int4_scale_perf(65536, 65536);
-// }
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_my) {
+    this->test_compressed_int4_scale_my(false, false);
+}
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
     this->test_compressed_int4_scale(false, false);

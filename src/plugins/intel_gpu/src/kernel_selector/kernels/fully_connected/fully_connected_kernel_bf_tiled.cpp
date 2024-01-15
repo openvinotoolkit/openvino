@@ -427,7 +427,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        if (scale_group_size % simd == 0 && !dispatchData.use_slm)
+        bool is_target = (params.outputs[0].Batch().v == 1 && !params.is_shape_agnostic &&
+                            (params.outputs[0].Feature().v == 4096 && params.inputs[0].Feature().v == 13696));
+        if (is_target)
+            jit.AddConstant(MakeJitConstant("MY_IFM_TEST", 1));
+        // is_target = false;
+        if (scale_group_size % simd == 0 && !dispatchData.use_slm && !is_target)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
 #ifdef ENABLE_OUTER_LOOP
         if ( ((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
