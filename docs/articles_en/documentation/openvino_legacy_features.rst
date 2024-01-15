@@ -73,7 +73,7 @@ offering.
 
 | **Apache MXNet, Caffe, and Kaldi model formats**
 |   *New solution:* conversion to ONNX via external tools
-|   *Old solution:* model support will be discontinued with OpenVINO 2024.0
+|   *Old solution:* model support has been discontinued with OpenVINO 2024.0
 |
 |   The support for these model formats is no longer maintained.
 |   :doc:`See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`
