@@ -224,7 +224,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     PlainTensor wv_scratch_a;
     PlainTensor wv_scratch_b;
     std::vector<size_t> wsp;
-    size_t wsp_size_per_thread = 4 * 1024;
+    size_t wsp_size_per_thread = 0;
     dnnl::matmul qk_prim;
     dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
@@ -319,7 +319,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         wv_gemm_ptr = wv_result.first;
 
         size_t nthr = static_cast<size_t>(parallel_get_max_threads());
+
+        // wsp is used to compute beta when K is blocked
+        wsp_size_per_thread = wv_gemm_ptr->get_wsp_size();
         wsp.resize(nthr * wsp_size_per_thread);
+
         if (head_size % qk_gemm_ptr->get_k_blk() != 0) {
             qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / 2});
         }

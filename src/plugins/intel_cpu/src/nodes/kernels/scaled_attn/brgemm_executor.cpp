@@ -6,17 +6,17 @@
 
 #include "dnnl_extension_utils.h"
 #include "utils/cpu_utils.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <ie_common.h>
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
 #define THROW_ERROR                                                   \
-    IE_THROW() << "oneDNN 1st token executor Init Failure'" \
-               << "' "
+    IE_THROW() << "oneDNN 1st token executor Init Failure "
 
 namespace ov {
 namespace intel_cpu {
-namespace node {
 
 brgemmExecutor::brgemmExecutor(size_t M,
                                size_t N,
@@ -37,17 +37,19 @@ brgemmExecutor::brgemmExecutor(size_t M,
     M_tail = M % M_blk;
     ov::element::Type brgPrc = ov::element::bf16;
     brgVnniFactor = 4 / brgPrc.size();
-
+    bool isAMXSupported = mayiuse(avx512_core_amx);
     // blocing N
     N_tail = N % N_blk;
 
     // blocing K
+    K_blk = isAMXSupported ? 32 : K;
     K_tail = K % K_blk;
-    if (K_tail) {
+    if (isAMXSupported && K_tail) {
         K_tail = rnd_up(K_tail, 2);
     }
-    // K must be round up by K_BLK, otherwise copy B kernel may fail if K < K_BLK
-    packedBSize = rnd_up(K, K_blk) * rnd_up(N, N_blk) * brgPrc.size();
+    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
+    // copied K must be round up by vlen / brgPrc.size(), otherwise transpose_copy kernel may access wrong memory
+    packedBSize = rnd_up(K, vlen / brgPrc.size()) * rnd_up(N, N_blk) * brgPrc.size();
     packedASize = M_blk * rnd_up(K, K_blk) * brgPrc.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
@@ -69,13 +71,12 @@ brgemmExecutor::brgemmExecutor(size_t M,
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
                 brgemmCtx.beta = beta;
-                brgemmCtx.is_with_amx = true;
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
                     if (brg0BaseIdx == std::numeric_limits<size_t>::max())
                         brg0BaseIdx = getBrgIdx(m, k, n);
-                    init_brgemm(brgemmCtx, brgKernels[getBrgIdx(m, k, n)], true);
+                    init_brgemm(brgemmCtx, brgKernels[getBrgIdx(m, k, n)], isAMXSupported);
                 }
             }
         }
@@ -110,11 +111,11 @@ brgemmExecutor::brgemmExecutor(size_t M,
     }
 }
 
-size_t brgemmExecutor::get_scratch_a_size() {
+const size_t brgemmExecutor::get_scratch_a_size() const {
     return packedASize;
 }
 
-size_t brgemmExecutor::get_scratch_b_size() {
+const size_t brgemmExecutor::get_scratch_b_size() const {
     return packedBSize;
 }
 
@@ -239,6 +240,8 @@ void brgemmExecutor::init_brgemm_copy_b(
     if (is_with_amx) {
         brgCopyKernelConf.isa = avx512_core_amx;
         brgCopyKernelConf.s8s8_compensation_required = false;
+    } else {
+        brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
     }
 
     brgCopyKernelConf.has_zero_point_a = false;
@@ -382,6 +385,5 @@ void brgemmExecutor::callBrgemm(brgemmCtx& ctx,
 #endif  // OPENVINO_ARCH_X86_64
 }
 
-}  // namespace node
 }  // namespace intel_cpu
 }  // namespace ov

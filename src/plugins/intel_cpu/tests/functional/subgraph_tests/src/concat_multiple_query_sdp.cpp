@@ -285,7 +285,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     bool hasShapeOf;
     ElementType qkvType;
     std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
-    if (qkvType== ElementType::bf16 && !ov::with_cpu_x86_avx512_core_amx_bf16())
+    if (qkvType== ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
