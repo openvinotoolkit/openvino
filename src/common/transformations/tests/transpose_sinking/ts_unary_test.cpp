@@ -112,7 +112,7 @@ NodePtr UnaryFactory<LogSoftmax>::create(const OutputVector& inputs) const {
 
 template <>
 NodePtr UnaryFactory<ConvertLike>::create(const OutputVector& inputs) const {
-    auto like = std::make_shared<Constant>(element::f64, Shape{}, 1);
+    auto like = std::make_shared<Constant>(element::f64, Shape{1, 2, 3, 2, 1, 1}, 1);
     return std::make_shared<ConvertLike>(inputs[0], like);
 }
 
@@ -158,6 +158,32 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(const FactoryPtr& unary_
     auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
     return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+}
+
+// We consider HardSigmoid, LogSoftmax, ConvertLike as unary ops
+// and handle only 0th input of these ops.
+// Transpose on 2nd input should be ignored.
+namespace ignore_transpose_on_second_input {
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary_factory,
+                                                         size_t num_unary_ops,
+                                                         const Shape& input_shape,
+                                                         element::Type input_type) {
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    NodePtr in_op = X;
+    for (size_t i = 0; i < num_unary_ops; ++i) {
+        in_op = unary_factory->create({in_op});
+
+        // Connect Transpose to 2nd input of the main node
+        std::vector<int> order(in_op->input(1).get_shape().size());
+        std::iota(order.rbegin(), order.rend(), 0);
+        auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{order.size()}, order);
+        auto transpose0 = std::make_shared<Transpose>(in_op->input_value(1), ng_order0);
+        in_op->input(1).replace_source_output(transpose0);
+    }
+
+    return std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+}
 }
 
 NodePtr CreateReshape(const NodePtr& parent_node, const Shape& input_shape) {
@@ -449,6 +475,19 @@ auto test_forward = []() {
     return wrapper(test_case);
 };
 
+auto test_forward_unary_with_multiple_inputs = []() {
+    TestCase test_case;
+    test_case.main_node = std::vector<FactoryPtr> {CREATE_UNARY_FACTORY(HardSigmoid), CREATE_UNARY_FACTORY(LogSoftmax),
+                                                   CREATE_UNARY_FACTORY(ConvertLike)};
+    test_case.transformation = CREATE_PASS_FACTORY(TSUnaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = ignore_transpose_on_second_input::CreateFunctionTransposeBefore;
+    test_case.ref_model = ignore_transpose_on_second_input::CreateFunctionTransposeBefore;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
 auto test_backward = []() {
     TestCase test_case;
     test_case.main_node = unary_factories;
@@ -549,6 +588,11 @@ auto test_forward_multiple_consumers_first_node = []() {
 INSTANTIATE_TEST_SUITE_P(TSUnaryForwardTestSuite,
                          TransposeSinkingUnaryTestFixture,
                          transpose_sinking::testing::unary::test_forward(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(TSUnaryForwardMultipleInputsTestSuite,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_unary_with_multiple_inputs(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(TSUnaryBackwardTestSuite,
