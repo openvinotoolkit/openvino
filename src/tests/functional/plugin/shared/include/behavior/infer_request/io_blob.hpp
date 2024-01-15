@@ -8,7 +8,6 @@
 #include <future>
 
 #include "base/behavior_test_utils.hpp"
-#include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {

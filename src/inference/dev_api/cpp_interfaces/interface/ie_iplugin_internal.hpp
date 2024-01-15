@@ -19,6 +19,7 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
@@ -320,16 +321,6 @@ protected:
 };
 
 /**
- * @private
- */
-using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
-
-/**
- * @private
- */
-using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
-
-/**
  * @def IE_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
  * @ingroup ie_dev_api_plugin_api
@@ -370,17 +361,3 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
         ie_plugin->SetVersion(version);                                               \
         plugin = convert_plugin(ie_plugin);                                           \
     }
-
-/**
- * @private
- */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
-    INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false)
-
-/**
- * @private
- */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_IE_CREATE_EXTENSION_FUNC) \
-    INFERENCE_EXTENSION_API(void)                                                  \
-    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr& ext)
