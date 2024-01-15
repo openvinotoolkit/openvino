@@ -9,7 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -18,28 +17,15 @@ namespace test {
 using parameterResultParams = std::tuple<ov::test::InputShape,  // Input shape
                                          std::string>;          // Device name
 
-class ParameterResultSubgraphTestBase : public testing::WithParamInterface<parameterResultParams> {
+class ParameterResultSubgraphTest : public testing::WithParamInterface<parameterResultParams>,
+                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj);
 
 protected:
-    std::shared_ptr<ov::Model> createModel(const ov::PartialShape& shape);
-};
-
-class ParameterResultSubgraphTest : public ParameterResultSubgraphTestBase, virtual public ov::test::SubgraphBaseTest {
-protected:
     void SetUp() override;
+    std::shared_ptr<ov::Model> createModel(const ov::PartialShape& shape);
 };
 
 }  // namespace test
 }  // namespace ov
-
-namespace SubgraphTestsDefinitions {
-
-class ParameterResultSubgraphTestLegacyApi : public ov::test::ParameterResultSubgraphTestBase,
-                                             virtual public LayerTestsUtils::LayerTestsCommon {
-protected:
-    void SetUp() override;
-};
-
-}  // namespace SubgraphTestsDefinitions
