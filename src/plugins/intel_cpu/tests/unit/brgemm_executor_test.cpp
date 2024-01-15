@@ -10,12 +10,12 @@
 
 // This test is used to test whether mlas gemm lib compiles successfully
 TEST(BrgemmExecutor, simple_test) {
-    if (!ov::with_cpu_x86_avx512_core_amx_bf16())
+    if (!ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     size_t M = 33;
     size_t N = 32;
     size_t K = 33;
-    ov::intel_cpu::node::brgemmExecutor gemm(M, N, K, K, N, N, false);
+    ov::intel_cpu::brgemmExecutor gemm(M, N, K, K, N, N, false);
     std::vector<ov::bfloat16> a_data(M * K, (1.0f/33));
     std::vector<ov::bfloat16> b_data(K * N, 4.0f);
     size_t nthr = 8;

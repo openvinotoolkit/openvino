@@ -12,10 +12,14 @@
 
 namespace ov {
 namespace intel_cpu {
-namespace node {
 
 class brgemmExecutor {
 public:
+    // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
+    // lda is the first dimension for A matrix
+    // ldb is the first dimension for B matrix
+    // ldc is the first dimension for C matrix
+    // b_transpose indicates wheter B matrix is transposed.
     brgemmExecutor(size_t M,
                    size_t N,
                    size_t K,
@@ -30,26 +34,29 @@ public:
 
     void copy_buffer_a();
     void copy_buffer_b(void* b, void* scratch_b);
-    // scratch_a / scratch_b
-    size_t get_scratch_a_size();
-    size_t get_scratch_b_size();
-    size_t get_mblk_size() const {
+    // bytes needed to place scratch buffer a
+    const size_t get_scratch_a_size() const;
+    // bytes needed to place scratch buffer b
+    const size_t get_scratch_b_size() const;
+    const size_t get_mblk_size() const {
         return matmulOptimalM;
     }
-    size_t get_k_blk() const {
+    const size_t get_k_blk() const {
         return K_blk;
+    }
+    const size_t get_wsp_size() const {
+        return 4 * 1024;
     }
 
 private:
     size_t M = 0, M_blk = 0, M_tail = 0;
-    size_t K = 0, K_tail = 0, N = 0, N_tail = 0;
+    size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0;
     bool b_transposed = false;
     size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     static constexpr size_t N_blk = 32;
-    static constexpr size_t K_blk = 32;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {
@@ -100,7 +107,5 @@ private:
                     void* pout,
                     void* wsp);
 };
-
-}  // namespace node
 }  // namespace intel_cpu
 }  // namespace ov
