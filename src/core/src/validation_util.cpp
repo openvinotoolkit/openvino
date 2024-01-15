@@ -9,136 +9,12 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-#include "ngraph/evaluator.hpp"
-#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
-
-namespace ov {
-namespace util {
-
-struct ChannelShapedInputSpec {
-    element::Type m_element_type;
-    PartialShape m_shape;
-    std::string m_input_name;
-};
-
-static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward_helper(
-    const Node* node,
-    element::Type input_element_type,
-    const PartialShape& input_shape,
-    const std::vector<ChannelShapedInputSpec>& channel_shaped_inputs) {
-    // Built up a slash-separated string naming all the channel-shaped inputs, for use in error
-    // messages.
-    std::stringstream ss;
-    bool first = true;
-    for (const auto& inp : channel_shaped_inputs) {
-        if (!first) {
-            ss << "/";
-        }
-        ss << inp.m_input_name;
-        first = false;
-    }
-    std::string channel_input_names = ss.str();
-
-    // Infer output element type.
-    element::Type et_result{input_element_type};
-
-    for (const auto& inp : channel_shaped_inputs) {
-        NODE_VALIDATION_CHECK(node,
-                              element::Type::merge(et_result, et_result, inp.m_element_type),
-                              "Input element types do not match.");
-    }
-
-    NODE_VALIDATION_CHECK(node,
-                          et_result.is_dynamic() || et_result.is_real(),
-                          "Input element types must be floating-point. Got: ",
-                          et_result);
-
-    // Extract channel dimension from input shape.
-    Dimension channel_dim{Dimension::dynamic()};
-
-    Rank input_rank = input_shape.rank();
-    if (input_rank.is_static()) {
-        NODE_VALIDATION_CHECK(node,
-                              input_rank.get_length() >= 2,
-                              "Input argument must have rank of at least 2 (input argument shape: ",
-                              input_shape,
-                              ").");
-
-        channel_dim = input_shape[1];
-    }
-
-    // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size
-    // "channel_dim".
-    PartialShape channel_shape{PartialShape::dynamic()};
-
-    for (const auto& inp : channel_shaped_inputs) {
-        NODE_VALIDATION_CHECK(node,
-                              PartialShape::merge_into(channel_shape, inp.m_shape),
-                              "Shapes for ",
-                              channel_input_names,
-                              " do not match.");
-    }
-
-    NODE_VALIDATION_CHECK(node,
-                          channel_shape.merge_rank(1),
-                          "Shape for ",
-                          channel_input_names,
-                          " (",
-                          channel_shape,
-                          ") does not have rank 1.");
-
-    NODE_VALIDATION_CHECK(node,
-                          Dimension::merge(channel_dim, channel_dim, channel_shape[0]),
-                          "Input channel dimension (",
-                          channel_dim,
-                          ") does not match shape for ",
-                          channel_input_names,
-                          " (",
-                          channel_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          channel_dim.is_dynamic() || channel_dim.get_length() >= 1,
-                          "Channel count must be at least 1.");
-
-    // Batch result shape is same as the input shape, except we may possibly have inferred more
-    // information from the channel count via gamma/beta/etc.
-    PartialShape batch_result_shape{input_shape};
-
-    if (batch_result_shape.rank().is_static()) {
-        batch_result_shape[1] = channel_dim;
-    }
-
-    return std::make_tuple(et_result, batch_result_shape, PartialShape{channel_dim});
-}
-
-std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               element::Type mean_element_type,
-                                                                               element::Type variance_element_type,
-                                                                               const PartialShape& input_shape,
-                                                                               const PartialShape& gamma_shape,
-                                                                               const PartialShape& beta_shape,
-                                                                               const PartialShape& mean_shape,
-                                                                               const PartialShape& variance_shape) {
-    return infer_batch_norm_forward_helper(node,
-                                           input_element_type,
-                                           input_shape,
-                                           {{gamma_element_type, gamma_shape, "gamma"},
-                                            {beta_element_type, beta_shape, "beta"},
-                                            {mean_element_type, mean_shape, "mean"},
-                                            {variance_element_type, variance_shape, "variance"}});
-}
-}  // namespace util
-}  // namespace ov
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::infer_auto_padding(const Shape& image_shape,
@@ -445,6 +321,7 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool try_apply_auto_padding(const PartialShape& image_shape,
                             const Shape& filter_shape,
                             const Strides& filter_strides,
@@ -478,7 +355,6 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void infer_auto_padding(const Shape& image_shape,
                         const Shape& filter_shape,
                         const Strides& filter_strides,
@@ -497,6 +373,125 @@ void infer_auto_padding(const Shape& image_shape,
                            padding_below);
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
+
+namespace {
+struct ChannelShapedInputSpec {
+    element::Type m_element_type;
+    PartialShape m_shape;
+    std::string m_input_name;
+};
+
+static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward_helper(
+    const Node* node,
+    element::Type input_element_type,
+    const PartialShape& input_shape,
+    const std::vector<ChannelShapedInputSpec>& channel_shaped_inputs) {
+    // Built up a slash-separated string naming all the channel-shaped inputs, for use in error
+    // messages.
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& inp : channel_shaped_inputs) {
+        if (!first) {
+            ss << "/";
+        }
+        ss << inp.m_input_name;
+        first = false;
+    }
+    std::string channel_input_names = ss.str();
+
+    // Infer output element type.
+    element::Type et_result{input_element_type};
+
+    for (const auto& inp : channel_shaped_inputs) {
+        NODE_VALIDATION_CHECK(node,
+                              element::Type::merge(et_result, et_result, inp.m_element_type),
+                              "Input element types do not match.");
+    }
+
+    NODE_VALIDATION_CHECK(node,
+                          et_result.is_dynamic() || et_result.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          et_result);
+
+    // Extract channel dimension from input shape.
+    Dimension channel_dim{Dimension::dynamic()};
+
+    Rank input_rank = input_shape.rank();
+    if (input_rank.is_static()) {
+        NODE_VALIDATION_CHECK(node,
+                              input_rank.get_length() >= 2,
+                              "Input argument must have rank of at least 2 (input argument shape: ",
+                              input_shape,
+                              ").");
+
+        channel_dim = input_shape[1];
+    }
+
+    // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size
+    // "channel_dim".
+    PartialShape channel_shape{PartialShape::dynamic()};
+
+    for (const auto& inp : channel_shaped_inputs) {
+        NODE_VALIDATION_CHECK(node,
+                              PartialShape::merge_into(channel_shape, inp.m_shape),
+                              "Shapes for ",
+                              channel_input_names,
+                              " do not match.");
+    }
+
+    NODE_VALIDATION_CHECK(node,
+                          channel_shape.merge_rank(1),
+                          "Shape for ",
+                          channel_input_names,
+                          " (",
+                          channel_shape,
+                          ") does not have rank 1.");
+
+    NODE_VALIDATION_CHECK(node,
+                          Dimension::merge(channel_dim, channel_dim, channel_shape[0]),
+                          "Input channel dimension (",
+                          channel_dim,
+                          ") does not match shape for ",
+                          channel_input_names,
+                          " (",
+                          channel_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          channel_dim.is_dynamic() || channel_dim.get_length() >= 1,
+                          "Channel count must be at least 1.");
+
+    // Batch result shape is same as the input shape, except we may possibly have inferred more
+    // information from the channel count via gamma/beta/etc.
+    PartialShape batch_result_shape{input_shape};
+
+    if (batch_result_shape.rank().is_static()) {
+        batch_result_shape[1] = channel_dim;
+    }
+
+    return std::make_tuple(et_result, batch_result_shape, PartialShape{channel_dim});
+}
+}  // namespace
+
+std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
+                                                                               element::Type input_element_type,
+                                                                               element::Type gamma_element_type,
+                                                                               element::Type beta_element_type,
+                                                                               element::Type mean_element_type,
+                                                                               element::Type variance_element_type,
+                                                                               const PartialShape& input_shape,
+                                                                               const PartialShape& gamma_shape,
+                                                                               const PartialShape& beta_shape,
+                                                                               const PartialShape& mean_shape,
+                                                                               const PartialShape& variance_shape) {
+    return infer_batch_norm_forward_helper(node,
+                                           input_element_type,
+                                           input_shape,
+                                           {{gamma_element_type, gamma_shape, "gamma"},
+                                            {beta_element_type, beta_shape, "beta"},
+                                            {mean_element_type, mean_shape, "mean"},
+                                            {variance_element_type, variance_shape, "variance"}});
+}
 
 bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
     Tensor lb, ub;
