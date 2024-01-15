@@ -447,38 +447,7 @@ void Graph::ResolveEdgeConflicts() {
         uniqueLayerNames.insert(layerName);
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
-        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
-    };
-
-    auto reuseReorderForReadonlyChildren = [&](EdgePtr& edge) {
-        if (edge->inPlace(Edge::LOOK_DOWN))
-            return false;
-
-        const auto& dstDesc = edge->getOutputDesc();
-        for (auto siblingEdge : edge->getParent()->getChildEdgesAtPort(edge->getInputNum())) {
-            if (siblingEdge == edge)
-                continue;
-            auto reorder = std::dynamic_pointer_cast<node::Reorder>(siblingEdge->getChild());
-            if (!reorder)
-                continue;
-            if (!reorder->getOutput().isCompatible(dstDesc))
-                continue;
-            auto reorder_consumers = reorder->getChildEdgesAtPort(0);
-            if (std::any_of(reorder_consumers.begin(), reorder_consumers.end(), [](EdgePtr e) {
-                    return e->inPlace(Edge::LOOK_DOWN);
-                }))
-                continue;
-
-            auto dstNode = edge->getChild();
-            EdgePtr newEdge(new Edge(reorder, dstNode, 0, edge->getOutputNum()));
-            dstNode->parentEdges.push_back(newEdge);
-            reorder->childEdges.push_back(newEdge);
-            graphEdges.push_back(newEdge);
-            edge->drop();
-            return true;
-        }
-
-        return false;
+        return InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
     auto updateEdge = [&](ptrdiff_t& i) {
@@ -516,8 +485,7 @@ void Graph::ResolveEdgeConflicts() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                if (!reuseReorderForReadonlyChildren(edge))
-                    insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
+                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
             }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
@@ -557,7 +525,10 @@ void Graph::ResolveEdgeConflicts() {
         auto edge = graphEdges[i];
         if (needReorder(edge)) {
             constexpr bool optimizedReorder = false;
-            insertReorder(edge, optimizedReorder);
+            auto newReorder = insertReorder(edge, optimizedReorder);
+            // this reorder cannot be safely shared with other consumer
+            auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
+            reorderPtr->setShareable(false);
             updateEdge(i);
         }
     }

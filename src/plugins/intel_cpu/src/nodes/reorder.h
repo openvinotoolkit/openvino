@@ -59,6 +59,14 @@ public:
         return false;
     }
 
+    bool getShareable() const {
+        return isShareable;
+    }
+
+    void setShareable(bool canShare) {
+        isShareable = canShare;
+    }
+
     const MemoryDesc& getInput() { return *input; }
     const MemoryDesc& getOutput() { return *output; }
 
@@ -82,6 +90,8 @@ private:
     bool isNcsp2NspcCase = false;
     bool canUseNspc2Ncsp = false;
     bool canUseNcsp2Nspc = false;
+
+    bool isShareable = true;
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();

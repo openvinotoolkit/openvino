@@ -44,6 +44,7 @@ private:
     void FuseEltwiseAndSimple(Graph &graph);
     void FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph);
     void FuseClampAndFakeQuantize(Graph &graph);
+    void ShareReorders(Graph &graph);
     void MergeTransposeAndReorder(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
     void RemoveSameConvert(Graph &graph);
