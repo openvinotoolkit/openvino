@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -36,6 +37,22 @@ int64_t get_output_stride(size_t dim, const VectorDims& shape) {
 }  // namespace
 
 InitLoops::InitLoops() : Pass() {}
+
+void InitLoops::init_is_incremented(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    auto loop_entries = loop_info->get_entry_points();
+    auto loop_exits = loop_info->get_exit_points();
+    auto update = [](std::vector<LoopPort>& ports) {
+        for (auto& port : ports) {
+            if (!ov::is_type<op::MemoryAccess>(port.expr_port->get_expr()->get_node())) {
+                port.is_incremented = false;
+            }
+        }
+    };
+    update(loop_entries);
+    update(loop_exits);
+    loop_info->set_entry_points(loop_entries);
+    loop_info->set_exit_points(loop_exits);
+}
 
 void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
     const auto work_amount = loop_info->get_work_amount();
@@ -115,6 +132,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
         const auto loop_info = loop.second;
+        init_is_incremented(loop_info);
         init_ptr_increments(loop_info);
         init_finalization_offsets(loop_info);
         init_element_type_sizes(loop_info);

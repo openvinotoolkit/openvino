@@ -55,6 +55,7 @@ private:
     int64_t wa_increment = 0;
     int64_t work_amount = 0;
     bool evaluate_once = false;
+    std::vector<bool> is_incremented;
     std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
 };

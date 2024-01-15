@@ -110,32 +110,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             for (const auto& tensor : input_expr_input_tensors) {
                 const auto parent_expr = tensor->get_source().get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
                     if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                        manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
                         manually_assigned_vecs[parent_expr->get_input_port_connector(0)] = static_cast<Reg>(accumulator_reg);
-                }
+                    }
                 }
             }
-            const auto& output_tensor = expr->get_output_port_connector(0);
             manually_assigned_vecs[input_tensor] = static_cast<Reg>(accumulator_reg);
-            manually_assigned_vecs[output_tensor] = static_cast<Reg>(accumulator_reg);
-            for (const auto& child_expr_input : output_tensor->get_consumers()) {
-                if (ov::is_type<op::BroadcastMove>(child_expr_input.get_expr()->get_node())) {
-                    manually_assigned_vecs[child_expr_input.get_expr()->get_output_port_connector(0)] =
-                            static_cast<Reg>(accumulator_reg);
-                }
-            }
-
-            // TODO: Fix via common pipeline using LoopEnd:
-            //       All operations `outside loop` after Horizon ops should have the same register to avoid using it in the next Loop
-            const auto& current_loops_ids = expr->get_loop_ids();
-            auto next_expr = output_tensor->get_consumers().begin()->get_expr();
-            while (next_expr->get_loop_ids() == current_loops_ids) {
-                manually_assigned_vecs[next_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(accumulator_reg);
-                next_expr = next_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-            }
-
             accumulator_reg++;
         }
     }

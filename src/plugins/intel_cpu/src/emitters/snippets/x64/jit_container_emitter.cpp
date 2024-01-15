@@ -46,7 +46,6 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, m
     };
 
     for (const auto& expression : expressions) {
-        const auto& emitter = expression->get_emitter();
         std::vector<snippets::Reg> in_physical_regs, out_physical_regs;
         std::vector<snippets::Reg> in_abstract_regs, out_abstract_regs;
         std::tie(in_abstract_regs, out_abstract_regs) = expression->get_reg_info();

@@ -12,11 +12,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
-    regs.resize(idxs.size());
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
-}
-
 jit_loop_begin_emitter::jit_loop_begin_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
@@ -71,6 +66,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(jit_generator* h, cpu_isa_t isa, cons
     num_outputs = expr->get_output_count();
     wa_increment = static_cast<int64_t>(loop_end->get_increment());
     work_amount = static_cast<int64_t>(loop_end->get_work_amount());
+    is_incremented = loop_end->get_is_incremented();
     ptr_increments = loop_end->get_ptr_increments();
     finalization_offsets = loop_end->get_finalization_offsets();
     evaluate_once = loop_end->get_evaluate_once();
@@ -98,22 +94,25 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     // the last input is actually a work_amount reg
     data_ptr_reg_idxs.reserve(num_inputs - 1);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
-    std::vector<Reg64> data_ptr_regs;
-    transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
+
     Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
-        for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
-            if (ptr_increments[idx] != 0)
-                h->add(data_ptr_regs[idx], ptr_increments[idx] * wa_increment * io_data_size[idx]);
+        for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
+            if (!is_incremented[idx] || ptr_increments[idx] == 0)
+                continue;
+            Reg64 data_reg = Reg64(static_cast<int>(data_ptr_reg_idxs[idx]));
+            h->add(data_reg, ptr_increments[idx] * wa_increment * io_data_size[idx]);
         }
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(loop_begin->begin_address);
     }
 
-    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
-        if (finalization_offsets[idx] != 0)
-            h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
+    for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
+        if (!is_incremented[idx] || finalization_offsets[idx] == 0)
+            continue;
+        Reg64 data_reg = Reg64(static_cast<int>(data_ptr_reg_idxs[idx]));
+        h->add(data_reg, finalization_offsets[idx] * io_data_size[idx]);
     }
 }
 
