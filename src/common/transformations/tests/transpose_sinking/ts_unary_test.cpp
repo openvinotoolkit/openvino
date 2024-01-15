@@ -184,7 +184,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary
 
     return std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
 }
-}
+}  // namespace ignore_transpose_on_second_input
 
 NodePtr CreateReshape(const NodePtr& parent_node, const Shape& input_shape) {
     const size_t mul = std::accumulate(input_shape.begin(), input_shape.end(), (size_t)1, std::multiplies<size_t>());
@@ -477,8 +477,9 @@ auto test_forward = []() {
 
 auto test_forward_unary_with_multiple_inputs = []() {
     TestCase test_case;
-    test_case.main_node = std::vector<FactoryPtr> {CREATE_UNARY_FACTORY(HardSigmoid), CREATE_UNARY_FACTORY(LogSoftmax),
-                                                   CREATE_UNARY_FACTORY(ConvertLike)};
+    test_case.main_node = std::vector<FactoryPtr>{CREATE_UNARY_FACTORY(HardSigmoid),
+                                                  CREATE_UNARY_FACTORY(LogSoftmax),
+                                                  CREATE_UNARY_FACTORY(ConvertLike)};
     test_case.transformation = CREATE_PASS_FACTORY(TSUnaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.test_model = ignore_transpose_on_second_input::CreateFunctionTransposeBefore;
