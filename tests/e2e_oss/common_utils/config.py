@@ -36,7 +36,7 @@ class StrippingLists:
     ]
 
 
-### Open VINO common parameters ###
+# OpenVINO common parameters
 _product_version = os.environ.get("PRODUCT_VERSION", None)
 _product_type = os.environ.get("PRODUCT_TYPE", None)
 _package_version = os.environ.get("PACKAGE_VERSION", None)

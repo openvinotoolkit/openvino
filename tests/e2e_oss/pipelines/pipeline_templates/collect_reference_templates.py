@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 from e2e_oss.common_utils.decorators import wrap_ord_dict
 from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_tf
-from e2e_oss.utils.path_utils import ref_from_model
+from e2e_oss.test_utils.path_utils import ref_from_model
 
 
 def get_refs_onnx_runtime(model, onnx_rt_ep, inputs, cast_input_data=True, cast_type="float32"):
@@ -140,4 +140,4 @@ def get_refs_tf_hub(model, inputs):
     """
     Construct TensorFlow Hub reference collection action.
     """
-    return "get_refs_tf_hub", {'score_tf_hub': {'model': model, 'inputs': inputs}}
+    return "get_refs_tf_hub", {'score_tf_hub': {}}

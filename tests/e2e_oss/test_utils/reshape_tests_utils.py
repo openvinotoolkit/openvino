@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from e2e_oss.utils.test_utils import replicator
 from e2e_oss.common_utils.test_utils import name_aligner
 from e2e_oss.pipelines.pipeline_templates.comparators_template import dummy_comparators, eltwise_comparators
 from utils.e2e.comparator.container import ComparatorsContainer
@@ -243,3 +242,76 @@ def get_mo_input_with_frozen_values(mo_arg_input, shapes):
             input = re.sub(r"[(\[]([0-9  -]*)[)\]]", "", input)
             cmd_mo_input.append(input + str(shapes[input]).replace(',', ''))
     return cmd_mo_input
+
+
+def prepare_data_consecutive_inferences(default_shapes, changed_values, layout, dims_to_change):
+    def construct_input_data(data):
+        input_data = copy.deepcopy(data)
+        consecutive_infer_input_data = [data]
+
+        changed_data_shapes = get_static_shape(default_shapes, changed_values, layout, dims_to_change)
+        second_data = replicator(input_data, changed_data_shapes)
+        consecutive_infer_input_data.append(second_data)
+
+        return consecutive_infer_input_data
+    return {'dynamism_preproc': {'execution_function': lambda data: construct_input_data(data)}}
+
+
+def get_static_shape(default_shapes, changed_values, layout, dims_to_change):
+    static_shapes = copy.deepcopy(default_shapes)
+    static_shapes = {k: list(v) for k, v in static_shapes.items()}
+    for input_layer, dimension in dims_to_change.items():
+        if dimension is None:
+            continue
+        else:
+            dim_indexes = [layout[input_layer].index(d) for d in dimension]
+            for value_index, value in enumerate(dict(changed_values)[input_layer]):
+                if value is None:
+                    static_shapes[input_layer][dim_indexes[value_index]] = \
+                        default_shapes[input_layer][dim_indexes[value_index]]
+                else:
+                    static_shapes[input_layer][dim_indexes[value_index]] = value
+    return static_shapes
+
+
+def replicator(data, shapes):
+    for name, shape in shapes.items():
+        if name not in data:
+            log.info(f"Input '{name}' from shapes was not found in data")
+            continue
+        err_msg = 'Final batch alignment error for layer `{}`: '.format(name)
+
+        data[name] = np.array(data[name])
+        old_shape = np.array(data[name].shape)
+        new_shape = np.array(shapes[name])
+
+        if old_shape.size != new_shape.size:
+            # Rank resize. We assume that it is Faster-like input with input shape
+            if np.prod(old_shape) == np.prod(new_shape):
+                data[name].reshape(new_shape)
+                old_shape = new_shape
+
+        assert old_shape.size == new_shape.size, 'Rank resize detected'
+        if np.all((new_shape % old_shape) == 0):
+            assert np.all(old_shape <= new_shape), 'Reshaping to shape that is less than original network shape'
+            log.info('New shape is evenly divided by original network shape')
+            multiplier = tuple(np.array(new_shape / old_shape, dtype=np.int_))
+            data[name] = np.tile(data[name], multiplier)
+        else:
+            # TF OD models can not be reshaped in 2x bacause they should keep aspect ratio
+            log.info('New shape is not evenly divided by original network shape data_shape={}, net_shape={}'
+                     ''.format(data[name].shape, new_shape))
+            assert len(new_shape) == 4, \
+                "Unsupported by tests reshape: Non 4D input {}, original shape {}".format(new_shape, old_shape)
+
+            multiplier = tuple(np.array(new_shape // old_shape + np.ones(new_shape.size), dtype=np.int))
+            replicated_data = np.tile(data[name], multiplier)
+            data[name] = replicated_data[0:new_shape[0], 0:new_shape[1], 0:new_shape[2], 0:new_shape[3]]
+
+        assert np.array_equal(data[name].shape, new_shape), \
+            err_msg + 'data_shape={}, net_shape={}'.format(data[name].shape, new_shape)
+
+    log.info('Input data was aligned with shapes=`{}`, new_data_shapes=`{}`'
+             ''.format(shapes, {k: v.shape for k, v in data.items()}))
+    return data
+

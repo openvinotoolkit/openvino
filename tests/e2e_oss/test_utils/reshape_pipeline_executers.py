@@ -1,6 +1,6 @@
 import logging as log
 
-from e2e_oss.utils.modify_configs import ie_sbs_reshape_config, ie_reshape_config, mo_reshape_config
+from e2e_oss.test_utils.modify_configs import ie_sbs_reshape_config, ie_reshape_config, mo_reshape_config
 from utils.e2e.common.pipeline import Pipeline
 
 

@@ -6,15 +6,17 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Union
-import copy
-import numpy as np
-import tensorflow as tf
-
-
 from filelock import FileLock
 
 from contextlib import contextmanager
 from datetime import datetime
+import copy
+import numpy as np
+import tensorflow as tf
+import subprocess
+
+
+from openvino.runtime import Dimension, PartialShape
 
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
@@ -27,21 +29,6 @@ PRECISION_MAP = {
     'FP32': 'f32',
     'BF16': 'bf16'
 }
-
-type_map = {
-    tf.float64: np.float64,
-    tf.float32: np.float32,
-    tf.int8: np.int8,
-    tf.int16: np.int16,
-    tf.int32: np.int32,
-    tf.int64: np.int64,
-    tf.uint8: np.uint8,
-    tf.uint16: np.uint16,
-    tf.string: str,
-    tf.bool: bool,
-}
-
-rng = np.random.default_rng(seed=56190)
 
 
 def write_to_csv(csv_path: Path, data: list):
@@ -428,61 +415,6 @@ def timestamp():
     return f'{datetime.fromtimestamp(datetime.now().timestamp(), tz=None)}'
 
 
-def replicator(data, shapes):
-    for name, shape in shapes.items():
-        if name not in data:
-            log.info(f"Input '{name}' from shapes was not found in data")
-            continue
-        err_msg = 'Final batch alignment error for layer `{}`: '.format(name)
-
-        data[name] = np.array(data[name])
-        old_shape = np.array(data[name].shape)
-        new_shape = np.array(shapes[name])
-
-        if old_shape.size != new_shape.size:
-            # Rank resize. We assume that it is Faster-like input with input shape
-            if np.prod(old_shape) == np.prod(new_shape):
-                data[name].reshape(new_shape)
-                old_shape = new_shape
-
-        assert old_shape.size == new_shape.size, 'Rank resize detected'
-        if np.all((new_shape % old_shape) == 0):
-            assert np.all(old_shape <= new_shape), 'Reshaping to shape that is less than original network shape'
-            log.info('New shape is evenly divided by original network shape')
-            multiplier = tuple(np.array(new_shape / old_shape, dtype=np.int_))
-            data[name] = np.tile(data[name], multiplier)
-        else:
-            # TF OD models can not be reshaped in 2x bacause they should keep aspect ratio
-            log.info('New shape is not evenly divided by original network shape data_shape={}, net_shape={}'
-                     ''.format(data[name].shape, new_shape))
-            assert len(new_shape) == 4, \
-                "Unsupported by tests reshape: Non 4D input {}, original shape {}".format(new_shape, old_shape)
-
-            multiplier = tuple(np.array(new_shape // old_shape + np.ones(new_shape.size), dtype=np.int))
-            replicated_data = np.tile(data[name], multiplier)
-            data[name] = replicated_data[0:new_shape[0], 0:new_shape[1], 0:new_shape[2], 0:new_shape[3]]
-
-        assert np.array_equal(data[name].shape, new_shape), \
-            err_msg + 'data_shape={}, net_shape={}'.format(data[name].shape, new_shape)
-
-    log.info('Input data was aligned with shapes=`{}`, new_data_shapes=`{}`'
-             ''.format(shapes, {k: v.shape for k, v in data.items()}))
-    return data
-
-
-def prepare_data_consecutive_inferences(default_shapes, changed_values, layout, dims_to_change):
-    def construct_input_data(data):
-        input_data = copy.deepcopy(data)
-        consecutive_infer_input_data = [data]
-
-        changed_data_shapes = get_static_shape(default_shapes, changed_values, layout, dims_to_change)
-        second_data = replicator(input_data, changed_data_shapes)
-        consecutive_infer_input_data.append(second_data)
-
-        return consecutive_infer_input_data
-    return {'dynamism_preproc': {'execution_function': lambda data: construct_input_data(data)}}
-
-
 def get_static_shape(default_shapes, changed_values, layout, dims_to_change):
     static_shapes = copy.deepcopy(default_shapes)
     static_shapes = {k: list(v) for k, v in static_shapes.items()}
@@ -500,62 +432,59 @@ def get_static_shape(default_shapes, changed_values, layout, dims_to_change):
     return static_shapes
 
 
-def prepare_input(input_shape, input_type):
-    if input_type in [np.float32, np.float64]:
-        return 2.0 * rng.random(size=input_shape, dtype=input_type)
-    elif input_type in [np.uint8, np.uint16, np.int8, np.int16, np.int32, np.int64]:
-        return rng.integers(0, 5, size=input_shape).astype(input_type)
-    elif input_type in [str]:
-        return np.broadcast_to("Some string", input_shape)
-    elif input_type in [bool]:
-        return rng.integers(0, 2, size=input_shape).astype(input_type)
+def get_shapes_from_data(input_data) -> dict:
+    shapes = {}
+    for input_layer in input_data:
+        shapes[input_layer] = PartialShape(input_data[input_layer].shape)
+    return shapes
+
+
+def convert_shapes_to_partial_shape(shapes: dict) -> dict:
+    partial_shape = {}
+    for layer, shape in shapes.items():
+        dimension_tmp = []
+        for item in shape:
+            dimension_tmp.append(Dimension(item[0], item[1])) if type(item) == list else dimension_tmp.append(
+                Dimension(item))
+        partial_shape[layer] = PartialShape(dimension_tmp)
+    return partial_shape
+
+
+def name_aligner(infer_result, reference, xml=None):
+    """
+    Function name_aligner aligns names for inference and reference outputs if number of their outputs == 1
+    """
+    if len(infer_result.keys()) == 1 == len(reference.keys()):
+        log.info("Renaming inferred output layer {} to referenced output layer {}".format(
+            list(infer_result.keys())[0], list(reference.keys())[0]))
+        infer_result[next(iter(reference))] = infer_result.pop(next(iter(infer_result)))
+
+    return infer_result, reference
+
+
+def shell(cmd, env=None, cwd=None, out_format="plain", log=True):
+    """
+    Run command execution in specified environment
+
+    :param cmd: list containing command and its parameters
+    :param env: set of environment variables to set for this command
+    :param cwd: working directory from which execute call
+    :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
+    :param log: display output info into sys.stdout or not
+    :return: returncode, stdout, stderr
+    """
+    if sys.platform.startswith('linux') or sys.platform == 'darwin':
+        cmd = ['/bin/bash', '-c', "unset OMP_NUM_THREADS; " + " ".join(cmd)]
     else:
-        assert False, "Unsupported type {}".format(input_type)
+        cmd = " ".join(cmd)
+    if log:
+        sys.stdout.write("Running command:\n" + "".join(cmd) + "\n")
+    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+    stdout = str(stdout.decode('utf-8'))
+    stderr = str(stderr.decode('utf-8'))
+    if out_format == "html":
+        stdout = "<br>\n".join(stdout.split('\n'))
+        stderr = "<br>\n".join(stderr.split('\n'))
+    return p.returncode, stdout, stderr
 
-
-def prepare_inputs(inputs_info):
-    # if len(inputs_info) > 0 and inputs_info[0] == 'list':
-    #     inputs = []
-    #     inputs_info = inputs_info[1:]
-    #     for input_name, input_shape, input_type in inputs_info:
-    #         inputs.append(prepare_input(input_shape, input_type))
-    # else:
-    inputs = {}
-    for input_name, input_shape, input_type in inputs_info:
-        inputs[input_name] = prepare_input(input_shape, input_type)
-    return inputs
-
-
-def get_inputs_info(model_obj):
-    inputs_info = []
-    assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
-    for input_name, input_info in model_obj.structured_input_signature[1].items():
-        input_shape = []
-        try:
-            if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
-                # image classification case, let us imitate an image
-                # that helps to avoid compute output size issue
-                input_shape = [1, 200, 200, 3]
-            else:
-                for dim in input_info.shape.as_list():
-                    if dim is None:
-                        input_shape.append(1)
-                    else:
-                        input_shape.append(dim)
-        except ValueError:
-            # unknown rank case
-            pass
-        if input_info.dtype == tf.resource:
-            # skip inputs corresponding to variables
-            continue
-        assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
-        inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
-
-    return inputs_info
-
-
-def generate_tf_hub_inputs(model):
-    """
-    Generates random inputs depending on model's input type
-    """
-    return prepare_inputs(get_inputs_info(model))

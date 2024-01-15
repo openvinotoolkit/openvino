@@ -1,8 +1,8 @@
 from openvino.tools.mo.utils.cli_parser import parse_input_value
 from openvino.tools.ovc.cli_parser import split_inputs
 
-from e2e_oss.utils.test_utils import log_timestamp
-from e2e_oss.utils.path_utils import resolve_file_path
+from e2e_oss.test_utils.test_utils import log_timestamp
+from e2e_oss.test_utils.path_utils import resolve_file_path
 from .provider import ClassProvider
 import sys
 import logging as log

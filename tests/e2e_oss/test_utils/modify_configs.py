@@ -1,9 +1,9 @@
 from collections import OrderedDict
 from copy import deepcopy
 
-from e2e_oss.utils.reshape_tests_utils import get_mo_input_with_frozen_values, reorder_shapes_to_old_api, \
+from e2e_oss.test_utils.reshape_tests_utils import get_mo_input_with_frozen_values, reorder_shapes_to_old_api, \
     get_input_data
-from e2e_oss.utils.test_utils import prepare_data_consecutive_inferences
+from e2e_oss.test_utils.test_utils import prepare_data_consecutive_inferences
 
 
 def mo_reshape_config(pipeline, shapes, instance_class_name):

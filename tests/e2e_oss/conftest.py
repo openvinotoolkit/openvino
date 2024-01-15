@@ -23,9 +23,9 @@ import sys
 
 from cpuinfo import get_cpu_info
 
-from e2e_oss.common_utils.logger import get_logger
+from tests.e2e_oss.common_utils.logger import get_logger
 from .common_utils.sys_info_utils import get_sys_info
-from .common_utils.tf_helper import TFVersionHelper
+from tests.e2e_oss.test_utils.tf_helper import TFVersionHelper
 
 try:
     # In user_config.py, user might export custom environment variables

@@ -20,7 +20,7 @@ from shutil import rmtree
 import yaml
 from e2e_oss.common_utils.logger import get_logger
 from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
-from e2e_oss.utils.test_utils import log_timestamp, read_irs_mapping_file, get_ir_tag, check_mo_precision, \
+from e2e_oss.test_utils.test_utils import log_timestamp, read_irs_mapping_file, get_ir_tag, check_mo_precision, \
     set_infer_precision_hint, remove_mo_args_oob, store_data_to_csv, timestamp
 from utils.e2e.common.pipeline import Pipeline
 from utils.e2e.comparator.container import ComparatorsContainer

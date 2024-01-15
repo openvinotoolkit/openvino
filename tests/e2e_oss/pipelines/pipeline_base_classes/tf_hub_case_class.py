@@ -8,7 +8,6 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_gene
 
 class TFHUB_eltwise_Base(CommonConfig):
     def __init__(self, device, precision, **kwargs):
-        # TODO: load_tf_hub_model function could retrieve model name from link inside it
         self.model = {"load_model":
                           {"load_tf_hub_model":
                                {"model_name": self.model_name,

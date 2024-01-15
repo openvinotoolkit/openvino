@@ -3,7 +3,7 @@ import logging as log
 import os
 import torch
 
-from e2e_oss.common_utils.pytorch_loaders import *
+from e2e_oss.test_utils.pytorch_loaders import *
 from utils.e2e.model_loader.provider import ClassProvider
 
 

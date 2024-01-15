@@ -32,8 +32,8 @@ import shutil
 import pytest
 from jsonschema import validate, ValidationError
 
-from e2e_oss.utils.test_utils import copy_files_by_pattern, log_timestamp, get_framework_from_model_ex
-from utils.e2e.env_tools import Environment
+from tests.e2e_oss.test_utils.test_utils import get_framework_from_model_ex
+from tests.utils.e2e.env_tools import Environment
 
 
 @contextmanager

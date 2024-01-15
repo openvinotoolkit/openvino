@@ -82,5 +82,6 @@ def run_coverage():
             for item in iglob(f"{args.c_gcov_notes}/**/*.gcda", recursive=True):
                 os.remove(item)
 
+
 if __name__ == "__main__":
     sys.exit(run_coverage())
