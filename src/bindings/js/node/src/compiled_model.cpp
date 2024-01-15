@@ -12,7 +12,7 @@ CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
       _compiled_model{} {}
 
-Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),
@@ -22,25 +22,13 @@ Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object CompiledModelWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->compiled_model_prototype = ref;
-
-    exports.Set("CompiledModel", prototype);
-    return exports;
-}
-
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->compiled_model_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
     }
-    auto obj = prototype->New({});
+    auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
     return obj;

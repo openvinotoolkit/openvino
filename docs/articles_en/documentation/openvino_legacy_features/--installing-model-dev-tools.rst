@@ -196,8 +196,8 @@ Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_dem
 
 Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
-* :doc:`Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README>`
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd>`
+* :doc:`Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition>`
 
 Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++
@@ -205,7 +205,7 @@ Learn OpenVINO Development Tools
 * Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
 * Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
 * Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>`.
-* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
+* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>`.
 
 Additional Resources
 ####################

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/frontend/manager.hpp"
-#include "ngraph/ngraph.hpp"
 #include "tokenizer.h"
 #include <string>
 

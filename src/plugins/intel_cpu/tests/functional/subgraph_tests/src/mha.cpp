@@ -687,7 +687,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1,
                                             ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                             ::testing::Values(1),
                                             ::testing::Values(ExpectedNodes{
-                                                {"Subgraph", 3},     // FQ on input + MHA + Deq Mul
+                                                {"Subgraph", 4},     // FQ on input x 2 + MHA + Deq Mul
                                                 {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
@@ -698,7 +698,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                                             ::testing::ValuesIn(inputPrecisionsQuant),
                                             ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                             ::testing::Values(2),
-                                            ::testing::Values(ExpectedNodes{{"Subgraph", 2},     // MHA + Deq Mul
+                                            ::testing::Values(ExpectedNodes{{"Subgraph", 3},     // FQ on inputs x 2 + MHA
                                                                             {"Transpose", 0}}),  // Transpose is fused
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);

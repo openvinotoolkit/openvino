@@ -9,7 +9,7 @@
 namespace {
 using ov::test::CTCGreedyDecoderSeqLenLayerTest;
 
-std::vector<std::vector<ov::Shape>> inputShape{{{1, 1, 1}}, {{1, 6, 10}}, {{3, 3, 16}}, {{5, 3, 55}}};
+std::vector<std::vector<ov::Shape>> inputShape{{{1, 28, 41}}, {{1, 1, 1}}, {{1, 6, 10}}, {{3, 3, 16}}, {{5, 3, 55}}};
 
 const std::vector<ov::element::Type> probPrecisions = {
     ov::element::f32,

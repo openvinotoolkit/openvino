@@ -14,8 +14,8 @@
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
@@ -1829,10 +1829,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!mayiuse(avx512_core)) {
-        if (outputPrecision == ov::element::bf16)
-            outputPrecision = ov::element::f32;
-    }
+    if (!hasHardwareSupport(outputPrecision))
+        outputPrecision = ov::element::f32;
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
