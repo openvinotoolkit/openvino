@@ -395,7 +395,7 @@ void compare(const ov::Tensor& expected,
             (std::isinf(actual_value) || actual_value >= max_type_actual)) {
             continue;
         } else if ((std::isinf(expected_value) || expected_value <= min_type_expected) &&
-                    (std::isinf(actual_value) || actual_value <= min_type_actual)) {
+                   (std::isinf(actual_value) || actual_value <= min_type_actual)) {
             continue;
         }
 
@@ -410,7 +410,8 @@ void compare(const ov::Tensor& expected,
             throw std::runtime_error(out_stream.str());
         }
         double abs = std::fabs(expected_value - actual_value);
-        double rel = expected_value && actual_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : 0;
+        double rel =
+            expected_value && actual_value && !std::isinf(expected_value) ? (abs / std::fabs(std::max(expected_value, actual_value))) : abs;
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
