@@ -940,12 +940,22 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-    conf.readProperties(config, modelType);
+
+    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
+    auto _config = config;
+    const auto& it = _config.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _config.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _config.erase(it);
+    }
+    conf.readProperties(_config, modelType);
 
     // import config props from caching model
     calculate_streams(conf, model, true);
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
+    auto compiled_model =
+        std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, loaded_from_cache);
     return compiled_model;
 }
 }   // namespace intel_cpu
