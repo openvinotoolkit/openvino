@@ -246,20 +246,12 @@ The jobs in the workflows utilize appropriate Docker images based on a job's nee
 
 ## Caches
 
-There are two types of caches available:
+Three types of caches are available:
 * [GitHub Actions cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
-  * Accessible by `actions/cache` action
-  * Available both GitHub-hosted and self-hosted runners
-  * Limited to 10GB per repository
-  * Suitable for small dependencies caches and artefacts that could be reused between runs 
 * Shared drive cache
-  * Mounted into the Docker container
-  * Available only to the self-hosted runners
-  * Large storage
-  * Suitable for large caches
-    * e.g., build caches, models, datasets
+* Remote build cache via [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs)
 
-The jobs in the workflows utilize appropriate caches based on a job's needs. Read more about the available caches and how to choose one [here](./caches.md).
+The jobs in the workflows utilize appropriate caches based on job's needs. Read more about the available caches and how to use one [here](./caches.md).
 
 ## Adding New Tests
 

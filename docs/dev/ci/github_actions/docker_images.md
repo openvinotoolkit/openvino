@@ -6,7 +6,7 @@ To avoid corruption of the runners and machines, the workflows utilize various D
 
 The Docker images are specified for each job using the `container` key. See the [GHA documentation](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container) for the syntax reference.
 
-An example `Build` job from the `linux.yml` workflow:
+An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
 Build:
   ...
@@ -56,7 +56,7 @@ The examples:
 
 The Docker image required for a job stems from the nature of the job and configuration that is being tested.
 
-An example `Build` job from the `linux.yml` workflow:
+An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
 Build:
   ...
