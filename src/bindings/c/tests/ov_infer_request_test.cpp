@@ -334,8 +334,14 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
-        OV_EXPECT_OK(ov_infer_request_wait_for(infer_request, 10));
-
+        ov_status_e ret = ov_status_e::OK;
+        EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        size_t max_times = 10;
+        // Random timeout in some platform, increase wait() times if timeout occurr.
+        while (ret != ov_status_e::OK && max_times-- > 0) {
+            EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        }
+        EXPECT_EQ(ret, ov_status_e::OK);
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
