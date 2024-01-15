@@ -28,6 +28,6 @@ class TestReverseV2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    def test_reverse_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reverse_v2_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reverse_v2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
