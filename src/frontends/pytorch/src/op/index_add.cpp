@@ -55,7 +55,7 @@ OutputVector translate_index_add(const NodeContext& context) {
         context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
     auto slice_end = context.mark_node(std::make_shared<v3::Broadcast>(const_inf, src_rank));
     auto slice_step = context.mark_node(std::make_shared<v3::Broadcast>(const_one, src_rank));
-    auto dim_1d = context.mark_node(std::make_shared<v3::Broadcast>(dim, const_one, BroadcastType::BIDIRECTIONAL));
+    auto dim_1d = context.mark_node(std::make_shared<v3::Broadcast>(dim, const_one));
     slice_end =
         context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(slice_end,
                                                                        dim_1d,
@@ -71,12 +71,8 @@ OutputVector translate_index_add(const NodeContext& context) {
     src_rank = context.mark_node(std::make_shared<v3::ShapeOf>(new_shape, element::i32));
     auto new_index_shape = context.mark_node(std::make_shared<v3::Broadcast>(const_one, src_rank));
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    new_index_shape =
-        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(new_index_shape,
-                                                                       dim_1d,
-                                                                       const_minus_one,
-                                                                       const_zero,
-                                                                       v12::ScatterElementsUpdate::Reduction::NONE));
+    new_index_shape = context.mark_node(
+        std::make_shared<v12::ScatterElementsUpdate>(new_index_shape, dim_1d, const_minus_one, const_zero));
     // precerve indicies location for spicifc dim
     auto reshaped_index = context.mark_node(std::make_shared<v1::Reshape>(index, new_index_shape, false));
     auto broadcasted_index =
@@ -91,12 +87,6 @@ OutputVector translate_index_add(const NodeContext& context) {
         context.mutate_input(5, scatter_result);
     }
     return {scatter_result};
-}
-
-OutputVector translate_index_add_(const NodeContext& context) {
-    auto scatter_result = translate_index_add(context);
-    context.mutate_input(0, scatter_result[0]);
-    return scatter_result;
 }
 
 }  // namespace op
