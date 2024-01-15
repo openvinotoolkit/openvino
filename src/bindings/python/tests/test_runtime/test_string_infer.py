@@ -55,7 +55,7 @@ def test_keyword_only_decode_fails(ov_func):
     ("class_defaults", "expected_value"),
     [
         (CompiledModel.__call__.__kwdefaults__, True),
-        (InferRequest.infer.__kwdefaults__, False),
+        (InferRequest.infer.__kwdefaults__, True),
     ],
 )
 def test_default_decode_flag(class_defaults, expected_value):

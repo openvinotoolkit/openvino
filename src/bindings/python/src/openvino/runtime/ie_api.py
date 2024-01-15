@@ -58,7 +58,7 @@ class InferRequest(_InferRequestWrapper):
         share_inputs: bool = False,
         share_outputs: bool = False,
         *,
-        decode_strings: bool = False,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -113,6 +113,7 @@ class InferRequest(_InferRequestWrapper):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
@@ -122,7 +123,7 @@ class InferRequest(_InferRequestWrapper):
 
                                If set to `False` string outputs will be returned as numpy arrays of `S` kind.
 
-                               Default value: False
+                               Default value: True
         :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
@@ -342,6 +343,7 @@ class CompiledModel(CompiledModelBase):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
