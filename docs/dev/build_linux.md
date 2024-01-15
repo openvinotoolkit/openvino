@@ -51,7 +51,7 @@ The software was validated on:
 4. OpenVINO Runtime uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
    ```sh
      cmake -DCMAKE_BUILD_TYPE=Release ..
-     make --jobs=$(nproc --all)
+     cmake --build . --parallel
    ```
 The process may take some time to finish.
 
@@ -68,19 +68,15 @@ You can use the following additional build options:
 - OpenVINO offers several CMake options that can be used to build a custom OpenVINO runtime, which can speed up compilation. These options allow you to skip compilation of other plugins and frontends by disabling/enabling them. You can find a list of available options [here](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md)
 
 - To build the OpenVINO Runtime Python API:
-  1. Install all additional packages (e.g., cython and opencv) listed in the `/src/bindings/python/src/compatibility/openvino/requirements-dev.txt` file:
-     ```sh
-     pip install -r requirements-dev.txt
-     ```
-  2. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+  1. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
      -DPython3_EXECUTABLE=/usr/bin/python3.8
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+  2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
      pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
      ```
-  4. After the build process finishes, export the newly built Python libraries to the user environment variables: 
+  3. After the build process finishes, export the newly built Python libraries to the user environment variables: 
      ```
      export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
      export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH
