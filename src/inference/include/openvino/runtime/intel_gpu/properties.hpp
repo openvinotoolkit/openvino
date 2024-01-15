@@ -71,6 +71,12 @@ static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING
  */
 static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGRAD_CONVOLUTION"};
 
+/**
+ * @brief Set the capacity of ocl kernel cache.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<int32_t> kernel_cache_capacity{"GPU_KERNEL_CACHE_CAPACITY"};
+
 namespace hint {
 /**
  * @brief This enum represents the possible value of ov::intel_gpu::hint::queue_throttle property:

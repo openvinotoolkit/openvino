@@ -52,6 +52,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
         std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
+        std::make_tuple(ov::intel_gpu::kernel_cache_capacity, 10000),
         std::make_tuple(ov::internal::exclusive_async_requests, false),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
 

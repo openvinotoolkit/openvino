@@ -362,6 +362,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_gpu.kernel_cache_capacity,
+            "GPU_KERNEL_CACHE_CAPACITY",
+            ((100, 100),),
+        ),
+        (
             intel_gpu_hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
             ((intel_gpu_hint.ThrottleLevel.LOW, hints.Priority.LOW),),

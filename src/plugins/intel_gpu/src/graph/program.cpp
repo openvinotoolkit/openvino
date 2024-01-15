@@ -229,8 +229,8 @@ void program::init_program() {
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
-
-    size_t impls_cache_capacity = _impls_cache_capacity;
+    size_t impls_cache_capacity = _config.get_property(ov::intel_gpu::kernel_cache_capacity);
+    GPU_DEBUG_INFO << " kernel cache capacity: " << impls_cache_capacity << '\n';
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
         impls_cache_capacity = debug_config->impls_cache_capacity;
     }

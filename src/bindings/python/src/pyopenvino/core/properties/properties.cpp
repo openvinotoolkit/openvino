@@ -108,6 +108,7 @@ void regmodule_properties(py::module m) {
 
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::disable_winograd_convolution, "disable_winograd_convolution");
+    wrap_property_RW(m_intel_gpu, ov::intel_gpu::kernel_cache_capacity, "kernel_cache_capacity");
 
     // Submodule hint (intel_gpu)
     py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(
