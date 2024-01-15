@@ -6,6 +6,8 @@
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
+#include "select_inst.h"
+#include "gather_inst.h"
 #include "pass_manager.h"
 
 #include "intel_gpu/graph/program.hpp"
@@ -48,6 +50,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.is_type<read_value>())
         return false;
 
+    // CPU implementation does not support float data types for mask and mixed types for data inputs, so check them
+    // before including it into shape_of sub-graph
+    if (node.is_type<select>() &&
+        (data_type_traits::is_floating_point(node.get_input_layout(0).data_type) ||
+         node.get_input_layout(1).data_type != node.get_input_layout(2).data_type))
+        return false;
+
     if (node.is_type<reshape>())
         return true;
 
@@ -58,6 +67,14 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         auto& eltwise_node = node.as<eltwise>();
         auto eltwise_mode = eltwise_node.get_primitive()->mode;
         if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end())
+            return false;
+    }
+
+    // Exclude gather_compressed primitive because gather_cpu_impl doesn't support it.
+    if (node.is_type<gather>()) {
+        auto& gather_node = node.as<gather>();
+        auto gather_compressed_weight_mode = gather_node.get_primitive()->compressed_weights;
+        if (gather_compressed_weight_mode)
             return false;
     }
 

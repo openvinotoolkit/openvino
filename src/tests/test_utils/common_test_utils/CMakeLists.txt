@@ -31,6 +31,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     ov_models
                     openvino::runtime
                     openvino::runtime::dev
+                    openvino::builders
                 PRIVATE
                     openvino::util
                     openvino::shape_inference

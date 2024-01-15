@@ -5,8 +5,8 @@
 #pragma once
 
 #include <future>
+
 #include "base/ov_behavior_test_utils.hpp"
-#include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +17,7 @@ TEST_P(OVInferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     bool is_called = false;
-    OV_ASSERT_NO_THROW(req.set_callback([&] (std::exception_ptr exception_ptr) {
+    OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
         // HSD_1805940120: Wait on starting callback return HDDL_ERROR_INVAL_TASK_HANDLE
         ASSERT_EQ(exception_ptr, nullptr);
         is_called = true;
@@ -31,7 +31,7 @@ TEST_P(OVInferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     bool is_called = false;
-    req.set_callback([&] (std::exception_ptr exception_ptr) {
+    req.set_callback([&](std::exception_ptr exception_ptr) {
         ASSERT_EQ(nullptr, exception_ptr);
         is_called = true;
     });
@@ -50,7 +50,7 @@ TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallback
 
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_callback([&] (std::exception_ptr exception_ptr) {
+    OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
         if (exception_ptr) {
             data.promise.set_exception(exception_ptr);
         } else {
@@ -74,7 +74,7 @@ TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallback
 TEST_P(OVInferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_callback([] (std::exception_ptr) {
+    OV_ASSERT_NO_THROW(req.set_callback([](std::exception_ptr) {
         OPENVINO_THROW("Throw");
     }));
     OV_ASSERT_NO_THROW(req.start_async());
@@ -82,10 +82,6 @@ TEST_P(OVInferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) 
 }
 
 TEST_P(OVInferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
-    // GetNetwork(3000, 380) make inference around 20ms on GNA SW
-    // so increases chances for getting RESULT_NOT_READY
-    OV_ASSERT_NO_THROW(execNet = core->compile_model(
-            SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38), target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
@@ -116,7 +112,7 @@ TEST_P(OVInferRequestCallbackTests, ImplDoesNotCopyCallback) {
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     {
         auto somePtr = std::make_shared<int>(42);
-        OV_ASSERT_NO_THROW(req.set_callback([somePtr] (std::exception_ptr exception_ptr) {
+        OV_ASSERT_NO_THROW(req.set_callback([somePtr](std::exception_ptr exception_ptr) {
             ASSERT_EQ(nullptr, exception_ptr);
             ASSERT_EQ(1, somePtr.use_count());
         }));

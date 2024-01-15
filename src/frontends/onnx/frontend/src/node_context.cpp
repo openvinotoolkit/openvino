@@ -31,12 +31,12 @@ size_t ov::frontend::onnx::NodeContext::get_input_size() const {
 ov::Any ov::frontend::onnx::NodeContext::apply_additional_conversion_rules(const ov::Any& data,
                                                                            const std::type_info& type_info) const {
     if (data.is<int64_t>() && type_info == typeid(ov::element::Type)) {
-        return ngraph::onnx_import::common::get_ngraph_element_type(data.as<int64_t>());
+        return ngraph::onnx_import::common::get_ov_element_type(data.as<int64_t>());
     } else if (data.is<std::vector<int64_t>>() && type_info == typeid(std::vector<ov::element::Type>)) {
         const auto& casted = data.as<std::vector<int64_t>>();
         std::vector<ov::element::Type> types(casted.size());
         for (size_t i = 0; i < casted.size(); ++i) {
-            types[i] = ngraph::onnx_import::common::get_ngraph_element_type(casted[i]);
+            types[i] = ngraph::onnx_import::common::get_ov_element_type(casted[i]);
         }
         return types;
     }

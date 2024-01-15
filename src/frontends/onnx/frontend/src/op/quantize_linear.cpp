@@ -12,10 +12,11 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -196,7 +197,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
         Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
-        y_scale = builder::opset1::reshape(y_scale, target_shape);
+        y_scale = ov::op::util::reshape(y_scale, target_shape);
     }
 
     if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
@@ -211,7 +212,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
         Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
-        y_zero_point = builder::opset1::reshape(y_zero_point, target_shape);
+        y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
     }
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
@@ -221,10 +222,10 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
-    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                 "The QuantizeLinear op expects 2 required and one optional "
-                 "input. Got: ",
-                 inputs.size());
+    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+                            "The QuantizeLinear op expects 2 required and one optional "
+                            "input. Got: ",
+                            inputs.size());
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];

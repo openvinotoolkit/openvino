@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestLoop(OnnxRuntimeLayerTest):
@@ -139,7 +139,7 @@ class TestLoop(OnnxRuntimeLayerTest):
             [res]
         )
 
-        onnx_net = helper.make_model(graph_def, producer_name='test_loop_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_loop_model')
         # We do not create reference graph, as it's too complicated to construct it
         # So we return None to skip IR comparision
         return onnx_net, None
@@ -265,7 +265,7 @@ class TestLoop(OnnxRuntimeLayerTest):
             [res],
         )
 
-        onnx_net = helper.make_model(graph_def, producer_name='test_loop_in_loop_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_loop_in_loop_model')
         # We do not create reference graph, as it's too complicated to construct it
         # So we return None to skip IR comparision
 
@@ -273,14 +273,14 @@ class TestLoop(OnnxRuntimeLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, use_old_api=use_old_api)
+                   infer_timeout=150)
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail("Program doesn't contain primitive: constant:res/10/M_2 that is input to: loop")
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, use_old_api=use_old_api)
+                   infer_timeout=150)

@@ -188,7 +188,7 @@ void StaticShapeLoopLayerTest::SetUp() {
     const auto ngShape = ov::Shape{data_shape};
     const auto scalarShape = ov::Shape{};
 
-    ngraph::ParameterVector params{};
+    ov::ParameterVector params{};
     auto cond_input_create = [&params] (ov::element::Type model_type, const ov::Shape &shape, int value = 0, bool is_static = false)
             -> std::shared_ptr<ov::Node> {
         if (is_static)

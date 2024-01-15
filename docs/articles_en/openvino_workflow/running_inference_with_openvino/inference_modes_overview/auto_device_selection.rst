@@ -3,6 +3,11 @@
 Automatic Device Selection
 ==========================
 
+.. meta::
+   :description: The Automatic Device Selection mode in OpenVINO™ Runtime 
+                 detects available devices and selects the optimal processing 
+                 unit for inference automatically.
+
 
 .. toctree::
    :maxdepth: 1
@@ -10,34 +15,25 @@ Automatic Device Selection
 
    Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
-.. meta::
-   :description: The Automatic Device Selection mode in OpenVINO™ Runtime 
-                 detects available devices and selects the optimal processing 
-                 unit for inference automatically.
-
-
-This article introduces how Automatic Device Selection works and how to use it for inference.
-
 
 .. _how-auto-works:
 
+The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device,
+which does not bind to a specific type of hardware, but rather selects the processing unit
+for inference automatically. It detects available devices, picks the one best-suited for the
+task, and configures its optimization settings. This way, you can write the application once
+and deploy it anywhere.
 
-How AUTO Works
-##############
-
-The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
-which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
-It detects available devices, picks the one best-suited for the task, and configures its optimization settings. 
-This way, you can write the application once and deploy it anywhere.
-
-The selection also depends on your performance requirements, defined by the “hints” configuration API, as well as device priority list limitations, if you choose to exclude some hardware from the process.
+The selection also depends on your performance requirements, defined by the “hints”
+configuration API, as well as device priority list limitations, if you choose to exclude
+some hardware from the process.
 
 The logic behind the choice is as follows:
 
 1. Check what supported devices are available.
 2. Check precisions of the input model (for detailed information on precisions read more on the ``ov::device::capabilities``).
 3. Select the highest-priority device capable of supporting the given model, as listed in the table below.
-4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
+4. If model's precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
 
 +----------+-----------------------------------------------------+------------------------------------+
@@ -53,7 +49,18 @@ The logic behind the choice is as follows:
 | 3        | Intel® CPU                                          | FP32, FP16, INT8, BIN              |
 |          | (e.g. Intel® Core™ i7-1165G7)                       |                                    |
 +----------+-----------------------------------------------------+------------------------------------+
+| 4        | Intel® NPU                                          |                                    |
+|          | (e.g. Intel® Core™ Ultra)                           |                                    |
++----------+-----------------------------------------------------+------------------------------------+
 
+.. note:: 
+
+   Note that NPU is currently excluded from the default priority list. To use it for inference, you
+   need to specify it explicitly
+   
+
+How AUTO Works
+##############
 
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds.
 What is important, **AUTO starts inference with the CPU of the system by default**, as it provides very low latency and can start inference with no additional delays.
@@ -61,12 +68,19 @@ While the CPU is performing inference, AUTO continues to load the model to the d
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impact inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
-Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage. The models with dynamic input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` operations will be loaded to the CPU if it is in the candidate list. Otherwise, these models will follow the normal flow and be loaded to the device based on priority.
+Note that if you choose to exclude CPU from the priority list or disable the initial
+CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
+unable to support the initial model compilation stage. The models with dynamic
+input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` 
+operations will be loaded to the CPU if it is in the candidate list. Otherwise, 
+these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: _static/images/autoplugin_accelerate.svg
 
 
-This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example:
+This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` 
+section, showing how the first-inference latency (the time it takes to compile the
+model and perform the first inference) is reduced when using AUTO. For example:
 
 
 .. code-block:: sh
@@ -88,8 +102,9 @@ This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app
 Using AUTO
 ##########
 
-Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
-
+Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". 
+It may be defined with no additional parameters, resulting in defaults being used, or configured further with
+the following setup options:
 
 +----------------------------------------------+--------------------------------------------------------------------+
 | Property(C++ version)                        | Values and Description                                             |
@@ -205,7 +220,6 @@ The code samples on this page assume following import(Python)/using (C++) are in
 Device Candidates and Priority
 ++++++++++++++++++++++++++++++
 
-
 The device candidate list enables you to customize the priority and limit the choice of devices available to AUTO.
 
 * If <device candidate list> is not specified, AUTO assumes all the devices present in the system can be used.
@@ -295,7 +309,7 @@ The ``ov::hint::performance_mode`` property enables you to specify a performance
 
 The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :doc:`Async API documentation <openvino_docs_OV_UG_Infer_request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
 
-* :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* :doc:`Image Classification Async Sample <openvino_sample_image_classification_async>`
 * `Notebook - Asynchronous Inference with OpenVINO™ <notebooks/115-async-api-with-output.html>`__
 * `Notebook - Automatic Device Selection with OpenVINO <notebooks/106-auto-device-with-output.html>`__
 
@@ -478,7 +492,7 @@ For limited device choice:
 
    benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
 
-For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
+For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
 
 .. note::
 
@@ -495,4 +509,5 @@ Additional Resources
 - :doc:`Debugging AUTO <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>`
 - :doc:`Running on Multiple Devices Simultaneously <openvino_docs_OV_UG_Running_on_multiple_devices>`
 - :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+
 

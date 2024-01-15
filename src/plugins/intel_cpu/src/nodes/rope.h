@@ -3,13 +3,8 @@
 //
 
 #pragma once
-#include <ie_common.h>
-#include <node.h>
 
-#include <memory>
-#include <string>
-#include <vector>
-
+#include "node.h"
 #include "transformations/cpu_opset/common/op/rope.hpp"
 
 namespace ov {
@@ -47,6 +42,8 @@ private:
     struct RoPEExecutorInterleaved;
     template <typename T>
     struct RoPEExecutorChatGLM;
+    template <typename T>
+    struct RoPEExecutorQwen;
     RoPENode::Config m_config;
     std::shared_ptr<Executor> m_executor;
 };

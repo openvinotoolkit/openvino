@@ -25,7 +25,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        Operating System     CPU    GPU    GNA    NPU
       ===================  =====  =====  =====  =====
        Debian9 armhf         V     n/a    n/a    n/a
-       Debian9 arm64         V     n/a    n/a    n/a
+       Ubuntu18 arm64        V     n/a    n/a    n/a
        CentOS7 x86_64        V      V     n/a    n/a
        Ubuntu18 x86_64       V      V      V     n/a
        Ubuntu20 x86_64       V      V      V      V
@@ -180,9 +180,9 @@ Step 1: Download and Install the OpenVINO Core Components
 
          .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.2/linux/l_openvino_toolkit_debian9_2023.2.0.13089.cfd42bd2cb0_arm64.tgz -O openvino_2023.2.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/2024.0.0-13770-9b52171d290/l_openvino_toolkit_ubuntu18_2024.0.0.dev20231221_arm64.tgz -O openvino_2023.2.0.tgz
             tar -xf openvino_2023.2.0.tgz
-            sudo mv l_openvino_toolkit_debian9_2023.2.0.13089.cfd42bd2cb0_arm64 /opt/intel/openvino_2023.2.0
+            sudo mv l_openvino_toolkit_ubuntu18_2024.0.0.dev20231221_arm64 /opt/intel/openvino_2023.2.0
       
       .. tab-item:: ARM 32-bit
          :sync: arm-32
@@ -299,8 +299,8 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
       Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
-      * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
+      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`__
+      * `Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition.html>`__
 
 
 

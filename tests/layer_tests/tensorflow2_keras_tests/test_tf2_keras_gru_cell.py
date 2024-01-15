@@ -49,8 +49,8 @@ class TestKerasGRUCell(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(reason="49537")
-    def test_keras_grucell_float32(self, params, ie_device, precision, temp_dir, ir_version, use_old_api,
+    def test_keras_grucell_float32(self, params, ie_device, precision, temp_dir, ir_version,
                                    use_new_frontend):
         self._test(*self.create_keras_grucell_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

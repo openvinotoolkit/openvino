@@ -1100,6 +1100,73 @@ public:
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
         }
     }
+
+    void test_3d_all_dynamic_with_new_axis() {
+        auto& engine = get_test_engine();
+        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+        auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+
+        auto stride = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(stride, {1, 1, 1});
+
+        topology topology(
+            input_layout("input", l_input),
+            input_layout("begin", l_begin),
+            input_layout("end", l_end),
+            data("stride", stride),
+            strided_slice("strided_slice",
+                input_info("input"),
+                input_info("begin"),
+                input_info("end"),
+                input_info("stride"),
+                {}, {}, {1, 0, 0}, {}, {}, {})
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto program = program::build_program(engine, topology, config, false, false, false);
+        ASSERT_NE(program, nullptr);
+
+        auto out_size_act = program->get_outputs()[0]->get_output_layouts(0)[0].get_partial_shape().size();
+        auto out_size_exp = size_t(4);
+        ASSERT_EQ(out_size_act, out_size_exp);
+    }
+
+    void test_3d_all_dynamic_with_shrink_axis() {
+        auto& engine = get_test_engine();
+
+        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+        auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
+
+        auto stride = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(stride, {1, 1, 1});
+
+        topology topology(
+            input_layout("input", l_input),
+            input_layout("begin", l_begin),
+            input_layout("end", l_end),
+            data("stride", stride),
+            strided_slice("strided_slice",
+                input_info("input"),
+                input_info("begin"),
+                input_info("end"),
+                input_info("stride"),
+                {}, {}, {}, {1, 0, 0}, {}, {})
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto program = program::build_program(engine, topology, config, false, false, false);
+        ASSERT_NE(program, nullptr);
+
+        auto out_size_act = program->get_outputs()[0]->get_output_layouts(0)[0].get_partial_shape().size();
+        auto out_size_exp = size_t(2);
+        ASSERT_EQ(out_size_act, out_size_exp);
+    }
 };
 
 class strided_slice_gpu_constants: public ::testing::Test {
@@ -1973,6 +2040,282 @@ public:
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
         }
     }
+
+    void test_1x3x1x3_negative(bool is_caching_test) {
+        // Input (BFZYX):  1x3x1x3
+        // Output (BFZYX): 1x1x1x3
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 3} });
+        auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+        auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+        auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1} });
+
+        set_values(input, {
+                0.0f, 1.0f, 2.0f,
+                3.0f, 4.0f, 5.0f,
+                6.0f, 7.0f, 8.0f,
+        });
+
+        set_values<int64_t>(begin, {
+                0, -1, 0
+        });
+        set_values<int64_t>(end, {
+                1, -2, 3
+        });
+        set_values<int64_t>(strides, {
+                1, -1, 1
+        });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {},  {1, 1, 1, 3}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = {
+                6.0f, 7.0f, 8.0f,
+        };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
+    void test_1x1x1x3_negative(bool is_caching_test) {
+        // Input (BFZYX):  1x1x1x3
+        // Output (BFZYX): 1x1x1x3
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 1} });
+        auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+        auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+        auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1} });
+
+        set_values(input, {
+                6.0f, 7.0f, 8.0f,
+        });
+
+        set_values<int64_t>(begin, {
+                0, -1, 0, 0
+        });
+        set_values<int64_t>(end, {
+                1, -2, 1, 3
+        });
+        set_values<int64_t>(strides, {
+                1, -1, 1, 1
+        });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {},  {1, 1, 1, 3}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = {
+                6.0f, 7.0f, 8.0f,
+        };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
+    void test_2x2x2x2_negative_begin_end_positive_stride(bool is_caching_test) {
+        // Input (BFYX): 2x2x2x2
+        // Begin (BFYX): -1x-1x-1x-1
+        // End (BFYX): 2x2x2x2
+        // Stride (BFYX): -1x-1x1x1
+        // Output (BFYX): 2x2x2x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+        set_values(input, {
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
+                8.0f, 9.0f, 10.0f, 11.0f,
+                12.0f, 13.0f, 14.0f, 15.0f
+        });
+        set_values<int64_t>(begin, {
+                -1, -1, 0, 0
+        });
+        set_values<int64_t>(end, {
+                -3, -3, 2, 2
+        });
+        set_values<int64_t>(strides, {
+                1, 1, 1, 1
+        });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = {
+                12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
+    void test_1x1x1x10_pos_begin_end_neg_stride2(bool is_caching_test) {
+        // Input (BFYX): 1x1x1x10
+        // Begin (BFYX): 0x0x0x3
+        // End (BFYX): 1x1x1x6
+        // Stride (BFYX): 1x1x1x-2
+        // Output (BFYX): 1x1x1x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 10, 1 } });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+        set_values(input, {
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f
+        });
+        set_values<int64_t>(begin, {
+                0, 0, 0, 3
+        });
+        set_values<int64_t>(end, {
+                1, 1, 1, 6
+        });
+        set_values<int64_t>(strides, {
+                1, 1, 1, -2
+        });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 2}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = { 5.0f, 3.0f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
+    void test_1x1x1x10_neg_begin_end_neg_stride2(bool is_caching_test) {
+        // Input (BFYX): 1x1x1x10
+        // Begin (BFYX): 0x0x0x-5
+        // End (BFYX): 1x1x1x-8
+        // Stride (BFYX): 1x1x1x-2
+        // Output (BFYX): 1x1x1x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 10, 1 } });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+        set_values(input, {
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f
+        });
+        set_values<int64_t>(begin, {
+                0, 0, 0, -5
+        });
+        set_values<int64_t>(end, {
+                1, 1, 1, -8
+        });
+        set_values<int64_t>(strides, {
+                1, 1, 1, -2
+        });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 2}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = { 5.0f, 3.0f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
 };
 
 class strided_slice_gpu_four_inputs: public ::testing::Test {
@@ -2576,4 +2919,33 @@ TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
 // test_2x2x2x2_full_activation
 TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
     this->test_2x2x2x2_full_legacy_activation(true);
+}
+
+
+TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_new_axis) {
+    this->test_3d_all_dynamic_with_new_axis();
+}
+
+TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_shrink_axis) {
+    this->test_3d_all_dynamic_with_shrink_axis();
+}
+
+TEST_F(strided_slice_gpu_constants, test_1x3x1x3_negative) {
+    this->test_1x3x1x3_negative(false);
+}
+
+TEST_F(strided_slice_gpu_constants, test_1x1x1x3_negative) {
+    this->test_1x1x1x3_negative(false);
+}
+
+TEST_F(strided_slice_gpu_constants, test_2x2x2x2_negative_begin_end_positive_stride) {
+    this->test_2x2x2x2_negative_begin_end_positive_stride(false);
+}
+
+TEST_F(strided_slice_gpu_constants, test_1x1x1x10_pos_begin_end_neg_stride2) {
+    this->test_1x1x1x10_pos_begin_end_neg_stride2(false);
+}
+
+TEST_F(strided_slice_gpu_constants, test_1x1x1x10_neg_begin_end_neg_stride2) {
+    this->test_1x1x1x10_neg_begin_end_neg_stride2(false);
 }

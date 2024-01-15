@@ -7,20 +7,15 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "default_opset.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/file_util.hpp"
-#include "ngraph/type.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/multiply.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_import;
+using namespace ov;
+using namespace ov::frontend::onnx::tests;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 // ~~~~~~~~TERMINATION CONDITION/TRIP COUNT COMBINATIONS TESTS:~~~~~~~~
@@ -31,27 +26,25 @@ static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 //       cond = ...; // ignored
 //     }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/controlflow/loop_2d_add.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add.onnx");
 
     // Shape inference tests
-    const auto& parameters = function->get_parameters();
+    const auto& parameters = model->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
-    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), element::f32);
     EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
     EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
 
-    const auto& results = function->get_results();
+    const auto& results = model->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 1, 2}));
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(model->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(model->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(model->get_output_element_type(1), element::f32);
+    EXPECT_TRUE(model->get_output_partial_shape(1).is_static());
+    EXPECT_EQ(model->get_output_shape(1), (Shape{3, 1, 2}));
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -66,12 +59,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
 //       cond = ...;
 //     }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_no_identity_termination_cond.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_no_identity_termination_cond.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -83,12 +73,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_2d_add_trip_count_max_int.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_trip_count_max_int.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -100,12 +87,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_static_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_no_identity_termination_cond_static_shapes.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_no_identity_termination_cond_static_shapes.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -118,12 +102,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_
 // cond = false
 // input ("", cond) // Note this is analogous to a while loop
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_false) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_no_identity_termination_cond_false.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_no_identity_termination_cond_false.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({3.f, 4.f});
 
@@ -138,12 +119,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_
 //        cond = ...;
 //      }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_const_no_identity_termination_cond.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -153,12 +131,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termin
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond_static_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond_static_shapes.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_const_no_identity_termination_cond_static_shapes.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -173,12 +148,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termin
 //        cond = ...;
 //      }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_cond_and_trip_count_as_inputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -194,12 +166,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs_static_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -216,12 +185,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count
 // ~~~~~~~~SCOPES VISIBILITY TESTS:~~~~~~~~
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_initializer_from_parent_scope.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_initializer_from_parent_scope.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
 
     // a_init
     test_case.add_input<float>({0.f, 0.f});
@@ -232,12 +198,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_node_from_parent_scope.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_node_from_parent_scope.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -247,12 +210,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_used_in_parent_and_in_body) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_add_node_from_parent_scope_used_in_parent_and_in_body.onnx"));
+    const auto model = convert_model("controlflow/loop_add_node_from_parent_scope_used_in_parent_and_in_body.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // parent_input
@@ -266,12 +226,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scope_exception) {
     try {
-        const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                 SERIALIZED_ZOO,
-                                 "onnx/controlflow/loop_2d_add_incorrect_access_body_scope.onnx"));
+        const auto model = convert_model("controlflow/loop_2d_add_incorrect_access_body_scope.onnx");
         FAIL() << "Incorrect access to body scope not detected";
-    } catch (const ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         // patent graph should have no access to subgraph (body Loop) scope
         EXPECT_HAS_SUBSTRING(e.what(), std::string("from_body_scope node not found in graph cache"));
     } catch (...) {
@@ -280,12 +237,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_sc
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_2d_add_the_same_name.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_the_same_name.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -295,12 +249,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_fro
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_input_from_parent_graph.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_input_from_parent_graph.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // b input
@@ -312,32 +263,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_2d_mul_opset1.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_mul_opset1.onnx");
 
-    const auto parent_ops = function->get_ops();
+    const auto parent_ops = model->get_ops();
     const auto loop_node_it = std::find_if(parent_ops.begin(), parent_ops.end(), [](const std::shared_ptr<Node>& op) {
         return std::string{op->get_type_name()} == "Loop";
     });
-    const auto body_ops = ngraph::as_type_ptr<default_opset::Loop>(*loop_node_it)->get_function()->get_ops();
+    const auto body_ops = ov::as_type_ptr<op::v5::Loop>(*loop_node_it)->get_function()->get_ops();
     const auto body_mul_node_it = std::find_if(body_ops.begin(), body_ops.end(), [](const std::shared_ptr<Node>& op) {
         return std::string{op->get_type_name()} == "Multiply";
     });
-    const auto body_mul_node = ngraph::as_type_ptr<default_opset::Multiply>(*body_mul_node_it);
+    const auto body_mul_node = ov::as_type_ptr<op::v1::Multiply>(*body_mul_node_it);
     EXPECT_TRUE(body_mul_node);
 }
 
 // ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_scalars_add.onnx"));
+    const auto model = convert_model("controlflow/loop_scalars_add.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f});
 
@@ -347,12 +292,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_2d_add_const_cond.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_const_cond.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -362,12 +304,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_2d_add_trip_count_dynamic.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_trip_count_dynamic.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip count
     test_case.add_input<int64_t>({3});
     // a_init
@@ -380,12 +319,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
 
 // ~~~~~~~~SUBGRAPH TYPES INFERENCE:~~~~~~~~
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/onnx_controlflow_loop_2d_infer_types.onnx"));
+    const auto model = convert_model("controlflow/onnx_controlflow_loop_2d_infer_types.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -400,12 +336,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_infer_types) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_add_node_from_parent_scope_infer_types.onnx"));
+    const auto model = convert_model("controlflow/loop_add_node_from_parent_scope_infer_types.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // parent_input
@@ -420,12 +353,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_
 // ~~~~~~~~ADDITIONAL TESTS:~~~~~~~~
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/loop_concat_values.onnx"));
+    const auto model = convert_model("controlflow/loop_concat_values.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip_count
     test_case.add_input<int64_t>({5});
     // init condition
@@ -446,29 +376,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
 //         cond = ... // Note this value is ignored, but is required in the body
 //       }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped_shape_inference) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_2d_add_trip_count_and_cond_skipped.onnx"));
+    const auto model = convert_model("controlflow/loop_2d_add_trip_count_and_cond_skipped.onnx");
 
-    const auto& results = function->get_results();
+    const auto& results = model->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_static());
-    EXPECT_EQ(function->get_output_partial_shape(1).rank(), 3);
-    EXPECT_EQ(function->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 1, 2}));
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(model->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(model->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(model->get_output_element_type(1), element::f32);
+    EXPECT_TRUE(model->get_output_partial_shape(1).rank().is_static());
+    EXPECT_EQ(model->get_output_partial_shape(1).rank(), 3);
+    EXPECT_EQ(model->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 1, 2}));
 }
 
 // infinitive loop execution
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/controlflow/loop_infinite.onnx"));
+    const auto model = convert_model("controlflow/loop_infinite.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip_count
     test_case.add_input<int64_t>({std::numeric_limits<int64_t>::max()});
     // init condition
@@ -486,12 +411,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outputs) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/loop_no_variadic_inputs_and_outputs.onnx"));
+    const auto model = convert_model("controlflow/loop_no_variadic_inputs_and_outputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip_count
     test_case.add_input<int64_t>({1});
     // init condition
@@ -503,11 +425,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outp
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/controlflow/loop_pow.onnx"));
+    const auto model = convert_model("controlflow/loop_pow.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // trip_count
     test_case.add_input<int64_t>({5});
     // pow init
@@ -528,12 +448,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
          mul(x, y)
        }
     */
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_branches_with_same_inputs.onnx"));
+    const auto model = convert_model("controlflow/if_branches_with_same_inputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20.f);
@@ -568,12 +485,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
          abs(y)
        }
     */
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_branches_with_different_inputs.onnx"));
+    const auto model = convert_model("controlflow/if_branches_with_different_inputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20.f);
@@ -608,12 +522,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
          return const tensor {0, 5, 10, 15, 20, 25, 20}
        }
     */
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_branches_without_inputs.onnx"));
+    const auto model = convert_model("controlflow/if_branches_without_inputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
 
     // condition
     test_case.add_input<bool>({true});
@@ -638,11 +549,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
          sub(x, y)
        }
     */
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/controlflow/if_inside_if.onnx"));
+    const auto model = convert_model("controlflow/if_inside_if.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
 
     // case when condition == true and any(x > y)
     // expected value == x * y
@@ -693,12 +602,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
          transpose(part1), transpose(part2), transpose(part3)
        }
     */
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_branches_with_multiple_outputs.onnx"));
+    const auto model = convert_model("controlflow/if_branches_with_multiple_outputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
 
     // case when condition == true so split is along axis 0
     std::vector<float> x(36);
@@ -734,11 +640,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
                 a = a * b
         }
     */
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/controlflow/if_inside_loop.onnx"));
+    const auto model = convert_model("controlflow/if_inside_loop.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -759,12 +663,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
        }
        output = add(input, if_output)
     */
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/controlflow/if_with_only_indentity_in_else_branch.onnx"));
+    const auto model = convert_model("controlflow/if_with_only_indentity_in_else_branch.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> x(shape_size(Shape{1, 5, 2, 2}));
     std::iota(x.begin(), x.end(), 0.f);
@@ -790,12 +691,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
         }
     */
 
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_inside_if_inside_loop.onnx"));
+    const auto model = convert_model("controlflow/if_inside_if_inside_loop.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // out_init
     test_case.add_input<float>({1.f});
 
@@ -812,12 +710,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
          mul(x, y)
        }
     */
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/controlflow/if_dynamic_inputs.onnx"));
+    const auto model = convert_model("controlflow/if_dynamic_inputs.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20.f);
@@ -844,24 +739,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     try {
-        const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                SERIALIZED_ZOO,
-                                                                "onnx/controlflow/if_missing_then_branch.onnx"));
+        const auto model = convert_model("controlflow/if_missing_then_branch.onnx");
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Missing 'then_branch' attribute"));
     } catch (...) {
         FAIL() << "Model import failed for unexpected reason";
     }
 
     try {
-        const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                SERIALIZED_ZOO,
-                                                                "onnx/controlflow/if_missing_else_branch.onnx"));
+        const auto model = convert_model("controlflow/if_missing_else_branch.onnx");
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Missing 'else_branch' attribute"));
     } catch (...) {
         FAIL() << "Model import failed for unexpected reason";
@@ -870,12 +759,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
     try {
-        const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                 SERIALIZED_ZOO,
-                                 "onnx/controlflow/if_negative_mismatch_between_branches_output.onnx"));
+        const auto model = convert_model("controlflow/if_negative_mismatch_between_branches_output.onnx");
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(),
                              std::string("'then' and 'else' branches have to have the same number of outputs"));
     } catch (...) {
