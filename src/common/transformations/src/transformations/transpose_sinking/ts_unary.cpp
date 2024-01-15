@@ -38,7 +38,7 @@ using NodePair = std::pair<NodePtr, NodePtr>;
 TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
-    // We consider HardSigmoid, LogSoftmax, ConvertLike as unary ops
+    // We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
     // and handle only 0th input of these ops.
     create_pattern<UnaryElementwiseArithmetic,
                    ov::op::v0::Clamp,

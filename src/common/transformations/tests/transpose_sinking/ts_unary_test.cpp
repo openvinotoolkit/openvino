@@ -160,7 +160,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(const FactoryPtr& unary_
     return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-// We consider HardSigmoid, LogSoftmax, ConvertLike as unary ops
+// We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
 // and handle only 0th input of these ops.
 // Transpose on 2nd input should be ignored.
 namespace ignore_transpose_on_second_input {
@@ -478,8 +478,9 @@ auto test_forward = []() {
 auto test_forward_unary_with_multiple_inputs = []() {
     TestCase test_case;
     test_case.main_node = std::vector<FactoryPtr>{CREATE_UNARY_FACTORY(HardSigmoid),
-                                                  CREATE_UNARY_FACTORY(LogSoftmax),
-                                                  CREATE_UNARY_FACTORY(ConvertLike)};
+                                                  CREATE_UNARY_FACTORY(Selu),
+                                                  CREATE_UNARY_FACTORY(ConvertLike),
+                                                  CREATE_UNARY_FACTORY(Swish)};
     test_case.transformation = CREATE_PASS_FACTORY(TSUnaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.test_model = ignore_transpose_on_second_input::CreateFunctionTransposeBefore;
