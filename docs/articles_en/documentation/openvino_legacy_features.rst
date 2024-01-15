@@ -75,7 +75,7 @@ offering.
 |   *New solution:* conversion to ONNX via external tools
 |   *Old solution:* model support discontinued with OpenVINO 2024.0
 |
-|   :doc:`See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`
+|   `See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
 |   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
 
 
