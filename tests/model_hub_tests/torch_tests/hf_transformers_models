@@ -209,7 +209,8 @@ krasserm/perceiver-io-mlm,perceiver-io-masked-language-model,skip,Load problem
 krasserm/perceiver-io-optical-flow,perceiver-io-optical-flow,skip,Load problem
 krasserm/perceiver-io-txt-clf-imdb,perceiver-io-text-classifier,skip,Load problem
 ksmcg/fan_small_12_p16_224,fan,skip,Load problem
-laion/clap-htsat-unfused,clap,skip,Load problem
+laion/clap-htsat-unfused:audio_model,clap
+laion/clap-htsat-unfused:audio_projection,clap
 Langboat/ReGPT-125M-200G,re_gpt,skip,Load problem
 lengyue233/content-vec-best,hubert
 Lewislou/cellseg_sribd,cell_sribd,skip,Load problem
@@ -241,7 +242,7 @@ microsoft/beit-base-patch16-224-pt22k-ft22k,beit
 microsoft/biogpt,biogpt
 microsoft/conditional-detr-resnet-50,conditional_detr
 microsoft/deberta-base,deberta
-microsoft/git-large-coco,git,skip,Load problem
+microsoft/git-large-coco,git,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlmv3-base,layoutlmv3
@@ -316,7 +317,9 @@ RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
-Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
+Salesforce/blip2-flan-t5-xl:vision_model,blip-2
+Salesforce/blip2-flan-t5-xl:qformer,blip-2
+Salesforce/blip2-flan-t5-xl:language_projection,blip-2
 Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta
@@ -410,5 +413,5 @@ Yova/SmallCapOPT7M,smallcap,skip,Load problem
 yusufani/trclip-vitl14-e10,trclip,skip,Load problem
 yysung53/dpr,text_similarity,skip,Load problem
 Zetatech/pvt-tiny-224,pvt,skip,Load problem
-ZinengTang/tvlt-base,tvlt,skip,Load problem
+ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem
