@@ -53,7 +53,7 @@ def create_keras_model(temp_dir):
     x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
     y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
 
     shape = PartialShape([-1, 1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
@@ -1053,9 +1053,28 @@ class TestTFConversionParams(CommonMOConvertTest):
 
 
 class TestOutputTensorName(unittest.TestCase):
+    @staticmethod
+    def create_keras_model_with_named_output():
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        input_names = ["Input1", "Input2"]
+        input_shape = [1, 2, 3]
+
+        x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
+        x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
+        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+        keras_net.output_names[0] = "output"
+
+        return keras_net
+
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf1_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
 
         Path(constants.out_path).mkdir(parents=True, exist_ok=True)
         tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
@@ -1069,7 +1088,7 @@ class TestOutputTensorName(unittest.TestCase):
         out_tensors = ov_model.outputs[0].get_names()
 
         assert len(out_tensors) == 1
-        assert list(out_tensors)[0].endswith(":0")
+        assert list(out_tensors)[0] == "Sigmoid:0"
 
         out_tensor_name = list(out_tensors)[0]
 
@@ -1077,11 +1096,13 @@ class TestOutputTensorName(unittest.TestCase):
         out_tensors = ov_model.outputs[0].get_names()
 
         assert len(out_tensors) == 1
-        assert list(out_tensors)[0].endswith(":0")
+        assert list(out_tensors)[0] == "Sigmoid:0"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf1_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
         from openvino.tools.ovc import convert_model
 
         model, _, _ = create_tf_graph_def(None)
@@ -1090,7 +1111,7 @@ class TestOutputTensorName(unittest.TestCase):
         out_tensors = ov_model.outputs[0].get_names()
 
         assert len(out_tensors) == 1
-        assert list(out_tensors)[0].endswith(":0")
+        assert list(out_tensors)[0].endswith("Sigmoid:0")
 
         out_tensor_name = list(out_tensors)[0]
 
@@ -1098,19 +1119,21 @@ class TestOutputTensorName(unittest.TestCase):
         out_tensors = ov_model.outputs[0].get_names()
 
         assert len(out_tensors) == 1
-        assert list(out_tensors)[0].endswith(":0")
+        assert list(out_tensors)[0] == "Sigmoid:0"
 
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf2_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
         Path(constants.out_path).mkdir(parents=True, exist_ok=True)
         tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
         model_path = tmp_dir + os.sep + "model"
 
         from openvino import convert_model
 
-        model, _, _ = create_keras_model(None)
+        model = TestOutputTensorName.create_keras_model_with_named_output()
         tf.saved_model.save(model, model_path)
 
         ov_model = convert_model(model_path)
@@ -1119,14 +1142,16 @@ class TestOutputTensorName(unittest.TestCase):
 
             assert len(out_tensors) == 1
             out_tensor = list(out_tensors)[0]
-            assert ":" not in out_tensor
+            assert out_tensor == "output"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf2_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
         from openvino.tools.ovc import convert_model
 
-        model, _, _ = create_keras_model(None)
+        model = TestOutputTensorName.create_keras_model_with_named_output()
 
         ov_model = convert_model(model)
         for output in ov_model.outputs:
@@ -1134,11 +1159,13 @@ class TestOutputTensorName(unittest.TestCase):
 
             assert len(out_tensors) == 1
             out_tensor = list(out_tensors)[0]
-            assert ":" not in out_tensor
+            assert out_tensor == "output"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf1_output_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
         from openvino.tools.ovc import convert_model
 
         with tf.compat.v1.Session() as sess:
@@ -1152,7 +1179,6 @@ class TestOutputTensorName(unittest.TestCase):
             model = sess.graph_def
 
         ov_model = convert_model(model)
-        out_tensors = ov_model.outputs[0].get_names()
 
-        for tensor in out_tensors:
-            assert tensor.endswith(":0")
+        assert ov_model.outputs[0].get_names() == {"result1:0", "result2:0", "add:0"}
+        assert ov_model.outputs[1].get_names() == {"result1:0", "result2:0", "add:0"}
