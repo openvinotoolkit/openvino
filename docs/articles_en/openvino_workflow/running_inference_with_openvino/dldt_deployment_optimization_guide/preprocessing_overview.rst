@@ -11,6 +11,7 @@ Optimize Preprocessing
    openvino_docs_OV_UG_Preprocessing_Details
    openvino_docs_OV_UG_Layout_Overview
    openvino_docs_OV_UG_Preprocess_Usecase_save
+   Torchvision preprocessing converter <torchvision_preprocessing_converter>
 
 .. meta::
    :description: The preprocessing entails additional operations to transform 
