@@ -7,14 +7,13 @@
 #include "dnnl_extension_utils.h"
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <ie_common.h>
+#include <openvino/core/except.hpp>
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
-#define THROW_ERROR                                                   \
-    IE_THROW() << "oneDNN 1st token executor Init Failure "
 
+#define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
 namespace ov {
 namespace intel_cpu {
 
@@ -148,7 +147,7 @@ void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
                                    ctx.K,
                                    nullptr);
     if (status != dnnl_success) {
-        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+        THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
 
     ctx.is_with_amx = use_amx;
@@ -162,11 +161,11 @@ void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
-        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+        THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
 #else
-    THROW_ERROR << "is not supported on non-x86_64";
+    THROW_ERROR("is not supported on non-x86_64");
 #endif  // OPENVINO_ARCH_X86_64
 }
 void brgemmExecutor::init_brgemm_copy_a(
@@ -251,7 +250,7 @@ void brgemmExecutor::init_brgemm_copy_b(
 #if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if (ret != dnnl::impl::status_t::dnnl_success)
-        THROW_ERROR << "cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ";
+        THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");
 #endif  // OPENVINO_ARCH_X86_64
 }
 
