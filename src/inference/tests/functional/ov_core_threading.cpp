@@ -15,6 +15,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "ie_extension.h"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
@@ -61,12 +62,10 @@ public:
 
     void safeAddExtension(ov::Core& core) {
         try {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto extension = std::make_shared<InferenceEngine::Extension>(
+            auto extension = ov::detail::load_extensions(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
             core.add_extension(extension);
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
@@ -169,7 +168,7 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-// tested function: read_model and add_legacy_extension
+// tested function: read_model and add_extension
 TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
