@@ -12,7 +12,7 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #    undef IN_OV_COMPONENT
