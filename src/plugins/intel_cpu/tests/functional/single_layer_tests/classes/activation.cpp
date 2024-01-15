@@ -86,7 +86,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && targetInputStaticShapes[i].size() == 8 &&
                 funcInput.get_element_type() == ov::element::f32) {
-                static_cast<float*>(tensor.data())[0] = NAN;
+                static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
             }
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
