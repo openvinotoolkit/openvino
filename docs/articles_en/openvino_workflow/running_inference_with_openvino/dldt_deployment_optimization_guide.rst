@@ -13,10 +13,11 @@ Optimize Inference
    openvino_docs_OV_UG_Precision_Control
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
-   openvino_docs_deployment_optimization_guide_tput_advanced
+   Advanced Throughput Options <openvino_docs_deployment_optimization_guide_tput_advanced>
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
-   openvino_docs_memory_optimization_guide
+   Optimizing memory usage <openvino_docs_memory_optimization_guide>
+   
 
 .. meta::
    :description: Improving inference performance involves model and runtime 
