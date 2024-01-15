@@ -6,7 +6,6 @@ const { addon: ov } = require('..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
-const { platform } = require('node:process');
 
 const testXml = getModelPath().xml;
 const core = new ov.Core();
