@@ -3,10 +3,10 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_system_conf.h>
+#include "openvino/runtime/system_conf.hpp"
 
 #include <future>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <thread>
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
