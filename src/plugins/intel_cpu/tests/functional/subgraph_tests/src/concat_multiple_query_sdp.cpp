@@ -2,23 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset13.hpp>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include "openvino/opsets/opset13.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
-using namespace ngraph;
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
-
+namespace ov {
+namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatMultiQuerySDPParams = std::tuple<ElementType,
                                              InputShapeAndTransposeOrder,
@@ -187,7 +182,7 @@ public:
             results.push_back(pastv_shapeof);
         }
         SinkVector sinks{pastk_assign, pastv_assign};
-        function = std::make_shared<Function>(results, sinks, inputParams, "ConcatTranposeSDP");
+        function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatTranposeSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         functionRefs = function->clone();
@@ -330,4 +325,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
 }  // namespace
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
