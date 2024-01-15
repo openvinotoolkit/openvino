@@ -36,8 +36,8 @@ public:
     FunctionsComparator comparator;
 
 protected:
-    float m_abs_threshold = 5e-4;
-    float m_rel_threshold = 1e-3;
+    float m_abs_threshold = 5e-4f;
+    float m_rel_threshold = 1e-3f;
 
 private:
     std::shared_ptr<ov::pass::UniqueNamesHolder> m_unh;

@@ -338,8 +338,8 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedBF16)
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 
-    m_abs_threshold = 4e-2;
-    m_rel_threshold = 7e-2;
+    m_abs_threshold = 4e-2f;
+    m_rel_threshold = 7e-2f;
 }
 
 #ifdef OPENVINO_ARCH_ARM64

@@ -83,8 +83,8 @@ public:
 private:
     explicit FunctionsComparator(CmpValues f) noexcept : m_comparison_flags(f) {}
     CmpValues m_comparison_flags;
-    float m_abs_threshold = 1e-7;
-    float m_rel_threshold = 1e-7;
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 ///
@@ -302,11 +302,7 @@ public:
     using Result = FunctionsComparator::Result;
     using ComparedNodes = std::pair<ov::Node*, ov::Node*>;
 
-    explicit Comparator(CmpValues f) : m_comparison_flags(f) {
-        OPENVINO_ASSERT((f & FunctionsComparator::CmpValues::ACCURACY) == 0);
-    }
-
-    explicit Comparator(CmpValues f, float abs_threshold, float rel_threshold)
+    explicit Comparator(CmpValues f, float abs_threshold = 1e-7f, float rel_threshold = 1e-7f)
         : m_comparison_flags(f),
           m_abs_threshold(abs_threshold),
           m_rel_threshold(rel_threshold) {}
@@ -352,8 +348,8 @@ private:
     std::queue<ComparedNodes> q;
     std::unordered_set<ov::Node*> used;
 
-    float m_abs_threshold = 1e-7;
-    float m_rel_threshold = 1e-7;
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 inline namespace tools {
