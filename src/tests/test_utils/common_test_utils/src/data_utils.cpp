@@ -259,7 +259,8 @@ static int randInt(int low, int high) {
 }
 }  // namespace
 
-void fill_psroi(ov::Tensor& tensor,
+template <ov::element::Type_t type>
+void fill_psroi_impl(ov::Tensor& tensor,
                 int batchSize,
                 int height,
                 int width,
@@ -268,6 +269,8 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsX,
                 int spatialBinsY,
                 const std::string& mode) {
+    using T = typename ov::fundamental_type_for<type>;
+    auto* data = static_cast<T*>(tensor.data());
     auto numROIs = tensor.get_size() / 5;
     int minRoiWidth = groupSize;
     int maxRoiWidth = width / groupSize * groupSize;
@@ -290,7 +293,7 @@ void fill_psroi(ov::Tensor& tensor,
         int startX = randInt(0, std::max(1, width - sizeX - 1));
         int startY = randInt(0, std::max(1, height - sizeY - 1));
 
-        float* roi = tensor.data<float>() + i * 5;
+        T* roi = data + i * 5;
         roi[0] = batchId;
         roi[1] = startX / scaleX;
         roi[2] = startY / scaleY;
@@ -299,6 +302,51 @@ void fill_psroi(ov::Tensor& tensor,
 
         batchId = (batchId + 1) % batchSize;
     }
+}
+
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode) {
+#define CASE(X)                             \
+    case X:                                 \
+        fill_psroi_impl<X>(tensor,          \
+                batchSize,                  \
+                height,                     \
+                width,                      \
+                groupSize,                  \
+                spatialScale,               \
+                spatialBinsX,               \
+                spatialBinsY,               \
+                mode);                      \
+        break;
+
+    auto element_type = tensor.get_element_type();
+    switch (element_type) {
+        CASE(ov::element::f64)
+        CASE(ov::element::f32)
+        CASE(ov::element::f16)
+        CASE(ov::element::bf16)
+        CASE(ov::element::u1)
+        CASE(ov::element::u4)
+        CASE(ov::element::u8)
+        CASE(ov::element::u32)
+        CASE(ov::element::u16)
+        CASE(ov::element::u64)
+        CASE(ov::element::i4)
+        CASE(ov::element::i8)
+        CASE(ov::element::i16)
+        CASE(ov::element::i32)
+        CASE(ov::element::i64)
+    default:
+        OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
 }
 
 template <ov::element::Type_t type>
