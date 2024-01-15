@@ -225,6 +225,18 @@ void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, con
     }
 }
 
+std::pair<std::vector<size_t>, std::vector<size_t>> jit_kernel_emitter::get_reg_idxs(const ov::snippets::RegInfo& reg_info) {
+    auto init_reg_idxs = [](const std::vector<snippets::Reg>& regs, std::vector<size_t>& idxs) {
+        idxs.reserve(regs.size());
+        for (const auto& reg : regs)
+            idxs.push_back(reg.second);
+    };
+    std::pair<std::vector<size_t>, std::vector<size_t>> idxs;
+    init_reg_idxs(reg_info.first, idxs.first);
+    init_reg_idxs(reg_info.second, idxs.second);
+    return idxs;
+}
+
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     h->preamble();
 
@@ -237,7 +249,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     for (const auto& expression : body) {
         const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_regs, out_regs;
-        std::tie(in_regs, out_regs) = expression->get_reg_info();
+        std::tie(in_regs, out_regs) = get_reg_idxs(expression->get_reg_info());
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();

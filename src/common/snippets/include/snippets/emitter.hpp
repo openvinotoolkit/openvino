@@ -12,7 +12,15 @@
 namespace ov {
 namespace snippets {
 
-using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
+/**
+ * @interface RegType
+ * @brief Register type of input and output operations
+ */
+enum RegType { gpr, vec };
+using Reg = std::pair<RegType, size_t>;
+using RegInfo = std::pair<std::vector<Reg>, std::vector<Reg>>;
+
+std::string regTypeToStr(const RegType& type);
 
 /**
  * @interface Emitter

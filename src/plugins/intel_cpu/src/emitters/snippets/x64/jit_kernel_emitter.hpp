@@ -57,6 +57,8 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void init_data_pointers(const Xbyak::Reg64&, const Xbyak::Reg64&, const std::vector<Xbyak::Reg64>&) const;
+    static std::pair<std::vector<size_t>, std::vector<size_t>> get_reg_idxs(const ov::snippets::RegInfo& reg_info);
+
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
