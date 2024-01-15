@@ -8,10 +8,10 @@
 #include <map>
 #include <memory>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -39,7 +39,7 @@ enum class OpInput {
 /// \brief      This structure aggregates operator's inptus in a key-value map.
 ///
 struct OpInputMap {
-    using container_type = std::map<OpInput, Output<ngraph::Node>>;
+    using container_type = std::map<OpInput, Output<ov::Node>>;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
@@ -47,8 +47,8 @@ struct OpInputMap {
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
-    Output<ngraph::Node>& at(const OpInput& key);
-    const Output<ngraph::Node>& at(const OpInput& key) const;
+    Output<ov::Node>& at(const OpInput& key);
+    const Output<ov::Node>& at(const OpInput& key) const;
 
     container_type m_map;
 };
@@ -64,7 +64,7 @@ struct OpAttributes {
     OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~OpAttributes() = default;
 
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     std::int64_t m_hidden_size;
     float m_clip_threshold;
     std::vector<std::string> m_activations;

@@ -100,6 +100,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only ov::hint::PerformanceMode::LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
             }
+        } else if (key == ov::log::level.name()) {
+            try {
+                logLevel = val.as<ov::log::Level>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                        val.as<std::string>(),
+                        " for property key ",
+                        key,
+                        ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
+            }
         } else if (key == ov::hint::num_requests.name()) {
             try {
                 ov::Any value = val.as<std::string>();

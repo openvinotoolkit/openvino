@@ -207,7 +207,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             for (auto& device : devices) {
                 if (!does_device_match_config(device))
                     continue;
-                supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
+                supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
             }
         } catch (std::exception& ex) {
             GPU_DEBUG_LOG << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;
@@ -227,7 +227,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
         auto& device = all_devices[i];
         if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id)
             continue;
-        supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
+        supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, cl::Platform(device.getInfo<CL_DEVICE_PLATFORM>())));
     }
 
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have supported GPU device.");
@@ -290,7 +290,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
                 CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
                 CL_CONTEXT_PLATFORM, (cl_context_properties)id,
                 0 };
-            supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device, props), id));
+            supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device, props), platform));
         }
     }
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User specified device is not supported.");
