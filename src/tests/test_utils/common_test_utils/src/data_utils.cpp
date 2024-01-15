@@ -260,14 +260,14 @@ static int randInt(int low, int high) {
 
 template <ov::element::Type_t type>
 void fill_psroi_impl(ov::Tensor& tensor,
-                int batchSize,
-                int height,
-                int width,
-                int groupSize,
-                float spatialScale,
-                int spatialBinsX,
-                int spatialBinsY,
-                const std::string& mode) {
+                     int batchSize,
+                     int height,
+                     int width,
+                     int groupSize,
+                     float spatialScale,
+                     int spatialBinsX,
+                     int spatialBinsY,
+                     const std::string& mode) {
     using T = typename ov::fundamental_type_for<type>;
     auto* data = static_cast<T*>(tensor.data());
     auto numROIs = tensor.get_size() / 5;
@@ -312,18 +312,17 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsX,
                 int spatialBinsY,
                 const std::string& mode) {
-#define CASE(X)                             \
-    case X:                                 \
-        fill_psroi_impl<X>(tensor,          \
-                batchSize,                  \
-                height,                     \
-                width,                      \
-                groupSize,                  \
-                spatialScale,               \
-                spatialBinsX,               \
-                spatialBinsY,               \
-                mode);                      \
-        break;
+#define CASE(X)                                        \
+    case X:                                            \
+        fill_psroi_impl<X>(tensor,                     \
+                           batchSize,                  \
+                           height,                     \
+                           width,                      \
+                           groupSize,                  \
+                           spatialScale,               \
+                           spatialBinsX,               \
+                           spatialBinsY,               \
+                           mode); break;
 
     auto element_type = tensor.get_element_type();
     switch (element_type) {
