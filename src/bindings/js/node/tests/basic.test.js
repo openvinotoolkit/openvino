@@ -15,9 +15,7 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
-it('Core.getAvailableDevices()', () => {
-    if (platform !== 'linux') return;
-    
+it('Core.getAvailableDevices()', () => {    
     const devices = core.getAvailableDevices();
     
     assert.ok(devices.includes('CPU'));
