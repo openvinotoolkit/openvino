@@ -1,9 +1,103 @@
-# How to add New Tests to the OpenVINO GitHub Actions CI
+# How to add Tests to the OpenVINO GitHub Actions CI
 
-## Add to the Already Existing Workflow
+The OpenVINO repository has [many workflows](./../../../../.github/workflows), their general and structural overview is available [here](./overview.md).  
 
-### Add to the Already Existing Job
+The workflows have many jobs dedicated to building and testing of OpenVINO. This document describes the topic of adding 
+tests to these workflows or adding an entirely new workflow.
+
+## Add Tests to the Already Existing Workflow
+
+### Add Tests to the Existing Test Suit 
+
+If the new tests could be executed as a part of the already existing test suit, e.g., new OVC Python API tests, 
+there is no need to change the workflows, the added tests would be executed automatically in the corresponding step. 
+
+Review the [workflows](./../../../../.github/workflows) and their jobs to know which tests are already enabled. 
+Additionally, review the component's tests and how they are executed. 
+
+### Create a Step in the Job
+
+If there is no job in the workflows that has the needed test suit, a new step could be added to the job. 
+The steps are the commands that are executed one by one and united under one job. 
+Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more.
+
+An example step from [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml):
+```yaml
+...
+steps:
+...
+  - name: OVC unit tests
+    if: fromJSON(inputs.affected-components).MO.test
+    run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+...
+```
+It has:
+* a `name`: `OVC unit tests`
+* `if` condition: `fromJSON(inputs.affected-components).MO.test`
+  * This step is executed only if the condition evaluates to `true`
+  * This is a part of the Smart CI system implemented for the OpenVINO workflow. Read [here](./smart_ci.md) about the system and how to use it
+* the `run` section with commands to be executed
+
+To add a new step with new tests, navigate to the needed job and use the above template (or any other step in the job) for the new step. 
+Refer to [this document](./reusable_workflows.md) to learn more about the workflow and job organisation.
 
 ### Create a New Job
 
+If the new tests do not fit in any of the jobs in all the workflows, it is possible to create a dedicated job for them. 
+An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
+```yaml
+NVIDIA_Plugin:
+  name: NVIDIA plugin
+  needs: [ Build, Smart_CI ]
+  timeout-minutes: 15
+  defaults:
+    run:
+      shell: bash
+  runs-on: aks-linux-16-cores-32gb
+  container:
+    image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+    volumes:
+      - /mount:/mount
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+  env:
+    CMAKE_BUILD_TYPE: 'Release'
+    CMAKE_GENERATOR: 'Ninja Multi-Config'
+    CMAKE_CUDA_COMPILER_LAUNCHER: sccache
+    CMAKE_CXX_COMPILER_LAUNCHER: sccache
+    CMAKE_C_COMPILER_LAUNCHER: sccache
+    INSTALL_DIR: /__w/openvino/openvino/install
+    OPENVINO_DEVELOPER_PACKAGE: /__w/openvino/openvino/install/developer_package
+    OPENVINO_REPO: /__w/openvino/openvino/openvino
+    OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+    NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
+    DEBIAN_FRONTEND: 'noninteractive'
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+  if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
+  
+  steps:
+  ...
+```
+
+Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#about-yaml-syntax-for-workflows) for a complete syntax reference.
+
+A job:
+* needs a name, provided by the `name` key
+* needs a runner to execute `steps` on, provided by the `runs-on` key 
+  * Refer to [this document](./runners.md) to learn more about the available runners and how to choose one
+* might use Docker to execute `steps` in. The Docker configuration is provided by the `container` key 
+  * Refer to [this document](./docker_images.md) to learn more about the available Docker images and how to choose one
+* might use caches to speed up build and/or tests
+  * Different types of caches are available. Refer to [this document](./caches.md) to learn more about the available caches and how to use one
+* might use the Smart CI system to get executed conditionally with the `if` key
+  * Refer to [this document](./smart_ci.md) for the Smart CI overview and usage
+* a series of commands to execute, provided by the `steps` key
+  * Refer to [this section](#create-a-step-in-the-job) to learn more about `steps`
+* might use the build artefacts from the `Build` job
+  * They could be downloaded using the `actions/download-artifact`, read more about the workflows' structure [here](./overview.md#structure-of-the-workflows)
+
+If the job could be used in several workflows, it could be transformed into a reusable workflow. 
+Read more about the reusable workflows [here](./reusable_workflows.md).
+
 ## Create a Dedicated Workflow
+
+
