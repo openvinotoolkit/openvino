@@ -696,6 +696,8 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_runtime_properties.as<std::string>()));
+    } else if (name == ov::log::level) {
+        return engConfig.logLevel;
     } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
@@ -810,6 +812,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::hint::enable_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
@@ -862,7 +865,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     if(!ret.empty())
         return ret;
 
-    OPENVINO_THROW("Cannot get unsupport property: ", name);
+    OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START

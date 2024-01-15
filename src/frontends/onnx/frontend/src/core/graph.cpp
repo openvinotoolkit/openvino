@@ -17,6 +17,7 @@
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -150,12 +151,12 @@ Graph::Graph(const std::string& model_dir,
             std::shared_ptr<default_opset::Constant> ov_constant;
             // For each initializer create a Constant node and store it in cache
             try {
-                ov_constant = tensor.get_ng_constant();
+                ov_constant = tensor.get_ov_constant();
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ov::Exception&) {
-                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ng_type());
+                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ov_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
@@ -172,7 +173,7 @@ Graph::Graph(const std::string& model_dir,
         }
 
         ValueInfo value_info{input};
-        auto ov_node = value_info.get_ng_node(m_parameters, initializers);
+        auto ov_node = value_info.get_ov_node(m_parameters, initializers);
         m_cache->emplace_node(input.name(), std::move(ov_node));
     }
 }
@@ -387,14 +388,14 @@ OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
                                                 [](const size_t lhs, const Output<ov::Node>& rhs) {
                                                     return lhs + rhs.get_node()->get_output_size();
                                                 });
-    NGRAPH_CHECK(onnx_node.get_outputs_size() <= outputs_size,
-                 "Expected output number of ",
-                 onnx_node.op_type(),
-                 " node is ",
-                 onnx_node.get_outputs_size(),
-                 " while the implementation provides ",
-                 outputs_size,
-                 " outputs");
+    FRONT_END_GENERAL_CHECK(onnx_node.get_outputs_size() <= outputs_size,
+                            "Expected output number of ",
+                            onnx_node.op_type(),
+                            " node is ",
+                            onnx_node.get_outputs_size(),
+                            " while the implementation provides ",
+                            outputs_size,
+                            " outputs");
 
     set_friendly_names(onnx_node, ov_subgraph_outputs);
 

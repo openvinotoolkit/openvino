@@ -11,32 +11,13 @@
 #include <string>
 #include <unordered_map>
 
-#include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
 #include "version_range.hpp"
 
 namespace ngraph {
 namespace onnx_import {
-namespace error {
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct UnknownOperator : ngraph_error {
-    UnknownOperator(const std::string& name, const std::string& domain)
-        : ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
-};
-
-struct UnknownDomain : ngraph_error {
-    explicit UnknownDomain(const std::string& domain) : ngraph_error{domain} {}
-};
-
-struct UnsupportedVersion : ngraph_error {
-    UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
-        : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
-                       std::to_string(version)} {}
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-}  // namespace error
 
 class OperatorsBridge {
 public:

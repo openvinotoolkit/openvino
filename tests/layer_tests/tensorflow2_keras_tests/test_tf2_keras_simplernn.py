@@ -57,9 +57,9 @@ class TestKerasSimpleRNN(CommonTF2LayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     def test_keras_simplernn_different_activations(self, params, ie_device, precision, ir_version,
-                                                   temp_dir, use_old_api, use_new_frontend):
+                                                   temp_dir, use_new_frontend):
         self._test(*self.create_keras_simplernn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests for RNN with dropout
@@ -77,9 +77,9 @@ class TestKerasSimpleRNN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_dropout)
     @pytest.mark.nightly
     def test_keras_simplernn_dropout(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_old_api, use_new_frontend):
+                                     use_new_frontend):
         self._test(*self.create_keras_simplernn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests for RNN with other attributes
@@ -96,10 +96,10 @@ class TestKerasSimpleRNN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_other)
     @pytest.mark.nightly
-    def test_keras_simplernn_other(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
+    def test_keras_simplernn_other(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_new_frontend):
         self._test(*self.create_keras_simplernn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests for RNN with multiple outputs
@@ -125,7 +125,7 @@ class TestKerasSimpleRNN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_multipleoutput)
     @pytest.mark.nightly
     def test_keras_simplernn_test_data_multipleoutput(self, params, ie_device, precision,
-                                                      ir_version, temp_dir, use_old_api, use_new_frontend):
+                                                      ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_keras_simplernn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
