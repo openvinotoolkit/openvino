@@ -5,7 +5,6 @@
 #include "shared_test_classes/subgraph/parameter_shapeof_result.hpp"
 
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/opsets/opset6.hpp>
 
 namespace SubgraphTestsDefinitions {
 

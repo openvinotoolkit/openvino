@@ -40,7 +40,6 @@ private:
     uint32_t get_optimal_batch_size(const ov::AnyMap& options) const;
     uint32_t get_max_batch_size(const ov::AnyMap& options) const;
 
-    ov::AnyMap preprocess_config(const ov::AnyMap& orig_config) const;
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 

@@ -4,26 +4,30 @@
 
 #include "ngraph/op/prior_box.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-std::shared_ptr<default_opset::StridedSlice> make_slice(std::shared_ptr<ngraph::Node> node,
-                                                        int64_t start,
-                                                        int64_t end) {
-    return std::make_shared<default_opset::StridedSlice>(
-        node,
-        default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{start}),
-        default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{end}),
-        std::vector<int64_t>{0},   // begin mask
-        std::vector<int64_t>{0});  // end mask
+std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end) {
+    return std::make_shared<v1::StridedSlice>(node,
+                                              v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{start}),
+                                              v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{end}),
+                                              std::vector<int64_t>{0},   // begin mask
+                                              std::vector<int64_t>{0});  // end mask
 }
 }  // namespace
 }  // namespace detail
@@ -31,14 +35,14 @@ std::shared_ptr<default_opset::StridedSlice> make_slice(std::shared_ptr<ngraph::
 namespace set_1 {
 OutputVector prior_box(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+    FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
-    auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
-    auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
+    auto output_shape = std::make_shared<v3::ShapeOf>(inputs[0]);
+    auto image_shape = std::make_shared<v3::ShapeOf>(inputs[1]);
     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-    ngraph::op::v8::PriorBox::Attributes attrs;
+    ov::op::v8::PriorBox::Attributes attrs;
     attrs.min_size = node.get_attribute_value<std::vector<float>>("min_size", {});
     attrs.max_size = node.get_attribute_value<std::vector<float>>("max_size", {});
     attrs.aspect_ratio = node.get_attribute_value<std::vector<float>>("aspect_ratio", {});
@@ -53,16 +57,16 @@ OutputVector prior_box(const Node& node) {
     attrs.density = node.get_attribute_value<std::vector<float>>("density", {});
     attrs.min_max_aspect_ratios_order = node.get_attribute_value<int64_t>("min_max_aspect_ratios_order", 1);
 
-    auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto axes = v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
 
-    return {std::make_shared<default_opset::Unsqueeze>(
-        std::make_shared<ngraph::op::v8::PriorBox>(output_shape_slice, image_shape_slice, attrs),
-        axes)};
+    return {
+        std::make_shared<v0::Unsqueeze>(std::make_shared<v8::PriorBox>(output_shape_slice, image_shape_slice, attrs),
+                                        axes)};
 }
 
 OutputVector prior_box_clustered(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+    FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto output_shape_rank = inputs[0].get_partial_shape().rank().get_length();
     auto image_shape_rank = inputs[1].get_partial_shape().rank().get_length();
@@ -77,12 +81,12 @@ OutputVector prior_box_clustered(const Node& node) {
                      image_shape_rank,
                      " (should be 4)");
 
-    auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
-    auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
+    auto output_shape = std::make_shared<v3::ShapeOf>(inputs[0]);
+    auto image_shape = std::make_shared<v3::ShapeOf>(inputs[1]);
     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-    default_opset::PriorBoxClustered::Attributes attrs{};
+    v0::PriorBoxClustered::Attributes attrs{};
     attrs.widths = node.get_attribute_value<std::vector<float>>("width");
     attrs.heights = node.get_attribute_value<std::vector<float>>("height");
     attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));
@@ -92,10 +96,10 @@ OutputVector prior_box_clustered(const Node& node) {
     attrs.step = node.get_attribute_value<float>("step", 0.0f);
     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
 
-    auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto axes = v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
 
-    return {std::make_shared<default_opset::Unsqueeze>(
-        std::make_shared<default_opset::PriorBoxClustered>(output_shape_slice, image_shape_slice, attrs),
+    return {std::make_shared<v0::Unsqueeze>(
+        std::make_shared<v0::PriorBoxClustered>(output_shape_slice, image_shape_slice, attrs),
         axes)};
 }
 

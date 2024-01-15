@@ -51,19 +51,15 @@ Supported configurations:
 ### Additional Build Options
 
 - To build the OpenVINO Runtime Python API:
-  1. First, install all additional packages (e.g., cython) listed in the file:
-      ```sh
-      pip install -r <path\to\openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
-      ```
-  2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+  1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
      -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+  2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
      pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
      ```
-  4. After the build process finishes, export the newly built Python libraries to the user environment variables:
+  3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
      set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
      set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
