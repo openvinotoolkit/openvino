@@ -34,14 +34,6 @@ class IExtension;
 class ICore;
 
 /**
- * @brief      Copies preprocess info
- *
- * @param[in]  from  PreProcessInfo to copy from
- * @return     copy of preprocess info
- */
-INFERENCE_ENGINE_API_CPP(PreProcessInfo) copyPreProcess(const PreProcessInfo& from);
-
-/**
  * @brief       Copies the values of `std::string` indexed map and apply const cast
  *
  * @param[in]   map map to copy

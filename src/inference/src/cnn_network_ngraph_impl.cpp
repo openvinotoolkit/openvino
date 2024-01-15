@@ -215,7 +215,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         DataPtr input = std::make_shared<Data>(name, inData->getTensorDesc());
         _data[name] = input;
         info->setInputData(input);
-        info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;

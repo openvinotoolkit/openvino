@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_preprocess.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -96,13 +95,6 @@ public:
      * precision and size.
      */
     virtual Blob::Ptr GetBlob(const std::string& name);
-
-    /**
-     * @brief Gets pre-process for input data
-     * @param name Name of input blob.
-     * @param info pointer to a pointer to PreProcessInfo structure
-     */
-    virtual const PreProcessInfo& GetPreProcess(const std::string& name) const;
 
     /**
      * @brief Queries memory states.
@@ -269,20 +261,6 @@ protected:
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
-
-    class PreProcessDataPlugin {
-    public:
-        void setRoiBlob(const Blob::Ptr& blob) {}
-
-        Blob::Ptr getRoiBlob() const {
-            return nullptr;
-        }
-
-        void execute(Blob::Ptr& preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {}
-
-        void isApplicable(const Blob::Ptr& src, const Blob::Ptr& dst) {}
-    };
-    std::map<std::string, std::shared_ptr<PreProcessDataPlugin>> _preProcData;  //!< A map of pre-process data per input
 
     /**
      * @brief A shared pointer to IInferRequestInternal

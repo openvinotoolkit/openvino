@@ -58,11 +58,7 @@ void fill_input_info(ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Pt
     const ov::Output<const ov::Node> const_input(input.get_node(), input.get_index());
     ov::legacy_convert::fill_input_info(const_input, input_info);
     auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_preproc");
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-    it = rt_info.find("ie_legacy_td");
+    auto it = rt_info.find("ie_legacy_td");
     if (it != rt_info.end()) {
         rt_info.erase(it);
     }
@@ -102,11 +98,7 @@ void ov::legacy_convert::fill_input_info(const ov::Output<const ov::Node>& input
         input_info->setInputData(data);
     }
     auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_preproc");
-    if (it != rt_info.end()) {
-        input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
-    }
-    it = rt_info.find("ie_legacy_td");
+    auto it = rt_info.find("ie_legacy_td");
     if (it != rt_info.end()) {
         auto td = it->second.as<InferenceEngine::TensorDesc>();
         input_info->getInputData()->reshape(td.getDims(), td.getLayout());
@@ -172,7 +164,6 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 
         auto input_info = network.getInputsInfo().at(param_name);
         auto& rt_info = input.get_rt_info();
-        rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
         rt_info["ie_legacy_td"] = input_info->getTensorDesc();
     }
     for (auto&& result : cloned_model->get_results()) {
@@ -521,22 +512,6 @@ public:
             desc = it->second.as<InferenceEngine::TensorDesc>();
         }
         return tensor_to_blob(m_request->get_tensor(port), true, desc);
-    }
-
-    const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
-#ifdef PROXY_PLUGIN_ENABLED
-        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request._ptr)) {
-            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request())
-                ->GetPreProcess(name);
-        }
-#endif
-        auto port = find_port(name);
-        auto& rt_info = port.get_rt_info();
-        auto it = rt_info.find("ie_legacy_preproc");
-        if (it != rt_info.end()) {
-            return it->second.as<InferenceEngine::PreProcessInfo>();
-        }
-        OPENVINO_THROW("Cannot find PreProcess info.");
     }
 
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override {

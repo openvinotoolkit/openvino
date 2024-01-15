@@ -56,10 +56,6 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     return blobPtr;
 }
 
-const PreProcessInfo& InferRequest::GetPreProcess(const std::string& name) const {
-    INFER_REQ_CALL_STATEMENT(return _impl->GetPreProcess(name);)
-}
-
 void InferRequest::Infer() {
     INFER_REQ_CALL_STATEMENT(_impl->Infer();)
 }

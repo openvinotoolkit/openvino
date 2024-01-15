@@ -248,10 +248,6 @@ public:
         return _syncRequest->GetBlob(name);
     }
 
-    const PreProcessInfo& GetPreProcess(const std::string& name) const override {
-        return _syncRequest->GetPreProcess(name);
-    }
-
     void SetCallback(Callback callback) override {
         CheckState();
         _callback = std::move(callback);

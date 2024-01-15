@@ -17,9 +17,6 @@ To infer models with OpenVINO™ Runtime, you usually need to perform the follow
    * 1.1. `(Optional) Load extensions <#optional-load-extensions>`__
 
 2. `Read a model from a drive <#read-a-model-from-a-drive>`__.
-
-   * 2.1. `(Optional) Perform model preprocessing <#optional-perform-model-preprocessing>`__.
-
 3. `Load the model to the device <#load-the-model-to-the-device>`__.
 4. `Create an inference request <#create-an-inference-request>`__.
 5. `Fill input tensors with data <#fill-input-tensors-with-data>`__.
@@ -155,13 +152,6 @@ to write extensions. However, you can also load the old extensions to the new Op
 Reading a model has the same structure as the example in the :doc:`model creation migration guide <openvino_2_0_model_creation>`.
 
 You can combine reading and compiling a model into a single call ``ov::Core::compile_model(filename, devicename)``.
-
-
-2.1 (Optional) Perform Model Preprocessing
-++++++++++++++++++++++++++++++++++++++++++
-
-When the application input data does not perfectly match the model input format, 
-preprocessing may be necessary. See :doc:`preprocessing in API 2.0 <openvino_2_0_preprocessing>` for more details.
 
 
 3. Load the Model to the Device

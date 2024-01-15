@@ -16,7 +16,6 @@
 #include "ie_blob.h"
 #include "ie_data.h"
 #include "ie_memcpy.h"
-#include "ie_preprocess.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 /**

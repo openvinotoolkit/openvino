@@ -16,7 +16,6 @@ OpenVINO™ API 2.0 Transition Guide
    openvino_2_0_deployment
    openvino_2_0_inference_pipeline
    openvino_2_0_configure_devices
-   openvino_2_0_preprocessing
    openvino_2_0_model_creation
 
 
@@ -112,7 +111,6 @@ See the following pages to understand how to migrate Inference Engine-based appl
 
 - :doc:`Installation & Deployment <openvino_2_0_deployment>`
 - :doc:`OpenVINO™ Common Inference pipeline <openvino_2_0_inference_pipeline>`
-- :doc:`Preprocess your model <openvino_2_0_preprocessing>`
 - :doc:`Configure device <openvino_2_0_configure_devices>`
 - :doc:`OpenVINO™ Model Creation <openvino_2_0_model_creation>`
 

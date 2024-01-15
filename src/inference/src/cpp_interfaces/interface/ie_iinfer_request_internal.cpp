@@ -16,7 +16,6 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_preprocess.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/partial_shape.hpp"
 
@@ -195,16 +194,6 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
     return data;
-}
-
-const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& name) const {
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        return foundInput->getPreProcess();
-    } else {
-        IE_THROW() << "Output blob can't have pre-processing";
-    }
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
