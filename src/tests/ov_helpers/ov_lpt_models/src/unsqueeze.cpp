@@ -7,6 +7,7 @@
 #include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -40,7 +41,7 @@ std::shared_ptr<ov::Model> UnsqueezeFunction::getOriginal(
 
     const auto fakeQuantize = fakeQuantizeOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
@@ -63,7 +64,7 @@ std::shared_ptr<ov::Model> UnsqueezeFunction::getReference(
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto unsqueeze = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Unsqueeze>>(
-        op::v0::Unsqueeze(dequantizationOpBefore, std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
+        ov::op::v0::Unsqueeze(dequantizationOpBefore, std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
         precisionAfterOperation);
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(unsqueeze, dequantizationAfter);
     dequantizationOpAfter->set_friendly_name("output");

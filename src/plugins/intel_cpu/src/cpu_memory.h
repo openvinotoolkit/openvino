@@ -4,19 +4,7 @@
 
 #pragma once
 
-#include "ie_layouts.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include <onednn/dnnl.h>
-#include <cpu_shape.h>
-
 #include "memory_desc/dnnl_memory_desc.h"
-
-#include <string>
-#include <functional>
-#include <memory>
-#include <vector>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -364,8 +352,87 @@ private:
     }
 };
 
+class StringMemory : public IMemory {
+public:
+    using OvString = ov::element_type_traits<ov::element::string>::value_type;
+
+    class StringMemoryMngr {
+    public:
+        StringMemoryMngr() : m_data(nullptr, release) {}
+        OvString* getStringPtr() const noexcept;
+        void setExtBuff(OvString* ptr, size_t size);
+        size_t getStrLen() const noexcept;
+        void* getRawPtr() const noexcept;
+        bool resize(size_t size /* string elements number */);
+        bool hasExtBuffer() const noexcept;
+
+    private:
+        bool m_use_external_storage = false;
+        size_t m_str_upper_bound = 0lu;
+        std::unique_ptr<OvString, void (*)(OvString *)> m_data;
+
+        static void release(OvString* ptr) {}
+        static void destroy(OvString* ptr);
+    };
+
+    using StringMemoryMngrPtr = std::shared_ptr<StringMemoryMngr>;
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
+
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr)
+        : StringMemory(engine, desc.clone(), data) {}
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
+        : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}
+
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryMngrPtr& manager)
+        : StringMemory(engine, desc.clone(), manager) {}
+
+    bool isAllocated() const noexcept override;
+
+    const MemoryDesc& getDesc() const override {
+        return *m_mem_desc;
+    }
+
+    MemoryDescPtr getDescPtr() const override {
+        return m_mem_desc;
+    }
+
+    void* getData() const override;
+
+    size_t getSize() const override; // In bytes
+
+    const Shape& getShape() const override {
+        return m_mem_desc->getShape();
+    }
+
+    const VectorDims& getStaticDims() const override {
+        return m_mem_desc->getShape().getStaticDims();
+    }
+
+    void redefineDesc(MemoryDescPtr desc) override;
+
+    void load(const IMemory& src, bool ftz = false) const override;
+
+    MemoryMngrPtr getMemoryMngr() const override;
+
+    StringMemoryMngrPtr getStringMemoryMngrPtr() const {
+        return m_manager;
+    }
+
+    dnnl::memory getPrimitive() const override;
+
+    void nullify() override;
+
+private:
+    dnnl::engine m_engine;
+    MemoryDescPtr m_mem_desc;
+    StringMemoryMngrPtr m_manager;
+};
+
 using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
+using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
 }   // namespace intel_cpu
 }   // namespace ov

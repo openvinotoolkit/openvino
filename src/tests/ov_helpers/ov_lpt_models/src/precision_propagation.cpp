@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/precision_propagation.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -16,6 +16,7 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -122,7 +123,7 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getOriginalWithNeighbor
         const size_t outputChannels = 9ul;
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-        const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+        const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
             std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(ov::shape_size(shape), 1.f)),
             precision,
             255,

@@ -4,6 +4,7 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace {
 using params = std::tuple<ov::element::Type, ov::element::Type>;
@@ -54,7 +55,7 @@ TEST(ExecutionModeTest, SetCompileGetInferPrecisionAndExecMode) {
     ov::Core core;
 
     core.set_property(ov::test::utils::DEVICE_GPU, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
-    auto model = ngraph::builder::subgraph::makeConvPoolRelu();
+    auto model = ov::test::utils::make_conv_pool_relu();
     {
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
         ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, compiled_model.get_property(ov::hint::execution_mode));

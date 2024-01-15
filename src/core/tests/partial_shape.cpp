@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_tools.hpp"
-#include "ngraph/shape_util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -691,52 +690,6 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s2.relaxes(s1));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-TEST(partial_shape, partial_shape_project_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = ngraph::project(s1, AxisSet{284, 0, 103});
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_project_rank_static_dynamic) {
-    PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = ngraph::project(s1, AxisSet{0, 3});
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{Dimension::dynamic(), 3}));
-}
-
-TEST(partial_shape, partial_shape_reduce_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = ngraph::reduce(s1, AxisSet{284, 0, 103}, false);
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_reduce_rank_static_dynamic) {
-    PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = ngraph::reduce(s1, AxisSet{0, 3}, false);
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{2, Dimension::dynamic()}));
-}
-
-TEST(partial_shape, partial_shape_inject_pairs_rank_dynamic) {
-    PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 =
-        ngraph::inject_pairs(s1, std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {207, 909}});
-
-    ASSERT_TRUE(s2.rank().is_dynamic());
-}
-
-TEST(partial_shape, partial_shape_inject_pairs_rank_static) {
-    PartialShape s1{1, Dimension::dynamic()};
-    PartialShape s2 = ngraph::inject_pairs(
-        s1,
-        std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {2, 909}, {4, Dimension::dynamic()}});
-
-    ASSERT_TRUE(s2.same_scheme(PartialShape{Dimension::dynamic(), 1, 909, Dimension::dynamic(), Dimension::dynamic()}));
-}
-
 TEST(partial_shape, merge_rank_dyn_dyn) {
     PartialShape s{PartialShape::dynamic()};
 
@@ -1314,4 +1267,50 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
         },
         NodeValidationFailure);
     OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(partial_shape, const_subscribe_operator) {
+    const auto shape = ov::PartialShape{-1, {2, 10}, 5, 6, 7};
+
+    EXPECT_EQ(shape[2], ov::Dimension(5));
+    EXPECT_EQ(shape[0], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[1], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[4], ov::Dimension(7));
+
+    EXPECT_EQ(shape[-3], ov::Dimension(5));
+    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[-1], ov::Dimension(7));
+}
+
+TEST(partial_shape, subscribe_operator) {
+    auto shape = ov::PartialShape{-1, {2, 10}, 5, 6, 7};
+
+    EXPECT_EQ(shape[2], ov::Dimension(5));
+    EXPECT_EQ(shape[0], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[1], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[4], ov::Dimension(7));
+
+    EXPECT_EQ(shape[-3], ov::Dimension(5));
+    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
+    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
+    EXPECT_EQ(shape[-1], ov::Dimension(7));
+}
+
+TEST(partial_shape, const_subscribe_operator_throw_out_of_range) {
+    const auto shape = ov::PartialShape::dynamic(7);
+
+    EXPECT_THROW(shape[7], ov::Exception);
+    EXPECT_THROW(shape[1000], ov::Exception);
+    EXPECT_THROW(shape[-8], ov::Exception);
+    EXPECT_THROW(shape[-80000], ov::Exception);
+}
+
+TEST(partial_shape, subscribe_operator_throw_out_of_range) {
+    auto shape = ov::PartialShape::dynamic(7);
+
+    EXPECT_THROW(shape[7], ov::Exception);
+    EXPECT_THROW(shape[1000], ov::Exception);
+    EXPECT_THROW(shape[-8], ov::Exception);
+    EXPECT_THROW(shape[-80000], ov::Exception);
 }

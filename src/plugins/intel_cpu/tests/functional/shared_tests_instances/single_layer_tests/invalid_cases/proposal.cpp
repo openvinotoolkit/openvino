@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/invalid_cases/proposal.hpp"
+#include "shared_test_classes/single_op/invalid_cases/proposal.hpp"
 
 #include <vector>
 

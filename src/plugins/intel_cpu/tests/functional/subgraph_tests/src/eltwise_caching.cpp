@@ -38,6 +38,8 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include <memory>
 #include <string>
@@ -128,7 +130,10 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = 10;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -163,18 +168,18 @@ protected:
             inputNodes.push_back(paramVec.back());
         }
 
-        auto lastNode0 = utils::makeEltwise(paramVec[0], paramVec[1], eltwiseOpTypes[0]);
+        auto lastNode0 = utils::make_eltwise(paramVec[0], paramVec[1], eltwiseOpTypes[0]);
         lastNode0->get_rt_info() = getCPUInfo();
-        auto lastNode1 = utils::makeEltwise(paramVec[2], paramVec[3], eltwiseOpTypes[1]);
+        auto lastNode1 = utils::make_eltwise(paramVec[2], paramVec[3], eltwiseOpTypes[1]);
         lastNode1->get_rt_info() = getCPUInfo();
         if (withQuantization) {
-            lastNode0 = ngraph::builder::makeFakeQuantize(lastNode0, ov::element::Type(ov::element::Type_t::f32),
+            lastNode0 = ov::test::utils::make_fake_quantize(lastNode0, ov::element::Type(ov::element::Type_t::f32),
                                                           256, fqInputShapes[0]);
-            lastNode1 = ngraph::builder::makeFakeQuantize(lastNode1, ov::element::Type(ov::element::Type_t::f32),
+            lastNode1 = ov::test::utils::make_fake_quantize(lastNode1, ov::element::Type(ov::element::Type_t::f32),
                                                           256, fqInputShapes[1]);
         }
         if (needReshape) {
-            auto reshapeConstNode = ngraph::builder::makeConstant(ov::element::Type(ov::element::Type_t::i32),
+            auto reshapeConstNode = ov::test::utils::deprecated::make_constant(ov::element::Type(ov::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }

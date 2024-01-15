@@ -41,7 +41,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
         R"(.*_DW_GroupConv.*_inFmts=(ndhwc|nCdhw16c).*ENFORCE_BF16=YES.*)",
         // TODO: 56143. Enable nspc convolutions for bf16 precision
-        R"(.*ConvolutionLayerCPUTest.*_inFmts=(ndhwc|nhwc).*ENFORCE_BF16=YES.*)",
+        R"(.*ConvolutionLayerCPUTest.*_inFmts=(ndhwc|nhwc).*INFERENCE_PRECISION_HINT=bf16.*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -60,7 +60,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*MobileNet_ssd_with_branching.*)",
 
         // Not expected behavior
-        R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
@@ -109,7 +108,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
         // Issue: 71756
-        R"(.*GroupDeconv_2D_DW_BF16/GroupDeconvolutionLayerCPUTest.CompareWithRefs.*PRC=f32.*inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_dw_Fused=Multiply\(PerChannel\).Add\(PerChannel\)_PluginConf_ENFORCE_BF16=YES.*)",
+        R"(.*GroupDeconv_2D_DW_BF16/GroupDeconvolutionLayerCPUTest.CompareWithRefs.*PRC=f32.*inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_dw_Fused=Multiply\(PerChannel\).Add\(PerChannel\)_PluginConf_INFERENCE_PRECISION_HINT=bf16*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
         // Issue: 59594
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
@@ -165,25 +164,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_Convert/Convert\.CompareWithRefImpl/IS.*_IT=\(f32\)_OT=\(u8\)_#N=1_#S=1_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_ConvertManyOnInputs/ConvertManyOnInputs\.CompareWithRefImpl/IS.*_IT=\(f32\.u8\)_OT=\(\)_#N=1_#S=1_targetDevice=CPU.*)",
-        // New plugin work with tensors, so it means that blob in old API can have different pointers
-        R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
-        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Issue: 106939
         R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // Old API cannot deallocate tensor
-        R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
-        R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+        R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
-        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
-        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
+        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
+        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 120222
@@ -220,6 +212,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
         // Issue: 126095
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
+        // Issue: 129025
+        R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
 #ifdef OPENVINO_ARCH_32_BIT
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.CompareWithRefs/.*_eltwiseOpType=Bitwise.*_NetType=i32_.*)"

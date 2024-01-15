@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -80,7 +80,7 @@ protected:
             paramsIn.push_back(param);
         } else {
             const auto maxSeqLength = dataInputShape.second.front().at(seqAxisIndex);
-            seqLengthsInput = ngraph::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
+            seqLengthsInput = ov::test::utils::deprecated::make_constant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
         }
 
         const auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);
@@ -99,10 +99,11 @@ protected:
 
         if (funcInputs.size() != 1) {
             const auto maxSeqLength = targetInputStaticShapes.front().at(m_seqAxisIndex);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = maxSeqLength;
             const auto seqLengthsTensor =
-                ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(),
-                                                        targetInputStaticShapes[1],
-                                                        maxSeqLength, 1);
+                ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
             inputs.insert({funcInputs[1].get_node_shared_ptr(), seqLengthsTensor});
         }
     }

@@ -32,6 +32,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
         ov::Busy::create(ex.what());                                        \
     } catch (const ov::Busy&) {                                             \
         throw;                                                              \
+    } catch (const ov::Cancelled&) {                                        \
+        throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
@@ -290,6 +292,12 @@ std::vector<VariableState> InferRequest::query_state() {
     })
     return variable_states;
 }
+
+void InferRequest::reset_state(){OV_INFER_REQ_CALL_STATEMENT({
+    for (auto&& state : _impl->query_state()) {
+        state->reset();
+    }
+})}
 
 CompiledModel InferRequest::get_compiled_model() {
     OV_INFER_REQ_CALL_STATEMENT(return {std::const_pointer_cast<ICompiledModel>(_impl->get_compiled_model()), _so});

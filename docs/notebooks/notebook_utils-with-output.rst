@@ -5,13 +5,12 @@ This notebook contains helper functions and classes for use with
 OpenVINO™ Notebooks. The code is synchronized with the
 ``notebook_utils.py`` file in the same directory as this notebook.
 
-There are five categories:
+There are four categories:
 
 -  `Files <#files>`__
 -  `Images <#images>`__
 -  `Videos <#videos>`__
 -  `Visualization <#visualization>`__
--  `OpenVINO Tools <#openvino-tools>`__
 -  `Checks and Alerts <#checks-and-alerts>`__
 
 Each category contains a test cell that also shows how to use the
@@ -32,6 +31,8 @@ functions in the section.
 
 Files
 -----
+
+
 
 Load an image, download a file, download an OpenVINO IR model, and
 create a progress bar to show download progress.
@@ -57,6 +58,8 @@ create a progress bar to show download progress.
 
 Test File Functions
 ~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -91,7 +94,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -108,12 +111,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/13.8k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/14.9k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -131,7 +134,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -150,8 +153,12 @@ Test File Functions
 Images
 ------
 
+
+
 Convert Pixel Data
 ~~~~~~~~~~~~~~~~~~
+
+
 
 Normalize image pixel values between 0 and 1, and convert images to
 ``RGB`` and ``BGR``.
@@ -175,6 +182,8 @@ Normalize image pixel values between 0 and 1, and convert images to
 
 Test Data Conversion Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -200,8 +209,12 @@ Test Data Conversion Functions
 Videos
 ------
 
+
+
 Video Player
 ~~~~~~~~~~~~
+
+
 
 A custom video player to fulfill FPS requirements. You can set target
 FPS and output size, flip the video horizontally or skip first N frames.
@@ -216,6 +229,8 @@ FPS and output size, flip the video horizontally or skip first N frames.
 
 Test Video Player
 ~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -246,8 +261,12 @@ Test Video Player
 Visualization
 -------------
 
+
+
 Segmentation
 ~~~~~~~~~~~~
+
+
 
 Define a ``SegmentationMap NamedTuple`` that keeps the labels and
 colormap for a segmentation project/dataset. Create
@@ -347,6 +366,8 @@ the original image.
 Network Results
 ~~~~~~~~~~~~~~~
 
+
+
 Show network result image, optionally together with the source image and
 a legend with labels.
 
@@ -358,6 +379,8 @@ a legend with labels.
 
 Test Visualization Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -425,6 +448,8 @@ Test Visualization Functions
 Checks and Alerts
 -----------------
 
+
+
 Create an alert class to show stylized info/error/warning messages and a
 ``check_device`` function that checks whether a given device is
 available.
@@ -451,6 +476,8 @@ available.
 
 Test Alerts
 ~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 

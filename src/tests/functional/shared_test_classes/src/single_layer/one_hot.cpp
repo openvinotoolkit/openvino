@@ -48,7 +48,7 @@ void OneHotLayerTest::SetUp() {
     auto off_value_const = std::make_shared<ov::op::v0::Constant>(set_type, ov::Shape{}, off_val);
     auto onehot = std::make_shared<ov::op::v1::OneHot>(params[0], depth_const, on_value_const, off_value_const, axis);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(onehot)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
     function = std::make_shared<ngraph::Function>(results, params, "OneHot");
 }
 }  // namespace LayerTestsDefinitions

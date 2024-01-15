@@ -9,24 +9,24 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "openvino/core/parallel.hpp"
 #include <algorithm>
 
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
@@ -2054,7 +2054,7 @@ void Reduce::prepareParams() {
     }
 
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    const SizeVector &dst_dims = dstMemPtr->getDesc().getShape().getDims();
+    const VectorDims &dst_dims = dstMemPtr->getDesc().getShape().getDims();
     dst_size = dstMemPtr->getSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
     if (jit_mode) {
@@ -3001,9 +3001,9 @@ inline void Reduce::create_opt_working_memory() {
     }
 }
 
-inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
+inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const VectorDims &dst_dims) {
     std::set<size_t> axes;
-    SizeVector out_dims;
+    VectorDims out_dims;
     process_dst_dims.clear();
     axes_for_reduction.clear();
     for (auto &axis : reduce_axes) {
@@ -3156,11 +3156,11 @@ void Reduce::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_
         reduced_dims_work_amount *= src_dims[i];
     reduced_dims_work_amount /= work_amount_dst;
 
-    SizeVector src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    VectorDims src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j;
         size_t i, start = 0, end = 0;
-        SizeVector dst_counters(process_dst_dims.size(), 0);
+        VectorDims dst_counters(process_dst_dims.size(), 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
         for (j = process_dst_dims.size() - 1, i = start; j >= 0; j--) {
             dst_counters[j] = i % process_dst_dims[j];
@@ -3169,7 +3169,7 @@ void Reduce::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_
         for (size_t src_idx = 0, dst_idx = start; dst_idx < end; ++dst_idx) {
             float reduce_prod = init_value;
             bool update_idx = true;
-            SizeVector src_counters = dst_counters;
+            VectorDims src_counters = dst_counters;
             for (i = 0; i < reduced_dims_work_amount; ++i) {
                 if (update_idx) {
                     src_idx = 0;

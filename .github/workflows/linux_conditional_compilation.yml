@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -49,7 +50,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -146,7 +147,6 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_INTEL_GNA=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
@@ -239,7 +239,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -300,10 +300,8 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_CPPLINT=OFF \
             -DSELECTIVE_BUILD=ON \
-            -DENABLE_LTO=OFF \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \
-            -DENABLE_INTEL_GNA=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
             -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
@@ -332,3 +330,17 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
+
+  Overall_Status:
+    name: ci/gha_overall_status_linux_cc
+    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

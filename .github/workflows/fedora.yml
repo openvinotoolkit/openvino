@@ -46,7 +46,7 @@ jobs:
     container:
       image: fedora:33
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
@@ -94,7 +94,6 @@ jobs:
           python3 -m pip install -U pip
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
@@ -242,3 +241,17 @@ jobs:
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
+
+  Overall_Status:
+    name: ci/gha_overall_status_fedora
+    needs: [Smart_CI, Build, RPM_Packages]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
