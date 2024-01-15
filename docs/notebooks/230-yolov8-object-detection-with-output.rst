@@ -949,7 +949,7 @@ Compare performance object detection models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -1221,7 +1221,7 @@ CPU as part of an application. This will improve selected device
 utilization.
 
 For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html.html>`__.
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
