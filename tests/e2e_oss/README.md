@@ -338,8 +338,10 @@ Config file [reshape_utils.py](https://github.com/intel-innersource/frameworks.a
         * Create new tests under `pipelines/` folder.
         * Use `test_data/` folder if you need to add new test inputs, collect
           references, etc.
-
-    2. Otherwise:
+    2. If test you want to add is test for model from tf hub repo:
+        * just add new line in tests/e2e_oss/pipelines/production/tf_hub/nightly.yml file.
+        * It have to contain at least two params: model name and model link
+    3. Otherwise:
         * Create separate top-level folder: i.e. `e2e_oss/custom_pipelines`
         * Create new tests there (similarly to `pipelines/` tests)
         * Use command-line options of [test.py](test_tf_hub.py) to specify location of
