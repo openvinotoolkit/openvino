@@ -6,18 +6,10 @@
 
 #include "shared_test_classes/subgraph/parameter_result.hpp"
 
-namespace SubgraphTestsDefinitions {
-
-TEST_P(ParameterResultSubgraphTestLegacyApi, CompareWithRefs) {
-    Run();
-}
-
-}  // namespace SubgraphTestsDefinitions
-
 namespace ov {
 namespace test {
 
-TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
+TEST_P(ParameterResultSubgraphTest, Inference) {
     run();
 }
 
