@@ -27,7 +27,7 @@ import weakref
 from datetime import datetime
 from typing import cast, List, Union, Tuple, Generator
 
-from tests.e2e_oss.common_utils import config
+from e2e_oss.common_utils import config
 
 SEPARATOR = "=" * 20
 FIXTURE_SEPARATOR = "*" * 20

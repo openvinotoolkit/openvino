@@ -3,7 +3,7 @@ import logging as log
 
 import yaml
 
-import tests.e2e_oss.plugins.common.base_conftest as base
+import e2e_oss.plugins.common.base_conftest as base
 
 from e2e_oss.common_utils.env_utils import fix_env_conf
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
