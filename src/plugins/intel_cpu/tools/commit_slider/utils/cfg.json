@@ -84,7 +84,7 @@
         "appPath" : "path, substituted by job"
     },
     "cachedPathConfig": {
-        "enabled" : true,
+        "enabled" : false,
         "scheme" : "optional | mandatory",
         "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
         "passCmdList": true,
