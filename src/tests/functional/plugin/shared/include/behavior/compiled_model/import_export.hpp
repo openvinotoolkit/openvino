@@ -49,9 +49,9 @@ class OVCompiledGraphImportExportTest : public testing::WithParamInterface<OVCom
     }
 
     void SetUp() override {
-        std::tie(elementType, target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(elementType, target_device, configuration) = this->GetParam();
         APIBaseTest::SetUp();
     }
 
@@ -347,8 +347,8 @@ public:
     void SetUp() override {
         ov::Shape inputShape;
         ov::element::Type netPrecision;
-        std::tie(netPrecision, inputShape, target_device) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(netPrecision, inputShape, target_device) = this->GetParam();
 
         APIBaseTest::SetUp();
 
@@ -360,16 +360,16 @@ public:
         auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
-        fnPtr = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
+        model = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
     }
 
 protected:
-    std::shared_ptr<ov::Model> fnPtr;
+    std::shared_ptr<ov::Model> model;
 };
 
 TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
-    auto compiled_model = core->compile_model(fnPtr, target_device);
+    auto compiled_model = core->compile_model(model, target_device);
     auto exec_graph = compiled_model.get_runtime_model();
 
     std::unordered_set<std::string> names;

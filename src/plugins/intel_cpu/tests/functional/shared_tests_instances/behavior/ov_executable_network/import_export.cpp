@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_serialization,
 
 TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
-    auto compiled_model = core->compile_model(fnPtr, target_device);
+    auto compiled_model = core->compile_model(model, target_device);
     auto exec_graph = compiled_model.get_runtime_model();
 
     int numReorders = 0;
