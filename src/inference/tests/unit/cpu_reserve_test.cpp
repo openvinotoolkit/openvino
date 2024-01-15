@@ -4,9 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/test_common.hpp>
-
-#include "ie_system_conf.h"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 
 using namespace testing;

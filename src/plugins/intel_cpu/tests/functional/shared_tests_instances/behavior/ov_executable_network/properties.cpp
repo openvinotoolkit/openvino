@@ -3,8 +3,9 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
-#include "ie_system_conf.h"
+
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 using namespace ov::test::behavior;
 
@@ -33,8 +34,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
 
 #if (defined(__APPLE__) || defined(_WIN32))
 auto default_affinity = [] {
-    auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto numaNodes = ov::get_available_numa_nodes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         return ov::Affinity::HYBRID_AWARE;
     } else if (numaNodes.size() > 1) {
@@ -45,7 +46,7 @@ auto default_affinity = [] {
 }();
 #else
 auto default_affinity = [] {
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         return ov::Affinity::HYBRID_AWARE;
     } else {

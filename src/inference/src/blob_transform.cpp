@@ -4,7 +4,7 @@
 
 #include "blob_transform.hpp"
 
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 #ifdef HAVE_SSE
 #    include "cpu_x86_sse42/blob_transform_sse42.hpp"
 #endif
@@ -53,7 +53,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
 
 #ifdef HAVE_SSE
     if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3 &&
-        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && with_cpu_x86_sse42()) {
+        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && ov::with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_4d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -84,7 +84,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     }
 
     if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC && C == 3 &&
-        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && with_cpu_x86_sse42()) {
+        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && ov::with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_4d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -214,7 +214,7 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
 
 #ifdef HAVE_SSE
     if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW && C == 3 &&
-        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && with_cpu_x86_sse42()) {
+        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && ov::with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_5d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -251,7 +251,7 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
     }
 
     if (src->getTensorDesc().getLayout() == NCDHW && dst->getTensorDesc().getLayout() == NDHWC && C == 3 &&
-        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && with_cpu_x86_sse42()) {
+        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && ov::with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_5d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
