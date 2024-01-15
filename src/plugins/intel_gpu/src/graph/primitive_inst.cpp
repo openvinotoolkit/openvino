@@ -476,7 +476,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 return ev;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
                 _outputs[0] = nullptr;
-                max_output_layout_size = 0;
+                _max_output_layout_count = 0;
             }
         }
         variable.set_layout(actual_layout);
@@ -516,7 +516,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (!can_be_optimized() && _outputs[0] && dep_memory_ptr(0)
             && _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
             _outputs[0] = nullptr;
-            max_output_layout_size = 0;
+            _max_output_layout_count = 0;
         }
     }
 
@@ -526,9 +526,11 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_layout = layout(ov::Shape(current_buf_size.begin(), current_buf_size.end()), updated_layout.data_type, updated_layout.format);
     }
 
-    bool can_reuse_buffer = _outputs[0]
-                    && updated_layout.count() <= max_output_layout_size    /* Do not reuse if exising buffer is smaller */
-                    && updated_layout.count() * 10 > max_output_layout_size;  /* Do not reuse if existing buffer is too large */
+    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= _max_output_layout_count;
+
+    // If we allocated too large memory, reclaim the memory.
+    if (updated_layout.count() * 10 < _max_output_layout_count)
+        can_reuse_buffer = false;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -551,7 +553,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
-                               << actual_layout.count() << "/" << max_output_layout_size
+                               << actual_layout.count() << "/" << _max_output_layout_count
                                << std::endl;
         if (_outputs[0]->get_layout() != actual_layout) {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
@@ -561,11 +563,11 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
-                               <<  " Current buffer_size=" << max_output_layout_size
+                               <<  " Current buffer_size=" << _max_output_layout_count
                                <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
         // TODO : need to handle multiple outputs
-        max_output_layout_size = updated_params.output_layouts[0].count();
+        _max_output_layout_count = updated_params.output_layouts[0].count();
     }
     _mem_allocated = true;
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
@@ -896,7 +898,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     const int64_t concat_axis_size = past_layout.get_partial_shape()[sequence_axis].get_length();
     const int64_t sequence_element_size = total_elements / concat_axis_size;
 
-    const int64_t max_sequence_elements = _deps[0].first->max_output_layout_size / sequence_element_size;
+    const int64_t max_sequence_elements = _deps[0].first->_max_output_layout_count / sequence_element_size;
     const int64_t max_pad = std::max<int64_t>(max_sequence_elements - concat_axis_size, 0);
 
     if (max_pad > 0) {
@@ -1414,7 +1416,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     }
     _impl_params->strm = _network.get_stream_ptr();
     if (_outputs[0])
-        max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
+        _max_output_layout_count = _outputs[0]->get_layout().get_tensor().count();
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
