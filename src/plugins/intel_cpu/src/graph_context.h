@@ -7,7 +7,6 @@
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
-#include "extension_mngr.h"
 #include "weights_cache.hpp"
 
 namespace ov {
@@ -19,11 +18,9 @@ public:
     typedef std::shared_ptr<const GraphContext> CPtr;
 
     GraphContext(const Config& config,
-                 ExtensionManager::Ptr extensionManager,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized)
         : config(config),
-          extensionManager(extensionManager),
           weightsCache(w_cache),
           isGraphQuantizedFlag(isGraphQuantized) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
@@ -32,10 +29,6 @@ public:
 
     const Config& getConfig() const {
         return config;
-    }
-
-    ExtensionManager::Ptr getExtensionManager() const {
-        return extensionManager;
     }
 
     WeightsSharing::Ptr getWeightsCache() const {
@@ -60,7 +53,6 @@ public:
 private:
     Config config;  // network-level config
 
-    ExtensionManager::Ptr extensionManager;
     WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
 
     MultiCachePtr rtParamsCache;     // primitive cache

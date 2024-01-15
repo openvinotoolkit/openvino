@@ -521,10 +521,9 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // update layout to ensure that it repsects paddings for correct allocation size
-    if (_node->is_type<kv_cache>() && !_impl_params->can_be_optimized()) {
+    if (_node_output_layout.data_padding.get_dynamic_pad_dims() != tensor(0)) {
         const auto current_buf_size = updated_layout.get_buffer_size().sizes();
-        ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
-        updated_layout.set_partial_shape(current_shape);
+        updated_layout = layout(ov::Shape(current_buf_size.begin(), current_buf_size.end()), updated_layout.data_type, updated_layout.format);
     }
 
     bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= max_output_layout_size;
@@ -535,12 +534,12 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-    auto current_shape = actual_layout.get_shape();
+    auto current_shape = updated_layout.get_shape();
     auto& sp = *get_network().get_shape_predictor();
-    auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
+    auto dt_size = ov::element::Type(updated_layout.data_type).bitwidth();
     auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
-        auto new_layout = actual_layout;
+        auto new_layout = updated_layout;
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;
     }
@@ -561,7 +560,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << max_output_layout_size
-                               <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
+                               <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
@@ -976,11 +975,15 @@ void primitive_inst::do_runtime_skip_gather() {
         for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
             if (idx_data[i] != i) {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                if (_impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0))
+                    _impl_params->output_layouts[0].data_padding = padding();
                 set_can_be_optimized(false);
                 return;
             }
         }
     }
+    // propagate input layout including correct paddings.
+    _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
@@ -1854,7 +1857,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         }
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
-            ov::intel_gpu::allow_new_shape_infer(true)
+            ov::intel_gpu::allow_new_shape_infer(true),
+            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling))
         };
         auto prog = program::build_program(get_network().get_engine(),
                                            t,
