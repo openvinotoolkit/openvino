@@ -266,14 +266,6 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPr
         res.push_back({{ov::enable_profiling(false)}});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
-        ov::log::Level log_levels[] = {ov::log::Level::NO , ov::log::Level::ERR, ov::log::Level::WARNING,
-                                       ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE};
-        for (auto &log_level : log_levels) {
-            res.push_back({ov::log::level(log_level)});
-        }
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
         res.push_back({ov::streams::num(3)});
     }
@@ -344,6 +336,14 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
     if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
         res.push_back({ov::enable_mmap(true)});
         res.push_back({ov::enable_mmap(false)});
+    }
+
+    if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
+        ov::log::Level log_levels[] = {ov::log::Level::NO , ov::log::Level::ERR, ov::log::Level::WARNING,
+                                       ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE};
+        for (auto &log_level : log_levels) {
+            res.push_back({ov::log::level(log_level)});
+        }
     }
 
     return res;
