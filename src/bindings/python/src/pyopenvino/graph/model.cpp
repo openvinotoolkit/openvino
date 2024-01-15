@@ -429,9 +429,6 @@ void regclass_graph_Model(py::module m) {
             }
             py::gil_scoped_release release;
             self.reshape(new_shapes);
-            for (size_t i = 0; i < new_shapes.size(); ++i) {
-                self.input(i).reshape(new_shapes[i]);
-            }
         },
         py::arg("partial_shapes"),
         R"(
