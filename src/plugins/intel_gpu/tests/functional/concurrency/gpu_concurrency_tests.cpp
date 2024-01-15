@@ -252,12 +252,11 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     ASSERT_NO_THROW(infer_request1.infer());
 
     // Expect that output_tensor2 will not change it's data after infer() call
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
     FuncTestUtils::compareRawBuffers(ref_values.data(),
                                      output_tensor2.data<float>(),
                                      ref_values.size(),
                                      ov::shape_size(output_tensor2.get_shape()),
-                                     thr);
+                                     1e-4f);
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
