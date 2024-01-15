@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from abc import ABC
 import utils.helpers as util
 import utils.map_builder as mapBuilder
@@ -344,7 +347,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.compareCommits(
+                isBad = not self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
                 pc = Mode.CommitPath.PathCommit(
@@ -355,7 +358,7 @@ class Mode(ABC):
                 self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.compareCommits(
+            isBad = not self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.wrappedBypass(
