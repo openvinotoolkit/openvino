@@ -17,7 +17,9 @@ const modelLike = [[model],
 
 it('Core.getAvailableDevices()', () => {
     if (platform !== 'linux') return;
+    
     const devices = core.getAvailableDevices();
+    
     assert.ok(devices.includes('CPU'));
 });
 
