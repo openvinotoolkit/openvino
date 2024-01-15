@@ -292,7 +292,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     auto context_impl = get_context_impl(context);
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
-    // check ov::loaded_from_cache property and erase it due to not needed.
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _orig_config = orig_config;
     const auto& it = _orig_config.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;

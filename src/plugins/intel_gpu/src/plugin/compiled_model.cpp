@@ -57,8 +57,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
 CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config,
-                             const bool loaded_from_cache)
+                             const ExecutionConfig& config)
     : ov::ICompiledModel(model,
                          plugin,
                          context,
@@ -70,7 +69,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(loaded_from_cache) {
+    , m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);

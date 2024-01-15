@@ -27,8 +27,7 @@ public:
     CompiledModel(std::shared_ptr<ov::Model> model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
-                  const ExecutionConfig& config,
-                  const bool loaded_from_cache = false);
+                  const ExecutionConfig& config);
     CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
