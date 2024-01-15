@@ -78,6 +78,9 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     if (num_inputs == 0)
         return node;
 
+    if (ov::is_type<ov::op::util::MultiSubGraphOp>(node))
+        return node;
+
     bool requires_conversion = false;
     bool inputs_changed = false;
 
