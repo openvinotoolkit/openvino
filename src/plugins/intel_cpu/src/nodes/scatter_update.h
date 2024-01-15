@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -50,7 +46,7 @@ private:
     // if axis can be set other than default 0.
     bool axisRelaxed = false;
     size_t dataSize, indicesSize, axisSize;
-    InferenceEngine::Precision dataPrec, indicesPrec, axisPrec;
+    ov::element::Type dataPrec, indicesPrec, axisPrec;
 
     std::string errorPrefix;
 };

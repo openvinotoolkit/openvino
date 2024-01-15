@@ -47,27 +47,37 @@ It consists of the following steps:
 
 **Table of contents:**
 
+-  `How does it work?
+   <#how-does-it-work>`__
+-  `Prerequisites
+   <#prerequisites>`__
+-  `Download and Convert Models
+   <#download-and-convert-models>`__
 
--  `How does it work? <#how-does-it-work>`__
--  `Prerequisites <#prerequisites>`__
--  `Download and Convert
-   Models <#download-and-convert-models>`__
+   -  `Select inference device
+      <#select-inference-device>`__
+   -  `Grammar Checker
+      <#grammar-checker>`__
+   -  `Grammar Corrector
+      <#grammar-corrector>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Grammar Checker <#grammar-checker>`__
-   -  `Grammar Corrector <#grammar-corrector>`__
+-  `Prepare Demo Pipeline
+   <#prepare-demo-pipeline>`__
+-  `Quantization
+   <#quantization>`__
 
--  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
--  `Quantization <#quantization>`__
+   -  `Run Quantization
+      <#run-quantization>`__
+   -  `Compare model size, performance and accuracy
+      <#compare-model-size-performance-and-accuracy>`__
 
-   -  `Run Quantization <#run-quantization>`__
-   -  `Compare model size, performance and
-      accuracy <#compare-model-size-performance-and-accuracy>`__
-
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo
+   <#interactive-demo>`__
 
 How does it work? 
 ------------------------------------------------------------
+
+
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -119,6 +129,8 @@ Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 Prerequisites 
 --------------------------------------------------------
 
+
+
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
 accelerated by OpenVINO integration. The Hugging Face Optimum API is a
@@ -129,7 +141,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" onnx onnxruntime gradio
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" onnx gradio "transformers>=4.33.0"
     %pip install -q "git+https://github.com/openvinotoolkit/nncf.git@9c671f0ae0a118e4bc2de8b09e66425931c0bfa4" datasets jiwer
 
 
@@ -141,6 +153,8 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 Download and Convert Models 
 ----------------------------------------------------------------------
+
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -198,6 +212,8 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 Select inference device 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
@@ -227,6 +243,8 @@ select device from dropdown list for running inference using OpenVINO
 
 Grammar Checker 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -290,6 +308,8 @@ Great! Looks like the model can detect errors in the sample.
 
 Grammar Corrector 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -360,6 +380,8 @@ Nice! The result looks pretty good!
 
 Prepare Demo Pipeline 
 ----------------------------------------------------------------
+
+
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -498,6 +520,8 @@ Let us see it in action.
 Quantization 
 -------------------------------------------------------
 
+
+
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
 graph and then using a subset of the training dataset to initialize the
@@ -543,6 +567,8 @@ improve model inference speed.
 Run Quantization 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 Below we retrieve the quantized model. Please see ``utils.py`` for
 source code. Quantization is relatively time-consuming and will take
 some time to complete.
@@ -577,14 +603,61 @@ some time to complete.
     Output()
 
 
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
 .. parsed-literal::
 
     Output()
 
 
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
 .. parsed-literal::
 
     Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 .. parsed-literal::
@@ -621,6 +694,8 @@ model and original FP32 model should be almost the same.
 
 Compare model size, performance and accuracy 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 First, we compare file size of ``FP32`` and ``INT8`` models.
 
@@ -687,8 +762,8 @@ where WER is Word Error Rate metric.
     Accuracy drop :0.59%.
     Model footprint reduction: 3.989
 
-Interactive demo 
------------------------------------------------------------
+Interactive demo \ 
+-----------------------------------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -750,5 +825,5 @@ Interactive demo
 
 .. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

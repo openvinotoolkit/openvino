@@ -4,13 +4,11 @@
 
 #include "one_hot.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
 
 /**
  * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
@@ -31,7 +29,7 @@ Result OneHotShapeInfer::infer(
 }
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
-    auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
+    auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(m_op);
     if (!oneHot) {
         OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     }

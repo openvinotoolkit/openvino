@@ -315,7 +315,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             p.replace(prev_node, new_node);
             // Insert bias_node into 3-rd position in dependencies vector to get correct order in case of asymmetric quantization
             // which means that node can have > 2 dependencies even without bias
-            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, 0});
+            auto port_idx = new_node.get_port_from_deps(bias_node.id());
+            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, port_idx});
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node
@@ -469,6 +470,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 fc_with_bias_prim->compressed_weights = true;
                 fc_with_bias_prim->decompression_scale = desc->decompression_scale;
                 fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
+                if (desc->decompression_zero_point_scalar.has_value())
+                    fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
             }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
@@ -773,7 +776,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                   input.is_type<fully_connected>() ||
                                   input.is_type<normalize>() ||
                                   input.is_type<reorder>() ||
-                                  input.is_type<reshape>() ||
+                                  (input.is_type<reshape>() && !input.is_dynamic()) ||
                                   input.is_type<roi_pooling>() ||
                                   input.is_type<softmax>() ||
                                   input.is_type<depth_to_space>() ||

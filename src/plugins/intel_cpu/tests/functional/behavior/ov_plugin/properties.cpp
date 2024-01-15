@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #include "test_utils/properties_test.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 #include <algorithm>
 
@@ -46,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),
+        RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
     };
 
@@ -129,8 +131,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Affinity value = ov::Affinity::NONE;
 
 #if (defined(__APPLE__) || defined(_WIN32))
-    auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto numaNodes = ov::get_available_numa_nodes();
+    auto coreTypes = ov::get_available_cores_types();
     auto defaultBindThreadParameter = ov::Affinity::NONE;
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -139,7 +141,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
     }
@@ -176,7 +178,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     const auto expected_precision_for_performance_mode = ov::element::f16;
 #else
-    const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 #endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
@@ -215,7 +217,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
 const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {
@@ -282,6 +284,37 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
     expect_execution_mode(ov::hint::ExecutionMode::ACCURACY);
     expect_inference_precision(bf16_if_can_be_emulated);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
+    ov::Core ie;
+    //check default value
+    ov::Any value;
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+    ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
+
+    //check set and get
+    const std::vector<ov::log::Level> logLevels = {
+        ov::log::Level::ERR,
+        ov::log::Level::NO,
+        ov::log::Level::WARNING,
+        ov::log::Level::INFO,
+        ov::log::Level::DEBUG,
+        ov::log::Level::TRACE};
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
+        ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+
+    // check throwing message
+    auto property = ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RW);
+    const std::string expect_message = std::string("Wrong value DUMMY VALUE for property key ")  +
+        ov::log::level.name() + ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.";
+    OV_EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}),
+            ov::Exception,
+            testing::HasSubstr(expect_message));
 }
 
 } // namespace

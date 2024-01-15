@@ -8,6 +8,7 @@
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder_seq_len.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
@@ -73,20 +74,22 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
             sequenceLenData[b] = len;
         }
 
-        return ngraph::builder::makeConstant(ngIdxPrc, {B}, sequenceLenData);
+        return ov::test::utils::deprecated::make_constant(ngIdxPrc, {B}, sequenceLenData);
     }();
 
     // Cap blank index up to C - 1
     int C = inputShape.at(2);
     blankIndex = std::min(blankIndex, C - 1);
 
-    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ngraph::op::v6::CTCGreedyDecoderSeqLen>(
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto ctcGreedyDecoderSeqLen = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(
             ngraph::builder::makeCTCGreedyDecoderSeqLen(paramsIn[0], sequenceLenNode,
                                                         blankIndex, mergeRepeated, ngIdxPrc));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ngraph::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen->output(i)));
+        results.push_back(std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }

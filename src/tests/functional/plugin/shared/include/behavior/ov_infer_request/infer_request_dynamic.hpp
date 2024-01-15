@@ -12,22 +12,15 @@
 #include <string>
 #include <memory>
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "ie_extension.h"
-#include <condition_variable>
 #include "openvino/core/shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
-#include "transformations/utils/utils.hpp"
 #include <string>
-#include <ie_core.hpp>
 #include <thread>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests

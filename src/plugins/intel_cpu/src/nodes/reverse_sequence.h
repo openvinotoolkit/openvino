@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -52,7 +51,7 @@ private:
     int seq_axis;
     int batch_axis;
 
-    InferenceEngine::Precision lengthsPrecision;
+    ov::element::Type lengthsPrecision;
     std::string errorPrefix;
 };
 

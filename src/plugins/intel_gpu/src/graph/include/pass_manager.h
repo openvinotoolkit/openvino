@@ -414,4 +414,12 @@ private:
     void run(program& p) override;
 };
 
+class mark_runtime_skippable_nodes : public base_pass {
+public:
+    mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
+
+private:
+    void run(program& p) override;
+};
+
 }  // namespace cldnn

@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <node.h>
-#include <ie_common.h>
-#include <string>
-#include <vector>
-#include <array>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/dnnl_executor.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
+
+#include <array>
 
 namespace ov {
 namespace intel_cpu {
@@ -28,7 +26,7 @@ public:
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
     size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }

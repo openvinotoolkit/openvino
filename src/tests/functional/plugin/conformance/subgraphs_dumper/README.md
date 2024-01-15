@@ -7,14 +7,14 @@ uniqueness and matching are defined by implementation of twon interface classes:
 * `Extractor` defines the rules for extracting subgraphs from the models.
 
 > NOTE:
-> Please check the following architecture [diagram](./../../../../../../docs/img/subgraphs_dumper_arch_diaram.png) to get detailed information.
+> Please check the following architecture [diagram](./../../../../../../docs/sphinx_setup/_static/images/img/subgraphs_dumper_arch_diaram.png) to get detailed information.
 
 ## Build
 
 To build the tool, run the following commands: 
 ```
 cmake -DENABLE_FUNCTIONAL_TESTS=ON .
-make subgraphsDumper
+make ov_subgraphs_dumper
 ```
 The outcome of a build is a `subgrpahsDumper` binary located in the building artifacts folder.
 
@@ -41,9 +41,9 @@ Example running command:
 The tool is validated by a combination of Unit and Functional tests, using the based on OV approach. To run tests, execute using the following commands:
 ```
 cmake -DENABLE_FUNCTIONAL_TESTS=ON .
-make subgraphsDumperTests
-./subgraphsDumperTests --gtest_filter=*
+make ov_subgraphs_dumper_tests
+./ov_subgraphs_dumper_tests --gtest_filter=*
 ```
 
 ## Architecture Diagram
-![SubgraphsDumper Architecture Diagram]((./../../../../../../docs/img/subgraphs_dumper_arch_diaram.png)
+![SubgraphsDumper Architecture Diagram](./../../../../../../docs/sphinx_setup/_static/images/img/subgraphs_dumper_arch_diaram.png)

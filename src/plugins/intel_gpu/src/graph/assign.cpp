@@ -12,7 +12,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)
 
 assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
     parent{network, node, false},
-    memory_state::variable{node.get_primitive()->variable_id} {
+    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
 layout assign_inst::calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param) {
@@ -30,17 +30,7 @@ std::string assign_inst::to_string(const assign_node& node) {
     return primitive_description.str();
 }
 
-void assign_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << variable_id();
-}
-
-void assign_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    std::string variable_id;
-    ib >> variable_id;
-    set_variable_id(variable_id);
+void assign_inst::on_execute() {
+    _outputs[0] = input_memory_ptr(0);
 }
 } // namespace cldnn

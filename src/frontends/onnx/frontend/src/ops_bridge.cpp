@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "ngraph/log.hpp"
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
@@ -29,6 +28,9 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/bitwise_and.hpp"
+#include "op/bitwise_or.hpp"
+#include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
@@ -74,6 +76,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/greater_or_equal.hpp"
 #include "op/grid_sample.hpp"
 #include "op/group_normalization.hpp"
 #include "op/gru.hpp"
@@ -91,6 +94,7 @@
 #include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
+#include "op/less_or_equal.hpp"
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
 #include "op/loop.hpp"
@@ -102,6 +106,7 @@
 #include "op/matmul_integer.hpp"
 #include "op/max.hpp"
 #include "op/max_pool.hpp"
+#include "op/max_roi_pool.hpp"
 #include "op/mean.hpp"
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
@@ -270,7 +275,7 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by OpenVINO";
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
@@ -280,7 +285,8 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
-            throw error::UnsupportedVersion{op.first, version, domain};
+            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
+                           std::to_string(version));
         }
         result.emplace(op.first, it->second);
     }
@@ -349,6 +355,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
+    REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
@@ -395,6 +404,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("GreaterOrEqual", 1, greater_or_equal);
+    REGISTER_OPERATOR("GreaterOrEqual", 16, greater_or_equal);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GroupNormalization", 1, group_normalization);
     REGISTER_OPERATOR("GRU", 1, gru);
@@ -413,6 +424,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
+    REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
+    REGISTER_OPERATOR("LessOrEqual", 16, less_or_equal);
     REGISTER_OPERATOR("Log", 1, log);
     REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
     REGISTER_OPERATOR("LogSoftmax", 13, log_softmax);
@@ -424,6 +437,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
     REGISTER_OPERATOR("MaxPool", 8, max_pool);
+    REGISTER_OPERATOR("MaxRoiPool", 1, max_roi_pool);
     REGISTER_OPERATOR("Max", 1, max);
     REGISTER_OPERATOR("Max", 8, max);
     REGISTER_OPERATOR("Mean", 1, mean);
@@ -569,6 +583,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    register_operator_in_custom_domain("DequantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::dequantize_linear,
+                                       "com.microsoft");
+    register_operator_in_custom_domain("QuantizeLinear",
+                                       VersionRange::since(1),
+                                       op::set_13::quantize_linear,
+                                       "com.microsoft");
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);

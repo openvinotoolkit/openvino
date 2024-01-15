@@ -42,8 +42,6 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
     std::shared_ptr<Node> node;
     node = make_shared<Add>(X, Y);
     auto result0 = make_shared<Result>(node);
-    if (insert_squeeze)
-        node = make_shared<Squeeze>(node);
     auto result1 = make_shared<Result>(node);
 
     if (!use_friendly_names) {
@@ -62,16 +60,14 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
 std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
-    auto variable_x = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
-    auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-    auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
+    auto variable_x =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
+    auto read_val_x = make_shared<ReadValue>(variable_x);
 
     // create ReadValue for Y
-    auto variable_y = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-    auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-    auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
+    auto variable_y =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
+    auto read_val_y = make_shared<ReadValue>(variable_y);
 
     if (!use_friendly_names) {
         read_val_x->get_output_tensor(0).add_names({"x"});
@@ -94,10 +90,6 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
         node->get_output_tensor(0).add_names({"res0"});
     } else {
         node->set_friendly_name("res0");
-    }
-
-    if (insert_squeeze) {
-        node = make_shared<Squeeze>(node);
     }
 
     auto assign_y = make_shared<Assign>(node, variable_y);

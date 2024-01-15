@@ -43,8 +43,12 @@ void OneHotLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto onehot = ngraph::builder::makeOneHot(params[0], depth_type, depth_val, set_type, on_val, off_val, axis);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(onehot)};
+    auto depth_const = std::make_shared<ov::op::v0::Constant>(depth_type, ov::Shape{}, depth_val);
+    auto on_value_const = std::make_shared<ov::op::v0::Constant>(set_type, ov::Shape{}, on_val);
+    auto off_value_const = std::make_shared<ov::op::v0::Constant>(set_type, ov::Shape{}, off_val);
+    auto onehot = std::make_shared<ov::op::v1::OneHot>(params[0], depth_const, on_value_const, off_value_const, axis);
+
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
     function = std::make_shared<ngraph::Function>(results, params, "OneHot");
 }
 }  // namespace LayerTestsDefinitions

@@ -24,6 +24,11 @@ OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
 
+#ifdef SNIPPETS_DEBUG_CAPS
+OV_OP(PerfCountBegin, ov::snippets::op)
+OV_OP(PerfCountEnd, ov::snippets::op)
+#endif
+
 // Layout-oblivious from opset1
 
 // opset completeness

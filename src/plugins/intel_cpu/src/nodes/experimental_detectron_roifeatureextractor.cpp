@@ -6,12 +6,10 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset6.hpp>
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_roifeatureextractor.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -284,7 +282,7 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
 bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
-        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -301,10 +299,10 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto &attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;
@@ -321,11 +319,11 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 

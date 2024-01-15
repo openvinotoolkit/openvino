@@ -41,6 +41,7 @@
 #include "intel_gpu/primitives/lstm_dynamic_input.hpp"
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/multinomial.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
@@ -76,6 +77,7 @@
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -121,10 +123,12 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(group_normalization);
+REGISTER_OCL(kv_cache);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
+REGISTER_OCL(multinomial);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);

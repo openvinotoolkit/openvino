@@ -13,12 +13,22 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include "ov_models/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -77,37 +87,37 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        inputShapeWrapper(ov::test::utils::make_conv_pool_relu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}),
         "SplitConvConcat"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_nested_split_conv_concat, {1, 4, 20, 20}),
         "NestedSplitConvConcat"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_input_in_branch, {1, 4, 20, 20}),
         "SplitConvConcatInputInBranch"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranch"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranchNestedOut"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(ovModelWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }
@@ -115,7 +125,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
 std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        inputShapeWrapper(ov::test::utils::make_read_concat_split_assign, {1, 1, 2, 4}),
         "ReadConcatSplitAssign"});
     return res;
 }
@@ -123,7 +133,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions(
 std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+        return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
 }
@@ -293,8 +303,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
-            {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
 }
 
 void CompileModelLoadFromFileTestBase::TearDown() {
@@ -322,6 +331,116 @@ void CompileModelLoadFromFileTestBase::run() {
 }
 
 TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
+    run();
+}
+
+std::string CompileModelCacheRuntimePropertiesTestBase::getTestCaseName(
+    testing::TestParamInfo<compileModelCacheRuntimePropertiesParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!ov::util::contains(core->get_property(target_device, ov::internal::supported_properties),
+                            ov::internal::compiled_model_runtime_properties.name())) {
+        return;
+    }
+    m_compiled_model_runtime_properties =
+        core->get_property(target_device, ov::internal::compiled_model_runtime_properties);
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+
+    // First compile model to generate model cache blob.
+    // Second compile model will load from model cache.
+    for (int i = 0; i < 2; i++) {
+        {
+            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            ASSERT_NO_THROW(inferRequest.infer());
+        }
+        // cache is created and reused
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        compiledModel = {};
+        inferRequest = {};
+    }
+
+    // Modify cache blob file's header information to trigger removing old cache and to create new cache blob files.
+    auto blobs = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob");
+    for (const auto& fileName : blobs) {
+        std::string content;
+        {
+            std::ifstream inp(fileName, std::ios_base::binary);
+            std::ostringstream ostr;
+            ostr << inp.rdbuf();
+            content = ostr.str();
+        }
+        auto index = content.find(m_compiled_model_runtime_properties.c_str());
+        ASSERT_EQ(index != std::string::npos, true);
+        auto pos = m_compiled_model_runtime_properties.find(":");
+        if (index != std::string::npos) {
+            m_compiled_model_runtime_properties.replace(pos + 1, 1, "x");
+        } else {
+            m_compiled_model_runtime_properties.replace(1, 1, "x");
+        }
+        content.replace(index, m_compiled_model_runtime_properties.size(), m_compiled_model_runtime_properties);
+        std::ofstream out(fileName, std::ios_base::binary);
+        out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+    }
+
+    // Third compile model to remove old cache blob and create new model cache blob file
+    // Fourth compile model will load from model cache.
+    for (int i = 0; i < 2; i++) {
+        {
+            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            ASSERT_NO_THROW(inferRequest.infer());
+        }
+        // old cache has been removed and new cache is created and reused
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        compiledModel = {};
+        inferRequest = {};
+    }
+}
+
+TEST_P(CompileModelCacheRuntimePropertiesTestBase, CanLoadFromFileWithoutException) {
     run();
 }
 
@@ -376,9 +495,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
-        {1, 3, 227, 227},
-        InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
 
     try {
         std::ifstream model_file(m_modelName, std::ios::binary);
@@ -500,7 +617,7 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
 }
 
 void CompiledKernelsCacheTest::SetUp() {
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ov::test::utils::make_conv_pool_relu();
     std::pair<ov::AnyMap, std::string> userConfig;
     std::tie(targetDevice, userConfig) = GetParam();
     target_device = targetDevice;

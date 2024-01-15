@@ -4,12 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
-#include <nodes/common/softmax.h>
+#include "node.h"
+#include "nodes/common/softmax.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,8 +18,8 @@ struct jit_args_logistic {
 };
 
 struct jit_logistic_config_params {
-    InferenceEngine::Precision src_dt;
-    InferenceEngine::Precision dst_dt;
+    ov::element::Type src_dt;
+    ov::element::Type dst_dt;
     unsigned src_data_size = 0;
     unsigned dst_data_size = 0;
 };
@@ -61,7 +57,7 @@ private:
     int num;
     float do_softmax;
     std::vector<int64_t> mask;
-    InferenceEngine::Precision input_prec, output_prec;
+    ov::element::Type input_prec, output_prec;
 
     std::string errorPrefix;
 

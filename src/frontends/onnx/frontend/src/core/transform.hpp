@@ -12,8 +12,6 @@ namespace transform {
 
 static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
                                                                   "Celu",
-                                                                  "GreaterOrEqual",
-                                                                  "LessOrEqual",
                                                                   "NegativeLogLikelihoodLoss",
                                                                   "SoftmaxCrossEntropyLoss",
                                                                   "LayerNormalization"};

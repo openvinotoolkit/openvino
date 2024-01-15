@@ -9,7 +9,6 @@
 #include <iostream>
 #include <string>
 
-#include <inference_engine.hpp>
 #include <openvino/openvino.hpp>
 
 
@@ -119,11 +118,11 @@ inference_with_streams(const std::string &model, const std::string &target_devic
         unsigned int nireq = nstreams;
         auto ie_api_wrapper = create_infer_api_wrapper(api_version);
         ie_api_wrapper->load_plugin(target_device);
-        ie_api_wrapper->set_config(target_device, "THROUGHPUT_STREAMS", nstreams);
+        ie_api_wrapper->set_config(target_device, ov::AnyMap{ov::num_streams(nstreams)});
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(target_device);
         try {
-            nireq = ie_api_wrapper->get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+            nireq = ie_api_wrapper->get_property(ov::optimal_number_of_infer_requests.name());
         } catch (const std::exception &ex) {
             log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
         }

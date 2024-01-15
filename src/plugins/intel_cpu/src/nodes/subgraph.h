@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <onednn/dnnl.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_snippets_emitters.hpp"
-
-#include <node.h>
+#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
+#include "node.h"
+#include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
@@ -31,7 +27,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initOptimalPrimitiveDescriptor() override;
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     // Here we convert to canonical for & jit everything
     void prepareParams() override;
@@ -50,10 +46,10 @@ public:
         uint64_t bodyHash;
         std::vector<VectorDims> inMemBlockedDims;
         std::vector<VectorDims> inMemOrders;
-        std::vector<InferenceEngine::Precision> inMemPrecs;
+        std::vector<ov::element::Type> inMemPrecs;
         std::vector<VectorDims> outMemBlockedDims;
         std::vector<VectorDims> outMemOrders;
-        std::vector<InferenceEngine::Precision> outMemPrecs;
+        std::vector<ov::element::Type> outMemPrecs;
         // todo: used flag if we need extra shape infer, can be removed after [121670]
         bool has_non_planar_inputs;
     };

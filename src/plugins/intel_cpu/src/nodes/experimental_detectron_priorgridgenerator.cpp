@@ -4,11 +4,9 @@
 
 #include <string>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset6.hpp>
+#include "openvino/core/parallel.hpp"
 #include "experimental_detectron_priorgridgenerator.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +15,7 @@ namespace node {
 bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                              std::string& errorMessage) noexcept {
     try {
-        const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+        const auto priorGridGen = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
@@ -34,13 +32,13 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
-    const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+    const auto priorGridGen = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto &attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;
@@ -53,10 +51,10 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 

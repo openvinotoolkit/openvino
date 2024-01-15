@@ -36,6 +36,6 @@ TEST(attributes, readvalue_v6_op) {
     EXPECT_NO_THROW(auto g_read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(builder.create()));
 
     // attribute count
-    const auto expected_attr_count = 1;
+    const auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
@@ -32,7 +33,7 @@ std::shared_ptr<Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
     if (with_default_index) {
         auto defIdxNode = std::make_shared<ov::op::v0::Constant>(indicesType, shape_0, default_index);
         if (with_weights) {
-            auto weightsNode = makeConstant<float>(dataType, {indices.size()}, {}, true);
+            auto weightsNode = ov::test::utils::deprecated::make_constant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<ov::op::v3::EmbeddingSegmentsSum>(embTableNode,
                                                                         indicesNode,

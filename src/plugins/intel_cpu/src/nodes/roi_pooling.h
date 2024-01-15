@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <node.h>
-#include <ie_common.h>
-
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -25,8 +20,8 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     Algorithm alg;
 

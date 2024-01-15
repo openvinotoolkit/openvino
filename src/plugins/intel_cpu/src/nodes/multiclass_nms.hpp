@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-
-#include <string>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -91,7 +88,7 @@ private:
 
     std::vector<filteredBoxes> m_filtBoxes; // rois after nms for each class in each image
 
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name,
                         const std::string type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);

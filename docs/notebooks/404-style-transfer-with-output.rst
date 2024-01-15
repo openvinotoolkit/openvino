@@ -29,7 +29,6 @@ Additionally, you can also upload a video file.
    video file.
 
 **Table of contents:**
----
 
 - `Preparation <#preparation>`__
 - `Install requirements <#install-requirements>`__

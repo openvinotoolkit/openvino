@@ -46,10 +46,12 @@ void CTCGreedyDecoderLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
 
-    auto ctcGreedyDecoder = std::dynamic_pointer_cast<ngraph::opset1::CTCGreedyDecoder>(
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto ctcGreedyDecoder = std::dynamic_pointer_cast<ov::op::v0::CTCGreedyDecoder>(
             ngraph::builder::makeCTCGreedyDecoder(paramsIn[0], mergeRepeated));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder) };
+    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(ctcGreedyDecoder) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoder");
 }
 }  // namespace LayerTestsDefinitions

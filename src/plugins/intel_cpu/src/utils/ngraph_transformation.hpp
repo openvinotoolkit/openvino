@@ -4,7 +4,6 @@
 #pragma once
 #ifdef CPU_DEBUG_CAPS
 
-#include "extension.h"
 #include "debug_caps_config.h"
 #include "openvino/util/file_util.hpp"
 #include <openvino/pass/manager.hpp>
@@ -68,8 +67,7 @@ private:
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            auto custom_opsets = std::make_shared<Extension>()->getOpSets();
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "", custom_opsets);
+            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
@@ -101,7 +99,7 @@ private:
     _config.disable.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type]
 #  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) CPU_DEBUG_CAP_EXPAND(!CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__))
 #  define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                      \
-    IE_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config.debugCaps, _type));                                  \
+    OPENVINO_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config.debugCaps, _type));                                  \
     auto dumperPtr = _this->config.debugCaps.dumpIR.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type] ?  \
         std::unique_ptr<TransformationDumper>(new TransformationDumper(_this->config.debugCaps,                          \
                                               DebugCapsConfig::TransformationFilter::Type::_type, _this->model)) : \

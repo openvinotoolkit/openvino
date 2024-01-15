@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_precision.hpp>
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,8 +24,8 @@ namespace intel_cpu {
  */
 void cpu_convert(const void *srcPtr,
                  void *dstPtr,
-                 InferenceEngine::Precision srcPrc,
-                 InferenceEngine::Precision dstPrc,
+                 ov::element::Type srcPrc,
+                 ov::element::Type dstPrc,
                  const size_t size);
 
 /**
@@ -47,9 +47,9 @@ void cpu_convert(const void *srcPtr,
  */
 void cpu_convert(const void *srcPtr,
                  void *dstPtr,
-                 InferenceEngine::Precision srcPrc,
-                 InferenceEngine::Precision interimPrc,
-                 InferenceEngine::Precision dstPrc,
+                 ov::element::Type srcPrc,
+                 ov::element::Type interimPrc,
+                 ov::element::Type dstPrc,
                  const size_t size);
 
 }   // namespace intel_cpu

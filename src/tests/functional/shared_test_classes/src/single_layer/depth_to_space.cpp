@@ -7,12 +7,10 @@
 
 namespace LayerTestsDefinitions {
 
-using namespace ngraph::opset3;
-
-static inline std::string DepthToSpaceModeToString(const DepthToSpace::DepthToSpaceMode& mode) {
-    static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
-        {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
-        {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
+static inline std::string DepthToSpaceModeToString(const ov::op::v0::DepthToSpace::DepthToSpaceMode& mode) {
+    static std::map<ov::op::v0::DepthToSpace::DepthToSpaceMode, std::string> names = {
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
+        {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
     auto i = names.find(mode);
@@ -24,7 +22,7 @@ static inline std::string DepthToSpaceModeToString(const DepthToSpace::DepthToSp
 
 std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<depthToSpaceParamsTuple> &obj) {
     std::vector<size_t> inShape;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     std::size_t blockSize;
     InferenceEngine::Precision inputPrecision;
     std::string targetName;
@@ -40,14 +38,14 @@ std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 
 void DepthToSpaceLayerTest::SetUp() {
     std::vector<size_t> inShape;
-    DepthToSpace::DepthToSpaceMode mode;
+    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     std::size_t blockSize;
     InferenceEngine::Precision inputPrecision;
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape))};
     auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(d2s)};
     function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
 }
 }  // namespace LayerTestsDefinitions

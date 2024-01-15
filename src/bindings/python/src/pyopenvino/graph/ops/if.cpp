@@ -50,6 +50,20 @@ void regclass_graph_op_If(py::module m) {
         )");
 
     cls.def(
+        "get_then_body",
+        [](ov::op::v8::If& self) {
+            auto model = self.get_then_body();
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
+        },
+        R"(
+            Gets then_body as Model object.
+
+            :return: then_body as Model object.
+            :rtype: openvino.Model
+        )");
+
+    cls.def(
         "get_else_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_else_body();
@@ -115,10 +129,10 @@ void regclass_graph_op_If(py::module m) {
             Sets new output from the operation associated with results of each sub-graphs.
 
             :param then_result: result from then_body.
-            :type then_result: openvino.runtime.Node
+            :type then_result: op.Result
 
             :param else_result: result from else_body.
-            :type else_result: openvino.runtime.Node
+            :type else_result: op.Result
 
             :return: output from operation.
             :rtype: openvino.runtime.Output

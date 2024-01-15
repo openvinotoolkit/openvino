@@ -325,8 +325,9 @@ bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
-    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
-           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+    std::string real_name = ov::parseDeviceNameIntoConfig(dev_name)._deviceName;
+    return pluginRegistry.find(real_name) != pluginRegistry.end() &&
+           pluginRegistry.at(real_name).pluginCreateFunc == ov::proxy::create_plugin;
 #else
     return false;
 #endif
@@ -366,7 +367,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
-                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
+                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, std::move(fallback)};
             } else {
                 auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
                 auto begin_it = std::find(dev_order.begin(), dev_order.end(), dev_name);
@@ -657,11 +658,11 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     ov::AnyMap empty_map;
                     auto cacheConfig = coreConfig.get_cache_config_for_device(plugin, empty_map);
                     if (cacheConfig._cacheManager) {
-                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        desc.defaultConfig[ov::cache_dir.name()] = cacheConfig._cacheDir;
                     }
-                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                } else if (desc.defaultConfig.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
+                    desc.defaultConfig.erase(ov::cache_dir.name());
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
@@ -702,9 +703,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                InferenceEngine::IExtensionPtr ext;
+                std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                AddExtensionUnsafe(ext);
+                add_extensions_unsafe(ext);
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
@@ -802,8 +803,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
     // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
-        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
+    if (!is_new_api() && !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -837,7 +837,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
+        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
@@ -1016,6 +1016,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     // so, we need to report them as supported
     std::vector<std::string> supported_config_keys = core_level_properties;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
         const auto supported_keys =
@@ -1025,6 +1026,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         }
     } catch (ov::Exception&) {
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
@@ -1077,8 +1079,15 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
             return model;  // BATCH device is already configured via the config
+
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
+        if (deviceName.find("(") == std::string::npos) {
+            auto supported_properties = ICore::get_property(deviceNameWithoutBatch, ov::supported_properties, {});
+            if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
+                supported_properties.end())
+                return model;
+        }
         // when user sets the BATCH device explicitly, we may check the dims less strictly
         // as the result is being checked by the user
         strictly_check_dims = false;
@@ -1093,7 +1102,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         // check whether the Auto-Batching is disabled explicitly
         const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
         if (batch_mode != config.end()) {
-            const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
+            const auto disabled = !batch_mode->second.as<bool>();
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
             // proxy plugin should also keep the config
@@ -1110,20 +1119,22 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         if (is_proxy_device(parsed._deviceName))
             return model;
         deviceNameWithoutBatch = deviceName;
-        std::vector<std::string> metrics = get_plugin(parsed._deviceName)
-                                               .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                               .as<std::vector<std::string>>();
-        auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
+        auto metrics = get_plugin(parsed._deviceName)
+                           .get_property(ov::supported_properties.name(), parsed._config)
+                           .as<std::vector<ov::PropertyName>>();
+        auto it = std::find(metrics.begin(), metrics.end(), ov::optimal_batch_size.name());
         if (metrics.end() == it)
             return model;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bTputInPlg =
-            GetConfig(parsed._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        bool bTputInLoadCfg = (mode != config.end() && mode->second.as<std::string>() == CONFIG_VALUE(THROUGHPUT));
-        const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
-        bool bExclReqsEnabled = (excl != config.end() && excl->second.as<std::string>() == CONFIG_VALUE(YES));
+        bool bTputInPlg = get_plugin(parsed._deviceName)
+                              .get_property(ov::hint::performance_mode.name(), parsed._config)
+                              .as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
+        const auto& mode = config.find(ov::hint::performance_mode.name());
+        bool bTputInLoadCfg = (mode != config.end() &&
+                               mode->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT);
+        const auto& excl = config.find(ov::exclusive_async_requests.name());
+        bool bExclReqsEnabled = (excl != config.end() && excl->second.as<bool>() == true);
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
             return model;
     }
@@ -1137,7 +1148,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         break;
     case ov::details::NetworkBatchAbility::WITH_HETERO:
         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-        config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
+        config.insert(ov::device::properties("BATCH", ov::device::priorities(batchConfig)));
         break;
     }
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
@@ -1285,9 +1296,10 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             coreConfig.set_and_update(config);
         } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+            auto cache_it = config.find(ov::cache_dir.name());
             if (cache_it != config.end()) {
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
+                config.erase(cache_it);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
             // apply and remove core properties
@@ -1304,25 +1316,27 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             }
         }
 
-        auto base_desc = pluginRegistry.find(clearDeviceName);
-        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-            PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
-            pluginRegistry[deviceName] = desc;
-        }
-
-        // set config for plugins in registry
-        bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
-            if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
-                }
-                configIsSet = true;
+        if (!config.empty()) {
+            auto base_desc = pluginRegistry.find(clearDeviceName);
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+                PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+                pluginRegistry[deviceName] = desc;
             }
-        }
 
-        if (!configIsSet && !deviceName.empty()) {
-            OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            // set config for plugins in registry
+            bool configIsSet = false;
+            for (auto& desc : pluginRegistry) {
+                if (deviceName.empty() || deviceName == desc.first) {
+                    for (auto&& conf : config) {
+                        desc.second.defaultConfig[conf.first] = conf.second;
+                    }
+                    configIsSet = true;
+                }
+            }
+
+            if (!configIsSet && !deviceName.empty()) {
+                OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            }
         }
 
         // set config for already created plugins
@@ -1344,11 +1358,11 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                     ov::AnyMap empty_map;
                     auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
                     if (cacheConfig._cacheManager) {
-                        configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
                     }
-                } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                } else if (configCopy.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    configCopy.erase(CONFIG_KEY(CACHE_DIR));
+                    configCopy.erase(ov::cache_dir.name());
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
@@ -1424,9 +1438,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
+            std::string compiled_model_runtime_properties;
+            if (device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {
+                compiled_model_runtime_properties =
+                    plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
+            }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
                 networkStream << ov::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
-                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath));
+                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath),
+                                                        compiled_model_runtime_properties);
                 execNetwork->export_model(networkStream);
             });
         } catch (...) {
@@ -1455,13 +1475,24 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             try {
                 ov::CompiledBlobHeader header;
                 networkStream >> header;
-                if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
-                    // Build number mismatch, don't use this cache
-                    OPENVINO_THROW("Version does not match");
-                }
                 if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
+                }
+                if (util::contains(plugin.get_property(ov::internal::supported_properties),
+                                   ov::internal::compiled_model_runtime_properties_supported.name())) {
+                    ov::AnyMap compiled_model_runtime_properties = {
+                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.getRuntimeInfo())}};
+                    auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
+                                                   compiled_model_runtime_properties);
+                    if (!res.as<bool>()) {
+                        OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
+                    }
+                } else {
+                    if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
+                        // Build number mismatch, don't use this cache
+                        OPENVINO_THROW("Version does not match");
+                    }
                 }
             } catch (...) {
                 throw HeaderException();
@@ -1546,7 +1577,7 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
 }
 
 void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
-    auto it = config.find(CONFIG_KEY(CACHE_DIR));
+    auto it = config.find(ov::cache_dir.name());
     if (it != config.end()) {
         std::lock_guard<std::mutex> lock(_cacheConfigMutex);
         // fill global cache config
@@ -1560,7 +1591,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
 
     it = config.find(ov::force_tbb_terminate.name());
     if (it != config.end()) {
-        auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
+        auto flag = it->second.as<bool>();
         ov::threading::executor_manager()->set_property({{it->first, flag}});
         config.erase(it);
     }

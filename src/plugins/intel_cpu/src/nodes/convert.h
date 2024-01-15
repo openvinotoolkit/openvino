@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <vector>
 #include "executors/convert_list.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +14,7 @@ namespace node {
 class Convert : public Node {
 public:
     Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+    Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
                       const std::string &nodeName, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;

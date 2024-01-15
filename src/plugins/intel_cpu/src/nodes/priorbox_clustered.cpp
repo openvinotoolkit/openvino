@@ -9,20 +9,17 @@
 #include <memory>
 #include <vector>
 
-#include <ie_parallel.hpp>
-#include <dnnl_types.h>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
+#include "dnnl_types.h"
+#include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBoxClustered>(op);
+        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -37,11 +34,11 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBoxClustered>(op);
-    const ngraph::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+    const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;
     heights = attrs.heights;
@@ -83,8 +80,8 @@ void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
         return;
 
     addSupportedPrimDesc(
-            {{LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
-            {{LayoutType::ncsp, Precision::FP32}},
+            {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+            {{LayoutType::ncsp, ov::element::f32}},
             impl_desc_type::ref_any);
 }
 

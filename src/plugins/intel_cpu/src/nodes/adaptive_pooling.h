@@ -8,7 +8,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -28,7 +28,7 @@ public:
 private:
     int spatialDimsCount;
     mutable std::vector<Dim> spatialDimsValue = {};
-    InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
+    ov::element::Type precision = ov::element::f32;
     inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
 
     std::string errorPrefix;

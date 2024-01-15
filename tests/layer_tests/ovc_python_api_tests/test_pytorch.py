@@ -721,7 +721,7 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -758,7 +758,7 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -1055,7 +1055,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_new_frontend, use_old_api):
+                                   temp_dir, use_new_frontend):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1209,7 +1209,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']

@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,9 +40,9 @@ private:
     bool with_right = false;
     bool with_bins = false;
 
-    InferenceEngine::Precision input_precision;
-    InferenceEngine::Precision boundaries_precision;
-    InferenceEngine::Precision output_precision;
+    ov::element::Type input_precision;
+    ov::element::Type boundaries_precision;
+    ov::element::Type output_precision;
     std::string errorPrefix;
 };
 

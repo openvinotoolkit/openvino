@@ -3,13 +3,7 @@
 //
 
 #include "reference.h"
-
 #include "common/cpu_memcpy.h"
-#include <ie_ngraph_utils.hpp>
-#include "openvino/core/shape_util.hpp"
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +13,8 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
+        OPENVINO_THROW_NOT_IMPLEMENTED(
+            "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented");
     }
 
     setType(Type::Reference);
@@ -35,13 +30,13 @@ void Reference::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        inputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ovCoreNode->get_input_element_type(i)), inputShapes[i]);
+        inputConfigurators.emplace_back(LayoutType::ncsp, ovCoreNode->get_input_element_type(i), inputShapes[i]);
     }
 
     std::vector<PortConfigurator> outputConfigurators;
     outputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        outputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ovCoreNode->get_output_element_type(i)), outputShapes[i]);
+        outputConfigurators.emplace_back(LayoutType::ncsp, ovCoreNode->get_output_element_type(i), outputShapes[i]);
     }
 
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
@@ -71,7 +66,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             if (mem_desc->isDefined()) {
                 outputs.emplace_back(ovCoreNode->get_output_element_type(i), mem_desc->getShape().getStaticDims());
             } else {
-                outputs.emplace_back(ovCoreNode->get_output_element_type(i), ov::util::make_dynamic_shape());
+                outputs.emplace_back(ovCoreNode->get_output_element_type(i), ov::Shape{0});
             }
         }
     } else {
@@ -93,7 +88,13 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             if (memory->getSize() != tensor.get_byte_size()) {
                 THROW_CPU_NODE_ERR("output tensor data size mismatch occurred during the inference on output port number ", i);
             }
-            cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
+            if (tensor.get_element_type() == element::string) {
+                auto srcPtr = tensor.data<StringMemory::OvString>();
+                auto dstPtr = reinterpret_cast<StringMemory::OvString *>(memory->getData());
+                std::copy(srcPtr, srcPtr + tensor.get_size(), dstPtr);
+            } else {
+                cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
+            }
         }
     }
 }

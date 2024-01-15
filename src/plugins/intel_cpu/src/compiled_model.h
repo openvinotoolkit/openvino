@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "extension_mngr.h"
 #include "graph.h"
 #include "graph_context.h"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -26,7 +25,6 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const ExtensionManager::Ptr& extMgr,
                   const bool loaded_from_cache = false);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
@@ -38,11 +36,8 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                               "",
-                               false,
-                               "Not Implemented",
-                               "CompiledModel::set_property is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                       "Set property to Core::compile_model during compilation");
     };
 
 private:
@@ -50,7 +45,6 @@ private:
     friend class SyncInferRequest;
 
     const std::shared_ptr<ov::Model> m_model;
-    std::vector<std::shared_ptr<ov::IVariableState>> m_memory_states;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
@@ -59,7 +53,6 @@ private:
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
     std::shared_ptr<std::mutex> m_mutex;
     Config m_cfg;
-    ExtensionManager::Ptr extensionManager;
     mutable std::atomic_int m_numRequests = {0};
     std::string m_name;
     struct GraphGuard : public Graph {
@@ -86,4 +79,3 @@ private:
 
 }   // namespace intel_cpu
 }   // namespace ov
-

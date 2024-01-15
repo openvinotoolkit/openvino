@@ -5,7 +5,6 @@
 #include "graph.h"
 
 #include <algorithm>
-#include <fstream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -16,47 +15,41 @@
 #include <utility>
 #include <vector>
 
-#include "common/primitive_desc.hpp"
-#include "common/primitive_desc_iface.hpp"
-#include "dnnl_extension_utils.h"
-#include "extension_mngr.h"
+#include "edge.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
-#include "ie_algorithm.hpp"
 #include "infer_request.h"
 #include "itt.h"
-#include "low_precision/low_precision.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "memory_solver.hpp"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
-#include "nodes/fullyconnected.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
-#include "nodes/subgraph.h"
+#include "nodes/memory.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/op/ops.hpp"
-#include "precision_utils.h"
-#include "transformations/utils/utils.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+
+#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "common/primitive_desc_iface.hpp"
+#endif
+
+#include "openvino/runtime/memory_solver.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -140,7 +133,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     for (const auto& op : model->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
-        graphNodes.push_back(node);
+        AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const std::string name = get_port_name(ov::Output<ov::Node>(op, 0), is_legacy_api);
             inputNodesMap[name] = node;
@@ -160,9 +153,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
             auto parentOp = op->get_input_node_shared_ptr(port);
             auto parentNode = op2node[parentOp];
 
-            EdgePtr edge(new Edge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
-            node->addEdge(edge);
-            graphEdges.push_back(edge);
+            CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));
         }
 
         if (!one_of(op->get_type_info(),
@@ -185,10 +176,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
                                                                         nodeName, "Result", context);
-        EdgePtr edge(new Edge(parentNode, outNode, port, 0));
-        outNode->addEdge(edge);
-        graphEdges.push_back(edge);
-        graphNodes.push_back(outNode);
+        CreateEdge(parentNode, outNode, port, 0);
+        AddNode(outNode);
     }
 
     auto hasSubgraphConsumers = [](const NodePtr& node) -> bool {
@@ -211,7 +200,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
-            if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
+            if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
@@ -244,7 +233,7 @@ void Graph::InitGraph() {
 
     InitOptimalPrimitiveDescriptors();
 
-    InitEdges();
+    ResolveEdgeConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
@@ -262,6 +251,7 @@ void Graph::InitGraph() {
 #endif
 
     ExtractExecutableNodes();
+    SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
@@ -432,8 +422,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     return dnnl_success == status;
 }
 
-void Graph::InitEdges() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
@@ -480,7 +470,7 @@ void Graph::InitEdges() {
                 const auto& outDesc = edge->getOutputDesc();
 
                 std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
+                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, context);
@@ -502,7 +492,7 @@ void Graph::InitEdges() {
         }
     }
 
-    // secondary pass to eliminate complex implace conflicts
+    // secondary pass to eliminate complex inplace conflicts
     auto needReorder = [](const EdgePtr& edge) -> bool {
         int inNumber = edge->getInputNum();
         const auto portChildEdges = edge->getParent()->getChildEdgesAtPort(inNumber);
@@ -516,7 +506,8 @@ void Graph::InitEdges() {
                     pEdgePeer->collectConsumers(vecConsumers);
 
                     for (auto node : vecConsumers) {
-                        if (node->getExecIndex() >= execIndex) {
+                        if (node->getExecIndex() >= execIndex ||
+                            one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
                             return true;
                         }
                     }
@@ -592,10 +583,54 @@ void Graph::AllocateWithReuse() {
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
 
+    // Resolve special cases:
     for (size_t i = 0; i < remaining_edge_clusters_count;) {
         auto &cluster = edge_clusters[i];
         bool erase = false;
         for (auto &edge : cluster) {
+            // Remove already allocated edges from the mem reuse algo
+            if (edge->getStatus() == Edge::Status::Allocated) {
+                erase = true;
+                break;
+            }
+
+            // Special allocation for string tensors
+            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
+                StringMemory::StringMemoryMngrPtr mngr;
+                if (edge->getParent()->isConstant()) {
+                    if (edge->getParent()->getType() == Type::Input) {
+                        auto constNode = static_cast<node::Input *>(edge->getParent().get());
+                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+                    } else {
+                        edge->externalAllocate(context->getWeightsCache());
+                    }
+                    auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
+                    OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
+                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
+                    mngr = stringMemory->getStringMemoryMngrPtr();
+                } else {
+                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
+                    edge->reuse(memory);
+                    mngr = memory->getStringMemoryMngrPtr();
+                }
+                for (auto& edge_c : cluster) {
+                    if (edge_c == edge) {
+                        continue;
+                    }
+                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
+                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
+                        edge_c->reuse(memory);
+                    } else {
+                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
+                            edge_c->getChild()->getName(), "' has an unexpected status: ", static_cast<int>(edge_c->getStatus()));
+                    }
+                }
+                erase = true;
+                continue;
+            }
+
+            // Special allocation for constants
             if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
                 continue;
             }
@@ -618,10 +653,11 @@ void Graph::AllocateWithReuse() {
 
     const int64_t alignment = 32;  // 32 bytes
 
-    std::vector<MemorySolver::Box> definedBoxes;
-    std::vector<MemorySolver::Box> undefinedBoxes;
+    // Markup the boxes
+    std::vector<ov::MemorySolver::Box> definedBoxes;
+    std::vector<ov::MemorySolver::Box> undefinedBoxes;
     for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
+        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -667,27 +703,28 @@ void Graph::AllocateWithReuse() {
         }
     }
 
-    MemorySolver staticMemSolver(definedBoxes);
+    // Process defined boxes (static shapes)
+    ov::MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
-    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(VectorDims{total_size})));
+    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
 
     if (edge_clusters.empty())
         return;
 
     auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->getData());
 
-    for (auto& box : definedBoxes) {
+    for (const auto& box : definedBoxes) {
         int count = 0;
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = staticMemSolver.getOffset(box.id);
+                int64_t offset = staticMemSolver.get_offset(box.id);
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
 
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implisitly converted into {1} tensor.
+                //       shapes {0}. And it is implicitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
                 if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
                     edge->getMemoryPtr()->nullify();
@@ -695,12 +732,13 @@ void Graph::AllocateWithReuse() {
                 count++;
             }
         }
-        IE_ASSERT(count == 1);
+        OPENVINO_ASSERT(count == 1);
     }
 
+    //Process undefined boxes (dynamic shapes)
     if (!undefinedBoxes.empty()) {
         // Use proxy memory manager for output edges
-        for (auto& box : undefinedBoxes) {
+        for (const auto& box : undefinedBoxes) {
             for (auto& edge : edge_clusters[box.id]) {
                 const auto child = edge->getChild();
                 if (child->getType() == Type::Output &&
@@ -720,7 +758,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
                 }
             }
         }
@@ -749,9 +787,9 @@ void Graph::AllocateWithReuse() {
             }
         }
 
-        MemorySolver::normalizeBoxes(undefinedBoxes);
+        ov::MemorySolver::normalize_boxes(undefinedBoxes);
 
-        std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
         constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
         if (enableMemReuse) {
             groups.push_back({undefinedBoxes.front()});
@@ -823,6 +861,21 @@ void Graph::AllocateWithReuse() {
 void Graph::Allocate() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
 
+    //resolve inplace dead end nodes
+    for (const auto& edge : graphEdges) {
+        if (edge->getStatus() == Edge::Status::Uninitialized) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            }
+        }
+    }
+
     // resolve edges. Define which will be a view on others
     //   NeedAllocation - real blob
     //   NotAllocated - view on other blob, peer or in-place
@@ -830,9 +883,6 @@ void Graph::Allocate() {
 
     // Allocate memory space for all edges marked with NeedAllocation
     AllocateWithReuse();
-
-    // Resolve all other edges with status NotAllocated and in-place
-    //for (auto& node : graphNodes) node->resolveInPlaceEdges();
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -872,61 +922,26 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap.find(name);
     if (input_itr != inputNodesMap.end()) {
-        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
-            auto element_type = tensor->get_element_type();
-            auto shape = tensor->get_shape();
-            if (shape.empty())
-                shape = {tensor->get_size()};
-            std::vector<size_t> blk_order(shape.size());
-            std::iota(blk_order.begin(), blk_order.end(), 0);
-            std::vector<size_t> dim_offset(shape.size(), 0);
-            std::vector<size_t> blk_strides;
-            auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
-            if (byte_strides.empty()) {
-                blk_strides = ov::row_major_strides(shape);
-            } else {
-                // ROI tensor need figure out correct blk_strides
-                blk_strides.resize(byte_strides.size());
-                std::transform(byte_strides.begin(),
-                               byte_strides.end(),
-                               blk_strides.begin(),
-                               [&element_type](size_t byte_stride) {
-                                   OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                                   "Limitation: Stride in bytes ",
-                                                   byte_stride,
-                                                   " should be divisible by size of element ",
-                                                   element_type.size());
-                                   return byte_stride / element_type.size();
-                               });
-            }
-            InferenceEngine::TensorDesc tensorDesc(
-                InferenceEngine::details::convertPrecision(tensor->get_element_type()),
-                shape,
-                InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
-            return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
-        };
-
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
-        const auto& outDims = node->getOutputShapeAtPort(0);
+        auto edgeMemory = childEdge->getMemoryPtr();
 
         const void* ext_data_ptr = input->data();
-        void* inter_data_ptr = childEdge->getMemory().getData();
+        void* inter_data_ptr = edgeMemory->getData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tensor_desc = create_mem_desc(input);
-            Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-            childEdge->getMemory().load(ext_mem, false);
-        }
+            auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
+            auto actualDesc = edgeMemory->getDescPtr();
 
-        // todo: make sure 'name' exists in this map...
-        if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (input->get_element_type() == ov::element::f32) {
-                _normalizePreprocMap[name].NormalizeImage(outDims,
-                                                          reinterpret_cast<float*>(inter_data_ptr),
-                                                          TensorDesc::getLayoutByDims(input->get_shape()));
+            if (actualDesc->getPrecision() == element::string) {
+                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                edgeMemory->load(ext_mem);
+            } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
+                Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
+                edgeMemory->load(ext_mem, false);
             } else {
-                OPENVINO_THROW("Mean image of type ", input->get_element_type().get_type_name(), " is unsupported");
+                size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
+                cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
             }
         }
     } else {
@@ -951,44 +966,32 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
         }
 
-        InferenceEngine::TensorDesc expectedDesc(
-            InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
-            ext_blob->get_shape(),
-            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
+        auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
+        const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
         bool isScalarOutput = false;
-        if (actualDesc.getLayout() == SCALAR) {
-            isScalarOutput = expectedDesc.getLayout() == SCALAR ||
-                             (!expectedDesc.getDims().empty() &&
-                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
-        } else if (expectedDesc.getLayout() == SCALAR) {
-            isScalarOutput = actualDesc.getLayout() == SCALAR ||
-                             (!actualDesc.getDims().empty() &&
-                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
+        if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
+            const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), (size_t)1, std::multiplies<size_t>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
         if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
-                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
-            }
             DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
             " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
             DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
             " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
-            expectedDesc =
-                InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
-                                            ext_blob->get_shape(),
-                                            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
+            expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
         // check for empty output blob
@@ -996,8 +999,8 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             continue;
         }
 
-        auto srcPrec = actualDesc.getPrecision();
-        auto dstPrec = expectedDesc.getPrecision();
+        auto srcPrec = actualDesc->getPrecision();
+        auto dstPrec = expected_desc_ptr->getPrecision();
         if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
             OPENVINO_THROW("Output blob byte size is not equal network output byte size (",
                            ext_blob->get_byte_size(),
@@ -1012,18 +1015,16 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            // User can initialize output via SetOutput API using tensorDesc with ANY layout.
-            // For these cases we create planar memory descriptor.
-            auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                                   ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
-                                   : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
-            Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
+        if (actualDesc->getPrecision() == element::string) {
+            StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
+            outBloMem.load(intr_blob);
+        } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
+            Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            DEBUG_LOG("pull_output: convert ", srcPrec, " to ", dstPrec);
-            cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            size_t size_to_copy = intr_blob.getSize();
+            cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
     }
 }
@@ -1414,14 +1415,35 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
     }
 }
 
-void Graph::RemoveEdge(EdgePtr& edge) {
-    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
-        if ((*it) == edge) {
-            edge->drop();
-            graphEdges.erase(it);
-            return;
-        }
-    }
+void Graph::CreateEdge(const NodePtr& parent,
+                       const NodePtr& child,
+                       int parentPort,
+                       int childPort) {
+    assert(parentPort >= 0 && childPort >= 0);
+    assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
+                        [&childPort](const EdgeWeakPtr& edge){
+                            return edge.lock()->getOutputNum() == childPort;
+                        }));
+
+    auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
+
+    parent->addChildEdge(edge);
+    child->addParentEdge(edge);
+    graphEdges.push_back(edge);
+}
+
+void Graph::RemoveEdge(const EdgePtr& edge) {
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
+
+    graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
+}
+
+void Graph::AddNode(NodePtr node) {
+    assert(node);
+    assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
+
+    graphNodes.push_back(node);
 }
 
 void Graph::DropNode(const NodePtr &node) {
@@ -1435,7 +1457,6 @@ void Graph::DropNode(const NodePtr &node) {
         if (!parent) continue;
 
         const int inNum = p_edge->getInputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
 
         for (size_t j = 0; j < children.size(); j++) {
@@ -1445,12 +1466,8 @@ void Graph::DropNode(const NodePtr &node) {
             if (!child) continue;
 
             const int outNum = c_edge->getOutputNum();
-            c_edge->drop();
             RemoveEdge(c_edge);
-
-            EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
-            graphEdges.push_back(newEdge);
-            parent->addEdge(newEdge);
+            CreateEdge(parent, child, inNum, outNum);
         }
     }
 }
@@ -1473,7 +1490,6 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         if (!parent) continue;
 
         const int inNum = p_edge->getInputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
 
         for (size_t j = 0; j < children.size(); j++) {
@@ -1483,12 +1499,8 @@ void Graph::DropDWConvNode(const NodePtr &node) {
             if (!child) continue;
 
             const int outNum = c_edge->getOutputNum();
-            c_edge->drop();
             RemoveEdge(c_edge);
-
-            EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
-            graphEdges.push_back(newEdge);
-            parent->addEdge(newEdge);
+            CreateEdge(parent, child, inNum, outNum);
         }
     }
 
@@ -1500,44 +1512,25 @@ void Graph::DropDWConvNode(const NodePtr &node) {
 
         const int inNum = p_edge->getInputNum();
         const int portCandidate = p_edge->getOutputNum();
-        p_edge->drop();
         RemoveEdge(p_edge);
         const int outNum = parentConv->parentEdges.size();
 
-        EdgePtr newEdge(new Edge(parent, parentConv, inNum, outNum));
-        graphEdges.push_back(newEdge);
-        parent->addEdge(newEdge);
         parentConv->inputShapes.push_back(node->getInputShapeAtPort(portCandidate));
+        CreateEdge(parent, parentConv, inNum, outNum);
     }
     parentConv->outputShapes[0] = node->getOutputShapeAtPort(0);
 }
 
 void Graph::RemoveDroppedNodes() {
-    auto& nodes = this->GetNodes();
-
-    auto it = nodes.begin();
-
-    while (it != nodes.end()) {
-        if ((*it)->isDropped()) {
-            it = nodes.erase(it);
-        } else {
-            it++;
-        }
-    }
+    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(),
+                                    [](const NodePtr& node){ return node->isDropped(); }),
+                     graphNodes.end());
 }
 
 void Graph::RemoveDroppedEdges() {
-    auto& edges = this->GetEdges();
-
-    auto it = edges.begin();
-
-    while (it != edges.end()) {
-        if ((*it)->isDropped()) {
-            it = edges.erase(it);
-        } else {
-            it++;
-        }
-    }
+    graphEdges.erase(std::remove_if(graphEdges.begin(), graphEdges.end(),
+                                    [](const EdgePtr& node){ return node->isDropped(); }),
+                     graphEdges.end());
 }
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
@@ -1552,8 +1545,8 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     reorderPtr->setSrcPermutation(src_perm);
 
     DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
-    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().name(), " ", inDesc.serializeFormat());
-    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().name(), " ", outDesc.serializeFormat());
+    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().get_type_name(), " ", inDesc.serializeFormat());
+    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().get_type_name(), " ", outDesc.serializeFormat());
 
     InsertNode(edge, newReorder, true);
 
@@ -1578,22 +1571,16 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
                        " and ",
                        edge->getChild()->getName(),
                        ".");
-    edge->drop();
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
 
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
-    EdgePtr beforeNode(new Edge(parent, node, parentPort, 0));
-    EdgePtr afterNode(new Edge(node, child, 0, childPort));
-
-    // Add edge for beforeNode
-    beforeNode->getChild()->parentEdges.push_back(beforeNode);
-    parent->childEdges.push_back(beforeNode);
-
-    // Add edge for afterNode
-    afterNode->getParent()->childEdges.push_back(afterNode);
-    child->parentEdges.push_back(afterNode);
+    CreateEdge(parent, node, parentPort, 0);
+    CreateEdge(node, child, 0, childPort);
+    AddNode(node);
 
     if (initNode) {
         node->getSupportedDescriptors();
@@ -1604,9 +1591,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->initOptimalPrimitiveDescriptor();
     }
 
-    graphEdges.push_back(beforeNode);
-    graphEdges.push_back(afterNode);
-    graphNodes.push_back(node);
     return true;
 }
 
@@ -1614,12 +1598,12 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
 
-    const auto inferPrec = convertPrecision(getConfig().inferencePrecision);
+    const auto inferPrec = getConfig().inferencePrecision;
 
-    if (inferPrec == Precision::FP32)
+    if (inferPrec == ov::element::f32)
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-    if (inferPrec == Precision::FP16)
+    if (inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
@@ -1627,7 +1611,7 @@ void Graph::EnforceInferencePrecision() {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
 
-            if (inferPrec == InferenceEngine::Precision::BF16) {
+            if (inferPrec == ov::element::bf16) {
                 /* list of node types that must be forced to be executed in BF16 precision
                 * because of performance gains */
                 if (one_of(parent->getType(),
@@ -1639,7 +1623,7 @@ void Graph::EnforceInferencePrecision() {
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate))    // super resolution nets
                     continue;   // stop at significant nodes
-            } else if (inferPrec == InferenceEngine::Precision::FP16) {
+            } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
                 * because of performance gains */
                 if (one_of(parent->getType(),
@@ -1676,7 +1660,7 @@ void Graph::EnforceInferencePrecision() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (one_of(node->getType(), Type::Input, Type::Output))
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
 
 #ifdef CPU_DEBUG_CAPS
@@ -1688,13 +1672,13 @@ void Graph::EnforceInferencePrecision() {
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
                 // keep non-float precisions
-                if (node->getOriginalInputPrecisionAtPort(inPort) != Precision::FP32)
+                if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
                 const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                 * Precision conversion to BF16 is done automatically, if convolution follows up after Constant Inputs
-                 * and activation is BF16 */
+                 * Element type conversion to bf16 is done automatically, if convolution follows up after Constant Inputs
+                 * and activation is bf16 */
                 if (parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                     node->getType() != Type::Concatenation)
@@ -1714,7 +1698,7 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
             // keep non-float precisions
-            if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
+            if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.
@@ -1847,6 +1831,18 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
             }
+        }
+    }
+}
+
+void Graph::SearchInternalStateNodes() {
+    for (auto&& node : graphNodes) {
+        if (node->getType() == Type::MemoryInput) {
+            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
+            if (!cur_node) {
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
+            }
+            internalStateNodes.insert({cur_node->getId(), cur_node});
         }
     }
 }

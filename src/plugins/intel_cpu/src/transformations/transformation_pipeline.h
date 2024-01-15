@@ -15,8 +15,6 @@
 #include <memory>
 #include <vector>
 
-#define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
-
 namespace ov {
 namespace intel_cpu {
 
@@ -57,6 +55,8 @@ private:
     void MainSnippets(void);
 
     void PostSnippets(void);
+
+    bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node) const;
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };

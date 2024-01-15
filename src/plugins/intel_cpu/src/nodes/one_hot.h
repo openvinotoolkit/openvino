@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
-#include <ie_blob.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,7 +27,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;
+    typedef element_type_traits<ov::element::i32>::value_type in_type;
 
     struct OneHotContext {
         OneHot* nodePtr;
@@ -50,7 +45,7 @@ private:
     mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
 
-    InferenceEngine::Precision output_precision;
+    ov::element::Type output_precision;
 
     std::string errorPrefix;
 

@@ -55,6 +55,7 @@ public:
         U64 = 73,          /**< 64bit unsigned integer value */
         BIN = 71,          /**< 1bit integer value */
         BOOL = 41,         /**< 8bit bool type */
+        STRING = 79,       /**< string type, std::string in C++ */
         CUSTOM = 80        /**< custom precision has it's own name and size of elements */
     };
 
@@ -146,6 +147,7 @@ public:
                 CASE(BOOL, uint8_t);
                 CASE2(Q78, int16_t, uint16_t);
                 CASE2(BIN, int8_t, uint8_t);
+                CASE(STRING, std::string);
             default:
                 return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
 #undef CASE
@@ -251,11 +253,11 @@ public:
     static Precision FromStr(const std::string& str) {
         static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),   PRECISION_NAME(BOOL), PRECISION_NAME(BF16), PRECISION_NAME(I4),
-            PRECISION_NAME(I8),    PRECISION_NAME(I16),  PRECISION_NAME(I32),  PRECISION_NAME(I64),
-            PRECISION_NAME(U4),    PRECISION_NAME(U8),   PRECISION_NAME(U16),  PRECISION_NAME(U32),
-            PRECISION_NAME(U64),   PRECISION_NAME(FP32), PRECISION_NAME(FP64), PRECISION_NAME(FP16),
-            PRECISION_NAME(MIXED), PRECISION_NAME(NF4),  PRECISION_NAME(BIN),
+            PRECISION_NAME(Q78),   PRECISION_NAME(BOOL), PRECISION_NAME(BF16),   PRECISION_NAME(I4),
+            PRECISION_NAME(I8),    PRECISION_NAME(I16),  PRECISION_NAME(I32),    PRECISION_NAME(I64),
+            PRECISION_NAME(U4),    PRECISION_NAME(U8),   PRECISION_NAME(U16),    PRECISION_NAME(U32),
+            PRECISION_NAME(U64),   PRECISION_NAME(FP32), PRECISION_NAME(FP64),   PRECISION_NAME(FP16),
+            PRECISION_NAME(MIXED), PRECISION_NAME(NF4),  PRECISION_NAME(STRING), PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -364,6 +366,7 @@ protected:
             CASE(MIXED);
             CASE(BIN);
             CASE(BOOL);
+            CASE(STRING);
         default:
             return makePrecisionInfo<UNSPECIFIED>("UNSPECIFIED");
 #undef CASE
@@ -469,6 +472,12 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::BIN> {
 template <>
 struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::NF4> {
     using value_type = int8_t;
+    enum { is_float = false };
+};
+
+template <>
+struct PrecisionTrait<Precision::STRING> {
+    using value_type = std::string;
     enum { is_float = false };
 };
 

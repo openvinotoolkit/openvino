@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/fake_quantize.hpp"
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+
 namespace LayerTestsDefinitions {
 
 
@@ -20,7 +22,7 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
     std::vector<float> inputArg;
-    ngraph::op::AutoBroadcastSpec broadcast;
+    ov::op::AutoBroadcastSpec broadcast;
     std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
@@ -57,7 +59,7 @@ void FakeQuantizeLayerTest::SetUp() {
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArg;
     std::vector<float> inputArg;
-    ngraph::op::AutoBroadcastSpec broadcast;
+    ov::op::AutoBroadcastSpec broadcast;
     std::tie(levels, constShape, fqDirectArg, inputArg, broadcast) = fqParams;
     if (inputArg.size() == 3) {
         inputDataMin = inputArg[0];
@@ -80,9 +82,9 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(params[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ov::test::utils::make_fake_quantize(params[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
-        fakeQNode = ngraph::builder::makeFakeQuantize(
+        fakeQNode = ov::test::utils::make_fake_quantize(
             params[0],
             ngPrc,
             levels,
@@ -92,9 +94,9 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
+    auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(fakeQNode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
     configuration = config.second;
 }

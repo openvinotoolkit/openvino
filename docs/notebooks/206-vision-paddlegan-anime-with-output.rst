@@ -366,7 +366,7 @@ feeding them to the converted model.
 Now we use model conversion API and convert the model to OpenVINO IR.
 
 **Convert ONNX Model to OpenVINO IR with**\ `Model Conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 
 .. code:: ipython3
 
@@ -602,7 +602,7 @@ References
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 
 The PaddleGAN code that is shown in this notebook is written by
 PaddlePaddle Authors and licensed under the Apache 2.0 license. The

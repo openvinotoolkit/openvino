@@ -3,13 +3,9 @@
 //
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
+#include "node.h"
+#include "oneapi/dnnl/dnnl.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,7 +28,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
@@ -67,7 +63,7 @@ public:
     }
 
 protected:
-    InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
+    ov::element::Type fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
@@ -116,7 +112,6 @@ private:
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
     bool isNspcAvailable() const;
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
     MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);
@@ -157,7 +152,7 @@ private:
     size_t groupIC;
     size_t groupOC;
 
-    InferenceEngine::Precision eltwisePrecision;
+    ov::element::Type eltwisePrecision;
 
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
@@ -174,7 +169,7 @@ private:
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+    ov::element::Type sumPrc = ov::element::undefined;
 
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)

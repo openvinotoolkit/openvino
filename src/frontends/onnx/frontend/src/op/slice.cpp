@@ -17,7 +17,7 @@ namespace onnx_import {
 namespace op {
 namespace set_10 {
 OutputVector slice(const Node& node) {
-    using ngraph::op::is_null;
+    using ov::op::util::is_null;
 
     OutputVector inputs{node.get_ng_inputs()};
     const auto& data = inputs.at(0);

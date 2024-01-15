@@ -40,31 +40,52 @@ page <https://latent-consistency-models.github.io/>`__,
 repository <https://github.com/luosiallen/latent-consistency-model>`__.
 
 In this tutorial, we consider how to convert and run LCM using OpenVINO.
+An additional part demonstrates how to run quantization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
+pipeline.
 
 **Table of contents:**
 
 
-- `Prerequisites <#prerequisites>`__
-- `Prepare models for OpenVINO format conversion <#prepare-models-for-openvino-format-conversion>`__
-- `Convert models to OpenVINO format <#convert-models-to-openvino-format>`__
-- `Text Encoder <#text-encoder>`__
-- `U-Net <#u-net>`__
-- `VAE <#vae>`__
-- `Prepare inference pipeline <#prepare-inference-pipeline>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
-- `Text-to-image generation <#text-to-image-generation>`__
-- `Interactive demo <#interactive-demo>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare models for OpenVINO format
+   conversion <#prepare-models-for-openvino-format-conversion>`__
+-  `Convert models to OpenVINO
+   format <#convert-models-to-openvino-format>`__
 
-Prerequisites 
--------------------------------------------------------
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net <#u-net>`__
+   -  `VAE <#vae>`__
+
+-  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+
+-  `Text-to-image generation <#text-to-image-generation>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp-and-int-models>`__
+   -  `Compare UNet file size <#compare-unet-file-size>`__
+
+-  `Interactive demo <#interactive-demo>`__
+
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
     %pip install -q "torch" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" transformers "diffusers>=0.21.4" pillow gradio
+    %pip install -q "openvino>=2023.1.0" transformers "diffusers>=0.23.1" pillow gradio "nncf>=2.6.0" datasets --extra-index-url https://download.pytorch.org/whl/cpu
 
-Prepare models for OpenVINO format conversion 
----------------------------------------------------------------------------------------
+Prepare models for OpenVINO format conversion
+---------------------------------------------
+
+
 
 In this tutorial we will use
 `LCM_Dreamshaper_v7 <https://huggingface.co/SimianLuo/LCM_Dreamshaper_v7>`__
@@ -96,6 +117,7 @@ provide which module should be loaded for initialization using
     import warnings
     from pathlib import Path
     from diffusers import DiffusionPipeline
+    import numpy as np
     
     
     warnings.filterwarnings("ignore")
@@ -105,16 +127,12 @@ provide which module should be loaded for initialization using
     VAE_DECODER_OV_PATH = Path("model/vae_decoder.xml")
     
     
-    def load_orginal_pytorch_pipeline_componets(skip_models=False):
-        pipe = DiffusionPipeline.from_pretrained(
-            "SimianLuo/LCM_Dreamshaper_v7",
-            custom_pipeline="latent_consistency_txt2img",
-            custom_revision="main",
-        )
+    def load_orginal_pytorch_pipeline_componets(skip_models=False, skip_safety_checker=False):
+        pipe = DiffusionPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
         scheduler = pipe.scheduler
         tokenizer = pipe.tokenizer
-        feature_extractor = pipe.feature_extractor
-        safety_checker = pipe.safety_checker
+        feature_extractor = pipe.feature_extractor if not skip_safety_checker else None
+        safety_checker = pipe.safety_checker if not skip_safety_checker else None
         text_encoder, unet, vae = None, None, None
         if not skip_models:
             text_encoder = pipe.text_encoder
@@ -134,26 +152,6 @@ provide which module should be loaded for initialization using
             unet,
             vae,
         )
-
-
-.. parsed-literal::
-
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-
-
-.. parsed-literal::
-
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    2023-10-25 13:59:59.802031: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-25 13:59:59.841632: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-25 14:00:00.487700: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 .. code:: ipython3
 
@@ -177,11 +175,13 @@ provide which module should be loaded for initialization using
 
 .. parsed-literal::
 
-    Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
-Convert models to OpenVINO format 
----------------------------------------------------------------------------
+Convert models to OpenVINO format
+---------------------------------
+
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -199,8 +199,10 @@ three important parts:
 
 Let us convert each part:
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -269,22 +271,10 @@ hidden states.
     del text_encoder
     gc.collect()
 
-
-.. parsed-literal::
-
-    Text encoder will be loaded from model/text_encoder.xml
+U-Net
+~~~~~
 
 
-
-
-.. parsed-literal::
-
-    0
-
-
-
-U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 U-Net model, similar to Stable Diffusion UNet model, has four inputs:
 
@@ -340,22 +330,10 @@ Model predicts the ``sample`` state for the next step.
     del unet
     gc.collect()
 
-
-.. parsed-literal::
-
-    Unet will be loaded from model/unet.xml
+VAE
+~~~
 
 
-
-
-.. parsed-literal::
-
-    0
-
-
-
-VAE 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -417,22 +395,10 @@ VAE encoder, can be found in Stable Diffusion notebook.
     del vae
     gc.collect()
 
-
-.. parsed-literal::
-
-    VAE decoder will be loaded from model/vae_decoder.xml
+Prepare inference pipeline
+--------------------------
 
 
-
-
-.. parsed-literal::
-
-    0
-
-
-
-Prepare inference pipeline 
---------------------------------------------------------------------
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -473,7 +439,7 @@ decoded by the decoder part of the variational auto encoder.
     from diffusers.image_processor import VaeImageProcessor
     
     
-    class LatentConsistencyModelPipeline(DiffusionPipeline):
+    class OVLatentConsistencyModelPipeline(DiffusionPipeline):
         def __init__(
             self,
             vae_decoder: ov.Model,
@@ -489,7 +455,7 @@ decoded by the decoder part of the variational auto encoder.
             self.vae_decoder = vae_decoder
             self.text_encoder = text_encoder
             self.tokenizer = tokenizer
-            self.unet = unet
+            self.register_to_config(unet=unet)
             self.scheduler = scheduler
             self.safety_checker = safety_checker
             self.feature_extractor = feature_extractor
@@ -644,7 +610,7 @@ decoded by the decoder part of the variational auto encoder.
             )
     
             # 3. Prepare timesteps
-            self.scheduler.set_timesteps(num_inference_steps, lcm_origin_steps)
+            self.scheduler.set_timesteps(num_inference_steps, original_inference_steps=lcm_origin_steps)
             timesteps = self.scheduler.timesteps
     
             # 4. Prepare latent variable
@@ -671,11 +637,11 @@ decoded by the decoder part of the variational auto encoder.
                     ts = torch.full((bs,), t, dtype=torch.long)
     
                     # model prediction (v-prediction, eps, x)
-                    model_pred = self.unet([latents, ts, prompt_embeds, w_embedding],share_inputs=True, share_outputs=True)[0]
+                    model_pred = self.unet([latents, ts, prompt_embeds, w_embedding], share_inputs=True, share_outputs=True)[0]
     
                     # compute the previous noisy sample x_t -> x_t-1
                     latents, denoised = self.scheduler.step(
-                        torch.from_numpy(model_pred), i, t, latents, return_dict=False
+                        torch.from_numpy(model_pred), t, latents, return_dict=False
                     )
                     progress_bar.update()
     
@@ -704,8 +670,10 @@ decoded by the decoder part of the variational auto encoder.
                 images=image, nsfw_content_detected=has_nsfw_concept
             )
 
-Configure Inference Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Inference Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 First, you should create instances of OpenVINO Model and compile it
 using selected device. Select device from dropdown list for running
@@ -731,7 +699,7 @@ inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -745,8 +713,8 @@ inference using OpenVINO.
     vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
 
 Model tokenizer and scheduler are also important parts of the pipeline.
-This pipeline is also uses Safety Checker, the filter for detecting that
-corresponding generated image contains “not-safe-for-work” (nsfw)
+This pipeline is also can use Safety Checker, the filter for detecting
+that corresponding generated image contains “not-safe-for-work” (nsfw)
 content. The process of nsfw content detection requires to obtain image
 embeddings using CLIP model, so additionally feature extractor component
 should be added in the pipeline. We reuse tokenizer, feature extractor,
@@ -754,7 +722,7 @@ scheduler and safety checker from original LCM pipeline.
 
 .. code:: ipython3
 
-    ov_pipe = LatentConsistencyModelPipeline(
+    ov_pipe = OVLatentConsistencyModelPipeline(
         tokenizer=tokenizer,
         text_encoder=text_enc,
         unet=unet_model,
@@ -764,8 +732,10 @@ scheduler and safety checker from original LCM pipeline.
         safety_checker=safety_checker,
     )
 
-Text-to-image generation 
-------------------------------------------------------------------
+Text-to-image generation
+------------------------
+
+
 
 Now, let’s see model in action
 
@@ -805,14 +775,419 @@ Now, let’s see model in action
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Interactive demo 
-----------------------------------------------------------
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``LatentConsistencyModelPipeline`` structure, UNet used for
+iterative denoising of input. It means that model runs in the cycle
+repeating inference on each diffusion step, while other parts of
+pipeline take part only once. That is why computation cost and speed of
+UNet denoising becomes the critical path in the pipeline. Quantizing the
+rest of the SD pipeline does not significantly improve inference
+performance but can lead to a substantial degradation of accuracy.
+
+The optimization process contains the following steps:
+
+1. Create a calibration dataset for quantization.
+2. Run ``nncf.quantize()`` to obtain quantized model.
+3. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description='Quantization',
+        disabled=False,
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    int8_pipe = None
+    
+    if to_quantize.value and "GPU" in device.value:
+        to_quantize.value = False
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`laion/laion2B-en <https://huggingface.co/datasets/laion/laion2B-en>`__
+dataset from Hugging Face as calibration data. To collect intermediate
+model inputs for calibration we should customize ``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    from typing import Any, Dict, List
+    
+    set_seed(1)
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model, prob: float, data_cache: List[Any] = None):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache else []
+            self.prob = np.clip(prob, 0, 1)
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() >= self.prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    def collect_calibration_data(lcm_pipeline: OVLatentConsistencyModelPipeline, subset_size: int) -> List[Dict]:
+        original_unet = lcm_pipeline.unet
+        lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
+    
+        dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).shuffle(seed=42)
+        lcm_pipeline.set_progress_bar_config(disable=True)
+        safety_checker = lcm_pipeline.safety_checker
+        lcm_pipeline.safety_checker = None
+    
+        # Run inference for data collection
+        pbar = tqdm(total=subset_size)
+        diff = 0
+        for batch in dataset:
+            prompt = batch["TEXT"]
+            if len(prompt) > tokenizer.model_max_length:
+                continue
+            _ = lcm_pipeline(
+                prompt,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=8.0,
+                lcm_origin_steps=50,
+                output_type="pil",
+                height=512,
+                width=512,
+            )
+            collected_subset_size = len(lcm_pipeline.unet.data_cache)
+            if collected_subset_size >= subset_size:
+                pbar.update(subset_size - pbar.n)
+                break
+            pbar.update(collected_subset_size - diff)
+            diff = collected_subset_size
+    
+        calibration_dataset = lcm_pipeline.unet.data_cache
+        lcm_pipeline.set_progress_bar_config(disable=False)
+        lcm_pipeline.unet = original_unet
+        lcm_pipeline.safety_checker = safety_checker
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import logging
+    logging.basicConfig(level=logging.WARNING)
+    logger = logging.getLogger(__name__)
+    
+    UNET_INT8_OV_PATH = Path("model/unet_int8.xml")
+    if not UNET_INT8_OV_PATH.exists():
+        subset_size = 200
+        unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
+
+
+
+.. parsed-literal::
+
+    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/200 [00:00<?, ?it/s]
+
+
+Run quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Create a quantized model from the pre-trained converted OpenVINO model.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    from nncf.scopes import IgnoredScope
+    
+    if UNET_INT8_OV_PATH.exists():
+        print("Loading quantized model")
+        quantized_unet = core.read_model(UNET_INT8_OV_PATH)
+    else:
+        unet = core.read_model(UNET_OV_PATH)
+        quantized_unet = nncf.quantize(
+            model=unet,
+            subset_size=subset_size,
+            preset=nncf.QuantizationPreset.MIXED,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(
+                disable_bias_correction=True
+            )
+        )
+        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:96 ignored nodes were found by name in the NNCFGraph
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    unet_optimized = core.compile_model(UNET_INT8_OV_PATH, device.value)
+    
+    int8_pipe = OVLatentConsistencyModelPipeline(
+        tokenizer=tokenizer,
+        text_encoder=text_enc,
+        unet=unet_optimized,
+        vae_decoder=vae_decoder,
+        scheduler=scheduler,
+        feature_extractor=feature_extractor,
+        safety_checker=safety_checker,
+    )
+
+Let us check predictions with the quantized UNet using the same input
+data.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from IPython.display import display
+    
+    prompt = "a beautiful pink unicorn, 8k"
+    num_inference_steps = 4
+    torch.manual_seed(1234567)
+    
+    images = int8_pipe(
+        prompt=prompt,
+        num_inference_steps=num_inference_steps,
+        guidance_scale=8.0,
+        lcm_origin_steps=50,
+        output_type="pil",
+        height=512,
+        width=512,
+    ).images
+    
+    display(images[0])
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+
+
+.. image:: 263-latent-consistency-models-image-generation-with-output_files/263-latent-consistency-models-image-generation-with-output_34_1.png
+
+
+Compare inference time of the FP16 and INT8 models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+pipelines, we use median inference time on calibration subset.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    validation_size = 10
+    calibration_dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).take(validation_size)
+    validation_data = []
+    for batch in calibration_dataset:
+        prompt = batch["TEXT"]
+        validation_data.append(prompt)
+    
+    def calculate_inference_time(pipeline, calibration_dataset):
+        inference_time = []
+        pipeline.set_progress_bar_config(disable=True)
+        for prompt in calibration_dataset:
+            start = time.perf_counter()
+            _ = pipeline(
+                prompt,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=8.0,
+                lcm_origin_steps=50,
+                output_type="pil",
+                height=512,
+                width=512,
+            )
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+
+
+.. parsed-literal::
+
+    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
+    int8_latency = calculate_inference_time(int8_pipe, validation_data)
+    print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    Performance speed up: 1.349
+
+
+Compare UNet file size
+^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    
+    print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
+    print(f"INT8 model size: {quantized_model_size:.2f} KB")
+    print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 model size: 1678912.43 KB
+    INT8 model size: 840741.46 KB
+    Model compression rate: 1.997
+
+
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
     import random
     import gradio as gr
-    import numpy as np
+    from functools import partial
     
     MAX_SEED = np.iinfo(np.int32).max
     
@@ -833,21 +1208,21 @@ Interactive demo
     
     MAX_IMAGE_SIZE = 768
     
-    
     def generate(
+        pipeline: OVLatentConsistencyModelPipeline,
         prompt: str,
         seed: int = 0,
         width: int = 512,
         height: int = 512,
         guidance_scale: float = 8.0,
         num_inference_steps: int = 4,
-        num_images: int = 1,
         randomize_seed: bool = False,
+        num_images: int = 1,
         progress=gr.Progress(track_tqdm=True),
     ):
         seed = randomize_seed_fn(seed, randomize_seed)
         torch.manual_seed(seed)
-        result = ov_pipe(
+        result = pipeline(
             prompt=prompt,
             width=width,
             height=height,
@@ -859,6 +1234,9 @@ Interactive demo
         ).images[0]
         return result, seed
     
+    generate_original = partial(generate, ov_pipe)
+    generate_optimized = partial(generate, int8_pipe)
+    quantized_model_present = int8_pipe is not None
     
     with gr.Blocks() as demo:
         with gr.Group():
@@ -870,8 +1248,14 @@ Interactive demo
                     placeholder="Enter your prompt",
                     container=False,
                 )
-                run_button = gr.Button("Run", scale=0)
-            result = gr.Image(label="Image", type="pil")
+            with gr.Row():
+                with gr.Column():
+                    result = gr.Image(label="Result (Original)" if quantized_model_present else "Image", type="pil")
+                    run_button = gr.Button("Run")
+                with gr.Column(visible=quantized_model_present):
+                    result_optimized = gr.Image(label="Result (Optimized)", type="pil", visible=quantized_model_present)
+                    run_quantized_button = gr.Button(value="Run quantized", visible=quantized_model_present)
+    
         with gr.Accordion("Advanced options", open=False):
             seed = gr.Slider(
                 label="Seed", minimum=0, maximum=MAX_SEED, step=1, value=0, randomize=True
@@ -912,7 +1296,6 @@ Interactive demo
             examples=examples,
             inputs=prompt,
             outputs=result,
-            fn=generate,
             cache_examples=False,
         )
     
@@ -921,7 +1304,7 @@ Interactive demo
                 prompt.submit,
                 run_button.click,
             ],
-            fn=generate,
+            fn=generate_original,
             inputs=[
                 prompt,
                 seed,
@@ -933,7 +1316,32 @@ Interactive demo
             ],
             outputs=[result, seed],
         )
+    
+        if quantized_model_present:
+            gr.on(
+                triggers=[
+                    prompt.submit,
+                    run_quantized_button.click,
+                ],
+                fn=generate_optimized,
+                inputs=[
+                    prompt,
+                    seed,
+                    width,
+                    height,
+                    guidance_scale,
+                    num_inference_steps,
+                    randomize_seed,
+                ],
+                outputs=[result_optimized, seed],
+            )
 
 .. code:: ipython3
 
-    demo.queue().launch()
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

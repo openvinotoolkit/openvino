@@ -4,14 +4,13 @@
 
 #include "strided_slice.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "slice_shape_inference.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "shape_inference/shape_inference_ngraph.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
         std::unordered_set<int64_t> begin_mask,
         std::unordered_set<int64_t> end_mask,
@@ -30,9 +29,9 @@ Result StridedSliceShapeInfer::infer(
     static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
-    if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(END_ID)->getDesc().getPrecision() != Precision::I32 ||
-            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
+    if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
+            data_dependency.at(END_ID)->getDesc().getPrecision() != ov::element::i32 ||
+            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
     auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->getData());

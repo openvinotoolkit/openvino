@@ -3,8 +3,10 @@
 //
 
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 
@@ -110,21 +112,21 @@ void EltwiseLayerTest::SetUp() {
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
                 std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
-                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+                secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
                 break;
             }
             case ngraph::helpers::EltwiseTypes::POWER:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
+                secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true, 3);
                 break;
             default:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
+                secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true);
         }
     }
 
     parameters[0]->set_friendly_name("param0");
     secondaryInput->set_friendly_name("param1");
 
-    auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
 

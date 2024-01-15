@@ -9,6 +9,7 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -37,15 +38,12 @@ void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], element_type, 2, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
     std::vector<float> filterWeights1;
     std::vector<float> filterWeights2;
-    if (targetDevice == ov::test::utils::DEVICE_GNA) {
-        filterWeights1 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
-        filterWeights2 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
-    }
-    auto conv1 = ngraph::builder::makeConvolution(split->output(0),
+    auto conv1 = ov::test::utils::make_convolution(split->output(0),
                                                   element_type,
                                                   {1, 3},
                                                   {1, 1},
@@ -58,7 +56,7 @@ void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
                                                   filterWeights1);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(conv1);
 
-    auto conv2 = ngraph::builder::makeConvolution(split->output(1),
+    auto conv2 = ov::test::utils::make_convolution(split->output(1),
                                                   element_type,
                                                   {1, 3},
                                                   {1, 1},

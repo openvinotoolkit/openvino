@@ -21,6 +21,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu_no_reshapes.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -103,7 +105,7 @@ public:
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::test::utils::make_split_conv_concat();
     }
 };
 
@@ -129,6 +131,7 @@ using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
+using OVClassLoadNetworkTestWithThrow = OVClassBaseTestP;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
@@ -221,7 +224,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 inline void generateModelFile() {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>("test_model.xml", "test_model.bin");
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    auto function = ov::test::utils::make_conv_pool_relu_no_reshapes({1, 3, 227, 227});
     manager.run_passes(function);
 }
 
@@ -513,6 +516,18 @@ TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(ov::enable_profiling(true)));
     OV_ASSERT_NO_THROW(ie.get_versions(target_device));
+}
+
+TEST_P(OVClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    bool value = false;
+    ASSERT_NO_THROW(ie.set_property({ov::force_tbb_terminate(true)}));
+    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_TRUE(value);
+
+    ASSERT_NO_THROW(ie.set_property({{ov::force_tbb_terminate(false)}}));
+    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_FALSE(value);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
@@ -1311,6 +1326,14 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
         }
     }
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
+}
+
+//
+// LoadNetwork with null device & throw
+//
+TEST_P(OVClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device), ov::Exception);
 }
 
 //

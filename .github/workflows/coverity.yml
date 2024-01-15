@@ -1,0 +1,146 @@
+name: Coverity (Ubuntu 20.04, Python 3.11)
+on:
+  workflow_dispatch:
+    inputs:
+      openvinoRef:
+        description: 'Branch, tag or commit hash to clone openvino from. Taken from event context if not set'
+        type: string
+  schedule:
+    # run daily at 00:00
+    - cron: '0 0 * * *'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-coverity
+  cancel-in-progress: true
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  Build:
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-32gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      SCCACHE_AZURE_KEY_PREFIX: coverity_ubuntu20_x86_64
+      COVERITY_TOOL_DIR: /__w/openvino/openvino/coverity_tool
+
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+          ref: ${{ inputs.openvinoRef }}
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          submodules: 'true'
+          ref: 'master'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: |
+          bash ${OPENVINO_REPO}/install_build_dependencies.sh
+          # default-jdk - Java API
+          apt install --assume-yes --no-install-recommends default-jdk
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      #
+      # Build
+      #
+
+      - name: CMake configure - OpenVINO
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DBUILD_nvidia_plugin=OFF \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+
+      - name: Install Coverity tool
+        run: |
+          rm -rf ${COVERITY_TOOL_DIR} && mkdir -p ${COVERITY_TOOL_DIR}
+          pushd ${COVERITY_TOOL_DIR}
+            wget https://scan.coverity.com/download/linux64 --progress=bar:force:noscroll --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=openvino" -O coverity_tool.tgz
+            tar xvf coverity_tool.tgz && rm coverity_tool.tgz
+          popd
+
+      - name: Cmake build - OpenVINO with Coverity
+        run: |
+           ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int \
+            cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
+
+      - name: Pack Artefacts
+        run: |
+          pushd ${BUILD_DIR}
+            tar -C ${BUILD_DIR} -czvf openvino.tgz cov-int
+          popd
+
+      - name: Submit artefacts
+        run: |
+          apt-get update && apt-get install -y curl
+          pushd ${BUILD_DIR}
+            curl --form token=${{ secrets.COVERITY_TOKEN }} \
+              --form email=${{ secrets.COVERITY_USER }} \
+              --form file=@openvino.tgz \
+              --form version="${{ github.sha }}" \
+              --form description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
+              https://scan.coverity.com/builds?project=openvino
+          popd

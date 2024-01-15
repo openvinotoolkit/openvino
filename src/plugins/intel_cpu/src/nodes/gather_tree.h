@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -56,7 +55,7 @@ private:
     static const size_t GATHER_TREE_MAX_SEQ_LEN = 2;
     static const size_t GATHER_TREE_END_TOKEN = 3;
 
-    InferenceEngine::Precision precision;
+    ov::element::Type precision;
 
     std::string errorPrefix;
 };

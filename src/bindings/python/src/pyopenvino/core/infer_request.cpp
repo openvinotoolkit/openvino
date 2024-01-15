@@ -613,6 +613,16 @@ void regclass_InferRequest(py::module m) {
         )");
 
     cls.def(
+        "reset_state",
+        [](InferRequestWrapper& self) {
+            return self.m_request.reset_state();
+        },
+        R"(
+            Resets all internal variable states for relevant infer request to
+            a value specified as default for the corresponding `ReadValue` node
+        )");
+
+    cls.def(
         "get_compiled_model",
         [](InferRequestWrapper& self) {
             return self.m_request.get_compiled_model();
@@ -656,30 +666,6 @@ void regclass_InferRequest(py::module m) {
 
             :rtype: List[openvino.runtime.ConstOutput]
         )");
-
-    cls.def_property_readonly(
-        "inputs",
-        [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("inputs", "2024.0", "Please use 'input_tensors' property instead.");
-            return self.get_input_tensors();
-        },
-        R"(
-            Gets all input tensors of this InferRequest.
-            
-            :rtype: List[openvino.runtime.Tensor]
-            )");
-
-    cls.def_property_readonly(
-        "outputs",
-        [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("outputs", "2024.0", "Please use 'output_tensors' property instead.");
-            return self.get_output_tensors();
-        },
-        R"(
-            Gets all output tensors of this InferRequest.
-            
-            :rtype: List[openvino.runtime.Tensor]
-            )");
 
     cls.def_property_readonly("input_tensors",
                               &InferRequestWrapper::get_input_tensors,

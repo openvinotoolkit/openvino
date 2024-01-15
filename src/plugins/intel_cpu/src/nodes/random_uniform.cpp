@@ -4,8 +4,7 @@
 
 #include "random_uniform.hpp"
 
-#include "ie_parallel.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 
@@ -34,8 +33,8 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     // RandomUniform should generate new sequence each run even if all inputs are constants. So that method Node::IsConstant()
     // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
-    // we set 'NoConst' value for 'ConstantType' in ctor.
-    constant = ConstantType::NoConst;
+    // we set 'StrictNoConst' value for 'ConstantType' in ctor.
+    constant = ConstantType::StrictNoConst;
 
     auto rnd_op = as_type_ptr<op::v8::RandomUniform>(op);
     m_global_seed = rnd_op->get_global_seed();
@@ -65,20 +64,20 @@ void RandomUniform::getSupportedDescriptors() {
 
 void RandomUniform::initSupportedPrimitiveDescriptors() {
     auto shape_prc = getOriginalInputPrecisionAtPort(SHAPE);
-    if (!one_of(shape_prc, InferenceEngine::Precision::I32, InferenceEngine::Precision::I64)) {
-        shape_prc = InferenceEngine::Precision::I32;
+    if (!one_of(shape_prc, ov::element::i32, ov::element::i64)) {
+        shape_prc = ov::element::i32;
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
-    if (out_prc.is_float() && ((m_algo == PHILOX &&
-            !one_of(out_prc, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16)) ||
-            (m_algo == STL && !one_of(out_prc, InferenceEngine::Precision::FP32)))) {
-        out_prc = InferenceEngine::Precision::FP32;
+    if (out_prc.is_real() && ((m_algo == PHILOX &&
+            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) ||
+            (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
+        out_prc = ov::element::f32;
     }
-    if (!out_prc.is_float() && !one_of(out_prc, InferenceEngine::Precision::I32, InferenceEngine::Precision::I64)) {
-        out_prc = InferenceEngine::Precision::I32;
+    if (!out_prc.is_real() && !one_of(out_prc, ov::element::i32, ov::element::i64)) {
+        out_prc = ov::element::i32;
     }
-    m_output_prc = InferenceEngine::details::convertPrecision(out_prc);
+    m_output_prc = out_prc;
 
     addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_inputs[SHAPE]},
                           {LayoutType::ncsp, out_prc, m_const_inputs[MIN_VAL]},
@@ -504,8 +503,8 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
         str_type = "undef";
 
     if (selectedPrimitiveDesc) {
-        if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+        if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
         }

@@ -197,10 +197,14 @@ std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, boo
             pad_str = " + " + std::to_string(dim.pad.Total());
         }
     }
-    if (dim.is_dynamic || pad_is_dynamic) {
+    if (dim.is_dynamic) {
         snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
-        snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
+        if (pad_is_dynamic) {
+            snprintf(buf, sizeof(buf), "(%zu %s)", dim.v, pad_str.c_str()); // Static dim, dynamic padding
+        } else {
+            snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));  // Static dim, static padding
+        }
     }
     return buf;
 }
@@ -1697,13 +1701,16 @@ JitConstants FusedOpsCodeGenerator::MakeInputDeclsJitConstants(const FusedOpsCon
     JitConstants jit = {};
 
     std::string input_decls = "";
+    std::string input_args = "";
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string ptr_name = GetInputPtrName(op_input_id);
         input_decls += "\\\n\tconst __global " + toCLType(desc.tensors[op_input_id].GetDType()) +
                        "* " + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
+        input_args += "\\\n\t" + ptr_name + (op_input_id == desc.tensors.size() - 1 ? "" : ",");
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("FUSED_OP" + toCodeString(desc.op_id) + "_ARGS", input_args));
     return jit;
 }
 

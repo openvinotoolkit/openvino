@@ -4,11 +4,9 @@
 
 #include <cmath>
 
-#include <ngraph/op/ctc_loss.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/ctc_loss.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ctc_loss.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +14,7 @@ namespace node {
 
 bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+        const auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
             return false;
@@ -31,15 +29,15 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
 
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
-        IE_THROW() << errorPrefix << " has invalid inputs number.";
+        OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
 
-    auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+    auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
     preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
     unique = ctcLossOp->get_unique();
@@ -51,12 +49,12 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
     for (size_t i = 1; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
@@ -65,7 +63,7 @@ void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void CTCLoss::execute(dnnl::stream strm) {
-    StatusCode returnCode = OK;
+    int32_t returnCode = 0;
 
     const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const int* logitsLength = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
@@ -102,7 +100,7 @@ void CTCLoss::execute(dnnl::stream strm) {
                                   + " and both cannot be negative.\nMaxSeqLen: "
                                   + std::to_string(maxTime) + "; Logit len: " + std::to_string(logitsLength[b])
                                   + "; Label len: " + std::to_string(labelsLength[b]);
-                returnCode = GENERAL_ERROR;
+                returnCode = -1;
                 return;
             }
             const size_t actualLogitLen = logitsLength[b];
@@ -156,13 +154,13 @@ void CTCLoss::execute(dnnl::stream strm) {
     }; // threadBody_1
 
     parallel_nt(0, threadBody_1);
-    if (returnCode != OK) {
+    if (returnCode != 0) {
         std::string resErr("");
         for (auto& err : errorMsgB) {
             if (!err.empty())
                 resErr += err + "\n";
         }
-        IE_THROW() << resErr;
+        OPENVINO_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;

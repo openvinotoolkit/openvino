@@ -3,18 +3,15 @@
 //
 
 #include "reshape.h"
-#include "utils.hpp"
-#include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
-#include "shape_inference/custom/reshape.hpp"
 
 #include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/custom/reshape.hpp"
+#include "utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -38,7 +35,7 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
@@ -46,7 +43,7 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     if (isDynamicNode()) {
         auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
-                IE_THROW() << "CPU plug-in doesn't support " << opType << " node with non static second input";
+                OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
             }
         };
 
@@ -54,20 +51,17 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
             checkSecondInput(op, "Reshape");
         } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
-                IE_THROW() << "CPU plug-in doesn't support Squeeze node with inputs num equal 1";
+                OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
             checkSecondInput(op, "Squeeze");
         } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
-            IE_THROW() << "Unsupported operation type via reshape node";
+            OPENVINO_THROW("Unsupported operation type via reshape node");
         }
     }
 }
 
 bool Reshape::needShapeInfer() const {
-    if (inputShapesModified()) {
-        return true;
-    }
     const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
@@ -81,23 +75,26 @@ bool Reshape::needShapeInfer() const {
             return true;
         }
     }
+    if (inputShapesModified()) {
+        return true;
+    }
     return false;
 }
 
 void Reshape::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
     if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 }
 
 void Reshape::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision inPrec = getOriginalInputPrecisionAtPort(0);
-    InferenceEngine::Precision outPrec = getOriginalOutputPrecisionAtPort(0);
-    InferenceEngine::Precision secondInPrc = InferenceEngine::Precision::I32;
+    ov::element::Type inPrec = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outPrec = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type secondInPrc = ov::element::i32;
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required

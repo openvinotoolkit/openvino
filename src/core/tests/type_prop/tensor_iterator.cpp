@@ -7,9 +7,9 @@
 #include <map>
 
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset5.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 
 using namespace std;
 using namespace ov;
@@ -34,14 +34,14 @@ TEST(type_prop, tensor_iterator_lstm) {
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell = make_shared<opset5::LSTMCell>(ngraph::builder::opset1::reshape(X, Shape{N, I}),
-                                                   ngraph::builder::opset1::reshape(H_t, Shape{N, H}),
-                                                   ngraph::builder::opset1::reshape(C_t, Shape{N, H}),
+    auto LSTM_cell = make_shared<opset5::LSTMCell>(ov::op::util::reshape(X, Shape{N, I}),
+                                                   ov::op::util::reshape(H_t, Shape{N, H}),
+                                                   ov::op::util::reshape(C_t, Shape{N, H}),
                                                    W_body,
                                                    R_body,
                                                    H);
-    auto H_o = ngraph::builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
-    auto C_o = ngraph::builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
+    auto H_o = ov::op::util::reshape(LSTM_cell->output(0), Shape{N, 1, H});
+    auto C_o = ov::op::util::reshape(LSTM_cell->output(1), Shape{N, 1, H});
     auto body = make_shared<ov::Model>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();
@@ -197,14 +197,14 @@ TEST(type_prop, tensor_iterator_with_dynamic_reshape) {
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell = make_shared<opset5::LSTMCell>(ngraph::builder::opset1::reshape(X, Shape{N, I}),
-                                                   ngraph::builder::opset1::reshape(H_t, Shape{N, H}),
-                                                   ngraph::builder::opset1::reshape(C_t, Shape{N, H}),
+    auto LSTM_cell = make_shared<opset5::LSTMCell>(ov::op::util::reshape(X, Shape{N, I}),
+                                                   ov::op::util::reshape(H_t, Shape{N, H}),
+                                                   ov::op::util::reshape(C_t, Shape{N, H}),
                                                    W_body,
                                                    R_body,
                                                    H);
-    auto H_o = ngraph::builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
-    auto C_o = ngraph::builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
+    auto H_o = ov::op::util::reshape(LSTM_cell->output(0), Shape{N, 1, H});
+    auto C_o = ov::op::util::reshape(LSTM_cell->output(1), Shape{N, 1, H});
     auto body = make_shared<ov::Model>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();

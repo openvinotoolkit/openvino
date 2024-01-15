@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutputAttrs& attrs) {
+std::ostream& operator <<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
     result << "topK="  << attrs.top_k << "_";
@@ -30,7 +30,7 @@ std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutpu
 std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     size_t batch;
     std::string targetDevice;
     std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = obj.param;
@@ -152,14 +152,19 @@ void DetectionOutputLayerTest::SetUp() {
     }
 
     ov::ParameterVector params;
-    ov::OutputVector paramsOuts;
     for (auto&& shape : inShapes) {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(shape));
         params.push_back(param);
-        paramsOuts.push_back(param);
     }
-    auto detOut = ngraph::builder::makeDetectionOutput(paramsOuts, attrs);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+    std::shared_ptr<ov::Node> detOut;
+    if (params.size() == 3)
+        detOut = std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], attrs);
+    else if (params.size() == 5)
+        detOut = std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], params[3], params[4], attrs);
+    else
+        OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
+
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions

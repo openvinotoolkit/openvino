@@ -33,38 +33,52 @@ The tutorial consists of the following steps:
 -  Download and convert the model from a public source using the
    `OpenVINO integration with Hugging Face
    Optimum <https://huggingface.co/blog/openvino>`__.
--  Compress model weights to INT8 precision using
+-  Compress model weights to 4-bit or 8-bit data types using
    `NNCF <https://github.com/openvinotoolkit/nncf>`__
 -  Create a chat inference pipeline
 -  Run chat pipeline
 
 **Table of contents:**
 
-- `Prerequisites <#prerequisites>`__
-- `Select model for inference <#select-model-for-inference>`__
-- `Instantiate Model using Optimum Intel <#instantiate-model-using-optimum-intel>`__
-- `Compress model weights <#compress-model-weights>`__
-- `Weights Compression using Optimum Intel <#weights-compression-using-optimum-intel>`__
-- `Weights Compression using NNCF <#weights-compression-using-nncf->`__
-- `Select device for inference and model variant <#select-device-for-inference-and-model-variant->`__
-- `Run Chatbot <#run-chatbot>`__
 
-Prerequisites 
--------------------------------------------------------
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
+-  `login to huggingfacehub to get access to pretrained
+   model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
+-  `Instantiate Model using Optimum
+   Intel <#instantiate-model-using-optimum-intel>`__
+-  `Compress model weights <#compress-model-weights>`__
+
+   -  `Weights Compression using Optimum
+      Intel <#weights-compression-using-optimum-intel>`__
+   -  `Weights Compression using
+      NNCF <#weights-compression-using-nncf>`__
+
+-  `Select device for inference and model
+   variant <#select-device-for-inference-and-model-variant>`__
+-  `Run Chatbot <#run-chatbot>`__
+
+Prerequisites
+-------------
+
+
 
 Install required dependencies
 
 .. code:: ipython3
 
+    %pip uninstall -q -y openvino-dev openvino openvino-nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
-    "nncf>=2.6.0"\
+    "nncf>=2.7"\
+    "openvino-nightly"\
     "gradio"\
-    "onnx" "onnxruntime" "einops" "transformers>=4.31.0"\
-    "openvino==2023.2.0.dev20230922"
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.34.0"
 
-Select model for inference 
---------------------------------------------------------------------
+Select model for inference
+--------------------------
+
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -72,6 +86,18 @@ provided options to compare the quality of open source LLM solutions.
 from user side and at least 64GB RAM for conversion.
 
 The available options are:
+
+-  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
+   `TinyLlama/TinyLlama-1.1B-intermediate-step-955k-2T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-955k-token-2T>`__.
+   The TinyLlama project aims to pretrain a 1.1B Llama model on 3
+   trillion tokens with the adoption of the same architecture and
+   tokenizer as Llama 2. This means TinyLlama can be plugged and played
+   in many open-source projects built upon Llama. Besides, TinyLlama is
+   compact with only 1.1B parameters. This compactness allows it to
+   cater to a multitude of applications demanding a restricted
+   computation and memory footprint. More details about model can be
+   found in `model
+   card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v0.6>`__
 
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
@@ -132,6 +158,53 @@ The available options are:
    `repository <https://github.com/mosaicml/llm-foundry/>`__ and
    `HuggingFace model
    card <https://huggingface.co/mosaicml/mpt-7b-chat>`__.
+-  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
+   language model series, Qwen (abbr. Tongyi Qianwen), proposed by
+   Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
+   which is pretrained on a large volume of data, including web texts,
+   books, codes, etc. For more details about Qwen, please refer to the
+   `GitHub <https://github.com/QwenLM/Qwen>`__ code repository.
+-  **chatglm2-6b** - ChatGLM2-6B is the second-generation version of the
+   open-source bilingual (Chinese-English) chat model
+   `ChatGLM-6B <https://github.com/THUDM/ChatGLM-6B>`__. It retains the
+   smooth conversation flow and low deployment threshold of the
+   first-generation model
+-  **mistral-7b** - The Mistral-7B-v0.1 Large Language Model (LLM) is a
+   pretrained generative text model with 7 billion parameters. You can
+   find more details about model in the `model
+   card <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__,
+   `paper <https://arxiv.org/abs/2310.06825>`__ and `release blog
+   post <https://mistral.ai/news/announcing-mistral-7b/>`__.
+-  **zephyr-7b-beta** - Zephyr is a series of language models that are
+   trained to act as helpful assistants. Zephyr-7B-beta is the second
+   model in the series, and is a fine-tuned version of
+   `mistralai/Mistral-7B-v0.1 <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
+   that was trained on on a mix of publicly available, synthetic
+   datasets using `Direct Preference Optimization
+   (DPO) <https://arxiv.org/abs/2305.18290>`__. You can find more
+   details about model in `technical
+   report <https://arxiv.org/abs/2310.16944>`__ and `HuggingFace model
+   card <https://huggingface.co/HuggingFaceH4/zephyr-7b-beta>`__.
+-  **neural-chat-7b-v3-1** - Mistral-7b model fine-tuned using Intel
+   Gaudi. The model fine-tuned on the open source dataset
+   `Open-Orca/SlimOrca <https://huggingface.co/datasets/Open-Orca/SlimOrca>`__
+   and aligned with `Direct Preference Optimization (DPO)
+   algorithm <https://arxiv.org/abs/2305.18290>`__. More details can be
+   found in `model
+   card <https://huggingface.co/Intel/neural-chat-7b-v3-1>`__ and `blog
+   post <https://medium.com/@NeuralCompressor/the-practice-of-supervised-finetuning-and-direct-preference-optimization-on-habana-gaudi2-a1197d8a3cd3>`__.
+-  **notus-7b-v1** - Notus is a collection of fine-tuned models using
+   `Direct Preference Optimization
+   (DPO) <https://arxiv.org/abs/2305.18290>`__. and related
+   `RLHF <https://huggingface.co/blog/rlhf>`__ techniques. This model is
+   the first version, fine-tuned with DPO over zephyr-7b-sft. Following
+   a data-first approach, the only difference between Notus-7B-v1 and
+   Zephyr-7B-beta is the preference dataset used for dDPO. Proposed
+   approach for dataset creation helps to effectively fine-tune Notus-7b
+   that surpasses Zephyr-7B-beta and Claude 2 on
+   `AlpacaEval <https://tatsu-lab.github.io/alpaca_eval/>`__. More
+   details about model can be found in `model
+   card <https://huggingface.co/argilla/notus-7b-v1>`__.
 
 .. code:: ipython3
 
@@ -145,7 +218,7 @@ The available options are:
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
-        description='Model:',
+        description="Model:",
         disabled=False,
     )
     
@@ -156,7 +229,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('red-pajama-3b-chat', 'llama-2-chat-7b', 'mpt-7b-chat'), value='red-pa…
+    Dropdown(description='Model:', options=('tiny-llama-1b-chat', 'red-pajama-3b-chat', 'llama-2-chat-7b', 'mpt-7b…
 
 
 
@@ -168,11 +241,13 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model red-pajama-3b-chat
+    Selected model tiny-llama-1b-chat
 
 
-Instantiate Model using Optimum Intel 
--------------------------------------------------------------------------------
+Instantiate Model using Optimum Intel
+-------------------------------------
+
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -208,8 +283,9 @@ every time you want to generate a new token seems wasteful. With the
 cache, the model saves the hidden state once it has been computed. The
 model only computes the one for the most recently generated output token
 at each time step, re-using the saved ones for hidden tokens. This
-reduces the generation complexity from O(n^3) to O(n^2) for a
-transformer model. More details about how it works can be found in this
+reduces the generation complexity from :math:`O(n^3)` to :math:`O(n^2)`
+for a transformer model. More details about how it works can be found in
+this
 `article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
 With this option, the model gets the previous step’s hidden states
 (cached attention keys and values) as input and additionally provides
@@ -217,396 +293,535 @@ hidden states for the current step as output. It means for all next
 iterations, it is enough to provide only a new token obtained from the
 previous step and cached key values to get the next token prediction.
 
-In our case, MPT model currently is not covered by Optimum Intel, we
-will convert it manually and create wrapper compatible with Optimum
-Intel.
-
-Compress model weights 
-----------------------------------------------------------------
-
-The Weights Compression algorithm is aimed at compressing the weights of
-the models and can be used to optimize the model footprint and
-performance of large models where the size of weights is relatively
-larger than the size of activations, for example, Large Language Models
-(LLM).
-
-Weights Compression using Optimum Intel 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To enable weights compression via NNCF for models supported by Optimum
-Intel ``OVQuantizer`` class should be used instantiated by PyTorch model
-using ``from_pretrained`` method.
-``OVQuantizer.quantize(save_directory=save_dir, weights_only=True)``
-enables weights compression and model conversion to OpenVINO
-Intermediate Representation format. We will consider how to do it on
-RedPajama and LLAMA examples.
-
-   **Note**: This tutorial involves conversion model for both FP16 and
-   INT8 weights compression scenarios. It maybe memory and
-   time-consuming in first run. You can manually disable FP16 conversion
-   using CONVERT_FP16 variable below, CONVERT_INT8 variable can be used
-   for disabling conversion model with weights compression respectively.
+In our case, MPT, Qwen and ChatGLM model currently is not covered by
+Optimum Intel, we will convert it manually and create wrapper compatible
+with Optimum Intel.
 
 .. code:: ipython3
 
-    CONVERT_FP16 = True
-    CONVERT_INT8 = True
-
-.. code:: ipython3
-
-    from pathlib import Path
+    from transformers import AutoModelForCausalLM, AutoConfig
     from optimum.intel import OVQuantizer
-    from transformers import AutoModelForCausalLM
     from optimum.intel.openvino import OVModelForCausalLM
+    import openvino as ov
+    from pathlib import Path
+    import shutil
+    import torch
     import logging
     import nncf
     import gc
-    
-    nncf.set_log_level(logging.ERROR)
-    
-    compressed_model_dir = Path(model_id.value) / "INT8_compressed_weights"
-    model_dir = Path(model_id.value) / "FP16"
-    pt_model_id = model_configuration["model_id"]
-    
-    if "mpt" not in model_id.value:
-        if CONVERT_INT8 and not compressed_model_dir.exists():
-            pt_model = AutoModelForCausalLM.from_pretrained(pt_model_id)
-            quantizer = OVQuantizer.from_pretrained(pt_model)
-            quantizer.quantize(save_directory=compressed_model_dir, weights_only=True)
-            del quantizer
-            del pt_model
-            gc.collect()
-    
-        if CONVERT_FP16 and not model_dir.exists():
-            ov_model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False)
-            ov_model.half()
-            ov_model.save_pretrained(model_dir)
-            del ov_model
-    gc.collect();
+    from converter import converters
 
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-09-19 19:06:00.934297: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-19 19:06:00.971948: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-19 19:06:01.591238: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/deepspeed.py:23: FutureWarning: transformers.deepspeed module is deprecated and will be removed in a future version. Please import deepspeed modules directly from transformers.integrations
-      warnings.warn(
 
 
-Weights Compression using NNCF 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compress model weights
+----------------------
 
-You also can perform weights compression for PyTorch models using NNCF
-directly. ``nncf.compress_weights`` function accept PyTorch model
-instance and compress its weights for Linear and Embedding layers. We
+
+
+The Weights Compression algorithm is aimed at compressing the weights of
+the models and can be used to optimize the model footprint and
+performance of large models where the size of weights is relatively
+larger than the size of activations, for example, Large Language Models
+(LLM). Compared to INT8 compression, INT4 compression improves
+performance even more, but introduces a minor drop in prediction
+quality.
+
+Weights Compression using Optimum Intel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To enable weights compression via NNCF for models supported by Optimum
+Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
+model.
+``OVQuantizer.quantize(save_directory=save_dir, weights_only=True)``
+enables weights compression. We will consider how to do it on RedPajama,
+LLAMA and Zephyr examples.
+
+   **Note**: Weights Compression using Optimum Intel currently supports
+   only INT8 compression. We will apply INT4 compression for these model
+   using NNCF API described below.
+
+..
+
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   dGPU.
+
+Weights Compression using NNCF
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+You also can perform weights compression for OpenVINO models using NNCF
+directly. ``nncf.compress_weights`` function accepts OpenVINO model
+instance and compresses its weights for Linear and Embedding layers. We
 will consider this variant based on MPT model.
 
-To begin compression, we should define model conversion first.
+   **Note**: This tutorial involves conversion model for FP16 and
+   INT4/INT8 weights compression scenarios. It may be memory and
+   time-consuming in the first run. You can manually control the
+   compression precision below.
 
 .. code:: ipython3
 
-    from functools import wraps
-    import torch
-    from transformers import AutoModelForCausalLM
-    from nncf import compress_weights
-    import openvino as ov
-    from typing import Optional, Union, Dict, Tuple, List
+    from IPython.display import display
     
-    def flattenize_inputs(inputs):
-        """
-        Helper function for making nested inputs flattens
-        """
-        flatten_inputs = []
-        for input_data in inputs:
-            if input_data is None:
-                continue
-            if isinstance(input_data, (list, tuple)):
-                flatten_inputs.extend(flattenize_inputs(input_data))
-            else:
-                flatten_inputs.append(input_data)
-        return flatten_inputs
+    prepare_int4_model = widgets.Checkbox(
+        value=True,
+        description="Prepare INT4 model",
+        disabled=False,
+    )
+    prepare_int8_model = widgets.Checkbox(
+        value=False,
+        description="Prepare INT8 model",
+        disabled=False,
+    )
+    prepare_fp16_model = widgets.Checkbox(
+        value=False,
+        description="Prepare FP16 model",
+        disabled=False,
+    )
     
-    def cleanup_torchscript_cache():
-        """
-        Helper for removing cached model representation
-        """
-        torch._C._jit_clear_class_registry()
-        torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
-        torch.jit._state._clear_class_state()
-    
-    def convert_mpt(pt_model:torch.nn.Module, model_path:Path):
-        """
-        MPT model conversion function
-        
-        Params:
-          pt_model: PyTorch model
-          model_path: path for saving model
-        Returns:
-          None
-        """
-        ov_out_path = Path(model_path) / "openvino_model.xml"
-        pt_model.config.save_pretrained(ov_out_path.parent)
-        pt_model.config.use_cache = True
-        outs = pt_model(input_ids=torch.ones((1, 10), dtype=torch.long), attention_mask=torch.ones((1, 10), dtype=torch.long))
-        inputs = ["input_ids"]
-        outputs = ["logits"]
-    
-        dynamic_shapes = {"input_ids": {1: "seq_len"}, "attention_mask": {1: "seq_len"}}
-        for idx in range(len(outs.past_key_values)):
-            inputs.extend([f"past_key_values.{idx}.key", f"past_key_values.{idx}.value"])
-            dynamic_shapes[inputs[-1]] = {2: "past_sequence + sequence"}
-            dynamic_shapes[inputs[-2]] = {3: "past_sequence + sequence"}
-            outputs.extend([f"present.{idx}.key", f"present.{idx}.value"])
-                
-        inputs.append("attention_mask")
-        dummy_inputs = {"input_ids": torch.ones((1,2), dtype=torch.long), "past_key_values": outs.past_key_values, "attention_mask": torch.ones((1,12), dtype=torch.long)}
-        pt_model.config.torchscript = True
-        orig_forward = pt_model.forward
-        @wraps(orig_forward)
-        def ts_patched_forward(input_ids: torch.Tensor, past_key_values: Tuple[Tuple[torch.Tensor]], attention_mask: torch.Tensor):
-            pkv_list = list(past_key_values)
-            outs = orig_forward(input_ids=input_ids, past_key_values=pkv_list, attention_mask=attention_mask)
-            return (outs.logits, tuple(outs.past_key_values))
-        pt_model.forward = ts_patched_forward
-        ov_model = ov.convert_model(pt_model, example_input=dummy_inputs)
-        pt_model.forward = orig_forward
-        for inp_name, m_input, input_data in zip(inputs, ov_model.inputs, flattenize_inputs(dummy_inputs.values())):
-            input_node = m_input.get_node()
-            if input_node.element_type == ov.Type.dynamic:
-                m_input.get_node().set_element_type(ov.Type.f32)
-            shape = list(input_data.shape)
-            if inp_name in dynamic_shapes:
-                for k in dynamic_shapes[inp_name]:
-                    shape[k] = -1
-            input_node.set_partial_shape(ov.PartialShape(shape))
-            m_input.get_tensor().set_names({inp_name})
-            
-        for out, out_name in zip(ov_model.outputs, outputs):
-            out.get_tensor().set_names({out_name})     
-    
-        ov_model.validate_nodes_and_infer_types()
-        ov.save_model(ov_model, ov_out_path)
-        del ov_model
-        cleanup_torchscript_cache()
-        del pt_model
+    display(prepare_int4_model)
+    display(prepare_int8_model)
+    display(prepare_fp16_model)
 
-Now, we know how to convert model to OpenVINO format, we can save
-floating point and compressed model variants
-
-.. code:: ipython3
-
-    compressed_model_dir = Path(model_id.value) / "INT8_compressed_weights"
-    model_dir = Path(model_id.value) / "FP16"
-    
-    if "mpt" in model_id.value and (not compressed_model_dir.exists() or not model_dir.exists()):
-        model = AutoModelForCausalLM.from_pretrained(model_configuration["model_id"], torch_dtype=torch.float32, trust_remote_code=True)
-        if CONVERT_FP16 and not model_dir.exists():
-            convert_mpt(model, model_dir)
-        if CONVERT_INT8 and not compressed_model_dir.exists():
-            compressed_model = compress_weights(model)
-            convert_mpt(compressed_model, compressed_model_dir)
-    
-    gc.collect();
-
-.. code:: ipython3
-
-    fp16_weights = model_dir / "openvino_model.bin"
-    int8_weights = compressed_model_dir / "openvino_model.bin"
-    
-    if fp16_weights.exists():
-        print(f'Size of FP16 model in MB is {fp16_weights.stat().st_size / 1024 / 1024}')
-    if int8_weights.exists():
-        print(f'Size of model with INT8 compressed weights in MB is {int8_weights.stat().st_size / 1024 / 1024}')
-    if int8_weights.exists() and fp16_weights.exists():
-        print(f"Model compression rate: {fp16_weights.stat().st_size / int8_weights.stat().st_size:.3f}")
 
 
 .. parsed-literal::
 
-    Size of FP16 model in MB is 5299.166286468506
-    Size of model with INT8 compressed weights in MB is 2659.578887939453
-    Model compression rate: 1.992
+    Checkbox(value=True, description='Prepare INT4 model')
 
 
-Select device for inference and model variant 
----------------------------------------------------------------------------------------
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Prepare INT8 model')
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Prepare FP16 model')
+
+
+We can now save floating point and compressed model variants
+
+.. code:: ipython3
+
+    nncf.set_log_level(logging.ERROR)
+    
+    pt_model_id = model_configuration["model_id"]
+    pt_model_name = model_id.value.split("-")[0]
+    model_type = AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True).model_type
+    fp16_model_dir = Path(model_id.value) / "FP16"
+    int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
+    int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
+    
+    
+    def convert_to_fp16():
+        if (fp16_model_dir / "openvino_model.xml").exists():
+            return
+        if not model_configuration["remote"]:
+            ov_model = OVModelForCausalLM.from_pretrained(
+                pt_model_id, export=True, compile=False
+            )
+            ov_model.half()
+            ov_model.save_pretrained(fp16_model_dir)
+            del ov_model
+        else:
+            model_kwargs = {}
+            if "revision" in model_configuration:
+                model_kwargs["revision"] = model_configuration["revision"]
+            model = AutoModelForCausalLM.from_pretrained(
+                model_configuration["model_id"],
+                torch_dtype=torch.float32,
+                trust_remote_code=True,
+                **model_kwargs
+            )
+            converters[pt_model_name](model, fp16_model_dir)
+            del model
+        gc.collect()
+    
+    
+    def convert_to_int8():
+        if (int8_model_dir / "openvino_model.xml").exists():
+            return
+        int8_model_dir.mkdir(parents=True, exist_ok=True)
+        if not model_configuration["remote"]:
+            if fp16_model_dir.exists():
+                ov_model = OVModelForCausalLM.from_pretrained(fp16_model_dir, compile=False)
+            else:
+                ov_model = OVModelForCausalLM.from_pretrained(
+                    pt_model_id, export=True, compile=False
+                )
+                ov_model.half()
+            quantizer = OVQuantizer.from_pretrained(ov_model)
+            quantizer.quantize(save_directory=int8_model_dir, weights_only=True)
+            del quantizer
+            del ov_model
+        else:
+            convert_to_fp16()
+            ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
+            shutil.copy(fp16_model_dir / "config.json", int8_model_dir / "config.json")
+            configuration_file = fp16_model_dir / f"configuration_{model_type}.py"
+            if configuration_file.exists():
+                shutil.copy(
+                    configuration_file, int8_model_dir / f"configuration_{model_type}.py"
+                )
+            compressed_model = nncf.compress_weights(ov_model)
+            ov.save_model(compressed_model, int8_model_dir / "openvino_model.xml")
+            del ov_model
+            del compressed_model
+        gc.collect()
+    
+    
+    def convert_to_int4():
+        compression_configs = {
+            "zephyr-7b-beta": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "mistral-7b": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "notus-7b-v1": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "neural-chat-7b-v3-1": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "llama-2-chat-7b": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 128,
+                "ratio": 0.8,
+            },
+            "chatglm2-6b": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 128,
+                "ratio": 0.72,
+                "ignored_scope": nncf.IgnoredScope(["__module.transformer/aten::index_67/Gather"])
+            },
+            "qwen-7b-chat": {
+                "mode": nncf.CompressWeightsMode.INT4_SYM, 
+                "group_size": 128, 
+                "ratio": 0.6
+            },
+            'red-pajama-3b-chat': {
+                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "group_size": 128,
+                "ratio": 0.5,
+            },
+            "default": {
+                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "group_size": 128,
+                "ratio": 0.8,
+            },
+        }
+    
+        model_compression_params = compression_configs.get(
+            model_id.value, compression_configs["default"]
+        )
+        if (int4_model_dir / "openvino_model.xml").exists():
+            return
+        int4_model_dir.mkdir(parents=True, exist_ok=True)
+        if not model_configuration["remote"]:
+            if not fp16_model_dir.exists():
+                model = OVModelForCausalLM.from_pretrained(
+                    pt_model_id, export=True, compile=False
+                ).half()
+                model.config.save_pretrained(int4_model_dir)
+                ov_model = model.model
+                del model
+                gc.collect()
+            else:
+                ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
+                shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
+    
+        else:
+            convert_to_fp16()
+            ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
+            shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
+            configuration_file = fp16_model_dir / f"configuration_{model_type}.py"
+            if configuration_file.exists():
+                shutil.copy(
+                    configuration_file, int4_model_dir / f"configuration_{model_type}.py"
+                )
+        compressed_model = nncf.compress_weights(ov_model, **model_compression_params)
+        ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
+        del ov_model
+        del compressed_model
+        gc.collect()
+    
+    
+    if prepare_fp16_model.value:
+        convert_to_fp16()
+    if prepare_int8_model.value:
+        convert_to_int8()
+    if prepare_int4_model.value:
+        convert_to_int4()
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/699 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Framework not specified. Using pt to export to ONNX.
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/2.20G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    generation_config.json:   0%|          | 0.00/124 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer_config.json:   0%|          | 0.00/1.29k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.model:   0%|          | 0.00/500k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/1.84M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/551 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Using the export variant default. Available variants are:
+        - default: The default ONNX variant.
+    Using framework PyTorch: 2.1.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:94: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
+    /home/ea/work/genai_env/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:140: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:399: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
+    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:409: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+Let’s compare model size for different compression types
+
+.. code:: ipython3
+
+    fp16_weights = fp16_model_dir / "openvino_model.bin"
+    int8_weights = int8_model_dir / "openvino_model.bin"
+    int4_weights = int4_model_dir / "openvino_model.bin"
+    
+    if fp16_weights.exists():
+        print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
+    for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
+        if compressed_weights.exists():
+            print(
+                f"Size of model with INT{precision} compressed weights is {compressed_weights.stat().st_size / 1024 / 1024:.2f} MB"
+            )
+        if compressed_weights.exists() and fp16_weights.exists():
+            print(
+                f"Compression rate for INT{precision} model: {fp16_weights.stat().st_size / compressed_weights.stat().st_size:.3f}"
+            )
+
+
+.. parsed-literal::
+
+    Size of model with INT4 compressed weights is 696.99 MB
+
+
+Select device for inference and model variant
+---------------------------------------------
+
+
+
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   dGPU.
 
 .. code:: ipython3
 
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
-        value='CPU',
-        description='Device:',
+        value="CPU",
+        description="Device:",
         disabled=False,
     )
+    
+    device
 
 
 
 
 .. parsed-literal::
 
-    VBox(children=(Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU'), Checkbox(value=Tr…
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
 
 
 
-.. code:: ipython3
-
-    int8_compressed_weights = widgets.Checkbox(
-        value=True,
-        description='Use compressed weights',
-        disabled=False
-    )
-    
-    widgets.VBox([device, int8_compressed_weights])
-
-The cell below create ``OVMPTModel`` model wrapper based on
-``OVModelForCausalLM`` model.
+The cell below create ``OVMPTModel``, ``OVQWENModel`` and
+``OVCHATGLM2Model`` wrapper based on ``OVModelForCausalLM`` model.
 
 .. code:: ipython3
 
-    from transformers import AutoConfig
-    import torch
-    
-    from optimum.intel.openvino import OVModelForCausalLM
-    from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
-    from transformers.modeling_outputs import CausalLMOutputWithPast
-    import numpy as np
-    from pathlib import Path
-    
-        
-    class OVMPTModel(OVModelForCausalLM):
-        """
-        Optimum intel compatible model wrapper for MPT
-        """
-        def __init__(
-            self,
-            model: "Model",
-            config: "PretrainedConfig" = None,
-            device: str = "CPU",
-            dynamic_shapes: bool = True,
-            ov_config: Optional[Dict[str, str]] = None,
-            model_save_dir: Optional[Union[str, Path]] = None,
-            **kwargs,
-        ):
-            NormalizedConfigManager._conf["mpt"] = NormalizedTextConfig.with_args(num_layers="n_layers", num_attention_heads="n_heads")
-            super().__init__(model, config, device, dynamic_shapes, ov_config, model_save_dir, **kwargs)
-    
-        def _reshape(
-            self,
-            model: "Model",
-            *args,
-            **kwargs
-        ):
-            shapes = {}
-            for inputs in model.inputs:
-                shapes[inputs] = inputs.get_partial_shape()
-                if shapes[inputs].rank.get_length() in [2, 3]:
-                    shapes[inputs][1] = -1
-                else:
-                    if ".key" in inputs.get_any_name():
-                        shapes[inputs][3] = -1
-                    else:
-                        shapes[inputs][2] = -1
-                    
-            model.reshape(shapes)
-            return model
-    
-        def forward(
-            self,
-            input_ids: torch.LongTensor,
-            attention_mask: Optional[torch.LongTensor] = None,
-            past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-            **kwargs,
-        ) -> CausalLMOutputWithPast:
-            self.compile()
-    
-            if self.use_cache and past_key_values is not None:
-                input_ids = input_ids[:, -1:]
-    
-            inputs = {}
-            if past_key_values is not None:
-                # Flatten the past_key_values
-                past_key_values = tuple(
-                    past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer
-                )
-                # Add the past_key_values to the decoder inputs
-                inputs = dict(zip(self.key_value_input_names, past_key_values))
-    
-            # Create empty past_key_values for decoder_with_past first generation step
-            elif self.use_cache:
-                shape_input_ids = input_ids.shape
-                num_attention_heads = (
-                    self.normalized_config.num_attention_heads if self.config.model_type == "bloom" else 1
-                )
-                for input_name in self.key_value_input_names:
-                    model_inputs = self.model.input(input_name)
-                    shape = model_inputs.get_partial_shape()
-                    shape[0] = shape_input_ids[0] * num_attention_heads
-                    if shape[2].is_dynamic:
-                        shape[2] = 0
-                    if shape[1].is_dynamic:
-                        shape[1] = 0
-                    if shape.rank.get_length() == 4 and shape[3].is_dynamic:
-                        shape[3] = 0
-                    inputs[input_name] = ov.Tensor(model_inputs.get_element_type(), shape.get_shape())
-    
-            inputs["input_ids"] = np.array(input_ids)
-    
-            # Add the attention_mask inputs when needed
-            if "attention_mask" in self.input_names and attention_mask is not None:
-                inputs["attention_mask"] = np.array(attention_mask)
-    
-            # Run inference
-            self.request.start_async(inputs, shared_memory=True)
-            self.request.wait()
-    
-            logits = torch.from_numpy(self.request.get_tensor("logits").data).to(self.device)
-    
-            if self.use_cache:
-                # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
-                past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
-                # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-                past_key_values = tuple(
-                    past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
-                )
-            else:
-                past_key_values = None
-    
-            return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
+    from ovmodel import model_classes
 
 The cell below demonstrates how to instantiate model based on selected
 variant of model weights and inference device
 
 .. code:: ipython3
 
-    from pathlib import Path
-    from optimum.intel.openvino import OVModelForCausalLM
+    available_models = []
+    if int4_model_dir.exists():
+        available_models.append("INT4")
+    if int8_model_dir.exists():
+        available_models.append("INT8")
+    if fp16_model_dir.exists():
+        available_models.append("FP16")
+    
+    model_to_run = widgets.Dropdown(
+        options=available_models,
+        value=available_models[0],
+        description="Model to run:",
+        disabled=False,
+    )
+    
+    model_to_run
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model to run:', options=('INT4',), value='INT4')
+
+
+
+.. code:: ipython3
+
     from transformers import AutoTokenizer
     
-    model_dir = Path(model_id.value) / ("FP16" if not int8_compressed_weights.value else "INT8_compressed_weights")
-    model_name = model_configuration["model_id"]
+    if model_to_run.value == "INT4":
+        model_dir = int4_model_dir
+    elif model_to_run.value == "INT8":
+        model_dir = int8_model_dir
+    else:
+        model_dir = fp16_model_dir
+    print(f"Loading model from {model_dir}")
     
-    ov_config = {'PERFORMANCE_HINT': 'LATENCY', 'NUM_STREAMS': '1', "CACHE_DIR": ""}
+    model_name = model_configuration["model_id"]
+    class_key = model_id.value.split("-")[0]
+    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
     
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
-    model_class = OVModelForCausalLM if "mpt" not in model_id.value else OVMPTModel
-    ov_model = model_class.from_pretrained(model_dir, device=device.value, ov_config=ov_config, config=AutoConfig.from_pretrained(model_dir, trust_remote_code=True), trust_remote_code=True)
+    model_class = (
+        OVModelForCausalLM
+        if not model_configuration["remote"]
+        else model_classes[class_key]
+    )
+    ov_model = model_class.from_pretrained(
+        model_dir,
+        device=device.value,
+        ov_config=ov_config,
+        config=AutoConfig.from_pretrained(model_dir, trust_remote_code=True),
+        trust_remote_code=True,
+    )
+
+
+.. parsed-literal::
+
+    Loading model from tiny-llama-1b-chat/INT4_compressed_weights
 
 
 .. parsed-literal::
 
     The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
-    Compiling the model...
+    Compiling the model to CPU ...
 
 
 .. code:: ipython3
@@ -615,23 +830,25 @@ variant of model weights and inference device
     test_string = "2 + 2 ="
     input_tokens = tok(test_string, return_tensors="pt", **tokenizer_kwargs)
     answer = ov_model.generate(**input_tokens, max_new_tokens=2)
-    print(tok.batch_decode(answer)[0])
+    print(tok.batch_decode(answer, skip_special_tokens=True)[0])
 
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:0 for open-end generation.
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/optimum/intel/openvino/modeling_decoder.py:364: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
+    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+    /home/ea/work/genai_env/lib/python3.8/site-packages/optimum/intel/openvino/modeling_decoder.py:388: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
       self.request.start_async(inputs, shared_memory=True)
 
 
 .. parsed-literal::
 
-    2 + 2 = 4.
+    2 + 2 = 4
 
 
-Run Chatbot 
------------------------------------------------------
+Run Chatbot
+-----------
+
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how
@@ -712,9 +929,8 @@ answers.
 
     from threading import Event, Thread
     from uuid import uuid4
-    
+    from typing import List, Tuple
     import gradio as gr
-    import torch
     from transformers import (
         AutoTokenizer,
         StoppingCriteria,
@@ -730,42 +946,78 @@ answers.
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
     
+    chinese_examples = [
+        ["你好!"],
+        ["你是谁?"],
+        ["请介绍一下上海"],
+        ["请介绍一下英特尔公司"],
+        ["晚上睡不着怎么办？"],
+        ["给我讲一个年轻人奋斗创业最终取得成功的故事。"],
+        ["给这个故事起一个标题。"],
+    ]
     
+    english_examples = [
+        ["Hello there! How are you doing?"],
+        ["What is OpenVINO?"],
+        ["Who are you?"],
+        ["Can you explain to me briefly what is Python programming language?"],
+        ["Explain the plot of Cinderella in a sentence."],
+        ["What are some common mistakes to avoid when writing code?"],
+        [
+            "Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"
+        ],
+    ]
+    
+    examples = (
+        chinese_examples
+        if ("qwen" in model_id.value or "chatglm" in model_id.value)
+        else english_examples
+    )
     
     max_new_tokens = 256
+    
     
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-        def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+    
+        def __call__(
+            self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
+        ) -> bool:
             for stop_id in self.token_ids:
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
     
+    
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-            
+    
         stop_tokens = [StopOnTokens(stop_tokens)]
     
-    def default_partial_text_processor(partial_text:str, new_text:str):
+    
+    def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by de
-        
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-        
+    
         """
         partial_text += new_text
         return partial_text
     
-    text_processor = model_configuration.get("partial_text_processor", default_partial_text_processor)
-        
-    def convert_history_to_text(history:List[Tuple[str, str]]):
+    
+    text_processor = model_configuration.get(
+        "partial_text_processor", default_partial_text_processor
+    )
+    
+    
+    def convert_history_to_text(history: List[Tuple[str, str]]):
         """
         function for conversion history stored as list pairs of user and assistant messages to string according to model expected conversation template
         Params:
@@ -776,18 +1028,20 @@ answers.
         text = start_message + "".join(
             [
                 "".join(
-                    [
-                        history_template.format(user=item[0], assistant=item[1])
-                    ]
+                    [history_template.format(num=round, user=item[0], assistant=item[1])]
                 )
-                for item in history[:-1]
+                for round, item in enumerate(history[:-1])
             ]
         )
         text += "".join(
             [
                 "".join(
                     [
-                        current_message_template.format(user=history[-1][0], assistant=history[-1][1])
+                        current_message_template.format(
+                            num=len(history) + 1,
+                            user=history[-1][0],
+                            assistant=history[-1][1],
+                        )
                     ]
                 )
             ]
@@ -795,11 +1049,10 @@ answers.
         return text
     
     
-    
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-        
+    
         Params:
           message: current message
           history: conversation history
@@ -813,16 +1066,16 @@ answers.
     def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
-        
+    
         Params:
           history: conversation history
-          temperature:  parameter for control the level of creativity in AI-generated text. 
+          temperature:  parameter for control the level of creativity in AI-generated text.
                         By adjusting the `temperature`, you can influence the AI model's probability distribution, making the text more focused or diverse.
           top_p: parameter for control the range of tokens considered by the AI model based on their cumulative probability.
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           conversation_id: unique conversation identifier.
-        
+    
         """
     
         # Construct the input message string for the model by concatenating the current system message and conversation history
@@ -834,7 +1087,9 @@ answers.
             history = [history[-1]]
             messages = convert_history_to_text(history)
             input_ids = tok(messages, return_tensors="pt", **tokenizer_kwargs).input_ids
-        streamer = TextIteratorStreamer(tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextIteratorStreamer(
+            tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True
+        )
         generate_kwargs = dict(
             input_ids=input_ids,
             max_new_tokens=max_new_tokens,
@@ -881,9 +1136,7 @@ answers.
         css=".disclaimer {font-variant-caps: all-small-caps;}",
     ) as demo:
         conversation_id = gr.State(get_uuid)
-        gr.Markdown(
-            f"""<h1><center>OpenVINO {model_id.value} Chatbot</center></h1>"""
-        )
+        gr.Markdown(f"""<h1><center>OpenVINO {model_id.value} Chatbot</center></h1>""")
         chatbot = gr.Chatbot(height=500)
         with gr.Row():
             with gr.Column():
@@ -891,7 +1144,7 @@ answers.
                     label="Chat Message Box",
                     placeholder="Chat Message Box",
                     show_label=False,
-                    container=False
+                    container=False,
                 )
             with gr.Column():
                 with gr.Row():
@@ -948,17 +1201,8 @@ answers.
                                 interactive=True,
                                 info="Penalize repetition — 1.0 to disable.",
                             )
-        gr.Examples([
-            ["Hello there! How are you doing?"],
-            ["What is OpenVINO?"],
-            ["Who are you?"],
-            ["Can you explain to me briefly what is Python programming language?"],
-            ["Explain the plot of Cinderella in a sentence."],
-            ["What are some common mistakes to avoid when writing code?"],
-            ["Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"]
-        ], 
-            inputs=msg, 
-            label="Click on any example and press the 'Submit' button"
+        gr.Examples(
+            examples, inputs=msg, label="Click on any example and press the 'Submit' button"
         )
     
         submit_event = msg.submit(
@@ -1031,10 +1275,4 @@ answers.
 .. code:: ipython3
 
     # please run this cell for stopping gradio interface
-    demo.close()
-
-
-.. parsed-literal::
-
-    Closing server running on port: 7860
-
+    # demo.close()

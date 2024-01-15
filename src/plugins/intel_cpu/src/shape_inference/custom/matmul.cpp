@@ -4,13 +4,12 @@
 
 #include "matmul.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 Result MMShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -40,7 +39,11 @@ Result MMShapeInfer::infer(
                 continue;
             } else if (shapeA[i] != 1) {
                 OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                    shapeA[i], " with second input dimension=", shapeB[i], " at index=", i);
+                               shapeA[i],
+                               " with second input dimension=",
+                               shapeB[i],
+                               " at index=",
+                               i);
             }
         }
         m_shapeY[i] = shapeB[i];
@@ -50,7 +53,7 @@ Result MMShapeInfer::infer(
 }
 
 ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
-    if (const auto matmul = ov::as_type_ptr<const ngraph::opset1::MatMul>(m_op)) {
+    if (const auto matmul = ov::as_type_ptr<const ov::opset1::MatMul>(m_op)) {
         const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
         const bool transpose_a = matmul->get_transpose_a();
         const bool transpose_b = matmul->get_transpose_b();

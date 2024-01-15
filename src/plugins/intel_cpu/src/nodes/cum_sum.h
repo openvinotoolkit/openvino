@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -46,7 +45,7 @@ private:
     size_t numOfDims;
     size_t axis = 0;
 
-    InferenceEngine::Precision dataPrecision;
+    ov::element::Type dataPrecision;
     std::string errorPrefix;
 
     template<typename T>

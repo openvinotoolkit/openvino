@@ -160,7 +160,7 @@ For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
 API. To convert the PyTorch model to OpenVINO IR format we will use
 ``ov.convert_model`` of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 The ``ov.convert_model`` Python function returns an OpenVINO Model
 object ready to load on the device and start making predictions. We can
 save it on disk for the next usage with ``ov.save_model``.
@@ -332,6 +332,6 @@ Next Steps
 ----------------------------------------------------
 
 Open the
-`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__
+`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize-with-output.html>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

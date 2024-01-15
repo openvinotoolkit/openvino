@@ -14,12 +14,10 @@
 #include <immintrin.h>
 #endif
 
-#include <ngraph/op/experimental_detectron_generate_proposals.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -274,7 +272,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
             (const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+        const auto proposalOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
@@ -291,10 +289,10 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     min_size_ = proposalAttrs.min_size;
@@ -311,19 +309,19 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
 void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            IE_THROW() << "Incorrect number of input or output edges!";
+            OPENVINO_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -338,7 +336,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
-            IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
+            OPENVINO_THROW("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
@@ -346,7 +344,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
-            IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
+            OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
 
         // Prepare memory
         const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
@@ -419,7 +417,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
         }
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

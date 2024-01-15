@@ -4,13 +4,12 @@
 
 #include "priorbox_clustered.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 
 /**
  * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
@@ -28,7 +27,7 @@ Result PriorBoxClusteredShapeInfer::infer(
 }
 
 ShapeInferPtr PriorBoxClusteredShapeInferFactory::makeShapeInfer() const {
-    auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBoxClustered>(m_op);
+    auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(m_op);
     if (!priorBox) {
         OPENVINO_THROW("Unexpected op type in PriorBoxClustered shape inference factory: ", m_op->get_type_name());
     }

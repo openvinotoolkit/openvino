@@ -394,6 +394,17 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::string& model_path,
+                                                                     const ov::AnyMap& properties) const {
+    auto dev_name = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(dev_name, m_configs, properties);
+    std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
+
+    auto device_model = get_core()->compile_model(model_path, dev_name, device_config);
+    auto remote_context = create_proxy_context(device_model, properties);
+    return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
+}
+
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,

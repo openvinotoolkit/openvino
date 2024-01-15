@@ -4,13 +4,22 @@
 
 """Factory functions for ops added to openvino opset13."""
 from functools import partial
-from typing import Optional
+from typing import Literal, Optional, Union
+import logging
 
-from openvino.runtime import Node
+import numpy as np
+
+log = logging.getLogger(__name__)
+
+from openvino.runtime import Node, Shape, Type, Output
+from openvino.runtime.op import Constant, Result
+from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
+    NumericData,
     NodeInput,
+    NumericType,
     as_nodes,
     as_node,
 )
@@ -111,6 +120,39 @@ def bitwise_xor(
 
 
 @nameable_op
+def fake_convert(
+    data: NodeInput,
+    scale: NodeInput,
+    shift: Optional[NodeInput] = None,
+    destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs FakeConvert.
+
+    FakeConvert is experimental and may change in the future.
+    .. warning:: FakeConvert is experimental and may change in the future.
+
+    :param data: The node with data tensor with FP16, BF16 or FP32 datatype.
+    :param scale: Tensor with a scale factor for the data input value,
+                  of the same type as the data, and shape Numpy-broadcastable to data.
+    :param shift: Optional tensor with value to subtract before and add after conversion of the data input value,
+                  of the same type as the data, and shape Numpy-broadcastable to data.
+    :param destination_type: Type to emulate, string of either "f8e4m3" or "f8e5m2".
+    :param name: The optional new name for output node.
+
+    :return: The new node performing FakeConvert operation.
+    """
+    nodes = [data, scale]
+    if shift is not None:
+        nodes.append(shift)
+    return _get_node_factory_opset13().create(
+        "FakeConvert",
+        as_nodes(*nodes),
+        {"destination_type": destination_type},
+    )
+
+
+@nameable_op
 def multinomial(
     probs: NodeInput,
     num_samples: NodeInput,
@@ -122,7 +164,7 @@ def multinomial(
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
-    :param probs: Tensor with probabilities of floating-point type, and shape [class_size] or [batch_size, class_size].
+    :param probs: Tensor with probabilities of floating-point type, and shape [batch_size, class_size].
     :param num_samples: Tensor (scalar or 1D) a single element of type i32 or i64,
                         specifying the number of samples to draw from the multinomial distribution.
     :param convert_type: Specifies the output tensor type, possible values: 'i64', 'i32'.
@@ -215,10 +257,93 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value, scale)
+    inputs = as_nodes(query, key, value)
+    if attention_mask is not None:
+        inputs.append(as_node(attention_mask))
+    elif scale is not None:
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
+    if scale is not None:
+        inputs.append(as_node(scale))
 
     attributes = {
         "causal": causal,
     }
     return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
+
+
+@nameable_op
+def constant(
+    value: Union[NumericData, np.number, bool, np.bool_, list],
+    dtype: Union[NumericType, Type] = None,
+    name: Optional[str] = None,
+    *,
+    shared_memory: bool = False,
+) -> Constant:
+    """Create a Constant node from provided value.
+
+    :param value: One of: array of values or scalar to initialize node with.
+    :param dtype: The data type of provided data.
+                  If dtype does not match, data will be converted.
+                  Note: disables sharing of the memory when convertion occurs.
+    :param name: Optional name for output node.
+    :param shared_memory: keyword-only argument.
+                          If `True`, this Constant's memory is being shared with a host,
+                          that means the responsibility of keeping host memory is
+                          on the side of a user. Any action performed on the host
+                          memory is reflected on this Constant's memory!
+                          If `False`, data is being copied to this Constant.
+                          Requires data to be C_CONTIGUOUS if `True`.
+                          Disabled by default if:
+                          - value is a scalar.
+                          - dtype is one of: Type.u1, Type.i4, Type.u4, Type.nf4, Type.bf16.
+                          - dtype force conversion of data.
+    :return: The Constant node initialized with provided data.
+    """
+    def display_shared_memory_warning(warning_message: str) -> None:
+        if shared_memory:
+            log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
+
+    if isinstance(value, np.ndarray):
+        _value, _shared_memory = value, shared_memory
+    else:
+        _value, _shared_memory = np.array(value), False
+        display_shared_memory_warning(f"Converting scalar to corresponding type of {_value.dtype}")
+    # Handle type casting, when dtype is not None:
+    if dtype:
+        # Expect packed data, use different constructor to handle it correctly:
+        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
+            display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
+            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
+        elif dtype in [Type.bf16]:
+            display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
+            return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
+        # General use-case for all other types:
+        else:
+            _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
+            if _dtype is int:
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit integer")
+                _value, _shared_memory = _value.astype(np.int32), False
+            elif _dtype is float:
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit float")
+                _value, _shared_memory = _value.astype(np.float32), False
+            elif _dtype is bool:
+                display_shared_memory_warning("Converting bool type to numpy bool")
+                _value, _shared_memory = _value.astype(np.bool_), False
+            else:
+                if _dtype != _value.dtype:
+                    display_shared_memory_warning(f"Converting value of {_value.dtype} to {_dtype}")
+                    _value, _shared_memory = _value.astype(_dtype), False
+    # Create Constant itself:
+    return Constant(_value, shared_memory=_shared_memory)
+
+
+@unary_op
+def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -> Node:
+    """Return a node which represents an output of a graph (Model).
+
+    :param data: The tensor containing the input data
+    :return: Result node
+    """
+    if isinstance(data, Node):
+        return Result(data.output(0))
+    return Result(data)

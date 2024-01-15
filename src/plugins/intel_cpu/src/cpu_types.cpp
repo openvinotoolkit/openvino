@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-using TypeToNameMap = InferenceEngine::details::caseless_unordered_map<std::string, Type>;
+using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 
 static const TypeToNameMap& get_type_to_name_tbl() {
     static const TypeToNameMap type_to_name_tbl = {
@@ -205,6 +205,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},
+            { "Multinomial", Type::Multinomial},
             { "Reference", Type::Reference},
             { "Subgraph", Type::Subgraph},
             { "PriorBox", Type::PriorBox},
@@ -212,7 +213,10 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "Interaction", Type::Interaction},
             { "MHA", Type::MHA},
             { "Unique", Type::Unique},
-            { "Ngram", Type::Ngram}
+            { "Ngram", Type::Ngram},
+            { "ScaledDotProductAttention", Type::ScaledDotProductAttention},
+            { "ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+            { "RoPE", Type::RoPE},
     };
     return type_to_name_tbl;
 }
@@ -230,7 +234,6 @@ Type TypeFromName(const std::string& type) {
 std::string NameFromType(const Type type) {
 #define CASE(_alg) case Type::_alg: return #_alg;
     switch (type) {
-        CASE(Generic);
         CASE(Reorder);
         CASE(Input);
         CASE(Output);
@@ -318,6 +321,7 @@ std::string NameFromType(const Type type) {
         CASE(NonMaxSuppression);
         CASE(MatrixNms);
         CASE(MulticlassNms);
+        CASE(Multinomial);
         CASE(Reference);
         CASE(Subgraph);
         CASE(PriorBox);
@@ -326,6 +330,8 @@ std::string NameFromType(const Type type) {
         CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
+        CASE(ScaledDotProductAttention);
+        CASE(RoPE);
         CASE(Unknown);
     }
 #undef CASE

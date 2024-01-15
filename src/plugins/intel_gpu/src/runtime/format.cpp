@@ -168,8 +168,10 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_i_osv8__ai8,                               1, 1, 0, 0, {0, 1},          "oi",     "oi",    {{1, 8}, {0, 8}}),
         FMT_TRAITS(os_y_is_x_osv8_isv2,                          1, 1, 2, 0, {0, 2, 1, 3},    "oyix",   "oixy",  {{0, 8}, {1, 2}}),
         FMT_TRAITS(os_y_is_x_osv8_isv4,                          1, 1, 2, 0, {0, 2, 1, 3},    "oyix",   "oixy",  {{0, 8}, {1, 4}}),
+        FMT_TRAITS(os_y_is_x_osv16_isv4,                         1, 1, 2, 0, {0, 2, 1, 3},    "oyix",   "oixy",  {{0, 16}, {1, 4}}),
         FMT_TRAITS(os_yx_is_osv8_isv2,                           1, 1, 2, 0, {0, 2, 3, 1},    "oyxi",   "oixy",  {{0, 8}, {1, 2}}),
         FMT_TRAITS(os_yx_is_osv8_isv4,                           1, 1, 2, 0, {0, 2, 3, 1},    "oyxi",   "oixy",  {{0, 8}, {1, 4}}),
+        FMT_TRAITS(os_yx_is_osv16_isv2,                          1, 1, 2, 0, {0, 2, 3, 1},    "oyxi",   "oixy",  {{0, 16}, {1, 2}}),
         FMT_TRAITS(os_zyx_is_osv8_isv2,                          1, 1, 3, 0, {0, 2, 3, 4, 1}, "ozyxi",  "oixyz", {{0, 8}, {1, 2}}),
         FMT_TRAITS(os_zyx_is_osv8_isv4,                          1, 1, 3, 0, {0, 2, 3, 4, 1}, "ozyxi",  "oixyz", {{0, 8}, {1, 4}}),
         FMT_TRAITS(os_zy_is_x_osv8_isv2,                         1, 1, 3, 0, {0, 2, 3, 1, 4}, "ozyix",  "oixyz", {{0, 8}, {1, 2}}),
@@ -228,6 +230,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(giy_xs_os_xsv2_osv16__ao32,                   1, 1, 2, 1, {0, 2, 3, 4, 1},    "giyxo",  "oixy????g", {{2, 2}, {0, 16}}),
         FMT_TRAITS(g_os_yx_is_osv8_isv2,                         1, 1, 2, 1, {0, 1, 3, 4, 2},    "goyxi",  "oixy????g", {{0, 8}, {1, 2}}),
         FMT_TRAITS(g_os_yx_is_osv8_isv4,                         1, 1, 2, 1, {0, 1, 3, 4, 2},    "goyxi",  "oixy????g", {{0, 8}, {1, 4}}),
+        FMT_TRAITS(g_os_yx_is_osv16_isv2,                        1, 1, 2, 1, {0, 1, 3, 4, 2},    "goyxi",  "oixy????g", {{0, 16}, {1, 4}}),
         FMT_TRAITS(g_os_y_is_x_osv8_isv2,                        1, 1, 2, 1, {0, 1, 3, 2, 4},    "goyix",  "oixy????g", {{0, 8}, {1, 2}}),
         FMT_TRAITS(g_os_y_is_x_osv8_isv4,                        1, 1, 2, 1, {0, 1, 3, 2, 4},    "goyix",  "oixy????g", {{0, 8}, {1, 4}}),
 };

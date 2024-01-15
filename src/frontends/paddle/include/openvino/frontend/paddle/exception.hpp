@@ -14,7 +14,9 @@ class NodeContext;
 
 class OpValidationFailure : public ov::frontend::OpValidationFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const NodeContext& node,
                                     const std::string& explanation);
 
