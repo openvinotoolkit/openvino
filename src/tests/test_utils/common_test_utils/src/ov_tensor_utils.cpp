@@ -410,7 +410,7 @@ void compare(const ov::Tensor& expected,
             throw std::runtime_error(out_stream.str());
         }
         double abs = std::fabs(expected_value - actual_value);
-        double rel = expected_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : abs;
+        double rel = expected_value && actual_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : 0;
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
