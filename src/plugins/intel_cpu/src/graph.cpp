@@ -260,8 +260,6 @@ void Graph::InitNodes(const std::vector<NodePtr>& nodes) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
     for (auto &node : nodes) {
         node->init();
-        if (node->getConstantType() == Node::ConstantType::Unknown)
-            node->updateConstantType();
     }
 }
 
@@ -1438,7 +1436,9 @@ void Graph::CreateEdge(const NodePtr& parent,
 }
 
 void Graph::RemoveEdge(const EdgePtr& edge) {
-    edge->drop();
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
+
     graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
 }
 
@@ -1471,9 +1471,6 @@ void Graph::DropNode(const NodePtr &node) {
             const int outNum = c_edge->getOutputNum();
             RemoveEdge(c_edge);
             CreateEdge(parent, child, inNum, outNum);
-            if (child->getConstantType() != Node::ConstantType::Unknown) {
-                child->updateConstantType();
-            }
         }
     }
 }
@@ -1577,7 +1574,8 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
                        " and ",
                        edge->getChild()->getName(),
                        ".");
-    edge->drop();
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
 
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }

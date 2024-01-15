@@ -454,6 +454,19 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     }
 }
 
+TEST_P(OVCompiledModelBaseTest, CheckExecGraphInfoSerialization) {
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
+    std::string out_xml_path = filePrefix + ".xml";
+    std::string out_bin_path = filePrefix + ".bin";
+
+    std::shared_ptr<const ov::Model> runtime_model;
+
+    auto compiled_model = core->compile_model(function, target_device, configuration);
+    ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
+    ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
 TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 
@@ -635,6 +648,83 @@ TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
     EXPECT_ANY_THROW(execNet.set_property(config));
 }
 
+typedef std::tuple<
+        ov::element::Type,     // Type to convert
+        std::string,           // Device name
+        ov::AnyMap             // Config
+> CompiledModelSetTypeParams;
+
+class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSetTypeParams>,
+                             public OVCompiledNetworkTestBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<CompiledModelSetTypeParams> obj) {
+        ov::element::Type convert_type;
+        std::string target_device;
+        ov::AnyMap configuration;
+        std::tie(convert_type, target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
+
+        std::ostringstream result;
+        result << "ConvertType=" << convert_type.get_type_name() << "_";
+        result << "targetDevice=" << target_device << "_";
+        for (auto& configItem : configuration) {
+            result << "configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+            result << "_";
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::tie(convert_type, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+    }
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
+    ov::element::Type convert_type;
+    ov::AnyMap configuration;
+};
+
+TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& input = ppp.input();
+    input.preprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& output = ppp.output();
+    output.postprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& input = ppp.input();
+    input.preprocess().convert_element_type(convert_type);
+    auto& output = ppp.output();
+    output.postprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

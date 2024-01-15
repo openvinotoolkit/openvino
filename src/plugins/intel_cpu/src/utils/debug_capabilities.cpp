@@ -185,6 +185,18 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             num_output_port = edge->getInputNum() + 1;
     }
 
+    auto getData = [](const MemoryPtr& ptr) {
+        std::string ret;
+        try {
+            std::stringstream ss;
+            ss << ptr->getData();
+            ret = ss.str();
+        } catch (const std::exception& e) {
+            ret = "?";
+        }
+        return ret;
+    };
+
     if (num_output_port) {
         if (num_output_port > 1) leftside << "(";
         comma = "";
@@ -200,7 +212,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "<" << ptr->getData() << ">";
+                                << "_" << getData(ptr);
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -283,7 +295,12 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             if (!edge) continue;
             if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
-            os << sep2 << node_id(*edge->getParent());
+            os << comma;
+            os << node_id(*edge->getParent());
+            auto ptr = edge->getMemoryPtr();
+            if (ptr) {
+                os << "_" << getData(ptr);
+            }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
             sep2 = "|"; // show all edges at single port(usually indicating bugs)
