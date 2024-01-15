@@ -1,9 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "custom_shape_infer.hpp"
+
 #include <gtest/gtest.h>
 
-#include "custom_shape_infer.hpp"
 #include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
@@ -20,6 +21,7 @@
 #include "shape_inference/custom/priorbox.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 #include "shape_inference/custom/reshape.hpp"
+#include "shape_inference/custom/scaled_attn.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 #include "shape_inference/custom/transpose.hpp"
@@ -59,6 +61,7 @@ public:
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::SDPAShapeInferFactory, Type::ScaledDotProductAttention);
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
     }
 
