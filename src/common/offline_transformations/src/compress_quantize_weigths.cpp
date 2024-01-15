@@ -753,6 +753,8 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                    can_fuse_zero_point);
         break;
     }
+    default:
+        return nullptr;
     }
     return nullptr;
 }
