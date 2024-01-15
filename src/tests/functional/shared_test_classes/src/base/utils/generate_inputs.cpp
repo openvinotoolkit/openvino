@@ -358,15 +358,22 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling>& node,
     const auto &inputShape = node->get_input_shape(0);
     if (port == 1) {
         auto tensor = ov::Tensor(elemType, targetShape);
-        ov::test::utils::fill_psroi(tensor,
-                                    inputShape[0],
-                                    inputShape[2],
-                                    inputShape[3],
-                                    node->get_group_size(),
-                                    node->get_spatial_scale(),
-                                    node->get_spatial_bins_x(),
-                                    node->get_spatial_bins_y(),
-                                    node->get_mode());
+#define CASE(X) case X: ::ov::test::utils::fill_psroi(tensor,       \
+                                    inputShape[0],                  \
+                                    inputShape[2],                  \
+                                    inputShape[3],                  \
+                                    node->get_group_size(),         \
+                                    node->get_spatial_scale(),      \
+                                    node->get_spatial_bins_x(),     \
+                                    node->get_spatial_bins_y(),     \
+                                    node->get_mode()); break;       \
+
+    switch (elemType) {
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        default: OPENVINO_THROW("Unsupported element type: ", elemType);
+    }
+#undef CASE
         return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
