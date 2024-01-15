@@ -123,7 +123,7 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
