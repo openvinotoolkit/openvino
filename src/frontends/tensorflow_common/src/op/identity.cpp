@@ -29,7 +29,6 @@ OutputVector translate_identity_op(const NodeContext& node) {
 
     // set only tensor names
     // no need to change node name since Identity node is skipped
-    set_out_name(node.get_name(), input);
     set_out_name(node.get_name() + ":" + "0", input);
     return {input};
 }

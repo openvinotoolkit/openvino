@@ -639,12 +639,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
-                FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
-                                        "Output port with index " + std::to_string(port_index) + " of " +
-                                            operation_name + "node specified as custom output does not exist");
-                auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
-                result_node->set_friendly_name(model_output_name);
-                results.push_back(result_node);
+                if (node_outputs.size() > port_index) {
+                    auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
+                    result_node->set_friendly_name(model_output_name);
+                    results.push_back(result_node);
+                }
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
                 std::shared_ptr<OpPlace> operation_place = nullptr;
