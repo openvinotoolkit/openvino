@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
+namespace v0 {
+class Constant;
+}
+
 namespace util {
 class OPENVINO_API TopKBase : public Op {
 public:

@@ -9,15 +9,15 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 ov_add_test_target(
-    NAME ${TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDENCIES
-    openvino_template_extension
-    LINK_LIBRARIES
-    unit_test_utils
-    ADD_CLANG_FORMAT
-    LABELS
-    OV UNIT RUNTIME
+        NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            openvino_template_extension
+        LINK_LIBRARIES
+            unit_test_utils
+        ADD_CLANG_FORMAT
+        LABELS
+            OV UNIT RUNTIME
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})
