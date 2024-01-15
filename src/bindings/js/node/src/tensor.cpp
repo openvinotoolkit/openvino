@@ -38,25 +38,13 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
-Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type)});
-}
-
-Napi::Object TensorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->tensor_prototype = ref;
-
-    exports.Set("Tensor", prototype);
-    return exports;
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -68,11 +56,11 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
-    const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");
     }
-    auto tensor_js = prototype->New({});
+    auto tensor_js = prototype.New({});
     const auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_js);
     t->set_tensor(tensor);
     return tensor_js;
