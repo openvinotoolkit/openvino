@@ -1111,7 +1111,7 @@ class TestOutputTensorName(unittest.TestCase):
         out_tensors = ov_model.outputs[0].get_names()
 
         assert len(out_tensors) == 1
-        assert list(out_tensors)[0].endswith("Sigmoid:0")
+        assert list(out_tensors)[0] == "Sigmoid:0"
 
         out_tensor_name = list(out_tensors)[0]
 
