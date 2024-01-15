@@ -25,6 +25,7 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
     auto size = node.get_input(1);
     auto op_name = node.get_name();
     auto op_type = node.get_op_type();
+    auto input_type = images.get_element_type();
 
     // retrieve optional attribute
     auto tf_align_corners = node.get_attribute<bool>("align_corners", false);
@@ -75,10 +76,21 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
     // it always returns FP32 output type so we immediately align input type for it
     if (op_type == "ResizeBilinear") {
         images = make_shared<v0::Convert>(images, element::f32);
+    } else if (input_type == element::i16 || input_type == element::u16) {
+        // OV Interpolate does not support i16 and u16 so it needs to adjust it temporarily
+        // OV interpolate supports only f32, f16, bf16, i8, u8, i64, i32
+        images = make_shared<v0::Convert>(images, element::i32);
     }
 
-    auto interpolate = make_shared<v11::Interpolate>(images, size, axes, interpolate_attrs);
-    set_node_name(node.get_name(), interpolate);
+    Output<Node> interpolate = make_shared<v11::Interpolate>(images, size, axes, interpolate_attrs);
+
+    // it needs to return original i16 and u16 input_type due to temporal adjustment before
+    // this is not required for ResizeBilinear case since it always returns f32 by specification
+    if (op_type != "ResizeBilinear" && (input_type == element::i16 || input_type == element::u16)) {
+        interpolate = make_shared<v0::Convert>(interpolate, input_type);
+    }
+
+    set_node_name(node.get_name(), interpolate.get_node_shared_ptr());
     return {interpolate};
 }
 }  // namespace op

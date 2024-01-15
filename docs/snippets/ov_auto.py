@@ -12,11 +12,9 @@ import openvino.properties.intel_auto as intel_auto
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
 
-from openvino.inference_engine import IECore
-from utils import get_model, get_ngraph_model
+from utils import get_model
 
 model = get_model()
-net = get_ngraph_model()
 
 
 def part0():
@@ -44,35 +42,6 @@ def part0():
         device_name="AUTO", properties={device.priorities: "GPU,CPU"}
     )
     #! [part0]
-
-
-def part1():
-    #! [part1]
-    ### IE API ###
-    ie = IECore()
-
-    # Load a network to AUTO using the default list of device candidates.
-    # The following lines are equivalent:
-    exec_net = ie.load_network(network=net)
-    exec_net = ie.load_network(network=net, device_name="AUTO")
-    exec_net = ie.load_network(network=net, device_name="AUTO", config={})
-
-    # Optional
-    # You can also specify the devices to be used by AUTO in its selection process.
-    # The following lines are equivalent:
-    exec_net = ie.load_network(network=net, device_name="AUTO:GPU,CPU")
-    exec_net = ie.load_network(
-        network=net,
-        device_name="AUTO",
-        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"},
-    )
-
-    # Optional
-    # the AUTO plugin is pre-configured (globally) with the explicit option:
-    ie.set_config(
-        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}, device_name="AUTO"
-    )
-    #! [part1]
 
 
 def part3():

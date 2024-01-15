@@ -3,6 +3,7 @@
 //
 
 #include "interpolate.h"
+
 #include "common/cpu_memcpy.h"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
@@ -11,8 +12,8 @@
 #include "cpu/x64/jit_uni_eltwise.hpp"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
@@ -2023,9 +2024,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         inputPrecision = ov::element::f32;
     }
 
-    if ((inputPrecision == ov::element::bf16) && !mayiuse(avx512_core)) {
+    if (!hasHardwareSupport(inputPrecision))
         inputPrecision = ov::element::f32;
-    }
 
     // support input with rank<=3 only with float precision and planar layout.
     // Jit for avx2(gather is available) and ref for no-avx2 machine.

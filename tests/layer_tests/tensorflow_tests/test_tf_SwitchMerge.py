@@ -59,7 +59,7 @@ class TestSwitchMerge(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_merge_eliminating_several_cond_flows(self, params, cond_value, x_type, ie_device, precision, ir_version,
                                                   temp_dir,
-                                                  use_new_frontend, use_old_api):
+                                                  use_new_frontend):
         self._test(*self.merge_eliminating_several_cond_flows_net(**params, cond_value=cond_value, x_type=x_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

@@ -15,7 +15,6 @@ Model Preparation
    Convert to OpenVINO Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>
    Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>
    Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>
-   PyVision preprocessing <pytorch_vision>
 
 
 You can obtain a model in one of supported formats, **PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle**,
@@ -49,8 +48,6 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
    For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
    For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only conversion option. 
-
-   TensorFlow may present additional considerations :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
 Model States
 ##############################################
