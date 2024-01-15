@@ -100,4 +100,18 @@ Read more about the reusable workflows [here](./reusable_workflows.md).
 
 ## Create a Dedicated Workflow
 
+To introduce a new workflow, add a new `<name>.yml` file to the [`.github/workflows`](./../../../../.github) folder. 
+Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#create-an-example-workflow) for a complete syntax reference and browse the existing workflows in [`.github/workflows`](./../../../../.github).
 
+Refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows), their structure could be used as a template for a new one.
+
+The dedicated workflow example is [`fedora.yml`](./../../../../.github/workflows/fedora.yml). It has:
+* `Smart_CI`, `Build`, `RPM_Packages`, `Overall_Status` jobs
+  * `Smart_CI` - the [Smart CI system](./smart_ci.md)
+  * `Build` - pre-requisites installation, building of OpenVINO with certain CMake configuration, packaging and uploading of the artefacts
+  * `RPM_Packages` - pre-requisites installation, downloading of the artefacts and tests
+  * `Overall_Status` - the job for collecting the other jobs' statuses
+* the uploading and downloading of the build artefacts between jobs using `actions/upload-artifact` and `actions/download-artifact`
+* the usage of the [Smart CI system](./smart_ci.md)
+* the usage of the [self-hosted runners](./runners.md) and [Docker images](./docker_images.md)
+* the usage of [caches](./caches.md)
