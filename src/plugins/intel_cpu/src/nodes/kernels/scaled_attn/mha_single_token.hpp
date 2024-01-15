@@ -27,10 +27,9 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       bool has_out_transpose,
                       bool auto_causal,
                       float d_scale,
-                      const ov::intel_cpu::PlainTensor& k_zp,
-                      const ov::intel_cpu::PlainTensor& v_zp,
-                      const ov::intel_cpu::PlainTensor& k_scale,
-                      const ov::intel_cpu::PlainTensor& v_scale);
+                      const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                      const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                      ov::intel_cpu::PlainTensor& head_sum);
 
 }  // namespace XARCH
 }  // namespace Cpu

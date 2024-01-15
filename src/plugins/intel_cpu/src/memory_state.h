@@ -131,17 +131,11 @@ public:
         m_hidden_state_max_size = max_size;
     }
 
-    PlainTensor& get_zp() {
-        return m_zp;
+    PlainTensor& get_scale_zp() {
+        return m_scale_zp;
     }
-    void set_zp(const PlainTensor& zp) {
-        m_zp = zp;
-    }
-    PlainTensor& get_scale() {
-        return m_scale;
-    }
-    void set_scale(const PlainTensor& scale) {
-        m_scale = scale;
+    void set_scale_zp(const PlainTensor& t) {
+        m_scale_zp = t;
     }
 
 private:
@@ -159,9 +153,8 @@ private:
     // this desc stores the internal prc and axis permutation
     BlockedMemoryDescPtr m_dense_internal_desc;
 
-    // for u8 kv cache
-    PlainTensor m_zp;
-    PlainTensor m_scale;
+    // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
+    PlainTensor m_scale_zp;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

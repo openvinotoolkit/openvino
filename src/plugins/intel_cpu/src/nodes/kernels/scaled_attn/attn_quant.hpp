@@ -19,10 +19,8 @@ void attn_quant(const ov::intel_cpu::PlainTensor& k_input,
                 const ov::intel_cpu::PlainTensor& v_input,
                 const ov::intel_cpu::PlainTensor& past_k_output,
                 const ov::intel_cpu::PlainTensor& past_v_output,
-                const ov::intel_cpu::PlainTensor& past_k_zp,
-                const ov::intel_cpu::PlainTensor& past_v_zp,
-                const ov::intel_cpu::PlainTensor& past_k_scale,
-                const ov::intel_cpu::PlainTensor& past_v_scale);
+                const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                const ov::intel_cpu::PlainTensor& past_v_scale_zp);
 
 }  // namespace XARCH
 }  // namespace Cpu

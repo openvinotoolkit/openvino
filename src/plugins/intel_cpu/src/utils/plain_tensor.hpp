@@ -381,6 +381,53 @@ struct PlainTensor {
         return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
     }
 
+    // the following is used for fast access
+    template <typename DT>
+    DT& at(size_t dim0, bool last_dim_stride_is_one = true) const {
+        size_t off;
+        if (last_dim_stride_is_one)
+            off = dim0;
+        else
+            off = m_strides[0] * dim0;
+        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+    }
+    template <typename DT>
+    DT& at(size_t dim0, size_t dim1, bool last_dim_stride_is_one = true) const {
+        size_t off;
+        if (last_dim_stride_is_one)
+            off = m_strides[0] * dim0 + dim1;
+        else
+            off = m_strides[0] * dim0 + m_strides[1] * dim1;
+        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+    }
+    template <typename DT>
+    DT& at(size_t dim0, size_t dim1, size_t dim2, bool last_dim_stride_is_one = true) const {
+        size_t off;
+        if (last_dim_stride_is_one)
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2;
+        else
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2];
+        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+    }
+    template <typename DT>
+    DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, bool last_dim_stride_is_one = true) const {
+        size_t off;
+        if (last_dim_stride_is_one)
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3;
+        else
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3];
+        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+    }
+    template <typename DT>
+    DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, size_t dim4, bool last_dim_stride_is_one = true) const {
+        size_t off;
+        if (last_dim_stride_is_one)
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4;
+        else
+            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4 * m_strides[4];
+        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+    }
+
     template <typename DT>
     PlainTensor& operator=(const DT& value) {
         // assign every element to value
