@@ -71,6 +71,14 @@ offering.
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
 
+| **Apache MXNet, Caffe, and Kaldi model formats**
+|   *New solution:* conversion to ONNX via external tools
+|   *Old solution:* model support will be discontinued with OpenVINO 2024.0
+|
+|   The support for these model formats is no longer maintained.
+|   :doc:`See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`
+|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
+
 
 | **Post-training Optimization Tool (POT)**
 |   *New solution:* NNCF extended in OpenVINO 2023.0
