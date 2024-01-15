@@ -21,6 +21,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
@@ -45,18 +46,13 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
     std::vector<double> values(shape_size(shape), 1);
     for (size_t dim = 0; dim < mask.size(); ++dim) {
         for (const auto& dim_value : mask.at(dim)) {
-            Coordinate coord_begin(shape.size(), 0);
-            coord_begin[dim] = dim_value;
-
-            Coordinate coord_end(shape);
-            coord_end[dim] = dim_value + 1;
-
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::CoordinateTransform iter(shape, coord_begin, coord_end);
-            for (const Coordinate& coord : iter) {
-                values[iter.index(coord)] = 0;
+            auto narrow_shape = shape;
+            narrow_shape[dim] = 1;
+            ov::CoordinateTransformBasic iter(narrow_shape);
+            for (auto coord : iter) {
+                coord[dim] = dim_value;
+                values[coordinate_index(coord, shape)] = 0;
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return std::make_shared<opset10::Constant>(element::f32, shape, values);
@@ -137,12 +133,11 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
     std::vector<double> values(shape_size(weights_shape), 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::CoordinateTransform iter(weights_shape, {0, 1, 0, 0}, {6, 2, 3, 3});
-    for (const Coordinate& coord : iter) {
-        values[iter.index(coord)] = 0;
+    ov::CoordinateTransformBasic iter({6, 1, 3, 3});
+    for (auto coord : iter) {
+        coord[1] = 1;
+        values[coordinate_index(coord, weights_shape)] = 0;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto weights = std::make_shared<opset10::Constant>(element::f32, weights_shape, values);
     ov::pass::InitConstMask({1}).apply(weights);

@@ -116,19 +116,19 @@ class TestBatchNormalization(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_bn(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -509,7 +509,7 @@ Performance Comparison
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 Keep in mind that many optimizations are possible to improve the
 performance.
 
