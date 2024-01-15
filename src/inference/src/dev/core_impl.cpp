@@ -30,6 +30,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "ie_plugin_config.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
 #include "xml_parse_utils.h"

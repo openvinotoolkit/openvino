@@ -4,10 +4,8 @@
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-#include <ie_parallel.hpp>
 #include <map>
 #include <memory>
-#include <openvino/core/partial_shape.hpp>
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
@@ -20,6 +18,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace InferenceEngine {
 
