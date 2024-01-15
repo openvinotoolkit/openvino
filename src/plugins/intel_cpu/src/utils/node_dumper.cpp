@@ -4,19 +4,14 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "node_dumper.h"
-
-#include "utils/debug_caps_config.h"
-#include <node.h>
-#include "ie_common.h"
 #include "utils/blob_dump.h"
+#include "utils/debug_caps_config.h"
+#include "node.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "ie_ngraph_utils.hpp"
 
 #include <regex>
 #include <sstream>
 #include <string>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -107,12 +102,10 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
         auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
-        TensorDesc desc = blb->getTensorDesc();
-        if (InferenceEngine::details::convertPrecision(desc.getPrecision()) == ov::element::u1)
+        if (blb->getDesc().getPrecision() == ov::element::u1)
             continue;
 
-        MemoryPtr memory = std::make_shared<Memory>(node->getEngine(), MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
-        BlobDumper dumper(memory);
+        BlobDumper dumper(blb);
         dump(dumper, dump_file, config);
     }
 }

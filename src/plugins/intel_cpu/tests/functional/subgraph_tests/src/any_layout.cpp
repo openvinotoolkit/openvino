@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 namespace ov {
 namespace test {
@@ -40,6 +41,11 @@ protected:
 
         // Create model
         auto function = create_test_function(shape);
+
+        auto ppp_model = ov::preprocess::PrePostProcessor(function);
+        ppp_model.input().tensor().set_layout("...");
+        ppp_model.output().tensor().set_layout("...");
+        function = ppp_model.build();
 
         auto input = ov::Tensor(ov::element::f32, shape, input_data.data());
         auto output = ov::Tensor(ov::element::f32, shape, output_data.data());

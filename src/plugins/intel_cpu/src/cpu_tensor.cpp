@@ -3,8 +3,6 @@
 //
 
 #include "cpu_tensor.h"
-#include "ie_ngraph_utils.hpp"
-
 #include "utils/debug_capabilities.h"
 
 namespace ov {

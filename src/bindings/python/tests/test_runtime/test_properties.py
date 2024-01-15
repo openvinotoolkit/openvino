@@ -37,13 +37,6 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
-def test_deprecation():
-    with pytest.warns(DeprecationWarning) as w:
-        _ = hints.PerformanceMode.UNDEFINED
-    assert issubclass(w[0].category, DeprecationWarning)
-    assert "PerformanceMode.UNDEFINED is deprecated and will be removed" in str(w[0].message)
-
-
 ###
 # Enum-like values
 ###
@@ -60,6 +53,13 @@ def test_deprecation():
             ),
         ),
         (
+            props.CacheMode,
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
+                (props.CacheMode.OPTIMIZE_SPEED, "CacheMode.OPTIMIZE_SPEED", 1),
+            ),
+        ),
+        (
             hints.Priority,
             (
                 (hints.Priority.LOW, "Priority.LOW", 0),
@@ -71,7 +71,6 @@ def test_deprecation():
         (
             hints.PerformanceMode,
             (
-                (hints.PerformanceMode.UNDEFINED, "PerformanceMode.UNDEFINED", -1),
                 (hints.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (hints.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
                 (hints.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
@@ -108,6 +107,14 @@ def test_deprecation():
                 (log.Level.INFO, "Level.INFO", 2),
                 (log.Level.DEBUG, "Level.DEBUG", 3),
                 (log.Level.TRACE, "Level.TRACE", 4),
+            ),
+        ),
+        (
+            intel_auto.SchedulePolicy,
+            (
+                (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
+                (intel_auto.SchedulePolicy.DEVICE_PRIORITY, "SchedulePolicy.DEVICE_PRIORITY", 1),
+                (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEVICE_PRIORITY", 1),
             ),
         ),
     ],
@@ -207,6 +214,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (("./test_cache", "./test_cache"),),
         ),
         (
+            props.cache_mode,
+            "CACHE_MODE",
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, props.CacheMode.OPTIMIZE_SIZE),
+                (props.CacheMode.OPTIMIZE_SPEED, props.CacheMode.OPTIMIZE_SPEED),
+            ),
+        ),
+        (
             props.auto_batch_timeout,
             "AUTO_BATCH_TIMEOUT",
             (
@@ -245,7 +260,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.performance_mode,
             "PERFORMANCE_HINT",
-            ((hints.PerformanceMode.UNDEFINED, hints.PerformanceMode.UNDEFINED),),
+            ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
         ),
         (
             hints.enable_cpu_pinning,

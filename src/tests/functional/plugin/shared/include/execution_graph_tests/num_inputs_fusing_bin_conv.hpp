@@ -6,16 +6,14 @@
 
 #include <string>
 
-#include "ov_models/builders.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 namespace ExecutionGraphTests {
 
 class ExecGraphInputsFusingBinConv : public ov::test::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-    std::shared_ptr<ngraph::Function> fnPtr;
-    std::string targetDevice;
+    std::shared_ptr<ov::Model> ov_model;
 
 protected:
     void SetUp() override;

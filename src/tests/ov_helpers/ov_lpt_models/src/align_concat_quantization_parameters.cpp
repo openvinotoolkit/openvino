@@ -4,9 +4,10 @@
 
 #include "ov_lpt_models/align_concat_quantization_parameters.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
@@ -25,7 +26,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {
-        parent1 = ngraph::builder::makeFakeQuantize(input1, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
+        parent1 = ov::test::utils::make_fake_quantize(input1, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
         parent1->set_friendly_name("fakeQuantizeOnActivations1");
 
         parent1 = std::make_shared<ov::opset1::AvgPool>(
@@ -50,7 +51,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
         }
 
         if (addFQ) {
-            parent1 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            parent1 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
             parent1->set_friendly_name("lastFakeQuantize1");
         }
     }
@@ -58,7 +59,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
     const auto input2 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent2 = input2;
     {
-        parent2 = ngraph::builder::makeFakeQuantize(input1, precision, 256, {}, { -1.28f / 2.f }, { 1.27f / 2.f }, { -1.28f / 2.f }, { 1.27f / 2.f });
+        parent2 = ov::test::utils::make_fake_quantize(input1, precision, 256, {}, { -1.28f / 2.f }, { 1.27f / 2.f }, { -1.28f / 2.f }, { 1.27f / 2.f });
         parent2->set_friendly_name("fakeQuantizeOnActivations2");
 
         parent2 = std::make_shared<ov::opset1::AvgPool>(
@@ -83,7 +84,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
         }
 
         if (addFQ) {
-            parent2 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            parent2 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }
@@ -94,7 +95,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
         const size_t outputChannels = 9ul;
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-        const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+        const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
             std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
             precision,
             255,
@@ -161,7 +162,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
         }
 
         if (addFQ) {
-            parent1 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            parent1 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
             parent1->set_friendly_name("lastFakeQuantize1");
         }
     }
@@ -196,7 +197,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
         }
 
         if (addFQ) {
-            parent2 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            parent2 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }

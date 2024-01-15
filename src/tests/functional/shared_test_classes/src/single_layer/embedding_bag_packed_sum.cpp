@@ -39,11 +39,11 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indPrecision);
 
-    auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(embTableShape));
+    auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(embTableShape));
     ngraph::ParameterVector params = {emb_table_node};
 
     auto embBag = ov::test::utils::make_embedding_bag_packed_sum(ngPrc, ngIdxPrc, emb_table_node, indices, withWeights);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");
 }
 }  // namespace LayerTestsDefinitions

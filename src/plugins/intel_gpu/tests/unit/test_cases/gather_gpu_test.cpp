@@ -2161,3 +2161,169 @@ TEST(gather_single_axis, simple_Baxis) {
     auto crop_prim = network.get_primitive("gather");
     ASSERT_EQ(crop_prim->can_be_optimized(), false);
 }
+
+class gather_gpu_tests: public ::testing::Test {
+public:
+    void test_compressed_scale_zp(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({ {2, 3}, data_types::i32, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {2, 5}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {2, 1}, data_types::f32, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {2, 1}, data_types::f32, format::bfyx });
+
+        set_values(input_mem, { 0, 0, 4,
+                                4, 0, 0 });
+        set_values<uint8_t>(weights_mem, { 1, 2, 3, 4, 5,
+                                           6, 7, 8, 9, 10});
+        set_values(scale_mem, { 2.0f, 4.0f });
+        set_values(zp_mem, { 1.0f, 2.0f });
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info("zp"), data_types::f32, 2, ov::Shape{2, 3}, 1)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gather_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{2, 3};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        std::vector<float> expected_result = {0.0f, 0.0f, 8.0f, 32.0f, 16.0f, 16.0f};
+
+        for (size_t i = 0; i < expected_result.size(); i++) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
+    void test_compressed_scale(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({ {2, 3}, data_types::i32, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {2, 5}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {2, 1}, data_types::f32, format::bfyx });
+
+        set_values(input_mem, { 0, 0, 4,
+                                4, 0, 0 });
+        set_values<uint8_t>(weights_mem, { 1, 2, 3, 4, 5,
+                                           6, 7, 8, 9, 10});
+        set_values(scale_mem, { 2.0f, 4.0f });
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info(""), data_types::f32, 2, ov::Shape{2, 3}, 1)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gather_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{2, 3};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        std::vector<float> expected_result = {2.0f, 2.0f, 10.0f, 40.0f, 24.0f, 24.0f};
+
+        for (size_t i = 0; i < expected_result.size(); i++) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
+    void test_compressed_scale_fp16(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({ {2, 3}, data_types::i32, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {2, 5}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {2, 1}, data_types::f16, format::bfyx });
+
+        set_values(input_mem, { 0, 0, 4,
+                                4, 0, 0 });
+        set_values<uint8_t>(weights_mem, { 1, 2, 3, 4, 5,
+                                           6, 7, 8, 9, 10});
+        set_values<ov::float16>(scale_mem, { ov::float16(2.0f), ov::float16(4.0f) });
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            gather("gather_prim", input_info("weights"), input_info("input"), 1,
+                   input_info("scale"), input_info(""), data_types::f16, 2, ov::Shape{2, 3}, 1)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gather_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{2, 3};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        std::vector<ov::float16> expected_result = {ov::float16(2), ov::float16(2), ov::float16(10),
+                                                    ov::float16(40), ov::float16(24), ov::float16(24)};
+
+        for (size_t i = 0; i < expected_result.size(); i++) {
+            ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+};
+
+TEST_F(gather_gpu_tests, compressed_scale_zp) {
+    this->test_compressed_scale_zp(false);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_zp_cached) {
+    this->test_compressed_scale_zp(true);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale) {
+    this->test_compressed_scale(false);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_cached) {
+    this->test_compressed_scale(true);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_fp16) {
+    this->test_compressed_scale_fp16(false);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_fp16_cached) {
+    this->test_compressed_scale_fp16(true);
+}

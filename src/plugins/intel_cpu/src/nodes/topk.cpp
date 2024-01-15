@@ -4,25 +4,22 @@
 
 #include "topk.h"
 
-#include <string>
-#include <vector>
-#include <set>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "emitters/x64/jit_load_store_emitters.hpp"
-#include "openvino/core/parallel.hpp"
-#include <ie_ngraph_utils.hpp>
-#include <algorithm>
-
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
 #include "common/cpu_memcpy.h"
-
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/opsets/opset1.hpp"
 
+#include <algorithm>
+#include <set>
+#include <string>
+#include <vector>
+
 using namespace dnnl;
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;

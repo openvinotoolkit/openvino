@@ -4,9 +4,9 @@
 
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -15,6 +15,7 @@
 using namespace std;
 using namespace ov::opset8;
 using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -69,7 +70,11 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
-    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto model = dynamic_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        model,
+        "[TensorFlow Frontend] internal error: cannot cast a pointer to ov::frontend::tensorflow::InputModel*");
     auto var_index = model->get_variables_index();
     auto ov_type = node.get_attribute<element::Type>("dtype");
     std::shared_ptr<Node> const_node;
@@ -188,10 +193,20 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
-    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto model = dynamic_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        model,
+        "[TensorFlow Frontend] internal error: cannot cast a pointer to ov::frontend::tensorflow::InputModel*");
     auto var_index = model->get_variables_index();
-    auto tensor_names =
-        reinterpret_cast<StringConstant*>(node.get_input(1).get_node())->get_data().as<std::vector<std::string>>();
+
+    auto string_constant_node = as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        string_constant_node && string_constant_node->get_output_element_type(0) == element::string,
+        "[TensorFlow Frontend] internal error: cannot cast a node pointer to string Constant pointer");
+    auto tensor_names = string_constant_node->get_vector<std::string>();
+
     auto tensor_types = node.get_attribute<std::vector<ov::element::Type>>("dtypes");
 
     OutputVector outs = {};

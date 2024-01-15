@@ -8,7 +8,7 @@
 #include "nodes/input.h"
 #include "nodes/transpose.h"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -60,7 +60,7 @@ protected:
         //
         Config conf;
         conf.rtCacheCapacity = 100;
-        auto context = std::make_shared<GraphContext>(conf, nullptr, nullptr, false);
+        auto context = std::make_shared<GraphContext>(conf, nullptr, false);
         const dnnl::engine cpuEngine = context->getEngine();
 
         m_graph = std::unique_ptr<Graph>(new Graph());
@@ -68,7 +68,7 @@ protected:
         // ov::Model with only a transpose node
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(testPrec, ov::Shape(testShape))};
         auto order = std::vector<int32_t>{0, 3, 1, 2};
-        auto constOrder = ngraph::builder::makeConstant(ov::element::i32, {order.size()}, order);
+        auto constOrder = ov::test::utils::deprecated::make_constant(ov::element::i32, {order.size()}, order);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
@@ -78,7 +78,7 @@ protected:
 
             auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
                 auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
-                child->addEdge(edge);
+                Node::addEdge(edge);
                 edges.push_back(edge);
                 nodesSet.insert(parent);
                 nodesSet.insert(child);

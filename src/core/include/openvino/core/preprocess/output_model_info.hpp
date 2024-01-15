@@ -6,6 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -42,6 +43,16 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     OutputModelInfo& set_layout(const ov::Layout& layout);
+
+    /// \brief Set color format for model's output tensor
+    ///
+    /// \param format Color format for model's output tensor.
+    ///
+    /// \param sub_names Optional list of sub-names, not used, placeholder for future.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    OutputModelInfo& set_color_format(const ov::preprocess::ColorFormat& format,
+                                      const std::vector<std::string>& sub_names = {});
 };
 
 }  // namespace preprocess

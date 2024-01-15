@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-using TypeToNameMap = InferenceEngine::details::caseless_unordered_map<std::string, Type>;
+using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 
 static const TypeToNameMap& get_type_to_name_tbl() {
     static const TypeToNameMap type_to_name_tbl = {
@@ -215,7 +215,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "Unique", Type::Unique},
             { "Ngram", Type::Ngram},
             { "ScaledDotProductAttention", Type::ScaledDotProductAttention},
-            { "ScaledDotProductAttentionStub", Type::ScaledDotProductAttention},
+            { "ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
             { "RoPE", Type::RoPE},
     };
     return type_to_name_tbl;
@@ -234,7 +234,6 @@ Type TypeFromName(const std::string& type) {
 std::string NameFromType(const Type type) {
 #define CASE(_alg) case Type::_alg: return #_alg;
     switch (type) {
-        CASE(Generic);
         CASE(Reorder);
         CASE(Input);
         CASE(Output);

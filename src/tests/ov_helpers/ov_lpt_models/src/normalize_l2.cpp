@@ -5,9 +5,10 @@
 #include "ov_lpt_models/normalize_l2.hpp"
 
 #include <ov_ops/type_relaxed.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -29,7 +30,7 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getOriginal(
     const auto paramNode = std::make_shared<ov::opset1::Parameter>(precision, shapes.first);
     paramNode->set_friendly_name("input");
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         paramNode->output(0), precision, 256, shapes.second,
         { low / inputScale }, { high / inputScale }, { low / outputScale }, { high / outputScale });
 
