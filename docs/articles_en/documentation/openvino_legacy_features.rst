@@ -13,7 +13,6 @@ Legacy Features and Components
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
-   Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
 
 
 Since OpenVINO has grown very rapidly in recent years, some of its features
@@ -74,12 +73,9 @@ offering.
 
 | **Apache MXNet, Caffe, and Kaldi model formats**
 |   *New solution:* conversion to ONNX via external tools
-|   *Old solution:* model support will be discontinued with OpenVINO 2024.0
+|   *Old solution:* model support discontinued with OpenVINO 2024.0
 |
-|   Since these three model formats proved to be far less popular among OpenVINO users
-    than the remaining ones, their support has been discontinued. Converting them to the
-    ONNX format is a possible way of retaining them in the OpenVINO-based pipeline.
-|   :doc:`See the previous conversion instructions <mxnet_caffe_kaldi>`
+|   `See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
 |   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
 
 

@@ -75,9 +75,6 @@ For optimal work with POT quantized models, which include 2D convolutions on GNA
 * Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 * To check interoperability in your application use: ``ov::intel_gna::execution_target`` and ``ov::intel_gna::compile_target``.
 
-:doc:`Speech C++ Sample <openvino_sample_automatic_speech_recognition>` can be used for experiments (see the ``-exec_target`` and ``-compile_target`` command line options).
-
-
 Software Emulation Mode
 ###########################################################
 
@@ -210,8 +207,8 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or
-:doc:`Speech C++ Sample <openvino_sample_automatic_speech_recognition>`.
+To compile a model, use :ref:`compile Tool <openvino_ecosystem>`.
+
 
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -467,8 +464,3 @@ See Also
 
 * :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
 * :doc:`Converting Model <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`
-* :doc:`Convert model from Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
-
-
-
-
