@@ -136,7 +136,7 @@ Convert models to OpenVINO Intermediate representation (IR) format
 
 
 `Model conversion
-API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 enables direct conversion of PyTorch models backing the pipeline. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object
