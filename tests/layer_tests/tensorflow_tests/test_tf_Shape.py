@@ -12,15 +12,23 @@ class TestShape(CommonTFLayerTest):
         assert 'input' in inputs_info
         input_shape = inputs_info['input']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, input_shape).astype(self.input_type)
-
+        rng = np.random.default_rng()
+        if self.input_type == str or self.input_type == np.str_:
+            strings_dictionary = ['first', 'second sentence', ' sentence 3 three', '34ferf466 23435* ', '汉语句子',
+                                  'Oferta polska',
+                                  'предложение по-русски']
+            inputs_data['input'] = rng.choice(strings_dictionary, input_shape)
+        else:
+            inputs_data['input'] = rng.integers(-10, 10, size=input_shape).astype(self.input_type)
         return inputs_data
 
     def create_shape_net(self, input_shape, input_type, out_type):
         self.input_type = input_type
         types_map = {
             np.float32: tf.float32,
-            np.int32: tf.int32
+            np.int32: tf.int32,
+            str: tf.string,
+            np.str_: tf.string
         }
         assert input_type in types_map, "Incorrect test case"
         tf_type = types_map[input_type]
@@ -37,20 +45,19 @@ class TestShape(CommonTFLayerTest):
 
         return tf_net, None
 
-    test_data_basic = [
-        dict(input_shape=[2, 3], input_type=np.float32, out_type=tf.int32),
-        dict(input_shape=[3, 4, 5], input_type=np.int32, out_type=tf.int64),
-        dict(input_shape=[1], input_type=np.int32, out_type=None),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.parametrize("input_shape", [[], [2], [3, 4], [5, 1, 2]])
+    @pytest.mark.parametrize("input_type", [np.float32, np.int32, str, np.str_])
+    @pytest.mark.parametrize("out_type", [tf.int32, tf.int64])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_shape_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
-        self._test(*self.create_shape_net(**params),
+    def test_shape_basic(self, input_shape, input_type, out_type, ie_device, precision, ir_version, temp_dir,
+                         use_new_frontend):
+        if input_shape == [] and out_type == tf.int64:
+            pytest.skip('129100 - Hangs or segfault')
+        self._test(*self.create_shape_net(input_shape=input_shape, input_type=input_type, out_type=out_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
+
 
 class TestComplexShape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -84,13 +91,13 @@ class TestComplexShape(CommonTFLayerTest):
         dict(input_shape=[2, 4, 3]),
         dict(input_shape=[2, 5, 3, 6, 8]),
     ]
+
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                           use_new_frontend):
         self._test(
             *self.create_complex_shape_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
+            use_new_frontend=use_new_frontend)
