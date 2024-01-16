@@ -313,17 +313,17 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsX,
                 int spatialBinsY,
                 const std::string& mode) {
-#define CASE(X)                            \
-    case X:                                \
-        fill_psroi_impl<X>(tensor,         \
-                           batchSize,      \
-                           height,         \
-                           width,          \
-                           groupSize,      \
-                           spatialScale,   \
-                           spatialBinsX,   \
-                           spatialBinsY,   \
-                           mode);          \
+#define CASE(X)                          \
+    case X:                              \
+        fill_psroi_impl<X>(tensor,       \
+                           batchSize,    \
+                           height,       \
+                           width,        \
+                           groupSize,    \
+                           spatialScale, \
+                           spatialBinsX, \
+                           spatialBinsY, \
+                           mode);        \
         break;
 
     auto element_type = tensor.get_element_type();
