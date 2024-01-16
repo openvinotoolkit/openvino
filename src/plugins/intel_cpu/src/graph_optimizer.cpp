@@ -1376,6 +1376,13 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        if (childNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+            parent++;
+            continue;
+        }
+#endif
 
         auto fuseCandidate = childNode->getChildEdgeAt(0)->getChild();
         if (parentNode->getType() == Type::BinaryConvolution && !parentNode->canFuse(fuseCandidate)) {
@@ -1425,6 +1432,13 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        if (childNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+            parent++;
+            continue;
+        }
+#endif
 
         childNode->fuseInto(parentNode);
 
@@ -1555,8 +1569,13 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
     auto &graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](NodePtr conv, NodePtr child) {
-        return child->getType() == Type::Eltwise &&
+        bool ret = child->getType() == Type::Eltwise &&
             DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        ret = ret && child->getOriginalInputPrecisionAtPort(0) != ov::element::f16;
+#endif
+    return ret;
     };
 
     for (auto &graphNode : graphNodes) {
