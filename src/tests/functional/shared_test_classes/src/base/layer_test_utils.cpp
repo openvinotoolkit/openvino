@@ -144,15 +144,9 @@ void LayerTestsCommon::QueryNetwork() {
 
     std::set<std::string> actual;
     for (auto&& res : queryNetworkResult.supportedLayersMap) {
-        std::shared_ptr<InferenceEngine::RemoteContext> ctx = nullptr;
-        try {
-            // Try to take fully specified name from the context to match it with query network result for devices that support remote contexts
-            ctx = core->GetDefaultContext(targetDevice);
-            ASSERT_EQ(res.second, ctx->getDeviceName());
-        } catch (...) {
-            // otherwise, compare with originally used device name
-            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
-        }
+        // compare with originally used device name
+        ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
+
         actual.insert(res.first);
     }
     ASSERT_EQ(expected, actual);

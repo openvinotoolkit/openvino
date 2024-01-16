@@ -40,7 +40,6 @@ public:
                 GetMetric,
                 (const std::string& name, Parameter& result, ResponseDesc* resp),
                 (const, noexcept));
-    MOCK_METHOD(StatusCode, GetContext, (RemoteContext::Ptr & pContext, ResponseDesc* resp), (const, noexcept));
 };
 
 IE_SUPPRESS_DEPRECATED_END

@@ -28,7 +28,6 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_precision.hpp"
-#include "ie_preprocess.hpp"
 
 namespace InferenceEngine {
 
@@ -163,28 +162,7 @@ public:
         return _inputData->getTensorDesc();
     }
 
-    /**
-     * @brief Gets pre-process info for the input
-     * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
-     */
-    PreProcessInfo& getPreProcess() {
-        return _preProcessInfo;
-    }
-
-    /**
-     * @brief Gets pre-process info for the input
-     * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
-     */
-    const PreProcessInfo& getPreProcess() const {
-        return _preProcessInfo;
-    }
-
 protected:
-    /**
-     * @brief Pre-process info for the input
-     */
-    PreProcessInfo _preProcessInfo;
-
     /**
      * @brief A smart pointer to the input data
      */

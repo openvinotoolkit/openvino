@@ -10,7 +10,6 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {

@@ -21,15 +21,13 @@ const std::vector<DeviceInformation> fp32DeviceVector = {DGPU_INFO, IGPU_INFO, O
 const std::vector<DeviceInformation> fp16DeviceVector = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> int8DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
 const std::vector<DeviceInformation> binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation> batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
                                                                           {"FP16", fp16DeviceVector},
                                                                           {"INT8", int8DeviceVector},
-                                                                          {"BIN", binDeviceVector},
-                                                                          {"BATCHED_BLOB", batchedblobDeviceVector}};
+                                                                          {"BIN", binDeviceVector}};
 const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, OTHERS_INFO, CPU_INFO};
 const std::vector<DeviceInformation> reverseTotalDevices = {CPU_INFO, OTHERS_INFO, IGPU_INFO, DGPU_INFO};
-const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
+const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN"};
 std::vector<ConfigParams> testConfigs;
 
 class SelectDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {

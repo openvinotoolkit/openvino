@@ -131,7 +131,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
     ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(12));
     std::vector<std::string> cpuCability = {"FP32", "FP16", "INT8", "BIN"};
-    std::vector<std::string> gpuCability = {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
+    std::vector<std::string> gpuCability = {"FP32", "FP16", "BIN", "INT8"};
     std::vector<std::string> othersCability = {"FP32", "FP16"};
     std::string igpuArchitecture = "GPU: vendor=0x8086 arch=0";
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";

@@ -12,7 +12,6 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 #include "so_ptr.hpp"
 
 namespace ov {
@@ -29,7 +28,6 @@ namespace InferenceEngine {
 class IInferencePlugin;
 class IPluginWrapper;
 class IInferRequestInternal;
-class RemoteContext;
 class IVariableStateInternal;
 class ICompiledModelWrapper;
 
@@ -150,12 +148,6 @@ public:
      * @return A metric value corresponding to metric key
      */
     virtual Parameter GetMetric(const std::string& name) const;
-
-    /**
-     * @brief Gets the remote context.
-     * @return A reference to a context
-     */
-    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
     /**
      * @brief Raises the flag that model was loaded from cache

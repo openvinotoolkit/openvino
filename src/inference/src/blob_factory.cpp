@@ -20,7 +20,3 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::Tenso
                                                     const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     return make_blob_with_precision(desc.getPrecision(), desc, alloc);
 }
-
-InferenceEngine::Blob::Ptr make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims) {
-    return make_blob_with_precision({prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims)});
-}

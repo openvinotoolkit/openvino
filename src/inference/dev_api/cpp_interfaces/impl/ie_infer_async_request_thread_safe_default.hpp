@@ -243,23 +243,9 @@ public:
         _syncRequest->SetBlob(name, data);
     }
 
-    void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
-        CheckState();
-        _syncRequest->SetBlobs(name, blobs);
-    }
-
-    BatchedBlob::Ptr GetBlobs(const std::string& name) override {
-        CheckState();
-        return _syncRequest->GetBlobs(name);
-    }
-
     Blob::Ptr GetBlob(const std::string& name) override {
         CheckState();
         return _syncRequest->GetBlob(name);
-    }
-
-    const PreProcessInfo& GetPreProcess(const std::string& name) const override {
-        return _syncRequest->GetPreProcess(name);
     }
 
     void SetCallback(Callback callback) override {

@@ -119,13 +119,6 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
-     * @brief Gets pre-process for input data
-     * @param name Name of input blob.
-     * @return pointer to pre-process info of blob with name
-     */
-    const PreProcessInfo& GetPreProcess(const std::string& name) const;
-
-    /**
      * @brief Infers specified input(s) in synchronous mode
      *
      * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)

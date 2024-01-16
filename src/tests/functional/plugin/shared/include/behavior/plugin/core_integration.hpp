@@ -369,13 +369,6 @@ TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     ASSERT_THROW(ie.ImportNetwork("model", ov::test::utils::DEVICE_MULTI), InferenceEngine::NetworkNotRead);
 }
 
-TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::RemoteContext::Ptr context = nullptr;
-    std::istringstream stream("None");
-    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), InferenceEngine::Exception);
-}
-
 //
 // QueryNetwork
 //

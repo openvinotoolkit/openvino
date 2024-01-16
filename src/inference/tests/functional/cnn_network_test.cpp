@@ -112,24 +112,6 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
     }
 }
 
-TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
-    auto model = CNNNetworkTests_create_model();
-    CNNNetwork network(model);
-    InferenceEngine::Core core;
-    try {
-        core.LoadNetwork(network, InferenceEngine::RemoteContext::Ptr());
-        FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const InferenceEngine::Exception& e) {
-        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
-    }
-}
-
 TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
     auto model = CNNNetworkTests_create_model();
     CNNNetwork network(model);

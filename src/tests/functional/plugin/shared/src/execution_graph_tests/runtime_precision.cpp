@@ -23,7 +23,7 @@
 namespace ExecutionGraphTests {
 
 std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Type>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 2);
+    OPENVINO_ASSERT(inputPrecisions.size() == 2);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0],
                                                                        ov::Shape{1, 16, 5, 4}),
@@ -38,7 +38,7 @@ std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Ty
 }
 
 std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::element::Type>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::el
 }
 
 std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<ov::element::Type> &inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});

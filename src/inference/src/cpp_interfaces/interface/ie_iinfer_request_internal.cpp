@@ -4,10 +4,8 @@
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-#include <ie_parallel.hpp>
 #include <map>
 #include <memory>
-#include <openvino/core/partial_shape.hpp>
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
@@ -17,10 +15,8 @@
 #include "ie_algorithm.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
-#include "ie_compound_blob.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_preprocess.hpp"
-#include "ie_remote_context.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -122,9 +118,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     const auto input = findInputByNodeName(name);
     const auto output = findOutputByNodeName(name);
 
-    const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
-    const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
-    if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
+    if (userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (userBlob->size() == 0 && !((input && input->get_output_partial_shape(0).is_dynamic()) ||
                                    (output && output->get_output_partial_shape(0).is_dynamic()))) {
@@ -143,9 +137,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         }
 
         auto& devBlob = _deviceInputs[name];
-        if (compoundBlobPassed) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
-        }
 
         size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
@@ -156,11 +147,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         }
         _inputs[name] = userBlob;
         devBlob = userBlob;
-        _batched_inputs.erase(name);
     } else {
-        if (compoundBlobPassed) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
-        }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(foundOutput->getTensorDesc().getDims())
                                 : 1;
@@ -179,180 +166,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         // }
         _outputs[name] = userBlob;
     }
-}
-
-void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
-    if (blobs.size() == 1) {
-        SetBlob(name, blobs[0]);
-        return;
-    }
-
-    bool all_memory = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& item) {
-        return item && item->is<MemoryBlob>() && !item->is<RemoteBlob>();
-    });
-    OPENVINO_ASSERT(all_memory,
-                    "set_input_tensors/set_tensors error. Default implementation support only local memory tensors");
-
-    checkBlobsForBatch(name, blobs);
-
-    SetBlobsImpl(name, std::make_shared<BatchedBlob>(blobs));
-}
-
-void IInferRequestInternal::SetBlobsImpl(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
-    IE_THROW(NotImplemented) << "set_input_tensors/set_tensors are not supported by this plugin";
-}
-
-void IInferRequestInternal::checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
-    OPENVINO_ASSERT(!blobs.empty(),
-                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
-                    name,
-                    "'");
-    OPENVINO_ASSERT(blobs.size() != 1,
-                    "Internal error (plugin): checkBlobsForBatch is not allowed to have only one blob inside batch "
-                    "for input '",
-                    name,
-                    "'");
-
-    std::shared_ptr<const ov::op::v0::Parameter> param;
-    const auto& inputs = GetInputs();
-    for (const auto& input : inputs) {
-        if (auto p = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input)) {
-            if (name == p->get_friendly_name()) {
-                param = p;
-                break;
-            }
-        }
-    }
-    OPENVINO_ASSERT(param, "set_input_tensors/set_tensors error. Parameter '", name, "' is not found");
-    OPENVINO_ASSERT(ov::layout::has_batch(param->get_layout()),
-                    "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
-                    " 'layout' defined. Current layout for '",
-                    name,
-                    "' is ",
-                    param->get_layout().to_string());
-    auto batch_idx = ov::layout::batch_idx(param->get_layout());
-    if (batch_idx < 0) {
-        batch_idx += static_cast<int64_t>(blobs[0]->getTensorDesc().getDims().size());
-    }
-    OPENVINO_ASSERT(batch_idx == 0,
-                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
-                    batch_idx,
-                    " != 0");
-    std::for_each(blobs.begin(), blobs.end(), [&batch_idx](const Blob::Ptr& item) {
-        OPENVINO_ASSERT(item->getTensorDesc().getDims()[batch_idx] == 1,
-                        "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
-                        item->getTensorDesc().getDims()[batch_idx],
-                        " provided");
-    });
-    auto blobs_size = static_cast<int>(blobs.size());
-    if (param->get_partial_shape().rank().is_static()) {
-        OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < param->get_partial_shape().rank().get_length(),
-                        "set_input_tensors/set_tensors error. Layout ",
-                        param->get_layout().to_string(),
-                        " is incorrect for operation with name '",
-                        name,
-                        "' with shape ",
-                        param->get_partial_shape());
-        auto batch = param->get_partial_shape()[batch_idx];
-
-        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == blobs_size,
-                        "set_input_tensors/set_tensors error. Input shape ",
-                        param->get_partial_shape(),
-                        "batch ",
-                        batch,
-                        "doesn't match with total blobs count: ",
-                        blobs_size);
-    }
-
-    // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
-    auto tmp_desc = blobs[0]->getTensorDesc();
-    tmp_desc.getDims()[batch_idx] = blobs_size;
-    auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
-    blockingDims[batch_idx] = blobs_size;
-    auto blockingDesc = BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
-    auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
-    auto desc_to_string = [](const TensorDesc& desc) {
-        std::stringstream s;
-        s << "{ " << desc.getLayout() << " " << desc.getPrecision().name();
-        s << "dim=(";
-        for (const auto& d : desc.getDims()) {
-            s << " " << d;
-        }
-        s << " ) }";
-        return s.str();
-    };
-    for (const auto& item : blobs) {
-        auto item_desc = item->getTensorDesc();
-        item_desc.getDims()[batch_idx] = batched_desc.getDims()[batch_idx];
-        OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims() &&
-                            item_desc.getLayout() == batched_desc.getLayout() &&
-                            item_desc.getPrecision() == batched_desc.getPrecision() &&
-                            item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
-                        "set_input_tensors/set_tensors error. Blob ",
-                        desc_to_string(item_desc),
-                        " is not compatible with batched blob ",
-                        desc_to_string(batched_desc));
-    }
-}
-
-void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
-    auto tmp_desc = batched_blob->getBlob(0)->getTensorDesc();
-    tmp_desc.getDims()[0] = batched_blob->size();
-    auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
-    blockingDims[0] = batched_blob->size();
-    auto blockingDesc = BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
-    auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
-    std::shared_ptr<RemoteContext> remote_context;
-    MemoryBlob::Ptr mem_blob;
-    try {
-        auto net = getPointerToExecutableNetworkInternal();
-        if (net) {
-            remote_context = net->GetContext();
-        }
-    } catch (const InferenceEngine::NotImplemented&) {
-    }
-    if (remote_context) {
-        mem_blob = remote_context->CreateHostBlob(batched_desc);
-    } else {
-        mem_blob = std::dynamic_pointer_cast<MemoryBlob>(make_blob_with_precision(batched_desc));
-    }
-    OPENVINO_ASSERT(mem_blob, "Internal error - can't create host memory blob");
-    mem_blob->allocate();
-    auto ptr = mem_blob->wmap();
-
-    // Perform memory copy
-    InferenceEngine::parallel_for(batched_blob->size(), [&](size_t i) {
-        const auto& blob = as<MemoryBlob>(batched_blob->getBlob(i));
-        OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
-        const auto& blob_desc = blob->getTensorDesc().getBlockingDesc();
-        bool offsets_0 = std::all_of(blob_desc.getOffsetPaddingToData().begin(),
-                                     blob_desc.getOffsetPaddingToData().end(),
-                                     [](size_t dim) {
-                                         return dim == 0;
-                                     });
-        OPENVINO_ASSERT(offsets_0,
-                        "set_tensors/set_input_tensors - default combining is not supported for "
-                        "ROI tensors. All tensors offsets shall be 0");
-        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getOrder() == blob_desc.getOrder(),
-                        "set_tensors/set_input_tensors - default combining is not supported for "
-                        "ROI tensors. Axis order shall be default");
-        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getStrides() == blob_desc.getStrides(),
-                        "set_tensors/set_input_tensors - default combining is not supported for "
-                        "ROI tensors. Input blobs shall have default strides set");
-        memcpy(ptr.as<uint8_t*>() + i * blob->byteSize(),
-               blob->rmap().as<uint8_t*>() +
-                   blob->getTensorDesc().getBlockingDesc().getOffsetPadding() * blob->element_size(),
-               blob->byteSize());
-    });
-    SetBlob(name, mem_blob);
-}
-
-void IInferRequestInternal::convertBatchedInputBlobs() {
-    auto batched_copy = _batched_inputs;
-    for (const auto& item : batched_copy) {
-        convertBatchedInputBlob(item.first, item.second);
-    }
-    _batched_inputs = batched_copy;
 }
 
 Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
@@ -381,23 +194,6 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
     return data;
-}
-
-BatchedBlob::Ptr IInferRequestInternal::GetBlobs(const std::string& name) {
-    if (_batched_inputs.count(name)) {
-        return _batched_inputs.at(name);
-    }
-    return nullptr;
-}
-
-const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& name) const {
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        return foundInput->getPreProcess();
-    } else {
-        IE_THROW() << "Output blob can't have pre-processing";
-    }
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
@@ -512,8 +308,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
     if (!isDynamic && refSize != blob->size()) {
         IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
-    const bool remoteBlobPassed = blob->is<RemoteBlob>();
-    if (!remoteBlobPassed && blob->buffer() == nullptr)
+    if (blob->buffer() == nullptr)
         IE_THROW() << strNotAllocated;
 }
 

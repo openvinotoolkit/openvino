@@ -111,24 +111,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
         if (it != rt_info.end()) {
             seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
         }
-
-        it = rt_info.find("ie_legacy_preproc");
-        if (it != rt_info.end()) {
-            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
-
-            seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
-
-            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
-                seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
-                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
-                    seed = ov::hash_combine(seed, channelInfo->stdScale);
-                    seed = ov::hash_combine(seed, channelInfo->meanValue);
-                }
-            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
-                // TODO: think if we need to compute hash for mean image if it exists
-            }
-        }
     }
     for (auto&& output : model->outputs()) {
         auto& rt_info = output.get_rt_info();

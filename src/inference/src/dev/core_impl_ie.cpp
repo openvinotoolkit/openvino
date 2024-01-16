@@ -31,21 +31,13 @@ bool ov::CoreImpl::isNewAPI() const {
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     ov::Plugin& plugin,
-    const std::map<std::string, std::string>& parsedConfig,
-    const InferenceEngine::RemoteContext::Ptr& context) {
+    const std::map<std::string, std::string>& parsedConfig) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::LoadNetworkImpl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr);
     OPENVINO_ASSERT(wrapper);
     auto old_plugin = wrapper->get_plugin();
-    execNetwork = {context ? old_plugin->LoadNetwork(network, parsedConfig, context)
-                           : old_plugin->LoadNetwork(network, parsedConfig),
-                   plugin.m_so};
-    return execNetwork;
-}
-
-InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::string& deviceName) {
-    return ov::legacy_convert::convert_remote_context(get_default_context(deviceName));
+    return {old_plugin->LoadNetwork(network, parsedConfig), plugin.m_so};
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
@@ -64,27 +56,6 @@ InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,
     return InferenceEngine::details::ReadNetwork(model, weights, extensions, isNewAPI(), frontendMode);
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork(
-    const InferenceEngine::CNNNetwork& network,
-    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-    const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::LoadNetwork::RemoteContext");
-    if (network.getFunction()) {
-        auto ctx = ov::legacy_convert::convert_remote_context(context);
-        auto compiled_model =
-            compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-        return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
-    }
-    if (context == nullptr) {
-        IE_THROW() << "Remote context is null";
-    }
-    // have to deduce the device name/config from the context first
-    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), any_copy(config));
-    auto plugin = get_plugin(parsed._deviceName);
-    auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config), context);
-    return res;
-}
-
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::string& deviceName,
@@ -97,7 +68,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     }
     auto parsed = parseDeviceNameIntoConfig(deviceName, any_copy(config));
     auto plugin = get_plugin(parsed._deviceName);
-    auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config), nullptr);
+    auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config));
     return {res._ptr, res._so};
 }
 
@@ -203,11 +174,6 @@ ov::Any ov::CoreImpl::GetConfig(const std::string& deviceName, const std::string
 
 std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
     return get_available_devices();
-}
-
-InferenceEngine::RemoteContext::Ptr ov::CoreImpl::CreateContext(const std::string& deviceName,
-                                                                const InferenceEngine::ParamMap& params) {
-    return ov::legacy_convert::convert_remote_context(create_context(deviceName, params));
 }
 
 /**

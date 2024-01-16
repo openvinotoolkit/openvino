@@ -127,7 +127,6 @@ public:
         const auto& funcInputs = function->inputs();
         for (auto i = 0ul; i < funcInputs.size(); ++i) {
             const auto &funcInput = funcInputs[i];
-            InferenceEngine::Blob::Ptr blob;
             int32_t resolution = 1;
             uint32_t range = 1;
             if (i == 2) {
