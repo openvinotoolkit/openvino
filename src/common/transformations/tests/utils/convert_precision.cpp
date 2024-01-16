@@ -2563,7 +2563,7 @@ void TestSubgraph::validate_and_infer_types() {
     }
 }
 
-TEST(TransformationTests, ConvertPrecision_with_SubgraphOp) {
+TEST(TransformationTests, ConvertPrecision_with_exp_in_SubgraphOp) {
     std::shared_ptr<Model> f(nullptr);
     {
         auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
