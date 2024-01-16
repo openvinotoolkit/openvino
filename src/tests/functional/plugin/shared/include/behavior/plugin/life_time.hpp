@@ -17,7 +17,6 @@
 #include "gtest/gtest.h"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/precision_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 #include <ie_core.hpp>
 

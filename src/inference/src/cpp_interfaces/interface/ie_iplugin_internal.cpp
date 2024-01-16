@@ -42,21 +42,6 @@
 
 namespace InferenceEngine {
 
-PreProcessInfo copyPreProcess(const PreProcessInfo& from) {
-    PreProcessInfo to = from;
-    if (from.getMeanVariant() == MEAN_IMAGE) {
-        for (size_t i = 0; i < from.getNumberOfChannels(); i++) {
-            auto& from_blob = from[i]->meanData;
-            auto to_blob = make_blob_with_precision(from[i]->meanData->getTensorDesc());
-            to_blob->allocate();
-            ie_memcpy(to_blob->buffer(), to_blob->byteSize(), from_blob->cbuffer(), from_blob->byteSize());
-
-            to.setMeanImageForChannel(to_blob, i);
-        }
-    }
-    return to;
-}
-
 InputsDataMap copyInfo(const InputsDataMap& networkInputs) {
     InputsDataMap _networkInputs;
     for (const auto& it : networkInputs) {

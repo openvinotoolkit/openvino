@@ -16,7 +16,6 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
