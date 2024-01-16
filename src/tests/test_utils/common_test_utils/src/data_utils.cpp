@@ -322,7 +322,8 @@ void fill_psroi(ov::Tensor& tensor,
                            spatialScale,               \
                            spatialBinsX,               \
                            spatialBinsY,               \
-                           mode); break;
+                           mode);                      \
+        break;
 
     auto element_type = tensor.get_element_type();
     switch (element_type) {
@@ -330,17 +331,6 @@ void fill_psroi(ov::Tensor& tensor,
         CASE(ov::element::f32)
         CASE(ov::element::f16)
         CASE(ov::element::bf16)
-        CASE(ov::element::u1)
-        CASE(ov::element::u4)
-        CASE(ov::element::u8)
-        CASE(ov::element::u32)
-        CASE(ov::element::u16)
-        CASE(ov::element::u64)
-        CASE(ov::element::i4)
-        CASE(ov::element::i8)
-        CASE(ov::element::i16)
-        CASE(ov::element::i32)
-        CASE(ov::element::i64)
     default:
         OPENVINO_THROW("Wrong precision specified: ", element_type);
     }
