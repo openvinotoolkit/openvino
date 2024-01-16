@@ -1,17 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "behavior/compiled_model/import_export.hpp"
+
+#include "common_test_utils/test_constants.hpp"
 #include "ov_api_conformance_helpers.hpp"
-
-#include "ie_plugin_config.hpp"
-#include <common_test_utils/test_constants.hpp>
-
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 namespace {
-
 const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
         ov::element::i16,
@@ -27,7 +25,6 @@ const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::bf16,
         ov::element::boolean,
 };
-
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(
@@ -35,7 +32,6 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                                  ::testing::Values(targetDevice),
                                  ::testing::Values(pluginConfig)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelImportExportTestP,
         ::testing::Values(targetDevice));
@@ -44,11 +40,10 @@ const std::vector<ov::element::Type> netPrc = {
     ov::element::f32,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVCompiledModelGraphUniqueNodeNamesTest,
                          ::testing::Combine(::testing::ValuesIn(netPrc),
                                             ::testing::Values(ov::Shape{1, 2, 5, 5}),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
-
 }  // namespace
