@@ -10,6 +10,7 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "conj.cpp"
 
 using namespace std;
 using namespace ov::op;
@@ -29,18 +30,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node) {
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         auto x = complex_type_mark->input_value(0);
-
-        auto real_index = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-        auto imag_index = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-
-        auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-
-        auto real = make_shared<v8::Gather>(x, real_index, gather_axis)->output(0);
-        auto imag = make_shared<v8::Gather>(x, imag_index, gather_axis)->output(0);
-
-        imag = make_shared<v0::Negative>(imag);
-
-        auto conj_tensor = make_shared<v0::Concat>(OutputVector{real, imag}, -1)->output(0);
+        auto conj_tensor = get_conj_ptr(x);
 
         OutputVector concat_inputs;
         concat_inputs.push_back(perm);
