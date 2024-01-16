@@ -103,9 +103,9 @@ Below is a list of available options:
 
 .. important::
    
-   ``device``, ``model_caching``, and ``cache_dir`` have replaced options that were available in the previous release:
+   The environment variables used in the previous release are still available but are not recommended. They will be removed fully in future releases.
 
-   .. dropdown:: Click to view the previous options.
+   .. dropdown:: Click to view the deprecated options.
       
       * ``OPENVINO_TORCH_BACKEND_DEVICE`` - enables selecting a specific hardware device to run the application. 
         By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting 
