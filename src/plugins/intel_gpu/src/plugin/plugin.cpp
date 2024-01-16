@@ -292,15 +292,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     auto context_impl = get_context_impl(context);
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
+    auto _orig_config = orig_config;
+    const auto& it = _orig_config.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _orig_config.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _orig_config.erase(it);
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config);
+    config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
         return nullptr;
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config);
+    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {

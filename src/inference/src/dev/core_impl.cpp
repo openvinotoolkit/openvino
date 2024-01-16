@@ -1498,8 +1498,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context ? plugin.import_model(networkStream, context, config)
-                                     : plugin.import_model(networkStream, config);
+            ov::AnyMap update_config = config;
+            update_config[ov::loaded_from_cache.name()] = true;
+            compiled_model = context ? plugin.import_model(networkStream, context, update_config)
+                                     : plugin.import_model(networkStream, update_config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }

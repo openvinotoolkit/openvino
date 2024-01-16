@@ -611,7 +611,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
@@ -931,12 +931,20 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-    conf.readProperties(config, modelType);
+
+    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
+    auto _config = config;
+    const auto& it = _config.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _config.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _config.erase(it);
+    }
+    conf.readProperties(_config, modelType);
 
     // import config props from caching model
     calculate_streams(conf, model, true);
-
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
 }   // namespace intel_cpu

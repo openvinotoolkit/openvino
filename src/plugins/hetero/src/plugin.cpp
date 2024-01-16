@@ -51,8 +51,17 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
-    auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config);
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
+    auto _properties = properties;
+    const auto& it = _properties.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _properties.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _properties.erase(it);
+    }
+
+    auto config = Configuration{_properties, m_cfg};
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
     return compiled_model;
 }
 
