@@ -25,7 +25,8 @@ OpenVINO supports the following model formats:
 * TensorFlow,
 * TensorFlow Lite,
 * ONNX,
-* PaddlePaddle.
+* PaddlePaddle,
+* OpenVINO IR.
 
 The easiest way to obtain a model is to download it from an online database,
 such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__,
