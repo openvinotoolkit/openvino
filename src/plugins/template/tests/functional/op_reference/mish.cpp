@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/mish.hpp"
+
 #include <gtest/gtest.h>
 
 #include <random>
-#include "openvino/op/mish.hpp"
+
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -14,8 +16,11 @@ using namespace ov;
 namespace {
 struct MishParams {
     template <class IT>
-    MishParams(const ov::PartialShape& dynamicShape, const ov::Shape& inputShape,
-               const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+    MishParams(const ov::PartialShape& dynamicShape,
+               const ov::Shape& inputShape,
+               const ov::element::Type& iType,
+               const std::vector<IT>& iValues,
+               const std::vector<IT>& oValues,
                const std::string& test_name = "")
         : dynamicShape(dynamicShape),
           inputShape(inputShape),
@@ -61,7 +66,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Mish = std::make_shared<op::v4::Mish>(in);
-        return std::make_shared<ov::Model>(NodeVector {Mish}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{Mish}, ParameterVector{in});
     }
 };
 
@@ -70,7 +75,9 @@ TEST_P(ReferenceMishLayerTest, CompareWithRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape, const Shape& staticShape, const std::string& test_name = "") {
+std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape,
+                                                const Shape& staticShape,
+                                                const std::string& test_name = "") {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     // generate input tensor (with possible type conversion)
@@ -92,28 +99,27 @@ std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape
     std::vector<MishParams> mishParams;
 
     if (test_name != "") {
-        mishParams = {
-            MishParams(dynamicShape, staticShape, IN_ET, input, expected, test_name)
-        };
+        mishParams = {MishParams(dynamicShape, staticShape, IN_ET, input, expected, test_name)};
     } else {
-        mishParams = {
-            MishParams(dynamicShape, staticShape, IN_ET, input, expected)
-        };
+        mishParams = {MishParams(dynamicShape, staticShape, IN_ET, input, expected)};
     }
     return mishParams;
 }
 
 std::vector<MishParams> generateMishCombinedParams() {
-    const std::vector<std::vector<MishParams>> mishTypeParams {
+    const std::vector<std::vector<MishParams>> mishTypeParams{
         generateMishFloatParams<element::Type_t::f32>({2, 5}, {2, 5}),
         generateMishFloatParams<element::Type_t::f32>({2, 3, 4, 5}, {2, 3, 4, 5}),
         generateMishFloatParams<element::Type_t::f32>(PartialShape::dynamic(), {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f32>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5}, "dimensionDynamic"),
+        generateMishFloatParams<element::Type_t::f32>({2, Dimension::dynamic(), 4, 5},
+                                                      {2, 3, 4, 5},
+                                                      "dimensionDynamic"),
         generateMishFloatParams<element::Type_t::f16>({2, 5}, {2, 5}),
         generateMishFloatParams<element::Type_t::f16>({2, 3, 4, 5}, {2, 3, 4, 5}),
         generateMishFloatParams<element::Type_t::f16>(PartialShape::dynamic(), {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f16>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5}, "dimensionDynamic")
-        };
+        generateMishFloatParams<element::Type_t::f16>({2, Dimension::dynamic(), 4, 5},
+                                                      {2, 3, 4, 5},
+                                                      "dimensionDynamic")};
     std::vector<MishParams> combinedParams;
 
     for (const auto& params : mishTypeParams) {
@@ -122,7 +128,9 @@ std::vector<MishParams> generateMishCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Mish_With_Hardcoded_Refs, ReferenceMishLayerTest,
-    testing::ValuesIn(generateMishCombinedParams()), ReferenceMishLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Mish_With_Hardcoded_Refs,
+                         ReferenceMishLayerTest,
+                         testing::ValuesIn(generateMishCombinedParams()),
+                         ReferenceMishLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

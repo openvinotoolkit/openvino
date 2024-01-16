@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "ngraph/util.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/reference/group_convolution.hpp"
 
 namespace ov {
@@ -97,35 +98,5 @@ void group_convolution_backprop_data(const T* in,
         }
     }
 }
-
-// DEPRECATED, can't be removed currently due to arm-plugin dependency
-template <typename OUTPUT, typename FILTER, typename INPUT, typename ACCUMULATION = typename widen<INPUT>::type>
-NGRAPH_DEPRECATED("group_convolution_backprop_data function without output_paddings is deprecated, "
-                  "use the one with output_padding.")
-void group_convolution_backprop_data(const INPUT* in,
-                                     const FILTER* f,
-                                     OUTPUT* out,
-                                     const Shape& in_shape,
-                                     const Shape& filter_shape,
-                                     const Shape& out_shape,
-                                     const Strides& strides,
-                                     const Strides& dilation,
-                                     const CoordinateDiff& pads_begin,
-                                     const CoordinateDiff& pads_end) {
-    const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
-
-    group_convolution_backprop_data(in,
-                                    f,
-                                    out,
-                                    in_shape,
-                                    filter_shape,
-                                    out_shape,
-                                    strides,
-                                    dilation,
-                                    pads_begin,
-                                    pads_end,
-                                    output_padding);
-}
-
 }  // namespace reference
 }  // namespace ov

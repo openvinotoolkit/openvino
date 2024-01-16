@@ -11,8 +11,6 @@ OpenVINO Core [tests](../tests/) have next structure:
  * `type_prop` - type and shape propagation tests
  * `visitors` - tests covers visitor API for all supported operations
 
-These tests can be disabled by CMake option `ENABLE_OV_CORE_UNIT_TESTS`, this option by default has the same value as `ENABLE_TESTS` option.
-
 ## See also
  * [OpenVINO™ Core README](../README.md)
  * [OpenVINO™ README](../../../README.md)

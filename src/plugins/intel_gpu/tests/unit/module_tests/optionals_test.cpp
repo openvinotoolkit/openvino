@@ -32,9 +32,9 @@ TEST(optional_data_types, basic) {
         ASSERT_EQ(o2.value(), cldnn::data_types::f32);
     }
 
-    optional_data_type o3(type_to_data_type<FLOAT16>::value);
+    optional_data_type o3(cldnn::data_types::f16);
     ASSERT_EQ(o3.value(), cldnn::data_types::f16);
 
-    optional_data_type o4(type_to_data_type<float>::value);
+    optional_data_type o4(cldnn::data_types::f32);
     ASSERT_EQ(o4.value(), cldnn::data_types::f32);
 }

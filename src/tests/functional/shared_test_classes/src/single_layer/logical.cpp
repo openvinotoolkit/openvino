@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/logical.hpp"
 
 using namespace LayerTestsDefinitions::LogicalParams;
@@ -68,9 +68,11 @@ void LogicalLayerTest::SetUp() {
 
     std::shared_ptr<ngraph::Node> logicalNode;
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
+            inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondInput));
         }
         logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
     } else {

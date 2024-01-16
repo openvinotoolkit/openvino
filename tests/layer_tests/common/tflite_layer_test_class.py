@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from tensorflow.lite.tools import flatbuffer_utils as utils
@@ -43,7 +44,7 @@ class TFLiteLayerTest(CommonLayerTest):
         return self.model_path
 
     def get_framework_results(self, inputs_dict, model_path):
-        return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
+        return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)
 
     def check_tflite_model_has_only_allowed_ops(self):
         if self.allowed_ops is None:
@@ -62,10 +63,18 @@ class TFLiteLayerTest(CommonLayerTest):
             else:
                 op_names.append(builtin_operators[op.builtinCode])
         op_names = sorted(op_names)
-        assert op_names == self.allowed_ops, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
+        if isinstance(self.allowed_ops, tuple):
+            passed = False
+            for allowed_ops_var in self.allowed_ops:
+                if op_names == allowed_ops_var:
+                    passed = True
+                    break
+            assert passed, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
+        else:
+            assert op_names == self.allowed_ops, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
 
     def _test(self, ie_device, precision, temp_dir, params):
         model = self.make_model(params)
         self.model_path = self.produce_tflite_model(model, temp_dir)
         self.check_tflite_model_has_only_allowed_ops()
-        super()._test(model, None, ie_device, precision, None, temp_dir, False, True, **params)
+        super()._test(model, None, ie_device, precision, None, temp_dir, True, **params)

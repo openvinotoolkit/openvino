@@ -89,17 +89,20 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
+          _engine(nullptr),
           _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
 
     bool is_cpu() const override { return false; }
+    bool is_onednn() const override { return true; }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
     //     [ dnnl::primitive_desc ]
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_impl::save(ob);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_attrs->get() == nullptr) {
             ob << false;
@@ -202,6 +205,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_impl::load(ib);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_attrs;
         ib >> has_attrs;

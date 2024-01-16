@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -42,12 +44,13 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     ])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_fake_quant_with_min_max_vars_basic(self, params, fake_quant_op, ie_device, precision, ir_version, temp_dir,
-                                                use_new_frontend,
-                                                use_old_api):
+                                                use_new_frontend):
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params, fake_quant_op=fake_quant_op),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_per_channel_basic = [
         dict(inputs_shape=[2, 6, 4], min_value=[-4, -3, -5, -8], max_value=[4, 7, 9, 5], num_bits=None,
@@ -60,8 +63,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
     def test_fake_quant_with_min_max_vars_per_channel_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                                            use_new_frontend,
-                                                            use_old_api):
+                                                            use_new_frontend):
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

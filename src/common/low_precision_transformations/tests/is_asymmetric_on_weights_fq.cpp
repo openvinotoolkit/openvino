@@ -13,7 +13,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/init_node_info.hpp"
 #include "low_precision/weightable_layer_transformation.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -25,7 +25,7 @@ public:
     ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 typedef std::tuple<

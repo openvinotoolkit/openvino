@@ -8,11 +8,10 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/expression_factory.hpp"
-#include "snippets/op/serialization_node.hpp"
-#include "snippets/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -41,14 +40,53 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
                 last_param = it;
         }
     }
+    m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
+}
+
+std::shared_ptr<LinearIR> LinearIR::clone() const {
+    auto cloned = std::make_shared<LinearIR>();
+    cloned->m_config = m_config;
+
+    ExressionMap expression_map;
+    cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
+    for (const auto& expr : cloned->m_expressions) {
+        cloned->m_node2expression_map[expr->get_node()] = expr;
+        if (const auto& io = std::dynamic_pointer_cast<IOExpression>(expr))
+            cloned->m_io_expressions.push_back(io);
+    }
+
+    cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
+    // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
+    cloned->m_shape_infer_factory = m_shape_infer_factory;
+    cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    return cloned;
 }
 
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model) {
     return ExpressionFactory::build(n, *this, model);
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) {
+ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const {
     return ExpressionFactory::build(n, inputs, *this);
+}
+
+ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
+                                          const std::vector<size_t>& loop_ids, bool update_loop_ports,
+                                          const std::vector<std::set<ExpressionPort>>& consumers) {
+    const auto new_expr = create_expression(n, new_inputs);
+    new_expr->set_loop_ids(loop_ids);
+
+    OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
+                    "Failed to insert node: count of consumer sets must be sero or equal to output port count");
+    for (size_t i = 0; i < consumers.size(); ++i) {
+        const auto& port_consumers = consumers[i];
+        replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
+    }
+
+    if (update_loop_ports) {
+        m_loop_manager->update_loop_ports(new_expr);
+    }
+    return new_expr;
 }
 
 ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
@@ -66,57 +104,27 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     return ov::topological_sort(nodes);
 }
 
-void LinearIR::serialize(const std::string& xml, const std::string& bin) const {
-    auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
-    first_node->set_friendly_name("Start");
-    first_node->get_rt_info()["execTimeMcs"] = 0;
-    std::shared_ptr<Node> serialization_node = first_node;
-
-    // This map allows to get LoopBegin serialization node by original LoopBegin node
-    // It is used to draw an edge between LoopBegin and LoopEnd serialization nodes
-    std::map<std::shared_ptr<snippets::op::LoopBegin>, std::shared_ptr<Node>> loops_map;
-    for (const auto& expr : m_expressions) {
-        const auto node = expr->get_node();
-        if (auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(node)) {
-            OPENVINO_ASSERT(loops_map.count(loop_end->get_loop_begin()),
-                            "Serialization can't find LoopBegin that corresponds to LoopEnd with friendly name ",
-                            loop_end->get_friendly_name());
-            auto loop_begin_serialization_node = loops_map.at(loop_end->get_loop_begin());
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
-        } else {
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
-            if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {
-                loops_map[loop_begin] = serialization_node;
-            }
-        }
-    }
-    auto last_node = std::make_shared<ov::op::v0::Result>(serialization_node);
-    last_node->set_friendly_name("End");
-    const auto tmp_model = std::make_shared<ov::Model>(ResultVector {last_node},
-                                                       ParameterVector {first_node},
-                                                       "Lowered_IR_Serialization");
-    ov::pass::Serialize(xml, bin).run_on_model(tmp_model);
-}
-
-LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end) {
-    auto deep_clone_ports = [](std::vector<PortDescriptorPtr>& ports) {
-        for (auto& port : ports) { port = port->clone(); }
-    };
+LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
+                                              LinearIR::container::const_iterator end,
+                                              ExressionMap& expression_map) {
+    OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
-    for (auto it = begin; it != end; it++)
+    for (auto it = begin; it != end; it++) {
         original_nodes.push_back((*it)->get_node());
+    }
+
+    // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
     ngraph::NodeMap node_map;
     OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::clone_nodes(original_nodes,  node_map);
     OPENVINO_SUPPRESS_DEPRECATED_END
+
     for (auto it = begin; it != end; it++) {
-        // copy by value, so result shared_pointer point to new objects
-        Expression new_expr = **it;
-        new_expr.m_source_node = node_map[(*it)->get_node().get()];
-        deep_clone_ports(new_expr.m_input_port_descriptors);
-        deep_clone_ports(new_expr.m_output_port_descriptors);
-        result.emplace_back(std::make_shared<Expression>(new_expr));
+        const auto& expr = *it;
+        const auto& new_expr = expr->clone_with_new_inputs(expression_map, node_map[expr->get_node().get()]);
+        result.push_back(new_expr);
+        expression_map[expr.get()] = new_expr;
     }
     return result;
 }
@@ -176,30 +184,6 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
     auto found = m_node2expression_map.find(n);
     OPENVINO_ASSERT(found != m_node2expression_map.end(), "The node " + n->get_friendly_name() + " hasn't been found in Linear IR");
     return found->second;
-}
-
-void LinearIR::replace_input(const std::set<ExpressionPort>& consumers, const PortConnectorPtr& to) {
-    for (const auto& consumer_input : consumers) {
-        replace_input(consumer_input, to);
-    }
-}
-
-void LinearIR::replace_input(const ExpressionPort& expr_port, const PortConnectorPtr& to) {
-    const auto port = expr_port.get_index();
-    const auto& expr = expr_port.get_expr();
-
-    OPENVINO_ASSERT(expr_port.get_type() == ExpressionPort::Type::Input, "Failed to replace: target input port must have Input type");
-    OPENVINO_ASSERT(expr_port.get_index() < expr->get_input_count(), "Failed to replace: target input port must be less than input count!");
-
-    const auto& from = expr->get_input_port_connector(port);
-    if (from == to)
-        return;
-
-    if (!to->found_consumer(expr_port)) {
-        to->add_consumer(expr_port);
-    }
-    from->remove_consumer(expr_port);
-    expr->replace_input(port, to);
 }
 
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed) {
@@ -296,6 +280,195 @@ LinearIR::constExprReverseIt LinearIR::find_after(LinearIR::constExprReverseIt i
     return find(it, crend(), target);
 }
 
+IShapeInferSnippets::Result LinearIR::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(m_shape_infer, "Attempt to call shape_infer when the shapeInfer instance was not created");
+    return m_shape_infer->infer(input_shapes);
+}
+
+VectorDims LinearIR::get_master_shape() const {
+    VectorDims master_shape{};
+    // Note: inputs and outputs must be broadcastable, so it's enough to broadcast-merge only outputs
+    std::vector<std::shared_ptr<IOExpression>> out_exprs;
+    for (const auto& ioe : m_io_expressions) {
+        if (ioe->get_type() == IOExpression::io_type::OUTPUT)
+            out_exprs.push_back(ioe);
+    }
+    // Note: Snippets would benefit from a more generic master_shape calculation approach.
+    //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
+    const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
+    if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
+        ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
+        master_shape = utils::get_preordered_vdims(source);
+    } else {
+        for (const auto& oe : out_exprs) {
+            const auto& port_desc = oe->get_input_port_descriptor(0);
+            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, port_desc->get_shape()),
+                            "Failed to merge input shapes in infer_master_shape");
+        }
+    }
+    return master_shape;
+}
+
+template<>
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                       const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,
+                                       const std::vector<std::set<ExpressionPort>>& consumers) {
+    const auto new_expr = create_expression(new_node, new_inputs, loop_ids, update_loop_ports, consumers);
+    return insert(place, new_expr);
+}
+template<>
+LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPort>& args,
+                                       const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,
+                                       const std::vector<std::set<ExpressionPort>>& consumers) {
+    std::vector<PortConnectorPtr> new_inputs(args.size());
+    for (size_t i = 0; i < args.size(); ++i) {
+        OPENVINO_ASSERT(args[i].get_type() == ExpressionPort::Output, "Expected output expression ports!");
+        new_inputs[i] = args[i].get_port_connector_ptr();
+    }
+    return insert_node(new_node, new_inputs, loop_ids, update_loop_ports, place, consumers);
+}
+
+LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& old_exprs, const std::shared_ptr<ov::Node>& new_node,
+                                             const std::vector<size_t>& loop_ids, const constExprIt& place) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    OPENVINO_ASSERT(new_node->get_output_size() == old_exprs.back()->get_output_count(),
+                   "Failed to replace node: node output port count is not equal to output count of last old expression");
+
+    std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
+    for (size_t i = 0; i < new_node->get_input_size(); ++i) {
+        const auto& source = new_node->get_input_source_output(i);
+        new_inputs[i] = get_expr_by_node(source.get_node_shared_ptr())->get_output_port_connector(source.get_index());
+    }
+
+    const auto last_old_expr = old_exprs.back();
+    for (size_t i = 0; i < new_node->get_output_size(); ++i)
+        snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(new_node->output(i), last_old_expr->get_output_port_descriptor(0)->clone());
+
+    const auto new_expr = create_expression(new_node, new_inputs, loop_ids, false);
+    return replace_with_expr(old_exprs, new_expr, place);
+}
+
+LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& old_exprs, const std::shared_ptr<ov::Node>& new_node) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    const auto loop_ids = old_exprs.front()->get_loop_ids();
+    OPENVINO_ASSERT(std::all_of(old_exprs.cbegin(), old_exprs.cend(), [&loop_ids](const ExpressionPtr& expr) { return expr->get_loop_ids() == loop_ids; }),
+                    "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
+    const auto insertion_place = std::next(find(old_exprs.back()));
+    return replace_with_node(old_exprs, new_node, loop_ids, insertion_place);
+}
+
+LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr, const constExprIt& place) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    OPENVINO_ASSERT(new_expr->get_output_count() == old_exprs.back()->get_output_count(),
+                   "Failed to replace expressions: new expr output port count is not equal to output count of last old expression");
+
+    const auto& new_inputs = new_expr->get_input_port_connectors();
+
+    auto is_old_expr = [&old_exprs](const ExpressionPtr& expr) {
+        return std::find(old_exprs.cbegin(), old_exprs.cend(), expr) != old_exprs.cend();
+    };
+    auto is_input_source = [&new_inputs](const ExpressionPort& source) {
+        return std::any_of(new_inputs.cbegin(), new_inputs.cend(), [&source](const PortConnectorPtr& input) { return input->get_source() == source; });
+    };
+
+    // Validate removable expressions - they must be a `sequence`
+    const auto last_old_expr = old_exprs.back();
+    std::vector<std::set<ExpressionPort>> consumers(last_old_expr->get_output_count());
+    for (const auto& old_expr : old_exprs) {
+        for (const auto& input : old_expr->get_input_port_connectors()) {
+            const auto& source = input->get_source();
+            OPENVINO_ASSERT(is_old_expr(source.get_expr()) || is_input_source(source),
+                            "Failed to replace nodes: not all output ports of existing expressions will be connected!");
+        }
+        for (const auto& port_connector : old_expr->get_output_port_connectors()) {
+            const auto old_expr_consumers = port_connector->get_consumers();
+            if (old_expr != last_old_expr) {
+                for (const auto& consumer : old_expr_consumers) {
+                    OPENVINO_ASSERT(is_old_expr(consumer.get_expr()),
+                                    "Failed to replace nodes: not all input ports of existing expressions will be connected!");
+                }
+            } else {
+                consumers[port_connector->get_source().get_index()] = old_expr_consumers;
+            }
+        }
+    }
+
+    OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
+                    "Failed to insert node: count of consumer sets must be sero or equal to output port count");
+    for (size_t i = 0; i < consumers.size(); ++i) {
+        const auto& port_consumers = consumers[i];
+        replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
+    }
+
+    const auto new_expr_it = insert(place, new_expr);
+    const auto& loop_ids = new_expr_it->get()->get_loop_ids();
+    const auto input_ports = new_expr_it->get()->get_input_ports();
+    const auto output_ports = new_expr_it->get()->get_output_ports();
+    for (const auto& old_expr : old_exprs) {
+        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports, true);
+        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports, false);
+        erase(find(old_expr));
+    }
+    return new_expr_it;
+}
+
+LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr) {
+    OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    const auto loop_ids = new_expr->get_loop_ids();
+    OPENVINO_ASSERT(std::all_of(old_exprs.cbegin(), old_exprs.cend(), [&loop_ids](const ExpressionPtr& expr) { return expr->get_loop_ids() == loop_ids; }),
+                    "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
+    const auto insertion_place = std::next(find(old_exprs.back()));
+    return replace_with_expr(old_exprs, new_expr, insertion_place);
+}
+
+LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)
+                                       : ShapeInferSnippetsNode(),
+                                         m_exprs{std::make_shared<container>(body_exprs)} {
+    // Note that here we rely on the assumption that io_expressions can't be changed after the LIR was created
+    for (const auto& expr : io_exprs) {
+        if (expr->get_type() == IOExpression::io_type::INPUT) {
+            m_input_exprs.push_back(expr);
+        } else if (expr->get_type() == IOExpression::io_type::OUTPUT) {
+            m_output_exprs.emplace_back(expr);
+        } else {
+            OPENVINO_THROW("Invalid io expression type detected");
+        }
+    }
+    // Note that if all output shapes are static, as in the case when the first shape infer was performed on nGraph,
+    // we can treat them as the last result
+    std::vector<VectorDims> outputDims;
+    outputDims.reserve(m_output_exprs.size());
+    for (const auto& expr : m_output_exprs) {
+        const auto &shape = expr->get_input_port_descriptor(0)->get_shape();
+        if (utils::is_dynamic_vdims(shape)) {
+            outputDims.clear();
+            break;
+        }
+        outputDims.push_back(shape);
+    }
+    m_last_result = {outputDims, ShapeInferStatus::success};
+}
+
+IShapeInferSnippets::Result LinearIR::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(m_input_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
+    for (size_t i = 0; i < m_input_exprs.size(); i++)
+        m_input_exprs[i]->get_output_port_descriptor(0)->set_shape(input_shapes[i]);
+
+    for (const auto& expr : *m_exprs) {
+        if (expr->needShapeInfer())
+            expr->updateShapes();
+    }
+
+    std::vector<VectorDims> outputDims;
+    outputDims.reserve(m_output_exprs.size());
+    for (const auto& expr : m_output_exprs) {
+        outputDims.push_back(expr->get_input_port_descriptor(0)->get_shape());
+    }
+    m_last_result = {outputDims, ShapeInferStatus::success};
+    return m_last_result;
+}
 
 }// namespace lowered
 }// namespace snippets

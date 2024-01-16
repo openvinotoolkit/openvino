@@ -18,8 +18,8 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include "low_precision/fold_convert.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
@@ -54,8 +54,8 @@ public:
             output->set_friendly_name("output");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
-                ngraph::ParameterVector{ input },
+                ov::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
+                ov::ParameterVector{ input },
                 "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);

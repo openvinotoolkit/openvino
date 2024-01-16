@@ -59,7 +59,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
         const auto t_iter = m_ptrs->find(port);
         if (t_iter != m_ptrs->cend()) {
             m_accessed_data = t_iter->second;
-            return {data_type_to_element_type(m_accessed_data->get_layout().data_type),
+            return {m_accessed_data->get_layout().data_type,
                     m_accessed_data->get_layout().get_shape(),
                     m_accessed_data->lock(m_stream, mem_lock_type::read)};
         } else if (m_clbk) {

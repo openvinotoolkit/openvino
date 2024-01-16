@@ -23,14 +23,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4244)
 endif()
 
+set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
 set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
-set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE})
-
-# clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
-unset(Python_ADDITIONAL_VERSIONS CACHE)
+set(ONNX_CUSTOM_PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}")
 
 # build targets
 
@@ -55,6 +53,13 @@ if(WIN32)
     endif()
 endif()
 
+# WA to support old compiler version, removes unused header which may block build
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+    file(READ onnx/onnx/defs/parser.cc CONTENT)
+    string(REPLACE "#include <string_view>" "" CONTENT "${CONTENT}")
+    file(WRITE onnx/onnx/defs/parser.cc "${CONTENT}")
+endif()
+
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install
@@ -72,5 +77,6 @@ if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     endif()
 
     install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
+            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 endif()

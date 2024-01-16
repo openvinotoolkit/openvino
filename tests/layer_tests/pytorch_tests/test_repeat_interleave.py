@@ -12,9 +12,8 @@ import torch
                                         {'repeats': 2, 'dim': 2},
                                         {'repeats': [2, 3], 'dim': 1},
                                         {'repeats': [3, 2, 1], 'dim': 3},
-                                        {'repeats': [3, 2, 1], 'dim': 3},
                                         {'repeats': 2, 'dim': None},
-                                        {'repeats': [random.randint(1, 5) for _ in range(36)], 'dim': None}))
+                                        {'repeats': [36], 'dim': None}))
 class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -39,6 +38,9 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
     @pytest.mark.precommit
     def test_repeat_interleave_const_repeats(self, ie_device, precision, ir_version, input_data):
         repeats = input_data['repeats']
+        if type(repeats) is list and len(repeats) == 1:
+            repeats = [random.randint(1, 5) for _ in range(repeats[0])]
+
         dim = input_data['dim']
         self._test(*self.create_model_const_repeat(repeats, dim),
                    ie_device, precision, ir_version)

@@ -15,7 +15,7 @@ namespace low_precision {
 
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
     const Params& params,
-    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : LayerTransformation(params), restrictions(restrictions), groupSize(1ul) {
+    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : CleanupTransformation(params), restrictions(restrictions), groupSize(1ul) {
     MATCHER_SCOPE(MultiplyToGroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
@@ -111,9 +111,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     const auto weightsNode = std::make_shared<ov::opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
 
     const size_t spatialDimsSize = pShape.rank().get_length() - 2;
-    ngraph::Strides strides(spatialDimsSize, 1ul);
-    ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
-    ngraph::Strides dilations(spatialDimsSize, 1ul);
+    ov::Strides strides(spatialDimsSize, 1ul);
+    ov::CoordinateDiff pads(spatialDimsSize, 0ul);
+    ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },
@@ -143,6 +143,10 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 }
 
 bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+        return false;
+    }
+
     const PartialShape outPShape = operation->get_output_partial_shape(0);
     const auto rank = outPShape.rank();
     if (rank.is_dynamic()) {

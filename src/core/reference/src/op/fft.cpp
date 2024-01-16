@@ -25,7 +25,6 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/shape.hpp"
 #include "openvino/reference/utils/fft_common.hpp"
 
 namespace ov {
@@ -446,32 +445,30 @@ void fft(const float* input_data,
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-void fft_postprocessing(const HostTensorVector& outputs,
-                        const ngraph::element::Type output_type,
+void fft_postprocessing(ov::TensorVector& outputs,
+                        const ov::element::Type output_type,
                         const std::vector<float>& fft_result) {
     size_t fft_result_size = fft_result.size();
 
     switch (output_type) {
     case element::Type_t::bf16: {
-        bfloat16* result_ptr = outputs[0]->get_data_ptr<bfloat16>();
+        bfloat16* result_ptr = outputs[0].data<bfloat16>();
         for (size_t i = 0; i < fft_result_size; ++i) {
             result_ptr[i] = bfloat16(fft_result[i]);
         }
     } break;
     case element::Type_t::f16: {
-        float16* result_ptr = outputs[0]->get_data_ptr<float16>();
+        float16* result_ptr = outputs[0].data<float16>();
         for (size_t i = 0; i < fft_result_size; ++i) {
             result_ptr[i] = float16(fft_result[i]);
         }
     } break;
     case element::Type_t::f32: {
-        float* result_ptr = outputs[0]->get_data_ptr<float>();
+        float* result_ptr = outputs[0].data<float>();
         memcpy(result_ptr, fft_result.data(), fft_result_size * sizeof(float));
     } break;
     default:;
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace ov

@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -79,7 +79,7 @@ class TestCumSum(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
         onnx.checker.check_model(onnx_net)
 
         #
@@ -202,7 +202,7 @@ class TestCumSum(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
         onnx.checker.check_model(onnx_net)
 
         #
@@ -252,22 +252,21 @@ class TestCumSum(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("reverse", [0, 1])
     @pytest.mark.parametrize("exclusive", [0, 1])
     @pytest.mark.nightly
-    def test_cumsum(self, params, reverse, exclusive, ie_device, precision, ir_version, temp_dir,
-                    use_old_api):
+    def test_cumsum(self, params, reverse, exclusive, ie_device, precision, ir_version, temp_dir):
         if 'axis' not in params:
             pytest.skip('No axis cases fail in ONNX')
         elif 'axis' in params and params['axis'] == -2 and exclusive == 1:
             pytest.skip('Disabled due to an exception thrown by ONNXRuntime for this use case')
         self._test(
             *self.create_net(**params, exclusive=exclusive, reverse=reverse, ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+            ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("reverse", [0, 1])
     @pytest.mark.parametrize("exclusive", [0, 1])
     @pytest.mark.nightly
     def test_cumsum_const(self, params, reverse, exclusive, ie_device, precision, ir_version,
-                          temp_dir, use_old_api):
+                          temp_dir):
         if 'axis' not in params:
             pytest.skip('No axis cases fail in ONNX')
         elif 'axis' in params and params['axis'] == -2 and exclusive == 1:
@@ -275,4 +274,4 @@ class TestCumSum(OnnxRuntimeLayerTest):
         self._test(*self.create_net_const(**params, precision=precision, exclusive=exclusive,
                                           reverse=reverse,
                                           ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

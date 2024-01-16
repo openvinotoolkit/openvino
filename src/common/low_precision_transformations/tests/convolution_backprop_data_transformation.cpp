@@ -17,7 +17,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
+#include "ov_lpt_models/convolution_backprop_data.hpp"
 
 namespace {
 using namespace testing;
@@ -38,8 +38,8 @@ public:
     public:
         ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         std::shared_ptr<ov::op::v0::Constant> weights;
         callback_function_type callback;
 
@@ -85,7 +85,7 @@ public:
     public:
         ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
         std::shared_ptr<ov::op::v0::Constant> weights;
         bool transformed;

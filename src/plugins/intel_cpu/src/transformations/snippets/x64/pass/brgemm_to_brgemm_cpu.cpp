@@ -15,7 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
@@ -62,8 +62,8 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
-        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input_value(0)).get_shape();
-        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input_value(1)).get_shape();
+        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
+        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
 
         const auto K = *dimsMatMulIn0.rbegin();
         const auto N = *dimsMatMulIn1.rbegin();
@@ -92,7 +92,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             set_full_port_desc(brgemm_repacking->output(0));
 
             if (with_amx) {
-                const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
+                const auto scratch = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), scratch, BrgemmCPU::Type::AMX,
                                                          offset_a, offset_b, 0, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
@@ -109,12 +109,12 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                          offset_a, offset_b, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
             } else {
-                IE_THROW() << "Invalid configuration for BRGEMM CPU";
+                OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
             }
         }
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::replace_node(brgemm, brgemm_cpu);
+        ov::replace_node(brgemm, brgemm_cpu);
 
         // Transfer ports
         set_port_desc(brgemm_cpu->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());

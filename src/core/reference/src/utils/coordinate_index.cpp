@@ -25,4 +25,8 @@ std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
 
     return index;
 }
+
+size_t coordinate_offset(const std::vector<size_t>& coordinate, const std::vector<size_t>& strides) {
+    return std::inner_product(coordinate.cbegin(), coordinate.cend(), strides.cbegin(), static_cast<size_t>(0));
+}
 }  // namespace ov

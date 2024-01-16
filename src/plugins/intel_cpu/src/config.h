@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
-#include <ie_performance_hints.hpp>
-#include <ie/ie_common.h>
-#include <openvino/runtime/properties.hpp>
-#include <openvino/util/common_util.hpp>
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/common_util.hpp"
+
+#include "internal_properties.hpp"
 #include "utils/debug_caps_config.h"
-#include <openvino/core/type/element_type.hpp>
 
 #include <bitset>
-#include <string>
 #include <map>
 #include <mutex>
+#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -62,8 +62,10 @@ struct Config {
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
-    InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-    InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    ov::threading::IStreamsExecutor::Config streamExecutorConfig;
+    ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    ov::log::Level logLevel = ov::log::Level::NO;
+    uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
@@ -88,7 +90,8 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config, ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
+
     void updateProperties();
 
     std::map<std::string, std::string> _config;
@@ -96,6 +99,7 @@ struct Config {
     bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
+    ModelType modelType = ModelType::Unknown;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

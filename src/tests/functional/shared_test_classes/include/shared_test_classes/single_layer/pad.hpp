@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 typedef std::tuple<
@@ -38,7 +38,9 @@ protected:
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode) const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, false);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return pad;
     }
 };
@@ -50,7 +52,9 @@ protected:
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode) const override {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto pad = ngraph::builder::makePad(data, padsBegin, padsEnd, argPadValue, padMode, true);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return pad;
     }
 };

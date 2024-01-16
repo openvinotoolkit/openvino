@@ -43,7 +43,7 @@ public:
         int val_i = -1;
         try {
             // work around for negative value check (inconsistent behavior on windows/linux)
-            auto val = v.as<std::string>();
+            const auto& val = v.as<std::string>();
             val_i = std::stoi(val);
             if (val_i >= 0)
                 return true;

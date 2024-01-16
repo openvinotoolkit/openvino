@@ -4,42 +4,38 @@
 
 #pragma once
 
-#include <ie_api.h>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <string>
-#include <cassert>
-#include <algorithm>
-#include <caseless.hpp>
+#include "cache/multi_cache.h"
+#include "config.h"
 #include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "dnnl_postops_composer.h"
+#include "dnnl_scratch_pad.h"
 #include "edge.h"
-#include "selective_build.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/mvn_list.hpp"
+#include "nodes/node_config.h"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
-#include "extension_mngr.h"
-#include "weights_cache.hpp"
-#include "dnnl_scratch_pad.h"
-#include <openvino/itt.hpp>
-#include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
-#include <ie_precision.hpp>
-#include <nodes/common/blocked_desc_creator.h>
-#include "cpu_types.h"
-#include "cpu_shape.h"
-#include "config.h"
-#include "nodes/node_config.h"
-#include "cache/multi_cache.h"
-
-#include <shape_inference/shape_inference_cpu.hpp>
-#include "utils/debug_capabilities.h"
+#include "openvino/core/node.hpp"
+#include "openvino/itt.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bit_util.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/ngraph_utils.hpp"
+#include "weights_cache.hpp"
 
-#include "dnnl_postops_composer.h"
-#include "graph_context.h"
-#include "nodes/executors/mvn_list.hpp"
-#include "nodes/executors/executor.hpp"
+#include <algorithm>
+#include <cassert>
+#include <memory>
+#include <string>
+#include <vector>
+
+#define THROW_CPU_NODE_ERR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define CPU_NODE_ASSERT(condition, ...) OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
@@ -50,16 +46,16 @@ using NodeWeakPtr = std::weak_ptr<Node>;
 
 class PortConfigurator {
 public:
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, ov::element::Type prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
 
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, ov::element::Type prc = ov::element::undefined,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
 
     ov::intel_cpu::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
-    const InferenceEngine::Precision prc;
+    const ov::element::Type prc;
     const Shape shape;
     bool constant = false;
     int inPlace = -1;
@@ -68,7 +64,7 @@ private:
     static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(ov::intel_cpu::LayoutType blockedDescType) {
         auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
-            IE_THROW() << "Cannot find tensor descriptor creator";
+            OPENVINO_THROW("Cannot find tensor descriptor creator");
         }
         return creators.at(blockedDescType);
     }
@@ -108,7 +104,7 @@ public:
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast ExecutorFactory";
+            OPENVINO_THROW("Cannot dynamically cast ExecutorFactory");
         return casted;
     }
 
@@ -168,11 +164,30 @@ public:
 
     virtual ~Node() = default;
 
-    void addEdge(const EdgeWeakPtr& edge);
-    void removeEdge(const EdgeWeakPtr& edge);
+    // @todo the method is used when graph is "preconstructed" before creation of the actual graph object
+    // remove, as soon edges are added via Graph interface exclusively
+    static void addEdge(const EdgePtr& edge);
 
     virtual void cleanup();
     void remove();
+
+    void addParentEdge(const EdgePtr& edge) {
+        parentEdges.push_back(edge);
+        updateConstantType();
+    }
+
+    void addChildEdge(const EdgePtr& edge) {
+        childEdges.push_back(edge);
+    }
+
+    void removeParentEdge(const EdgePtr edge) {
+        removeEdge(edge, parentEdges);
+        updateConstantType();
+    }
+
+    void removeChildEdge(const EdgePtr edge) {
+        removeEdge(edge, childEdges);
+    }
 
     const std::vector<EdgeWeakPtr> &getParentEdges() const noexcept {
         return parentEdges;
@@ -201,11 +216,18 @@ public:
 
     bool isInPlace() const;
 
-    // must be called only after Graph::InitEdges()
+    // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
     }
 
+    enum class ConstantType {
+        Const,          // Node is placed in a constant subgraph
+        NoConst,        // Node is placed in a non-constant subgraph
+        StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the parent nodes' ConstantType.
+    };
+    ConstantType getConstantType() const;
+    void updateConstantType();
     bool isConstant();
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
@@ -241,7 +263,7 @@ public:
         }
 
         if (getFusingPort() == -1) {
-            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+            OPENVINO_THROW("Cannot determine fusing port between nodes: ", parentNode->getName(), " and ", getName());
         }
 
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
@@ -353,7 +375,7 @@ public:
         inplace = InPlaceType::Unknown;
     }
 
-    std::string getPrimitiveDescriptorType() const;
+    virtual std::string getPrimitiveDescriptorType() const;
 
     PerfCount &PerfCounter() { return perfCounter; }
 
@@ -364,6 +386,7 @@ public:
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -385,9 +408,6 @@ public:
                                   const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
-    virtual bool created(const ExtensionManager::Ptr& extMgr) {
-        return created();
-    }
 
     /**
      * @brief Performs Node initialization based on graph context.
@@ -427,47 +447,47 @@ public:
      * @brief Returns runtime node precision based on input/output data types or data type used for computations
      * @return Runtime node precision
      */
-    virtual InferenceEngine::Precision getRuntimePrecision() const;
+    virtual ov::element::Type getRuntimePrecision() const;
 
-    const std::vector<InferenceEngine::Precision>& getOriginalInputPrecisions() const {
+    const std::vector<ov::element::Type>& getOriginalInputPrecisions() const {
         return originalInputPrecisions;
     }
-    const std::vector<InferenceEngine::Precision>& getOriginalOutputPrecisions() const {
+    const std::vector<ov::element::Type>& getOriginalOutputPrecisions() const {
         return originalOutputPrecisions;
     }
 
-    InferenceEngine::Precision getOriginalInputPrecisionAtPort(size_t port) const {
+    ov::element::Type getOriginalInputPrecisionAtPort(size_t port) const {
         if (originalInputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         return originalInputPrecisions[port];
     }
-    InferenceEngine::Precision getOriginalOutputPrecisionAtPort(size_t port) const {
+    ov::element::Type getOriginalOutputPrecisionAtPort(size_t port) const {
         if (originalOutputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         return originalOutputPrecisions[port];
     }
 
-    void setOriginalInputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+    void setOriginalInputPrecisionAtPort(size_t port, ov::element::Type precision) {
         if (originalInputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         originalInputPrecisions[port] = precision;
     }
 
-    void setOriginalOutputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+    void setOriginalOutputPrecisionAtPort(size_t port, ov::element::Type precision) {
         if (originalOutputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         originalOutputPrecisions[port] = precision;
     }
 
-    void addOriginalInputPrecision(InferenceEngine::Precision precision) {
+    void addOriginalInputPrecision(ov::element::Type precision) {
         originalInputPrecisions.push_back(precision);
     }
 
-    void addOriginalOutputPrecision(InferenceEngine::Precision precision) {
+    void addOriginalOutputPrecision(ov::element::Type precision) {
         originalOutputPrecisions.push_back(precision);
     }
 
@@ -512,19 +532,19 @@ public:
 
     const Shape& getInputShapeAtPort(size_t port) const {
         if (inputShapes.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         return inputShapes[port];
     }
 
     const Shape& getOutputShapeAtPort(size_t port) const {
         if (outputShapes.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         return outputShapes[port];
     }
 
-    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+    const std::vector<MemoryPtr>& getInternalBlobs() const {
         return internalBlobs;
     }
 
@@ -550,7 +570,8 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
     virtual bool canBeExecutedInInt8() const {
-        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
+                                       NameFromType(getType()));
         return false;
     }
 
@@ -584,26 +605,19 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
-    bool permanent = false;
-    bool temporary = false;
 
     enum class InPlaceType {
         Unknown,
         InPlace,
         NoInPlace
     };
-    enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst
-    };
     mutable InPlaceType inplace = InPlaceType::Unknown;
-    ConstantType constant = ConstantType::Unknown;
-    std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
+    ConstantType constant = ConstantType::NoConst;
+    std::vector<MemoryPtr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
@@ -630,19 +644,19 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions
      * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
      */
-    virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
+    virtual std::vector<ov::element::Type> getInputPrecisions() const;
 
     /**
      * @brief Auxiliary function to get node output precisions
      * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
      */
-    virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
+    virtual std::vector<ov::element::Type> getOutputPrecisions() const;
 
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
@@ -673,14 +687,15 @@ protected:
     IShapeInfer::Result shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
-        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
+        OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }
 
     virtual bool needPrepareParams() const;
     // TODO [mandrono]: add description
     // called after memory allocation/reallocation
     virtual void prepareParams() {
-        IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
+        OPENVINO_THROW_NOT_IMPLEMENTED("[DS] prapareParams not implemented for node with type ",
+                                       NameFromType(getType()));
     }
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
@@ -695,11 +710,21 @@ protected:
     std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
+    static void removeEdge(const EdgePtr edge, std::vector<EdgeWeakPtr> &edges) {
+        edges.erase(std::remove_if(edges.begin(), edges.end(),
+                                   [&edge] (EdgeWeakPtr _edge) {
+                                       return _edge.lock() == edge;
+                                   }),
+                    edges.end());
+    }
+
+    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
 
-    std::vector<InferenceEngine::Precision> originalInputPrecisions;
-    std::vector<InferenceEngine::Precision> originalOutputPrecisions;
+    std::vector<ov::element::Type> originalInputPrecisions;
+    std::vector<ov::element::Type> originalOutputPrecisions;
 
     int fusingPort;
 
@@ -717,10 +742,6 @@ private:
 
     MemoryPtr scratchpadMem;
 
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
-
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
-    ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
     // Hold output scales
     std::vector<float> DQScales;
     // we cannot rely on per-NUMA weightCache for caching weights because:
@@ -740,17 +761,17 @@ constexpr uint64_t PortMask(T... rest) {
 }
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
-                                            Node*(const std::shared_ptr<ngraph::Node>& op,
+                                            Node*(const std::shared_ptr<ov::Node>& op,
                                                   const GraphContext::CPtr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Node* create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    NodeImpl(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }

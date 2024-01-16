@@ -9,10 +9,10 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -116,8 +116,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
+    std::shared_ptr<ov::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
@@ -180,8 +179,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         } else if (variant.is<std::wstring>()) {
             weights_path = variant.as<std::wstring>();
 #endif
-        } else if (variant.is<std::shared_ptr<ngraph::runtime::AlignedBuffer>>()) {
-            weights = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
+        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+            weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
         }
     }
     bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
@@ -204,10 +203,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (!weights_path.empty()) {
         if (enable_mmap) {
             auto mapped_memory = ov::load_mmap_object(weights_path);
-            weights =
-                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
-                                                                                               mapped_memory->size(),
-                                                                                               mapped_memory);
+            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory);
         } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
@@ -222,17 +220,16 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             size_t file_size = bin_stream.tellg();
             bin_stream.seekg(0, std::ios::beg);
 
-            auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
+            auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(file_size);
             bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
             bin_stream.close();
 
-            weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
                 aligned_weights_buffer->get_ptr<char>(),
                 aligned_weights_buffer->size(),
                 aligned_weights_buffer);
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return create_input_model();
 }

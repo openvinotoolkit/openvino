@@ -1,5 +1,5 @@
-name: Documentation issue Report
-description: This report is related to the documentation 
+name: Documentation issue report
+description: Report an issue with Documentation. 
 title: "[Docs]: "
 labels: ["docs", "support_request"]
 body:
@@ -16,15 +16,17 @@ body:
     validations:
       required: true
   - type: textarea
-    id: build_description
+    id: description
     attributes:
-      label: Build issue description
-      description: What issue are you facing during the build/installation?
-      placeholder: Please provide a detailed description of what happened
+      label: Description
+      description: Provide a description of the issue you noticed.
     validations:
       required: true
+  - type: checkboxes
+    id: terms
+    attributes:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report the documentation issue. It's not a question
+        - label: I'm reporting a documentation issue. It's not a question.
           required: true

@@ -5,15 +5,18 @@
 #pragma once
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 #include <vector>
 
 #include "checkpoint_v1_reader.hpp"
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
-#include "graph.pb.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
+#include "ov_tensorflow/graph.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -108,7 +111,11 @@ public:
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr) {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+        std::ifstream pb_stream(std::filesystem::path(model_path), std::ios::in | std::ifstream::binary);
+#else
         std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
+#endif
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
@@ -135,7 +142,11 @@ public:
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         try {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+            std::ifstream pb_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
+#else
             std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+#endif
             auto graph_def = std::make_shared<::tensorflow::GraphDef>();
             return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
                    graph_def->node_size() > 0;

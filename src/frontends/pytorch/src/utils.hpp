@@ -7,6 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 
 namespace ov {
 
@@ -39,6 +40,8 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
+std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x);
+
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& input_node);
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
@@ -50,6 +53,11 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 op::PadType convert_pad(const std::string& pt_pad);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
+
+/// \brief Checks if input represents empty list.
+/// \param input Input to check.
+/// \return true if input is empty list, false - if input is non-empty or non-list.
+bool is_empty_list(const Output<Node>& input);
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception);
 OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
@@ -65,11 +73,11 @@ Any simplified_type_interpret(Any type);
 
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
+element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars);
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
                                bool align_scalars = false);
-
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
@@ -125,9 +133,28 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
-    align_eltwise_input_types(context, lhs, rhs, true);
+    auto lhs_type = context.get_input_type(0);
+    auto rhs_type = context.get_input_type(1);
+    // If type is string or None, we shouldn't align
+    if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
+        !rhs_type.is<type::PyNone>())
+        align_eltwise_input_types(context, lhs, rhs, true);
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);
+    return res;
+}
+
+template <typename T, size_t idx = 0>
+OutputVector inplace_translate_1to1_match_2_inputs_align_types(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
+    auto lhs = context.get_input(0);
+    auto rhs = context.get_input(1);
+    // For inplace op we know direction of type alignment
+    if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
+        rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
+    OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    context.mutate_input(idx, res[0]);
     return res;
 }
 
@@ -158,6 +185,9 @@ public:
     virtual PartialShape get_input_shape(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_shape);
     }
+    virtual const std::vector<size_t>& get_input_strides(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_strides);
+    }
     virtual Any get_input_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_type);
     }
@@ -165,7 +195,7 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_output_debug_name);
     }
     virtual PartialShape get_output_shape(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_output_shape);
+        return PartialShape::dynamic();
     }
     virtual Any get_output_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_type);
@@ -186,7 +216,7 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_op_type);
     }
     virtual const std::string& get_schema() const override {
-        FRONT_END_NOT_IMPLEMENTED(get_schema);
+        return m_schema;
     }
     virtual size_t num_of_outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(num_of_outputs);
@@ -215,6 +245,9 @@ public:
     virtual OutputVector inlined_inputs(size_t start_index) const override {
         FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
     }
+
+private:
+    const std::string m_schema = "NONE";
 };
 
 }  // namespace pytorch

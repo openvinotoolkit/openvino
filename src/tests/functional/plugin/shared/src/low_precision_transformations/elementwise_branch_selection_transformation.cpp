@@ -8,7 +8,7 @@
 #include <tuple>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
+#include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -100,7 +100,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
             } else if (type == "Convolution") {
                 const auto& precisionIt = it.second.find("runtimePrecision");
                 const auto precision = precisionIt->second.as<std::string>();
-                ASSERT_EQ("U8", precision);
+                ASSERT_EQ("u8", precision);
             }
         }
 

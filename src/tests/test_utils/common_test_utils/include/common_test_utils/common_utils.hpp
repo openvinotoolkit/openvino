@@ -93,16 +93,6 @@ inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementT
     return result.str();
 }
 
-template <typename ElementType>
-inline void vec2File(const std::vector<ElementType>& vec, const std::string& output_file_path) {
-    std::ofstream output_file;
-    output_file.open(output_file_path, std::ios::out | std::ios::trunc);
-    for (const auto& element : vec) {
-        output_file << element << std::endl;
-    }
-    output_file.close();
-}
-
 template <typename vecElementType>
 inline std::string set2str(const std::set<vecElementType>& set) {
     if (!set.empty()) {
@@ -113,6 +103,10 @@ inline std::string set2str(const std::set<vecElementType>& set) {
         return result.str();
     }
     return std::string("()");
+}
+
+inline std::string bool2str(const bool val) {
+    return val ? "True" : "False";
 }
 
 template <typename master, typename slave>
@@ -182,6 +176,15 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     os << "(";
     for (const auto& configItem : config) {
         os << configItem.first << "=" << configItem.second << "_";
+    }
+    os << ")";
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second.as<std::string>() << "_";
     }
     os << ")";
     return os;

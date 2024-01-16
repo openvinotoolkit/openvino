@@ -12,8 +12,8 @@
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/squeeze_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "ov_lpt_models/squeeze.hpp"
 
 namespace LayerTestsDefinitions {
 

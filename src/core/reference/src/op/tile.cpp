@@ -5,67 +5,56 @@
 #include "openvino/reference/tile.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <numeric>
 
-#include "ngraph/check.hpp"
+namespace ov {
+namespace reference {
 
-using namespace ov;
-
-namespace {
-/// \brief For each axis calculates the product of inner axes
-/// If dims has shape (2, 3, 4) then for 2 (first axis) the inner axes would be (3, 4)
-/// and for 3 (second axis) it would be (4)
-/// If dims has shape(2, 3, 4) then the output vector would be (3 * 4, 4, 1)
-/// The outermost axis is not used. For innermost axis it is always 1.
-/// \param[in] dims Shape of the output
-///
-/// \return Vector containing calculated values for each axis.
-std::vector<int64_t> create_pitches(const Shape& dims) {
-    std::vector<int64_t> pitch;
-    pitch.resize(dims.size() - 1);
-    std::partial_sum(dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
-    pitch.push_back(1);
-    return pitch;
-}
-}  // namespace
-
-void reference::tile(const char* arg,
-                     char* out,
-                     const Shape& in_shape,
-                     const Shape& out_shape,
-                     const size_t elem_size,
-                     const std::vector<int64_t>& repeats) {
-    Shape in_shape_expanded(in_shape);
-    in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
-    size_t block_size = 0;
-    int64_t num_repeats = 0;
-    const int input_rank = static_cast<int>(in_shape_expanded.size());
-    const int64_t last_dim = in_shape_expanded[input_rank - 1];
-    const std::vector<int64_t> pitches = create_pitches(out_shape);
-    const char* copy = nullptr;
-
-    std::vector<size_t> indices(in_shape_expanded.size() - 1, 0);
-    size_t axis = indices.size();
-
-    if (std::all_of(repeats.begin(), repeats.end(), [](int64_t repeat) {
+/**
+ * @brief Reference implementation of Tile operator
+ *
+ * @param arg        Pointer to input data.
+ * @param out        Pointer to output data.
+ * @param in_shape   Input data shape.
+ * @param out_shape  Output data shape.
+ * @param elem_size  Single data element size im bytes.
+ * @param repeats    Vector with repeats values for axes (same rank as out_shape).
+ */
+void tile(const char* arg,
+          char* out,
+          const Shape& in_shape,
+          const Shape& out_shape,
+          const size_t elem_size,
+          const std::vector<int64_t>& repeats) {
+    if (std::any_of(repeats.begin(), repeats.end(), [](int64_t repeat) {
             return repeat == 0;
         })) {
         return;
     }
 
+    decltype(arg) copy_from;
+    typename std::decay<decltype(*in_shape.begin())>::type block_size;
+    typename std::decay<decltype(*repeats.begin())>::type num_repeats;
+
+    auto in_shape_expanded = in_shape;
+    in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
+    const auto last_dim = in_shape_expanded.back();
+    const auto pitches = row_major_strides(out_shape);
+
+    std::vector<size_t> indices(in_shape_expanded.size() - 1, 0);
+    auto axis = indices.size();
+
     // Copy and repeat data for innermost axis as many times as described in the repeats parameter
     while (axis <= indices.size()) {
         block_size = last_dim * elem_size;
-        memcpy(out, arg, block_size);
+        std::memcpy(out, arg, block_size);
         out += block_size;
         arg += block_size;
 
-        copy = out - block_size;
-        num_repeats = repeats[input_rank - 1] - 1;
+        copy_from = out - block_size;
+        num_repeats = repeats.back() - 1;
         for (int64_t i = 0; i < num_repeats; ++i) {
-            memcpy(out, copy, block_size);
+            std::memcpy(out, copy_from, block_size);
             out += block_size;
         }
 
@@ -77,14 +66,16 @@ void reference::tile(const char* arg,
             }
             indices[axis] = 0;
 
-            ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
+            auto pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
-            copy = out - block_size;
+            copy_from = out - block_size;
             num_repeats = repeats[axis] - 1;
-            for (int64_t i = 0; i < num_repeats; i++) {
-                memcpy(out, copy, block_size);
+            for (int64_t i = 0; i < num_repeats; ++i) {
+                std::memcpy(out, copy_from, block_size);
                 out += block_size;
             }
         }
     }
 }
+}  // namespace reference
+}  // namespace ov

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/one_hot.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -21,7 +22,7 @@ OutputVector translate_one_hot_op(const NodeContext& node) {
     auto off_value = node.get_input(3);
 
     auto axis = node.get_attribute<int64_t>("axis", -1);
-    auto one_hot = make_shared<OneHot>(indices, depth, on_value, off_value, axis);
+    auto one_hot = make_shared<v1::OneHot>(indices, depth, on_value, off_value, axis);
     set_node_name(node.get_name(), one_hot);
     return {one_hot};
 }

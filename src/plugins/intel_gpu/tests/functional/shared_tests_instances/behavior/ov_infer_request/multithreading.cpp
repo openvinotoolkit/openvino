@@ -13,13 +13,8 @@ namespace {
 auto configs = []() {
     return std::vector<ov::AnyMap>{
         {},
-        {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-          InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}},
+        {ov::num_streams(ov::streams::AUTO)},
     };
-};
-
-auto Multiconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
 };
 
 auto AutoBatchConfigs = []() {
@@ -34,18 +29,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
-                            OVInferRequestMultithreadingTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs())),
-                            OVInferRequestMultithreadingTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Multiconfigs())),
                             OVInferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestMultithreadingTests,

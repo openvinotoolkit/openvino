@@ -7,12 +7,17 @@ import openvino as ov
 
 from snippets import get_model
 
-model = get_model()
+def main():
+    model = get_model()
 
-# TODO: no GNA properties to replace strings
-#! [ov_gna_exec_mode_hw_with_sw_fback]
-core = ov.Core()
-compiled_model = core.compile_model(
-    model, device_name="GNA", config={"GNA_DEVICE_MODE": "GNA_HW_WITH_SW_FBACK"}
-)
-#! [ov_gna_exec_mode_hw_with_sw_fback]
+    core = ov.Core()
+    if "GNA" not in core.available_devices:
+        return 0
+
+    # TODO: no GNA properties to replace strings
+    #! [ov_gna_exec_mode_hw_with_sw_fback]
+    core = ov.Core()
+    compiled_model = core.compile_model(
+        model, device_name="GNA", config={"GNA_DEVICE_MODE": "GNA_HW_WITH_SW_FBACK"}
+    )
+    #! [ov_gna_exec_mode_hw_with_sw_fback]

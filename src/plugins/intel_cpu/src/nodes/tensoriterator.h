@@ -138,8 +138,8 @@ private:
     void reshapeAndFillOutput(dnnl::stream strm);
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
+    bool runAsDynamic() const;
 
-    ExtensionManager::Ptr ext_mng;
     Graph sub_graph;
     std::vector<std::vector<MemoryPtr>> input_mems;
     std::vector<MemoryPtr> output_mem;

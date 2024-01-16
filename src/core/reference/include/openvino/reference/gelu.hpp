@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <cmath>
 #include <cstddef>
-#include <ngraph/op/gelu.hpp>
+
+#include "openvino/op/gelu.hpp"
 
 namespace ov {
 namespace reference {

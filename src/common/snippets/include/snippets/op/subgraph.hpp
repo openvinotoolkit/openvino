@@ -10,8 +10,10 @@
 #include <openvino/op/util/sub_graph_base.hpp>
 #include "openvino/op/op.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/pass/positioned_pass.hpp"
 
 #include "snippets/generator.hpp"
 
@@ -68,7 +70,8 @@ public:
     //
     // D = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
     // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
-    using BlockedShape = std::tuple<ov::PartialShape, ov::AxisVector, ov::element::Type>;
+    using Layout = std::vector<size_t>;
+    using BlockedShape = std::pair<VectorDims, Layout>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
     Subgraph() = default;
@@ -94,41 +97,34 @@ public:
     const std::shared_ptr<ov::snippets::Generator>& get_generator() const { return m_generator; }
     std::shared_ptr<ov::snippets::Generator>& get_generator() { return m_generator; }
 
-    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad; }
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes,
-                                const BlockedShapeVector& input_shapes,
-                                const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
-                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
-                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
-                                const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = nullptr,
-                                const void* compile_params = nullptr);
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
-                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
-                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
-                                const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = nullptr,
-                                const void* compile_params = nullptr);
-    snippets::Schedule generate(const void* compile_params = nullptr);
 
-    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
-    ov::PartialShape canonicalized_body_shape_infer(const BlockedShapeVector& input_shapes);
-    std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
-    std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
+    snippets::Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
+                                const std::vector<ov::element::Type>& input_precisions = {},
+                                const std::vector<ov::element::Type>& output_precisions = {},
+                                const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
+                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
+                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
+                                const void* compile_params = nullptr);
+
+    Schedule generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
+                                     const void* compile_params = nullptr) const;
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
-    void set_virtual_port_count(const size_t count);
+    void set_virtual_port_count(size_t count);
 
     void print() const;
 
-    void serialize() const;
-    void set_master_shape(ov::PartialShape new_shape) {master_shape = std::move(new_shape);}
+    VectorDims infer_master_shape();
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
@@ -141,28 +137,31 @@ public:
     // Return estimated unique buffer count (upper bound). It's needed for tokenization
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
+
+    void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
+                                   const std::vector<ov::element::Type>& input_precisions = {},
+                                   const std::vector<ov::element::Type>& output_precisions = {},
+                                   const std::vector<snippets::pass::Manager::PositionedPassBase>& = {});
     std::shared_ptr<lowered::LinearIR>
-    convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>()) const;
+    convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                              const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+    std::shared_ptr<Subgraph> clone() const;
 
 private:
-    void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
-    void data_flow_transformations(const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes);
     void control_flow_transformations(lowered::LinearIR& linear_ir,
-                                      const lowered::pass::PassPipeline& backend_passes_pre_common,
-                                      const lowered::pass::PassPipeline& backend_passes_post_common);
+                                      LoweringResult& lowering_result,
+                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {}) const;
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
     // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
-    size_t m_buffer_scratchpad = 0lu;
     Shape exec_domain = {};
     std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
 
-    ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
-    size_t maxInputRank = 0;
     std::vector<size_t> appendOnesForCanonical;
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
 
@@ -180,30 +179,12 @@ private:
         bool m_has_domain_sensitive_ops = false;
     } config;
 
-    class ShapeInferSnippetsNode : public IShapeInferSnippets {
-    public:
-        const Result& get_last_result() {return m_last_result; }
-    protected:
-        Result m_last_result{{}, ShapeInferStatus::success};
-    };
-
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
-    class NgraphShapeInfer : public ShapeInferSnippetsNode {
-        std::shared_ptr<ov::Model> m_ngraph_body;
-        ParameterVector m_parameters;
-        ResultVector m_results;
+    class OVShapeInfer : public ShapeInferSnippetsNode {
+        std::shared_ptr<ov::Model> m_ov_body;
     public:
-        explicit NgraphShapeInfer(const std::shared_ptr<ov::Model>& body);
-        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
-    };
-    class LIRShapeInfer : public ShapeInferSnippetsNode {
-        using IOExpression = lowered::IOExpression;
-        std::shared_ptr<lowered::LinearIR> m_lir_body;
-        std::vector<std::shared_ptr<IOExpression>> m_param_exprs;
-        std::vector<std::shared_ptr<IOExpression>> m_result_exprs;
-    public:
-        explicit LIRShapeInfer(const std::shared_ptr<lowered::LinearIR>& body);
+        explicit OVShapeInfer(const std::shared_ptr<ov::Model>& body);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 };

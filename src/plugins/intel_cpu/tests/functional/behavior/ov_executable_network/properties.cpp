@@ -5,14 +5,11 @@
 #include <gtest/gtest.h>
 
 #include "test_utils/properties_test.hpp"
-#include <common_test_utils/test_assertions.hpp>
-#include "ie_system_conf.h"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace {
 
@@ -39,6 +36,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::enable_hyper_threading.name()),
         RO_property(ov::execution_devices.name()),
         RO_property(ov::intel_cpu::denormals_optimization.name()),
+        RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
     };
 
@@ -137,6 +135,22 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     ASSERT_EQ(streams, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
+    ov::Core ie;
+    int32_t streams = 0;
+    int32_t value = -1;
+
+    ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config;
+    config[ov::num_streams.name()] = streams;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+
+    ASSERT_EQ(streams, value);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompressionRate) {
     ov::Core core;
 
@@ -144,7 +158,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompression
     ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
 }
 
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableInCoreAndModel) {
     ov::Core ie;
@@ -215,5 +229,46 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHas
     ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, inference_precision_expected);
 }
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckLogLevel) {
+    ov::Core ie;
+
+    // check default value
+    {
+        ov::AnyMap config;
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
+    }
+    //check set and get
+    const std::vector<ov::log::Level> logLevels = {
+        ov::log::Level::ERR,
+        ov::log::Level::NO,
+        ov::log::Level::WARNING,
+        ov::log::Level::INFO,
+        ov::log::Level::DEBUG,
+        ov::log::Level::TRACE};
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ov::AnyMap config{ov::log::level(logLevels[i])};
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ov::Any value;
+        ov::CompiledModel compiledModel;
+        ASSERT_NO_THROW(ie.set_property(deviceName, ov::log::level(logLevels[i])));
+        ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+        ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+}
+
 
 } // namespace

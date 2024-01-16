@@ -664,7 +664,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, NonMaxSuppressionWithNamedOutputs)
         selected_scores = make_shared<Convert>(selected_scores, i32);
 
         // compute the third output - valid_outputs
-        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+        auto squeeze_axes = make_shared<Constant>(i64, Shape{1}, 0);
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2), squeeze_axes);
 
         // make post-processing before the concatenation
         auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
@@ -755,7 +756,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
     // Namely, the resulted model must contain the regular convolution, not grouped convolution
     { model = convert_model("conv_with_dynamic_input_channel"); }
     {
-        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, 6});
 
         auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
         auto transpose = make_shared<Transpose>(input, transpose_order);
@@ -773,5 +774,22 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
         auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
 
         model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, GatherWithStringParams) {
+    {
+        model = convert_model("gather_with_string_table/gather_with_string_table.pb");
+        // 126525: Remove disabling once serialization/deserialization is supported
+        comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    }
+    {
+        auto string_values = std::vector<std::string>{"First sentence", "Second sentence sentence", "Third"};
+        auto string_const = make_shared<Constant>(element::string, Shape{3}, string_values);
+        auto param_inds = make_shared<Parameter>(element::i32, Shape{2, 3, 5});
+        auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+
+        auto gather = make_shared<Gather>(string_const, param_inds, axis);
+        model_ref = make_shared<Model>(OutputVector{gather}, ParameterVector{param_inds});
     }
 }

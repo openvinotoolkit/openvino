@@ -12,13 +12,14 @@
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
 #include <functional_test_utils/skip_tests_config.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -74,7 +75,7 @@ public:
         target_device = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 };
@@ -139,7 +140,7 @@ public:
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -164,7 +165,7 @@ public:
         std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
         std::tie(target_device, entry) = this->GetParam();
         std::tie(key, value, reference) = entry;
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -185,7 +186,7 @@ public:
         std::tie(target_device, key) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -231,7 +232,7 @@ public:
         std::tie(target_device, configuration, loadNetWorkConfig) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 

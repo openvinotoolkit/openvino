@@ -17,7 +17,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_on_weights_and_unsupported_child_function.hpp"
+#include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -28,13 +28,13 @@ public:
     class Actual {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     TestTransformationParams params;

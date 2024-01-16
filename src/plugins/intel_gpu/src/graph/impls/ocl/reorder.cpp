@@ -24,6 +24,15 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
 protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
@@ -125,6 +134,8 @@ public:
         const auto& prim = impl_param.typed_desc<reorder>();
         const auto& weights_params = prim->weights_reorder_params;
         auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        OPENVINO_ASSERT(weights_params != nullptr, "[GPU] Attempt to create reorder weights without weights params");
 
         OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
                         "[GPU] Input layout doesn't match required reorder weights layout");

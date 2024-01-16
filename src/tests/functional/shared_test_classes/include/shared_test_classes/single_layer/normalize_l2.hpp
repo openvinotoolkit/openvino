@@ -9,14 +9,14 @@
 #include <vector>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
 using NormalizeL2LayerTestParams = std::tuple<
         std::vector<int64_t>,               // axes
         float,                              // eps
-        ngraph::op::EpsMode,                // eps_mode
+        ov::op::EpsMode,                // eps_mode
         InferenceEngine::SizeVector,        // inputShape
         InferenceEngine::Precision,         // netPrecision
         std::string                         // targetDevice

@@ -16,8 +16,8 @@ namespace intel_cpu {
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
-    : Brgemm(), m_type(type) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
+    : Brgemm(), m_type(type), m_beta(beta) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -32,8 +32,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_scratch, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
-    : Brgemm(), m_type(type) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
+    : Brgemm(), m_type(type), m_beta(beta) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -48,8 +48,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
-    : Brgemm(), m_type(type) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
+    : Brgemm(), m_type(type), m_beta(beta) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -61,8 +61,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
-    : Brgemm(), m_type(type) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
+    : Brgemm(), m_type(type), m_beta(beta) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
@@ -114,21 +114,9 @@ void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
     // Additional check for 3rd input
     if (one_of(m_type, Type::WithCompensations, Type::AMX)) {
         const auto& pshape = get_input_partial_shape(2);
-        NGRAPH_CHECK(pshape.is_static(), "BRGEMM Scratch must have static shape");
-        const auto shape = pshape.to_shape();
-        const auto type = get_input_element_type(2);
+        OPENVINO_ASSERT(pshape.is_static(), "BRGEMM Scratch must have static shape");
         if (is_with_compensations()) {
-            const auto expected_type = ov::element::f32;
-            NGRAPH_CHECK(expected_type == type, "BRGEMM Scratch with compensations must have FP32 element type");
-            const auto N = *shape_b.rbegin();
-            // If N block size is not set, there is no meaning in validating the scratchpad shape
-            if (m_N_blk != N) {
-                const auto expected_shape = ov::Shape{rnd_up(N, m_N_blk)};
-                NGRAPH_CHECK(expected_shape == shape, "BRGEMM Scratch with compensations must have shape {rnd_up(N, m_N_blk)}");
-            }
-        } else {
-            NGRAPH_CHECK(ov::shape_size(shape) == SCRATCH_BYTE_SIZE && type == ov::element::u8,
-                         "BRGEMM Scratch for space workplace must be static, have U8 element type and size equal to " + std::to_string(SCRATCH_BYTE_SIZE));
+            OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
         }
     }
 }
@@ -146,20 +134,22 @@ void BrgemmCPU::validate_inputs() const {
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    std::shared_ptr<BrgemmCPU> brgemm;
     if (!is_with_scratchpad()) {
         return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
                                            get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                           m_M_blk, m_K_blk, m_N_blk);
+                                           m_M_blk, m_K_blk, m_N_blk, m_beta);
+    } else {
+        return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
+            get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
+            m_M_blk, m_K_blk, m_N_blk, m_beta);
     }
-    return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
-                                       get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                       m_M_blk, m_K_blk, m_N_blk);
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
@@ -168,7 +158,7 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
         return brgemm_copy_b;
     }
-    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
+    if (ov::is_type<snippets::op::IntermediateMemoryBuffer>(b_input_node)) {
         if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
             return brgemm_copy_b;
         }
@@ -181,12 +171,13 @@ size_t BrgemmCPU::get_offset_scratch() const {
     return get_input_offset(2);
 }
 
-BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) : Brgemm::ShapeInfer(n) {
-    const auto& brg = ov::as_type_ptr<BrgemmCPU>(n);
-    OPENVINO_ASSERT(brg, "Got invalid node in BrgemmCPU::ShapeInfer");
-    const auto brgemm_copy = brg->is_with_data_repacking() ? brg->get_brgemm_copy() : nullptr;
-    if (brgemm_copy)
-        m_io_layouts[1] = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_copy->input(0))->get_layout();
+bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
+    Brgemm::visit_attributes(visitor);
+    visitor.on_attribute("blk_M", m_M_blk);
+    visitor.on_attribute("blk_K", m_K_blk);
+    visitor.on_attribute("blk_N", m_N_blk);
+    visitor.on_attribute("beta", m_beta);
+    return true;
 }
 
 } // namespace intel_cpu

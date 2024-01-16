@@ -15,13 +15,13 @@
 #include "low_precision/mat_mul.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 
@@ -72,11 +72,11 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
@@ -103,11 +103,11 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         referenceFunction = createReferenceFunction(testValues.precisionBefore, shape, testValues.dequantization);

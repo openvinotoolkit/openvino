@@ -14,7 +14,7 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
+#include "ov_lpt_models/get_dequantization.hpp"
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -24,8 +24,8 @@ using namespace ov::pass;
 
 class GetDequantizationBelowTestValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    ngraph:: builder::subgraph::DequantizationOperations dequantization;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {

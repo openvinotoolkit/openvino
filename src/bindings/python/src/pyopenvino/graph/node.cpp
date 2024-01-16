@@ -8,6 +8,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include <regex>
+#include <string>
+
 #include "dict_attribute_visitor.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/add.hpp"
@@ -80,6 +83,53 @@ void regclass_graph_Node(py::module m) {
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
+
+    // This function replaces NodeFactory's mechanism previously getting attributes of Nodes.
+    // Python will call this method whenever requested attribute hasn't already been defined,
+    // so all other properties like shape or name are prioritized from bindings itself.
+    // TODO: is it possible to append these attributes to the instance of Node itself
+    //       directly from pybind without returning class itself everytime?
+    node.def("__getattr__", [](const std::shared_ptr<ov::Node>& self, const std::string& name) {
+        // TODO: is it possible to cache serializer and regex?
+        util::DictAttributeSerializer dict_serializer(self);
+
+        // Look if there is a "get/set_*" pattern at the start of a string.
+        // It means attribute was called as a function.
+        std::smatch regex_match;
+        std::regex look_for("get_|set_");
+
+        if (std::regex_search(name, regex_match, look_for, std::regex_constants::match_continuous)) {
+            // Strip prefix from the name and perform operation.
+            auto stripped_name = regex_match.suffix().str();
+            if (regex_match.str() == "get_") {
+                if (dict_serializer.contains_attribute(stripped_name)) {
+                    return py::cpp_function([self, stripped_name]() {
+                        util::DictAttributeSerializer dict_serializer(self);
+                        return dict_serializer.get_attribute<py::object>(stripped_name);
+                    });
+                }
+                // Throw error with original name if stripped set_attribute was not found:
+                throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+            } else {  // regex_match is equal to "set_"
+                if (dict_serializer.contains_attribute(stripped_name)) {
+                    return py::cpp_function([self, stripped_name](py::object& value) {
+                        py::dict attr_dict;
+                        attr_dict[stripped_name.c_str()] = value;
+                        std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+                        util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
+                        self->visit_attributes(dict_deserializer);
+                        return;
+                    });
+                }
+                // Throw error with original name if stripped set_attribute was not found:
+                throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+            }
+        }
+
+        // If nothing was found raise AttributeError:
+        throw py::attribute_error("'openvino.runtime.Node' object has no attribute '" + name + "'");
+    });
+
     node.def(
         "evaluate",
         [](const ov::Node& self,

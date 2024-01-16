@@ -493,6 +493,9 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
     );
 
     tolerance = default_tolerance(p.default_type);
+    if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {
+        tolerance *= 2.1f; // Issue: 94154
+    }
     execute(p, false);
 }
 
@@ -511,6 +514,9 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
     );
 
     tolerance = default_tolerance(p.default_type);
+    if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {
+        tolerance *= 2.1f; // Issue: 94154
+    }
     execute(p, false);
 }
 

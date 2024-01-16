@@ -57,16 +57,17 @@ TSGatherForward::TSGatherForward() {
             }
         }
 
-        size_t axis;
+        size_t order_axis;
         if (axes[0] < 0) {
             auto data_rank = main_node->get_input_partial_shape(0).rank();
             if (data_rank.is_dynamic()) {
                 return false;
             }
-            axis = static_cast<size_t>(axes[0] + data_rank.get_length());
+            order_axis = static_cast<size_t>(axes[0] + data_rank.get_length());
         } else {
-            axis = static_cast<size_t>(axes[0]);
+            order_axis = static_cast<size_t>(axes[0]);
         }
+        const size_t axis = order_val[order_axis];
         /*
             https://docs.openvino.ai/2023.0/openvino_docs_ops_movement_Gather_8.html
             The Gather output shape has the same shape as the input,
@@ -136,8 +137,7 @@ TSGatherForward::TSGatherForward() {
         if (!success) {
             return false;
         }
-        auto new_axis =
-            ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
+        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {axis});
         main_node->input(2).replace_source_output(new_axis);
         copy_runtime_info(gather_axis, new_axis);
 
@@ -260,7 +260,11 @@ TSGatherBackward::TSGatherBackward() {
                 main_node->input(1).replace_source_output(squeeze->input_value(0));
             }
         }
+        std::vector<size_t> new_axes_val;
         if (!axes_val.empty()) {
+            for (size_t i = 0; i < axes_val.size(); ++i) {
+                new_axes_val.push_back(order_val[axes_val[i]]);
+            }
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
@@ -303,7 +307,7 @@ TSGatherBackward::TSGatherBackward() {
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
-            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {axes_val.size()}, axes_val);
+            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {new_axes_val.size()}, new_axes_val);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(main_node, unsqueeze_axes);
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);

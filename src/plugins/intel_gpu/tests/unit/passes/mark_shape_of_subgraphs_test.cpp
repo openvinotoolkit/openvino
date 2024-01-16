@@ -62,7 +62,7 @@ TEST(mark_shape_of_subgraphs, simple_chain) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather"), input_info("data_1"), eltwise_mode::sum));
     topology.add(concatenation("concat", {input_info("eltwise"), input_info("data_1")}, 0));
     topology.add(broadcast("broadcast", input_info("input"), input_info("concat"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
@@ -103,7 +103,7 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_reshape_inside_subgraph) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), input_info("data_1"), false, ov::PartialShape{2}));
     topology.add(broadcast("broadcast", input_info("input"), input_info("reshape"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
 
@@ -129,8 +129,8 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs) {
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
     topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
-    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, {}));
-    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 0, {}));
+    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather_0"), input_info("gather_1"), eltwise_mode::sum));
     topology.add(reshape("reshape", input_info("input"), input_info("eltwise"), false, ov::PartialShape()));
 
@@ -160,9 +160,9 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
     topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
-    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 1, {1}));
     topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
-    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 1, {1}));
     topology.add(scatter_update("scatter_update_0", input_info("gather_0"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(scatter_update("scatter_update_1", input_info("gather_1"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(strided_slice("strided_slice_1",
@@ -171,7 +171,7 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
                                input_info("scatter_update_1"),
                                input_info("data_0"), {}, {}, {}, {}, {}, {}));
     topology.add(shape_of("shape_of_2", input_info("input"), data_types::i64));
-    topology.add(gather("gather_2", input_info("shape_of_2"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather_2", input_info("shape_of_2"), input_info("data_0"), 0, 0, {}));
     topology.add(scatter_update("scatter_update_2", input_info("gather_2"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(strided_slice("strided_slice_2",
                                input_info("data_1"),
@@ -207,7 +207,7 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_inserted_reorder) {
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), true, {}, {}));
     topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f16));
     topology.add(eltwise("eltwise", input_info("reorder"), input_info("data_0"), eltwise_mode::prod));
@@ -237,7 +237,7 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     topology.add(input_layout("input_empty", input_layout_empty));
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of_01", input_info("input"), data_types::i64));
-    topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, 1, {1}));
     topology.add(shape_of("shape_of_02", input_info("input_empty"), data_types::i64));
     topology.add(shape_of("shape_of_03", input_info("input_empty"), data_types::i64));
     topology.add(concatenation("concat", {input_info("gather01"), input_info("shape_of_02"), input_info("shape_of_03")}, 0));
@@ -269,4 +269,52 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     for (size_t i = 0; i < output_prim->get_layout().count(); ++i) {
         ASSERT_EQ(5, output_ptr[i]);
     }
+    set_values(input_mem, {20.f});
+    network.set_input_data("input", input_mem);
+    auto outputs2 = network.execute();
+    auto output_prim2 = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<int64_t> output_ptr2 (output_prim2, get_test_stream());
+    ASSERT_EQ(1, output_prim2->get_layout().count());
+    for (size_t i = 0; i < output_prim2->get_layout().count(); ++i) {
+        ASSERT_EQ(5, output_ptr2[i]);
+    }
+}
+
+TEST(mark_shape_of_subgraphs, gather_compressed_no_mark) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto decompression_scale = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto decompression_zero_point = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    set_values(data_0, {0});
+    set_values(data_1, {2});
+    set_values(decompression_scale, {2});
+    set_values(decompression_zero_point, {2});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("data_1", data_1));
+    topology.add(data("decompression_scale", decompression_scale));
+    topology.add(data("decompression_zero_point", decompression_zero_point));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(gather("gather_compressed", input_info("shape_of"), input_info("data_0"), 0,
+                        input_info("decompression_scale"), input_info("decompression_zero_point"), ov::element::f32, 0, {}));
+    topology.add(eltwise("eltwise", input_info("gather_compressed"), input_info("data_1"), eltwise_mode::sum));
+    topology.add(concatenation("concat", {input_info("eltwise"), input_info("data_1")}, 0));
+    topology.add(broadcast("broadcast", input_info("input"), input_info("concat"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("gather_compressed")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("concat")));
 }

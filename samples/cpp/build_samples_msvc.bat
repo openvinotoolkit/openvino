@@ -72,3 +72,4 @@ exit /b
 
 :errorHandling
 echo Error
+exit /b %ERRORLEVEL%

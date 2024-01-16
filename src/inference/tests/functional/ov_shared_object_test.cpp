@@ -16,7 +16,7 @@ class SharedObjectOVTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
         return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
-                                                      std::string("mock_engine") + IE_BUILD_POSTFIX);
+                                                      std::string("mock_engine") + OV_BUILD_POSTFIX);
     }
 
     void loadDll(const string& libraryName) {

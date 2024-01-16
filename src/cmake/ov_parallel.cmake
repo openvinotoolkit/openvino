@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
+find_package(PkgConfig QUIET)
 
 function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
@@ -82,8 +80,17 @@ macro(ov_find_package_tbb)
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
+        set(PKG_CONFIG_SEARCH ON)
         if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
             set(_ov_minimal_tbb_version 2021.0)
+        elseif(LINUX AND AARCH64)
+            # CVS-126984: system TBB is not very stable on Linux ARM64
+            set(_ov_minimal_tbb_version 2021.0)
+            # on Ubuntu22.04, tbb2020 can be installed by "apt install libtbb2-dev",
+            # after installation, TBB_VERSION is missed in tbb.pc,
+            # so here skip pkg_search_module for tbb to avoid using TBB 2020
+            # that does not meet the minimun version number requirements.
+            set(PKG_CONFIG_SEARCH OFF)
         else()
             set(_ov_minimal_tbb_version 2017.0)
         endif()
@@ -115,7 +122,7 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR)
 
             # try tbb.pc from system
-            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND)
+            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND AND PKG_CONFIG_SEARCH)
                 macro(_ov_pkg_config_tbb_unset)
                     # unset since it affects OpenVINOConfig.cmake.in
                     unset(tbb_FOUND)
@@ -172,7 +179,7 @@ macro(ov_find_package_tbb)
                 # fallback variant for TBB 2018 and older where TBB have not had cmake interface
                 if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
                     # note: if TBB older than 2017.0 is passed, cmake will skip it and THREADING=SEQ will be used
-                    set(_tbb_paths PATHS "${IEDevScripts_DIR}/tbb")
+                    set(_tbb_paths PATHS "${OpenVINODeveloperScripts_DIR}/tbb")
                 endif()
 
                 # try to find one more time
@@ -263,25 +270,23 @@ function(ov_set_threading_interface_for TARGET_NAME)
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
         set(COMPILE_DEF_TYPE "INTERFACE")
-    elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
-           target_type STREQUAL "MODULE_LIBRARY")
+    elseif(target_type MATCHES "^(EXECUTABLE|OBJECT_LIBRARY|MODULE_LIBRARY)$")
         set(LINK_TYPE "PRIVATE")
-        set(COMPILE_DEF_TYPE "PUBLIC")
+        set(COMPILE_DEF_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
+        # Affected libraries: inference_engine_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
-        # Affected libraries: inference_engine only
-        # TODO: why TBB propogates its headers to inference_engine?
+        # Affected libraries: 'openvino' only
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
     else()
         message(WARNING "Unknown target type")
     endif()
 
-    function(ie_target_link_libraries TARGET_NAME LINK_TYPE)
+    function(_ov_target_link_libraries TARGET_NAME LINK_TYPE)
         target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
 
         # include directories as SYSTEM
@@ -316,7 +321,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             set(OV_THREAD_DEFINE "OV_THREAD_TBB")
-            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
+            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
@@ -367,7 +372,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /Qopenmp)
-                ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "-nodefaultlib:vcomp")
+                _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "-nodefaultlib:vcomp")
             else()
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} -fopenmp)
             endif ()
@@ -375,18 +380,18 @@ function(ov_set_threading_interface_for TARGET_NAME)
             # Debug binaries are optional.
             if (OMP_LIBRARIES_DEBUG AND NOT LINUX)
                 if (WIN32)
-                    ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
+                    _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
                     # TODO: handle multi-config generators case
                     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-                        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
+                        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
                     else()
-                        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
+                        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
                     endif ()
                 endif ()
             else ()
                 # Link Release library to all configurations.
-                ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
+                _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
             endif ()
         endif ()
     endif ()
@@ -396,11 +401,13 @@ function(ov_set_threading_interface_for TARGET_NAME)
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
-        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
+        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(ov_set_threading_interface_for)
 
+# deprecated
+
 function(set_ie_threading_interface_for TARGET_NAME)
-    message(WARNING "This function is deprecated. Please use ov_set_threading_interface_for(TARGET_NAME) instead.")
+    message(WARNING "'set_ie_threading_interface_for' is deprecated. Please use 'ov_set_threading_interface_for' instead.")
     ov_set_threading_interface_for(${TARGET_NAME})
 endfunction(set_ie_threading_interface_for)

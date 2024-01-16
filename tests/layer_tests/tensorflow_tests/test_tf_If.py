@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -67,13 +69,15 @@ class TestIfFloat(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+                      use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
         self._test(*self.create_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestIfInt(CommonTFLayerTest):
@@ -137,13 +141,15 @@ class TestIfInt(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+                      use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
         self._test(*self.create_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestNestedIf(CommonTFLayerTest):
@@ -215,13 +221,15 @@ class TestNestedIf(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+                      use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
         self._test(*self.create_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestSequantialIfs(CommonTFLayerTest):
@@ -305,10 +313,12 @@ class TestSequantialIfs(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+                      use_new_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
         self._test(*self.create_sequential_ifs_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

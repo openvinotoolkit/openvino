@@ -4,14 +4,11 @@
 
 #include <vector>
 
-#include <ie_core.hpp>
-#include <exec_graph_info.hpp>
-
-#include <ngraph/function.hpp>
-
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/binary_convolution.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
@@ -24,24 +21,23 @@ std::string ExecGraphInputsFusingBinConv::getTestCaseName(testing::TestParamInfo
 }
 
 void ExecGraphInputsFusingBinConv::SetUp() {
-    const InferenceEngine::SizeVector inputShapes = { 1, 16, 30, 30}, binConvKernelSize = {2, 2}, convKernelSize = {3, 3};
+    const std::vector<size_t> inputShapes = { 1, 16, 30, 30}, binConvKernelSize = {2, 2}, convKernelSize = {3, 3};
     const size_t numOutChannels = 16, numGroups = 16;
-    const std::vector<size_t > strides = {1, 1}, dilations = {1, 1};
+    const std::vector<size_t> strides = {1, 1}, dilations = {1, 1};
     const std::vector<ptrdiff_t> padsBegin = {1, 1}, padsEnd = {0, 0};
-    const ngraph::op::PadType paddingType = ngraph::op::PadType::EXPLICIT;
+    const ov::op::PadType paddingType = ov::op::PadType::EXPLICIT;
     const float padValue = 1.0;
-    targetDevice = this->GetParam();
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
-    auto binConv = ngraph::builder::makeBinaryConvolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes))};
+    auto binConv = ov::test::utils::make_binary_convolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
                                                           padValue);
-    auto conv = ngraph::builder::makeGroupConvolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
+    auto conv = ov::test::utils::make_group_convolution(binConv, ov::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
                                                       numOutChannels, numGroups);
 
-    auto biasNode = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, std::vector<size_t>{16, 1, 1});
-    auto add = std::make_shared<ngraph::opset1::Add>(conv, biasNode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "BinConvFuseConv");
+    auto biasNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, std::vector<size_t>{16, 1, 1});
+    auto add = std::make_shared<ov::op::v1::Add>(conv, biasNode);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
+    ov_model = std::make_shared<ov::Model>(results, params, "BinConvFuseConv");
 }
 
 void ExecGraphInputsFusingBinConv::TearDown() {
@@ -50,15 +46,15 @@ void ExecGraphInputsFusingBinConv::TearDown() {
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    InferenceEngine::CNNNetwork cnnNet(fnPtr);
-    auto ie = PluginCache::get().ie();
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto targetDevice = this->GetParam();
 
-    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    auto function = execGraphInfo.getFunction();
-    ASSERT_NE(function, nullptr);
+    auto core = ov::test::utils::PluginCache::get().core();
+    auto compiled_model = core->compile_model(ov_model, targetDevice);
 
-    for (const auto & op : function->get_ops()) {
+    auto runtime_model = compiled_model.get_runtime_model();
+    ASSERT_NE(runtime_model, nullptr);
+
+    for (const auto & op : runtime_model->get_ops()) {
         const auto & rtInfo = op->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
@@ -74,7 +70,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
         }
     }
 
-    fnPtr.reset();
+    ov_model.reset();
 };
 
 }  // namespace ExecutionGraphTests

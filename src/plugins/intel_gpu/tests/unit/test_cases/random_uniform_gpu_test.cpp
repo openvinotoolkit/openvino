@@ -31,7 +31,7 @@ struct random_uniform_gpu_test : public ::testing::TestWithParam<RandomUniformPa
 public:
     void test(bool is_caching_test) {
 
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
         RandomUniformParams<T> params = testing::TestWithParam<RandomUniformParams<T> >::GetParam();
         auto &engine = get_test_engine();
 
@@ -88,7 +88,7 @@ struct PrintToStringParamName {
 };
 
 template<>
-std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<half_t> > &param) {
+std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<ov::float16> > &param) {
     std::stringstream buf;
     buf << "output_tensor_" << param.param.output_shape
         << "_min_value_" << static_cast<float>(param.param.min_val)
@@ -101,7 +101,7 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
 using random_uniform_gpu_test_i32 = random_uniform_gpu_test<int32_t>;
 using random_uniform_gpu_test_i64 = random_uniform_gpu_test<int64_t>;
 using random_uniform_gpu_test_f32 = random_uniform_gpu_test<float>;
-using random_uniform_gpu_test_f16 = random_uniform_gpu_test<half_t>;
+using random_uniform_gpu_test_f16 = random_uniform_gpu_test<ov::float16>;
 
 TEST_P(random_uniform_gpu_test_i32, random_int32) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -173,20 +173,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                          random_uniform_gpu_test_f16,
                          ::testing::Values(
-                                 RandomUniformParams<half_t>{ov::Shape{1, 1, 4, 2, 3}, half_t(-1.5),
-                                                             half_t(-1.0), 150, 10,
-                                                             {half_t(-1.19726562), half_t(-1.09667969),
-                                                              half_t(-1.08398438), half_t(-1.30859375),
-                                                              half_t(-1.48242188), half_t(-1.45898438),
-                                                              half_t(-1.22851562), half_t(-1.08300781),
-                                                              half_t(-1.33203125), half_t(-1.14062500),
-                                                              half_t(-1.42285156), half_t(-1.43554688),
-                                                              half_t(-1.32617188), half_t(-1.06542969),
-                                                              half_t(-1.29296875), half_t(-1.21386719),
-                                                              half_t(-1.21289062), half_t(-1.03027344),
-                                                              half_t(-1.17187500), half_t(-1.08886719),
-                                                              half_t(-1.08789062), half_t(-1.43359375),
-                                                              half_t(-1.17773438), half_t(-1.16992188)}
+                                 RandomUniformParams<ov::float16>{ov::Shape{1, 1, 4, 2, 3}, ov::float16(-1.5),
+                                                             ov::float16(-1.0), 150, 10,
+                                                             {ov::float16(-1.19726562), ov::float16(-1.09667969),
+                                                              ov::float16(-1.08398438), ov::float16(-1.30859375),
+                                                              ov::float16(-1.48242188), ov::float16(-1.45898438),
+                                                              ov::float16(-1.22851562), ov::float16(-1.08300781),
+                                                              ov::float16(-1.33203125), ov::float16(-1.14062500),
+                                                              ov::float16(-1.42285156), ov::float16(-1.43554688),
+                                                              ov::float16(-1.32617188), ov::float16(-1.06542969),
+                                                              ov::float16(-1.29296875), ov::float16(-1.21386719),
+                                                              ov::float16(-1.21289062), ov::float16(-1.03027344),
+                                                              ov::float16(-1.17187500), ov::float16(-1.08886719),
+                                                              ov::float16(-1.08789062), ov::float16(-1.43359375),
+                                                              ov::float16(-1.17773438), ov::float16(-1.16992188)}
                                  }
                          ),
                          PrintToStringParamName());

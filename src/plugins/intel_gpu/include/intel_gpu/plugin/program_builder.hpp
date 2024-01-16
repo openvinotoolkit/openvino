@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -75,7 +76,9 @@ class ProgramBuilder final {
 public:
     ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr, bool innerProgram = false);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+            std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
+            bool innerProgram = false);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -89,7 +92,7 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<std::string, cldnn::layout> inputLayouts;
-    using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
@@ -125,17 +128,12 @@ public:
 
     void add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
-
-    using variables_state_info_map = std::map<std::string, std::set<cldnn::layout>>;
-
-    void AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout);
-
-    const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
-
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
-    bool requires_new_shape_infer(const ov::Node& op) const;
+    bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const;
+    bool is_inner_program() const { return m_is_inner_program; }
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
+    std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
 
 private:
     static factories_map_t factories_map;
@@ -145,7 +143,6 @@ private:
     static std::mutex m_mutex;
 
     std::shared_ptr<cldnn::topology> m_topology;
-    variables_state_info_map m_variablesStateInfo;
     CustomLayerMap m_custom_layers;
 
     bool allow_new_shape_infer = false;
@@ -153,6 +150,9 @@ private:
     bool queryMode;
 
     std::shared_ptr<ov::threading::IStreamsExecutor> m_task_executor;
+    std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
+
+    bool m_is_inner_program = false;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

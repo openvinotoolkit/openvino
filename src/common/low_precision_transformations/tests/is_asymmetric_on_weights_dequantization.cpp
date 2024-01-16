@@ -12,7 +12,7 @@
 #include <utility>
 
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -24,7 +24,7 @@ public:
     ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     bool isAsymmetricOnWeights;
 };
 

@@ -1,0 +1,227 @@
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+LP_transformations:
+  revalidate:
+    - CPU
+    - GPU
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+
+preprocessing:
+  revalidate:
+    - inference
+    - C_API
+    - Python_API
+
+inference:
+  revalidate: 'all'
+
+CPU:
+  revalidate:
+    - C_API
+    - Python_API
+    - JS_API
+    - samples
+    - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - IR_FE
+
+GPU:
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - IR_FE
+    - PROXY
+
+HETERO:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+AUTO_BATCH:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+TEMPLATE:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+    - NVIDIA
+  build:
+    - IR_FE
+
+AUTO:
+  revalidate:
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+PROXY:
+  revalidate:
+    - inference
+    - GPU
+  build: []
+
+IR_FE:
+  revalidate:
+    - C_API
+    - Python_API
+    - JS_API
+    - samples
+  build:
+    - CPU
+
+ONNX_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PDPD_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TF_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TFL_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PyTorch_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+C_API:
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+
+Python_API:
+  revalidate:
+    - samples
+    - MO
+    - tools
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+    - ONNX_FE
+    - PDPD_FE
+    - TF_FE
+    - TFL_FE
+    - PyTorch_FE
+
+JS_API:
+  revalidate:
+    - samples
+  build:
+    - CPU
+    - IR_FE
+
+samples:
+  build:
+    - CPU
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+    - C_API
+    - Python_API
+
+IE_Tests:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - NVIDIA
+  build:
+    - IR_FE
+
+MO:
+  revalidate:
+    - PyTorch_FE
+    - TF_FE
+  build:
+    - Python_API
+
+tools:
+  build:
+    - CPU
+    - Python_API
+
+docs:
+  revalidate: []
+  build: []
+
+licensing:
+  revalidate: []
+  build: []
+
+NVIDIA:
+  revalidate: []
+  build: []
+
+ONNX_RT:
+  revalidate: []
+  build: []

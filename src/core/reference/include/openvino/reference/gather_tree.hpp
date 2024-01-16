@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace reference {

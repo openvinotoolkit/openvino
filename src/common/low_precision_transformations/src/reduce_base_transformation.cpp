@@ -3,10 +3,11 @@
 //
 
 #include "low_precision/reduce_base_transformation.hpp"
+
 #include <memory>
 
 #include "low_precision/network_helper.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -49,9 +50,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const std::vector<size_t> axes = ov::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

@@ -228,22 +228,22 @@ TEST(region_yolo_gpu_fp32, byxf_softmax) {
 
 TEST(region_yolo_gpu_fp16, bfyx) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::bfyx, false};
-    runRegionTest<FLOAT16>(params);
+    runRegionTest<ov::float16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, bfyx_softmax) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::bfyx, true};
-    runRegionTest<FLOAT16>(params);
+    runRegionTest<ov::float16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, byxf) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::byxf, false};
-    runRegionTest<FLOAT16>(params);
+    runRegionTest<ov::float16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, byxf_softmax) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::byxf, true};
-    runRegionTest<FLOAT16>(params);
+    runRegionTest<ov::float16>(params);
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
@@ -269,20 +269,20 @@ TEST(region_yolo_gpu_fp32, byxf_softmax_cached) {
 
 TEST(region_yolo_gpu_fp16, bfyx_cached) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::bfyx, false};
-    runRegionTest<FLOAT16>(params, true);
+    runRegionTest<ov::float16>(params, true);
 }
 
 TEST(region_yolo_gpu_fp16, bfyx_softmax_cached) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::bfyx, true};
-    runRegionTest<FLOAT16>(params, true);
+    runRegionTest<ov::float16>(params, true);
 }
 
 TEST(region_yolo_gpu_fp16, byxf_cached) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::byxf, false};
-    runRegionTest<FLOAT16>(params, true);
+    runRegionTest<ov::float16>(params, true);
 }
 #endif  // RUN_ALL_MODEL_CACHING_TESTS
 TEST(region_yolo_gpu_fp16, byxf_softmax_cached) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, 1, 3, data_types::f16, format::byxf, true};
-    runRegionTest<FLOAT16>(params, true);
+    runRegionTest<ov::float16>(params, true);
 }

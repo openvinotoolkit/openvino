@@ -31,10 +31,11 @@ private:
     static bool extractBody;
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
 
-    std::string getOpVersion(const std::string& version);
+    std::string get_opset_number(const std::string& opset_full_name);
 
 protected:
     OpSummary();
+    static OpSummary& createInstance();
     static OpSummaryDestroyer destroyer;
     friend class OpSummaryDestroyer;
 

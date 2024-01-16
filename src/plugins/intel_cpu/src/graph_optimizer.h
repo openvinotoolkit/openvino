@@ -5,8 +5,6 @@
 #pragma once
 
 #include "graph.h"
-#include "nodes/eltwise.h"
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -49,6 +47,9 @@ private:
     void MergeTransposeAndReorder(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
     void RemoveSameConvert(Graph &graph);
+    void RemoveMemoryInputConvert(Graph &graph);
+    void RemoveConvertMemoryOutput(Graph &graph);
+    void MatchSdpaKvCache(Graph &graph);
 };
 
 }   // namespace intel_cpu

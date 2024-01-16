@@ -6,7 +6,7 @@ import os
 import pytest
 from copy import copy, deepcopy
 
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino import (
     Shape,
     PartialShape,

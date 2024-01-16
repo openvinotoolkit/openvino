@@ -10,11 +10,11 @@
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
@@ -31,9 +31,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
             continue;
         }
         Output<Node> cond = if_node->input_value(0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto cond_is_const = ov::get_constant_from_source(cond);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto cond_is_const = ov::util::get_constant_from_source(cond);
         if (!cond_is_const) {
             continue;
         }
@@ -42,6 +40,9 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
         auto body = (cond_value[0]) ? if_node->get_then_body() : if_node->get_else_body();
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
+        // copy rt info before reconnection
+        for (auto& op : body->get_ops())
+            copy_runtime_info({op, if_node}, op);
 
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
@@ -67,7 +68,6 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
         }
         is_applicable = true;
         f->add_sinks(body->get_sinks());
-        copy_runtime_info(if_node, body->get_ops());
     }
     return is_applicable;
 }

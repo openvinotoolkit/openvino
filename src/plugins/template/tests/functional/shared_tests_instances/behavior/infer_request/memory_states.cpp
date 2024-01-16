@@ -22,4 +22,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Template_BehaviorTests,
                          ::testing::ValuesIn(memoryStateTestCases),
                          InferRequestQueryStateExceptionTest::getTestCaseName);
 }  // namespace
-

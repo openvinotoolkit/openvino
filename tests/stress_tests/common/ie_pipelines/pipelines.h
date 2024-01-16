@@ -4,7 +4,6 @@
 
 #include <string>
 #include <functional>
-#include <inference_engine.hpp>
 #include "../infer_api/infer_api.h"
 
 std::function<void()> load_unload_plugin(const std::string &target_device, const int &api_version);
@@ -29,7 +28,7 @@ inference_with_streams(const std::string &model, const std::string &target_devic
                        const int &api_version);
 
 std::function<void()>
-recreate_compiled_model(std::shared_ptr<InferApiBase> &ie, const std::string &model, const std::string &target_device,
+recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper, const std::string &target_device,
                         const int &api_version);
 
 std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_wrapper);

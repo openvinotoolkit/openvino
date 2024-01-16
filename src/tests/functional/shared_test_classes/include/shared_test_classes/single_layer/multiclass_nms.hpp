@@ -7,7 +7,7 @@
 #include <string>
 #include <tuple>
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -36,7 +36,7 @@ using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                 
                                        int32_t,                                    // background_class
                                        int32_t,                                    // keep_top_k
                                        ngraph::element::Type,                      // Output type
-                                       ngraph::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
+                                       ov::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
                                        InputboolVar,                               // Sort result across batch, normalized
                                        bool,                                       // make output shape static
                                        std::string>;

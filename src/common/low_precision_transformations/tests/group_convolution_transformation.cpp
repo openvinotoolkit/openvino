@@ -13,9 +13,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/group_convolution_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/group_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -29,7 +29,7 @@ public:
         ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
@@ -38,7 +38,7 @@ public:
         ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;

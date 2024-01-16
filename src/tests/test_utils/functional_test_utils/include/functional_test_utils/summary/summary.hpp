@@ -26,6 +26,9 @@ struct PassRate {
     double rel_passed = 0;
     double rel_all = 0;
 
+    bool isCrashReported = false;
+    bool isHangReported = false;
+
     PassRate() = default;
 
     PassRate(unsigned long p,
@@ -51,8 +54,6 @@ protected:
     std::string ts = ov::test::utils::GetTimestamp();
 
     static size_t saveReportTimeout;
-    static bool isCrashReported;
-    static bool isHangReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
     static const char* outputFolder;
@@ -65,18 +66,6 @@ public:
     void setDeviceName(std::string device);
 
     std::string getDeviceName() const;
-
-    // #define IE_TEST_DEBUG
-
-#ifdef IE_TEST_DEBUG
-    void saveDebugReport(const char* className,
-                         const char* opName,
-                         unsigned long passed,
-                         unsigned long failed,
-                         unsigned long skipped,
-                         unsigned long crashed,
-                         unsigned long hanged);
-#endif  // IE_TEST_DEBUG
 
     virtual void saveReport() {}
 

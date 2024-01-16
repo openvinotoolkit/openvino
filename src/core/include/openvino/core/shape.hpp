@@ -40,20 +40,43 @@ public:
     OPENVINO_API Shape& operator=(const Shape& v);
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
     OPENVINO_API std::string to_string() const;
-};
 
-/**
- * @brief Number of elements in spanned by a shape
- * @ingroup ov_model_cpp_api
- */
-template <typename SHAPE_TYPE>
-size_t shape_size(const SHAPE_TYPE& shape) {
-    size_t size = 1;
-    for (auto d : shape) {
-        size *= d;
-    }
-    return size;
-}
+    /**
+     * @brief Gets dimension at index.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::reference operator[](std::ptrdiff_t i);
+
+    /**
+     * @brief Gets dimension at index.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A const reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::const_reference operator[](std::ptrdiff_t i) const;
+
+    /**
+     * @brief Gets dimension at index, with bounds checking.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::reference at(std::ptrdiff_t i);
+
+    /**
+     * @brief Gets dimension at index, with bounds checking.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A const reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::const_reference at(std::ptrdiff_t i) const;
+};
 
 /**
  * Number of elements in a subset of dimensions of a shape.
@@ -70,6 +93,15 @@ size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
                            end_dim,
                            typename std::iterator_traits<ForwardIt>::value_type{1},
                            std::multiplies<typename std::iterator_traits<ForwardIt>::value_type>());
+}
+
+/**
+ * @brief Number of elements in spanned by a shape
+ * @ingroup ov_model_cpp_api
+ */
+template <typename SHAPE_TYPE>
+size_t shape_size(const SHAPE_TYPE& shape) {
+    return shape_size(shape.begin(), shape.end());
 }
 
 /// Row-major strides for a shape

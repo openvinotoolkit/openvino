@@ -4,7 +4,7 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension, strict_compare_tensors, mo_array
@@ -248,8 +248,7 @@ class TestAttributedVariadicSplitOp(unittest.TestCase):
         self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
 
 
-@generator
-class TestVariadicSplitOp(unittest.TestCase):
+class TestVariadicSplitOp():
     nodes = {
         'input': {'kind': 'op'},
         'split_input_data': {'kind': 'data', 'shape': None, 'value': None},
@@ -280,7 +279,7 @@ class TestVariadicSplitOp(unittest.TestCase):
         ('split_output_2_data', 'output_2'),
     ]
 
-    @generate(*[int64_array(2),
+    @pytest.mark.parametrize("axis",[int64_array(2),
                 int64_array([2])])
     def test_variadic_split_axis(self, axis):
         lengths = int64_array([2, 13, 10])
@@ -299,9 +298,9 @@ class TestVariadicSplitOp(unittest.TestCase):
         VariadicSplit.infer(node)
 
         ont_nodes_count = len(node.out_edges())
-        self.assertTrue(ont_nodes_count == 3)
+        assert ont_nodes_count == 3
         for out in range(ont_nodes_count):
-            self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
+            assert np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30]))
 
     def test_variadic_split_value_inference_with_uint32(self):
         axis = int64_array(2)
@@ -329,11 +328,11 @@ class TestVariadicSplitOp(unittest.TestCase):
         VariadicSplit.infer(node)
 
         ont_nodes_count = len(node.out_edges())
-        self.assertTrue(ont_nodes_count == 3)
+        assert ont_nodes_count == 3
         for out in range(ont_nodes_count):
-            self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
+            assert np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30]))
 
-    @generate(*[int64_array([[2], [2]]),
+    @pytest.mark.parametrize("axis",[int64_array([[2], [2]]),
                 int64_array([2, 2])])
     def test_negative_variadic_split_axis(self, axis):
         lengths = int64_array([2, 13, 10])
@@ -352,8 +351,8 @@ class TestVariadicSplitOp(unittest.TestCase):
         try:
             VariadicSplit.infer(node)
         except AssertionError as e:
-            self.assertTrue(e.args[0] == 'VariadicSplit `axis` should be scalar or tensor with shape [1], '
-                                         'but it`s not for node split_op')
+            assert e.args[0] == 'VariadicSplit `axis` should be scalar or tensor with shape [1], '\
+                                         'but it`s not for node split_op'
 
 
 class TestSplitReverseInfer(unittest.TestCase):

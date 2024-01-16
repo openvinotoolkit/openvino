@@ -27,11 +27,11 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 
 namespace commonTestCases {
 
-const std::vector<ngraph::op::PadMode> padModes = {
-    ngraph::op::PadMode::CONSTANT,
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC
+const std::vector<ov::op::PadMode> padModes = {
+    ov::op::PadMode::CONSTANT,
+    ov::op::PadMode::EDGE,
+    ov::op::PadMode::REFLECT,
+    ov::op::PadMode::SYMMETRIC
 };
 
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
@@ -76,13 +76,23 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
     },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, 1 },
+            { 0, 0, 1, -1 },
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, -1 },
+            { 0, 0, -1, -1 },
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
@@ -91,10 +101,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
 
 namespace testCasesForOtherModes {
 
-const std::vector<ngraph::op::PadMode> modesWithoutConstant = {
-    ngraph::op::PadMode::EDGE,
-    ngraph::op::PadMode::REFLECT,
-    ngraph::op::PadMode::SYMMETRIC
+const std::vector<ov::op::PadMode> modesWithoutConstant = {
+    ov::op::PadMode::EDGE,
+    ov::op::PadMode::REFLECT,
+    ov::op::PadMode::SYMMETRIC
 };
 
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {

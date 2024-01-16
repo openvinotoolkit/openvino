@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -40,8 +42,10 @@ class TestBucketize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
+                       reason='Ticket - 122716')
     def test_bucketize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_new_frontend, use_old_api):
+                             use_new_frontend):
         self._test(*self.create_bucketize_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

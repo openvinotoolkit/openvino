@@ -45,7 +45,6 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
  * @param[in]  input_type indicate value of property enableCpuPinning.
  * @param[in]  input_changed indicate if value is set by user.
  * @param[in]  num_streams number of streams
- * @param[in]  bind_type thread binding core type
  * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     whether pinning threads to cpu cores
@@ -53,7 +52,6 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
                      const int num_streams,
-                     const threading::IStreamsExecutor::ThreadBindingType bind_type,
                      const Config::LatencyThreadingMode latency_threading_mode,
                      const std::vector<std::vector<int>>& proc_type_table);
 

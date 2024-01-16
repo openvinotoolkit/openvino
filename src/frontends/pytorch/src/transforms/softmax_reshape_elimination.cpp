@@ -4,9 +4,8 @@
 
 #include "softmax_reshape_elimination.hpp"
 
-#include <ngraph/validation_util.hpp>
-
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -24,7 +23,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
     register_matcher(
         std::make_shared<ov::pass::pattern::Matcher>(m_reshape1,
-                                                     "ov::frontend::pytorch::pass::PrimTupleUnpackReplacer"),
+                                                     "ov::frontend::pytorch::pass::SoftmaxReshapeElimination"),
         [=](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();

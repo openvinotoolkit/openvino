@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/hsigmoid.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/hsigmoid.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -13,7 +14,10 @@ using namespace ov;
 namespace {
 struct HSigmoidParams {
     template <class IT>
-    HSigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    HSigmoidParams(const ov::PartialShape& shape,
+                   const ov::element::Type& iType,
+                   const std::vector<IT>& iValues,
+                   const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -45,11 +49,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& HSigmoidected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& HSigmoidected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSigmoid = std::make_shared<op::v5::HSigmoid>(in);
-        return std::make_shared<ov::Model>(NodeVector {HSigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{HSigmoid}, ParameterVector{in});
     }
 };
 
@@ -57,25 +62,23 @@ TEST_P(ReferenceHSigmoidLayerTest, CompareWithRefs) {
     Exec();
 }
 
-
 template <element::Type_t IN_ET>
 std::vector<HSigmoidParams> generateHSigmoidFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<HSigmoidParams> hSigmoidParams {
-        HSigmoidParams(ov::PartialShape {13},
-                    IN_ET,
-                    std::vector<T>{-10.f, -5.f, -4.f, -3.f, -2.f, -1.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 10.f},
-                    std::vector<T>{0.f, 0.f, 0.f, 0.f, 0.16666667f, 0.33333333f, 0.5f, 0.66666667f, 0.83333333f, 1.f, 1.f, 1.f, 1.f})
-    };
+    std::vector<HSigmoidParams> hSigmoidParams{HSigmoidParams(
+        ov::PartialShape{13},
+        IN_ET,
+        std::vector<T>{-10.f, -5.f, -4.f, -3.f, -2.f, -1.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 10.f},
+        std::vector<
+            T>{0.f, 0.f, 0.f, 0.f, 0.16666667f, 0.33333333f, 0.5f, 0.66666667f, 0.83333333f, 1.f, 1.f, 1.f, 1.f})};
     return hSigmoidParams;
 }
 
 std::vector<HSigmoidParams> generateHSigmoidCombinedParams() {
-    const std::vector<std::vector<HSigmoidParams>> hSigmoidTypeParams {
+    const std::vector<std::vector<HSigmoidParams>> hSigmoidTypeParams{
         generateHSigmoidFloatParams<element::Type_t::f32>(),
-        generateHSigmoidFloatParams<element::Type_t::f16>()
-        };
+        generateHSigmoidFloatParams<element::Type_t::f16>()};
     std::vector<HSigmoidParams> combinedParams;
 
     for (const auto& params : hSigmoidTypeParams) {
@@ -84,7 +87,9 @@ std::vector<HSigmoidParams> generateHSigmoidCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_HSigmoid_With_Hardcoded_Refs, ReferenceHSigmoidLayerTest,
-    testing::ValuesIn(generateHSigmoidCombinedParams()), ReferenceHSigmoidLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_HSigmoid_With_Hardcoded_Refs,
+                         ReferenceHSigmoidLayerTest,
+                         testing::ValuesIn(generateHSigmoidCombinedParams()),
+                         ReferenceHSigmoidLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

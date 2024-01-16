@@ -4,23 +4,25 @@
 
 #include "openvino/reference/tensor_iterator.hpp"
 
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/function.hpp"
 #include "openvino/reference/split.hpp"
+#include "openvino/runtime/tensor.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace reference {
 void tensor_iterator(uint64_t num_iterations,
                      const std::shared_ptr<Model>& func,
                      const op::util::OutputDescriptionVector& out_descs,
                      const op::util::InputDescriptionVector& input_descs,
-                     const HostTensorVector& out,
-                     const HostTensorVector& args,
+                     ov::TensorVector& out,
+                     const ov::TensorVector& args,
                      const custom_evaluate_function& evaluate) {
-    HostTensorVector inputs_to_body;
+    ov::TensorVector inputs_to_body;
     for (size_t i = 0; i < input_descs.size(); ++i)
-        inputs_to_body.push_back(std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
+        inputs_to_body.push_back(ov::Tensor());
 
     // Port map processing: inputs and back edges
     struct BackEdge {
@@ -30,12 +32,12 @@ void tensor_iterator(uint64_t num_iterations,
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
-        if (const auto& merged_desc = std::dynamic_pointer_cast<op::v5::Loop::MergedInputDescription>(desc)) {
+        if (const auto& merged_desc = std::dynamic_pointer_cast<ov::op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
         }
     }
     // Find all ConcatOutputDescription
-    std::vector<std::shared_ptr<op::v0::TensorIterator::ConcatOutputDescription>> concat_outputs;
+    std::vector<std::shared_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>> concat_outputs;
     for (const auto& desc : out_descs) {
         if (const auto& concat_desc =
                 std::dynamic_pointer_cast<op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
@@ -45,26 +47,26 @@ void tensor_iterator(uint64_t num_iterations,
 
     // Slicing
     std::vector<std::shared_ptr<op::v0::TensorIterator::SliceInputDescription>> slice_inputs;
-    std::vector<HostTensorVector> sliced_values;
+    std::vector<ov::TensorVector> sliced_values;
     int slice_in_idx = 0;
     for (const auto& desc : input_descs) {
         if (const auto& slice_desc = std::dynamic_pointer_cast<op::v0::TensorIterator::SliceInputDescription>(desc)) {
-            const auto el_size = args[slice_desc->m_input_index]->get_element_type().size();
+            const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
             slice_inputs.push_back(slice_desc);
-            auto shape = args[slice_desc->m_input_index]->get_shape();
+            auto shape = args[slice_desc->m_input_index].get_shape();
             shape.at(slice_desc->m_axis) = 1;
-            sliced_values.emplace_back(HostTensorVector());
+            sliced_values.emplace_back(ov::TensorVector());
             for (uint64_t i = 0; i < num_iterations; ++i) {
                 sliced_values.back().emplace_back(
-                    std::make_shared<HostTensor>(args[slice_desc->m_input_index]->get_element_type(), shape));
+                    ov::Tensor(args[slice_desc->m_input_index].get_element_type(), shape));
             }
             std::vector<char*> pointers_to_data(num_iterations);
             for (size_t j = 0; j < pointers_to_data.size(); ++j) {
                 pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
-                    sliced_values[slice_in_idx][j]->get_data_ptr<char>();
+                    static_cast<char*>(sliced_values[slice_in_idx][j].data());
             }
-            reference::split(args[slice_desc->m_input_index]->get_data_ptr<char>(),
-                             args[slice_desc->m_input_index]->get_shape(),
+            reference::split(static_cast<char*>(args[slice_desc->m_input_index].data()),
+                             args[slice_desc->m_input_index].get_shape(),
                              el_size,
                              slice_desc->m_axis,
                              num_iterations,
@@ -74,8 +76,8 @@ void tensor_iterator(uint64_t num_iterations,
     }
 
     // Allocate vectors for store output values
-    std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
-    HostTensorVector body_outputs;
+    std::vector<ov::TensorVector> values_to_concat(concat_outputs.size());
+    ov::TensorVector body_outputs;
 
     for (uint64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter) {
         // Copy new values for sliced inputs
@@ -107,8 +109,7 @@ void tensor_iterator(uint64_t num_iterations,
         if (const auto& body_desc = std::dynamic_pointer_cast<op::v0::TensorIterator::BodyOutputDescription>(desc)) {
             // Copy output values from the last iteration
             const auto& res = body_outputs[body_desc->m_body_value_index];
-            out[body_desc->m_output_index]->set_shape(res->get_shape());
-            out[body_desc->m_output_index]->write(res->get_data_ptr(), res->get_size_in_bytes());
+            res.copy_to(out[body_desc->m_output_index]);
         }
     }
 
@@ -120,20 +121,20 @@ void tensor_iterator(uint64_t num_iterations,
         auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_shape();
         std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
         shape.at(concat_desc->m_axis) = values_to_concat[i].size();
-        out[concat_desc->m_output_index]->set_shape(shape);
+        out[concat_desc->m_output_index].set_shape(shape);
         std::vector<const char*> pointers_on_values;
         pointers_on_values.reserve(values_to_concat[i].size());
         for (size_t j = 0; j < values_to_concat[i].size(); ++j) {
             size_t idx = concat_desc->m_stride > 0 ? j : (values_to_concat[i].size() - j - 1);
             if (values_to_concat[i].size() > idx && values_to_concat[i][idx])
-                pointers_on_values.push_back(values_to_concat[i][idx]->get_data_ptr<char>());
+                pointers_on_values.push_back(static_cast<char*>(values_to_concat[i][idx].data()));
         }
         reference::concat(pointers_on_values,
-                          out[concat_desc->m_output_index]->get_data_ptr<char>(),
+                          static_cast<char*>(out[concat_desc->m_output_index].data()),
                           shapes_to_concat,
                           shape,
                           concat_desc->m_axis,
-                          out[concat_desc->m_output_index]->get_element_type().size());
+                          out[concat_desc->m_output_index].get_element_type().size());
     }
 }
 }  // namespace reference

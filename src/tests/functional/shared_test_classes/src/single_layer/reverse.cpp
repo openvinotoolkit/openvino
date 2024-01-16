@@ -4,9 +4,7 @@
 
 #include "shared_test_classes/single_layer/reverse.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -52,7 +50,7 @@ void ReverseLayerTest::SetUp() {
         axes_constant =
             std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{axesMask.size()}, axesMask);
     }
-    const auto reverse = std::make_shared<ngraph::opset1::Reverse>(params[0], axes_constant, mode);
+    const auto reverse = std::make_shared<ov::op::v1::Reverse>(params[0], axes_constant, mode);
     function = std::make_shared<ngraph::Function>(reverse->outputs(), params, "reverse");
 }
 }  // namespace LayerTestsDefinitions

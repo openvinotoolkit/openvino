@@ -9,8 +9,8 @@
 #include <vector>
 #include <memory>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -22,8 +22,8 @@ typedef std::tuple<
         std::vector<size_t>,            // Stride
         std::vector<size_t>,            // Pad begin
         std::vector<size_t>,            // Pad end
-        ngraph::op::RoundingType,       // Rounding type
-        ngraph::op::PadType,            // Pad type
+        ov::op::RoundingType,       // Rounding type
+        ov::op::PadType,            // Pad type
         bool                            // Exclude pad
 > poolSpecificParams;
 typedef std::tuple<
@@ -56,8 +56,8 @@ typedef std::tuple<
         std::vector<size_t>,            // Pad end
         ngraph::element::Type_t,        // Index element type
         int64_t,                        // Axis
-        ngraph::op::RoundingType,       // Rounding type
-        ngraph::op::PadType             // Pad type
+        ov::op::RoundingType,       // Rounding type
+        ov::op::PadType             // Pad type
 > maxPoolV8SpecificParams;
 
 typedef std::tuple<

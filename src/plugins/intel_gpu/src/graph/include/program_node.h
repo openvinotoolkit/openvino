@@ -127,7 +127,8 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_engine().get_device_info().dev_type,
+                                                                                 get_program().get_stream_ptr(), get_primitive(),
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
@@ -385,6 +386,9 @@ public:
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
         if (onednn_attrs == nullptr)
@@ -444,6 +448,18 @@ public:
     void init_preferred_fmt(size_t dep_size, size_t user_size);
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
+
+    int32_t get_port_from_deps(primitive_id target_id) const {
+        auto deps = get_primitive()->dependencies();
+        auto iter = std::find_if(deps.begin(), deps.end(), [&](input_info& info) {
+            return target_id == info.pid;
+        });
+        if (iter != deps.end()) {
+            return iter->idx;
+        } else {
+            return 0;
+        }
+    }
 
 protected:
     size_t unique_id = 0;

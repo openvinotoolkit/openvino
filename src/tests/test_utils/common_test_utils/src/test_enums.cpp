@@ -70,6 +70,18 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::ERF:
         os << "Erf";
         break;
+    case ov::test::utils::EltwiseTypes::BITWISE_AND:
+        os << "BitwiseAnd";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_NOT:
+        os << "BitwiseNot";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_OR:
+        os << "BitwiseOr";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_XOR:
+        os << "BitwiseXor";
+        break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
@@ -315,6 +327,57 @@ std::ostream& operator<<(std::ostream& os, op::v8::MatrixNms::DecayFunction type
         break;
     case op::v8::MatrixNms::DecayFunction::LINEAR:
         os << "LINEAR";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, TensorIteratorBody type) {
+    switch (type) {
+    case TensorIteratorBody::LSTM:
+        os << "LSTM";
+        break;
+    case TensorIteratorBody::RNN:
+        os << "RNN";
+        break;
+    case TensorIteratorBody::GRU:
+        os << "GRU";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, QuantizationGranularity type) {
+    switch (type) {
+    case QuantizationGranularity::Pertensor:
+        os << "Pertensor";
+        break;
+    case QuantizationGranularity::Perchannel:
+        os << "Perchannel";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
+    switch (type) {
+    case MemoryTransformation::NONE:
+        os << "NONE";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2:
+        os << "LOW_LATENCY_V2";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
+        os << "LOW_LATENCY_V2_REGULAR_API";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
+        os << "LOW_LATENCY_V2_ORIGINAL_INIT";
         break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_TYPE");

@@ -72,14 +72,12 @@ template <element::Type_t ET>
 std::vector<ParameterParams> generateParamsForParameter() {
     using T = typename element_type_traits<ET>::value_type;
 
-    std::vector<ParameterParams> params{
-        ParameterParams(Shape{3, 4},
-                        Shape{3, 4},
-                        ET,
-                        ET,
-                        std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-                        std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
-    };
+    std::vector<ParameterParams> params{ParameterParams(Shape{3, 4},
+                                                        Shape{3, 4},
+                                                        ET,
+                                                        ET,
+                                                        std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+                                                        std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})};
 
     return params;
 }
@@ -97,8 +95,7 @@ std::vector<ParameterParams> generateCombinedParamsForParameter() {
         generateParamsForParameter<element::Type_t::u64>(),
         generateParamsForParameter<element::Type_t::u32>(),
         generateParamsForParameter<element::Type_t::u16>(),
-        generateParamsForParameter<element::Type_t::u8>()
-    };
+        generateParamsForParameter<element::Type_t::u8>()};
 
     std::vector<ParameterParams> combinedParams;
 
@@ -109,10 +106,9 @@ std::vector<ParameterParams> generateCombinedParamsForParameter() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Parameter_With_Hardcoded_Refs,
-    ReferenceParameterLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForParameter()),
-    ReferenceParameterLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Parameter_With_Hardcoded_Refs,
+                         ReferenceParameterLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForParameter()),
+                         ReferenceParameterLayerTest::getTestCaseName);
 
 }  // namespace

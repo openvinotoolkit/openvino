@@ -2,36 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/pass/serialize.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
-using namespace InferenceEngine;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
+
 using BroadcastEltwiseParams = std::tuple<
-    ElementType, // input precision
-    InputShape,  // input shape
-    ov::Shape    // target broadcast shape
+    ov::element::Type, // input type
+    InputShape,        // input shape
+    ov::Shape          // target broadcast shape
 >;
 
-class BroadcastEltwise : virtual public SubgraphBaseTest, public testing::WithParamInterface<BroadcastEltwiseParams> {
+class BroadcastEltwise : virtual public ov::test::SubgraphBaseTest,
+                         public testing::WithParamInterface<BroadcastEltwiseParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastEltwiseParams>& obj) {
-        ElementType input_precision;
+        ov::element::Type model_type;
         InputShape input_shape;
         ov::Shape target_shape;
-        std::tie(input_precision, input_shape, target_shape) = obj.param;
+        std::tie(model_type, input_shape, target_shape) = obj.param;
 
         std::ostringstream result;
-        result << "precision=" << input_precision << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "precision=" << model_type << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
             result << ov::test::utils::vec2str(item) << "_";
         }
@@ -41,23 +40,23 @@ public:
 
 protected:
     void SetUp() override {
-        ElementType input_precision;
+        ov::element::Type model_type;
         InputShape input_shape;
-        std::tie(input_precision, input_shape, target_shape) = GetParam();
+        std::tie(model_type, input_shape, target_shape) = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};
         init_input_shapes(input_shapes);
 
-        ov::element::TypeVector input_precisions{input_precision, ov::element::i64};
+        ov::element::TypeVector model_types{model_type, ov::element::i64};
         ov::ParameterVector params;
-        for (size_t i = 0; i < input_precisions.size(); i++) {
-            auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], inputDynamicShapes[i]);
+        for (size_t i = 0; i < model_types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(model_types[i], inputDynamicShapes[i]);
             params.push_back(param_node);
         }
-        const auto bcast_data = ov::opset10::Constant::create(input_precision, {}, {1.f});
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(bcast_data, params[1]);
-        const auto add = std::make_shared<ov::opset10::Add>(params[0], bcast);
+        const auto bcast_data = ov::op::v0::Constant::create(model_type, {}, {1.f});
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(bcast_data, params[1]);
+        const auto add = std::make_shared<ov::op::v1::Add>(params[0], bcast);
         function = std::make_shared<ov::Model>(add, params);
     }
 
@@ -95,7 +94,6 @@ TEST_P(BroadcastEltwise, smoke_CompareWithRefs) {
     EXPECT_EQ(last_input_layer_type, "broadcast");
 }
 
-namespace {
 const std::vector<InputShape> input_shapes = {
     {{-1, -1, -1, -1}, {{1, 3, 16, 16}}},
     {{-1, -1}, {{16, 16}}},
@@ -113,4 +111,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BroadcastEltwise,
                                             ::testing::ValuesIn(target_shapes)),
                          BroadcastEltwise::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions
+

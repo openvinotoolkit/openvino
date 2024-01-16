@@ -2,30 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset1.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
-using namespace InferenceEngine;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/assign.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 using ReadValueAssignParams = std::tuple<
-    InputShape,  // input shapes
-    ElementType  // input precision
+    InputShape,        // input shapes
+    ov::element::Type  // input precision
 >;
 
-class ReadValueAssignGPUTest : virtual public SubgraphBaseTest, public testing::WithParamInterface<ReadValueAssignParams> {
+class ReadValueAssignGPUTest : virtual public ov::test::SubgraphBaseTest,
+                               public testing::WithParamInterface<ReadValueAssignParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadValueAssignParams>& obj) {
         InputShape input_shapes;
-        ElementType input_precision;
+        ov::element::Type input_precision;
         std::tie(input_shapes, input_precision) = obj.param;
 
         std::ostringstream result;
@@ -41,7 +41,7 @@ public:
 protected:
     void SetUp() override {
         InputShape input_shapes;
-        ElementType input_precision;
+        ov::element::Type input_precision;
         std::tie(input_shapes, input_precision) = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
 
@@ -51,13 +51,11 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(input_precision, shape));
         }
-        const VariableInfo variable_info { inputDynamicShapes[0], input_precision, "v0" };
-        auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(params.at(0), variable);
+        auto read_value = std::make_shared<ov::op::v3::ReadValue>(params.at(0), "v0");
         auto add = std::make_shared<ov::op::v1::Add>(read_value, params.at(0));
-        auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+        auto assign = std::make_shared<ov::op::v3::Assign>(add, "v0");
         auto res = std::make_shared<ov::op::v0::Result>(add);
-        function = std::make_shared<ov::Model>(ResultVector { res }, SinkVector { assign }, params);
+        function = std::make_shared<ov::Model>(ov::ResultVector { res }, ov::SinkVector { assign }, params);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -73,18 +71,37 @@ protected:
     }
 };
 
-TEST_P(ReadValueAssignGPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
-   run();
+TEST_P(ReadValueAssignGPUTest, Inference) {
+    run();
 }
 
-namespace {
+TEST_P(ReadValueAssignGPUTest, Inference_cached) {
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+    {
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
+        compile_model();
+    }
+    {
+        run();
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+    }
+}
+
 const std::vector<InputShape> input_shapes_dyn = {
     {{-1, -1, -1, -1}, {{7, 4, 20, 20}, {19, 4, 20, 20}}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReadValueAssign_Static, ReadValueAssignGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation({{7, 4, 20, 20}})),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation({{7, 4, 20, 20}})),
                                             ::testing::Values(ov::element::i32)),
                          ReadValueAssignGPUTest::getTestCaseName);
 
@@ -93,4 +110,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReadValueAssign_Dynamic, ReadValueAssignGPUTest,
                                             ::testing::Values(ov::element::i32)),
                          ReadValueAssignGPUTest::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions

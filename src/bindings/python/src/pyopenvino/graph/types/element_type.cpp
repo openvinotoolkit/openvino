@@ -18,7 +18,8 @@ void regclass_graph_Type(py::module m) {
     type.doc() = "openvino.runtime.Type wraps ov::element::Type";
 
     type.def(py::init([](py::object& np_literal) {
-                 return Common::dtype_to_ov_type().at(py::str(py::dtype::from_args(np_literal)));
+                 auto dtype = py::dtype::from_args(np_literal);
+                 return Common::type_helpers::get_ov_type(dtype);
              }),
              py::arg("dtype"),
              R"(
@@ -48,6 +49,10 @@ void regclass_graph_Type(py::module m) {
     type.attr("u32") = ov::element::u32;
     type.attr("u64") = ov::element::u64;
     type.attr("bf16") = ov::element::bf16;
+    type.attr("nf4") = ov::element::nf4;
+    type.attr("f8e4m3") = ov::element::f8e4m3;
+    type.attr("f8e5m2") = ov::element::f8e5m2;
+    type.attr("string") = ov::element::string;
 
     type.def("__hash__", &ov::element::Type::hash);
     type.def("__repr__", [](const ov::element::Type& self) {
@@ -119,7 +124,7 @@ void regclass_graph_Type(py::module m) {
     type.def(
         "to_dtype",
         [](ov::element::Type& self) {
-            return Common::ov_type_to_dtype().at(self);
+            return Common::type_helpers::get_dtype(self);
         },
         R"(
             Convert Type to numpy dtype.

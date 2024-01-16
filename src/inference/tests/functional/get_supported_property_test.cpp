@@ -33,7 +33,7 @@ public:
 
         injectProxyEngine(plugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
                              m_plugin_name);
         m_mock_plugin = plugin;
     }

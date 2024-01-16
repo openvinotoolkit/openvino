@@ -6,9 +6,12 @@
 
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(ConvEltwiseFusion, CompareWithRefs) {
-    Run();
+    run();
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

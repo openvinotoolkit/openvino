@@ -5,7 +5,8 @@
 add_subdirectory(cpp)
 add_subdirectory(c)
 
-openvino_developer_export_targets(COMPONENT samples TARGETS format_reader ie_samples_utils)
+ov_developer_package_export_targets(TARGET format_reader)
+ov_developer_package_export_targets(TARGET ie_samples_utils)
 
 #
 # Install

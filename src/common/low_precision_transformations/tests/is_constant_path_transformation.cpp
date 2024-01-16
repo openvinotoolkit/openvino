@@ -5,13 +5,13 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -112,10 +112,10 @@ TEST(LPT, isConstantPathConvParentDqTransformation) {
     const auto conv = std::make_shared<ov::opset1::Convolution>(
         input,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
     const auto dqAfterConv = makeDequantization(conv, DequantizationOperations{ {}, {}, {0.1f} });
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(dqAfterConv);
@@ -129,10 +129,10 @@ TEST(LPT, isConstantPathGroupConvParentDqTransformation) {
     const auto groupConv = std::make_shared<ov::opset1::GroupConvolution>(
         input,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
     const auto dqAfterGroupConv = makeDequantization(groupConv, DequantizationOperations{ {}, {}, {0.1f} });
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(dqAfterGroupConv);

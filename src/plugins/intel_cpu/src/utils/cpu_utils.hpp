@@ -8,8 +8,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_layouts.h"
 #include "general_utils.h"
 #include "precision_support.h"
 
@@ -37,7 +35,7 @@ struct is_any_of<T, U, Rest...>
 * rank of resulting shape
 * @return normalized vector
 */
-inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVector &dims, size_t ndims) {
+inline std::vector<size_t> getNormalizedDimsBySize(const VectorDims &dims, size_t ndims) {
     if (dims.size() >= ndims)
         return dims;
 
@@ -58,8 +56,8 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
-                                                 const InferenceEngine::SizeVector& secondInputDims,
+inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims &firstInputDims,
+                                                 const VectorDims& secondInputDims,
                                                  int channelAxis,
                                                  bool weakComparison = false) {
     bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
@@ -86,48 +84,43 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
     return true;
 }
 
-inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
-    const auto dims = td.getDims();
-    return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
-}
-
 /**
 * @brief Return precision to which given precision must be converted to be supported in plug-in
 * @param precision
 * precision for convert
 * @return plug-in supported precision or UNSPECIFIED if precision unsupported
 */
-inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine::Precision precision) {
+inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precision) {
     switch (precision) {
-        case InferenceEngine::Precision::BF16:
-        case InferenceEngine::Precision::FP16: {
+        case ov::element::bf16:
+        case ov::element::f16: {
             if (!hasHardwareSupport(precision))
-                precision = InferenceEngine::Precision::FP32;
+                precision = ov::element::f32;
         }
-        case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::I8:
-        case InferenceEngine::Precision::I32:
-        case InferenceEngine::Precision::FP32: {
+        case ov::element::u8:
+        case ov::element::i8:
+        case ov::element::i32:
+        case ov::element::f32: {
             break;
         }
-        case InferenceEngine::Precision::FP64: {
-            precision = InferenceEngine::Precision::FP32;
+        case ov::element::f64: {
+            precision = ov::element::f32;
             break;
         }
-        case InferenceEngine::Precision::BOOL: {
-            precision = InferenceEngine::Precision::U8;
+        case ov::element::boolean: {
+            precision = ov::element::u8;
             break;
         }
-        case InferenceEngine::Precision::U16:
-        case InferenceEngine::Precision::I16:
-        case InferenceEngine::Precision::U32:
-        case InferenceEngine::Precision::I64:
-        case InferenceEngine::Precision::U64: {
-            precision = InferenceEngine::Precision::I32;
+        case ov::element::u16:
+        case ov::element::i16:
+        case ov::element::u32:
+        case ov::element::i64:
+        case ov::element::u64: {
+            precision = ov::element::i32;
             break;
         }
         default: {
-            precision = InferenceEngine::Precision::UNSPECIFIED;
+            precision = ov::element::undefined;
         }
     }
 
@@ -148,7 +141,7 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
 */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
     if (buffer.empty()) {
-        IE_THROW() << "Can't align buffer, becuase buffer is empty";
+        OPENVINO_THROW("Can't align buffer, becuase buffer is empty");
     }
 
     auto alignedBuffer = buffer;

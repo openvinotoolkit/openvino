@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
 #include "common/permute_kernel.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,6 +59,7 @@ private:
     int imgWidth = 0;
     int imgHeight = 0;
     int coordOffset = 0;
+    int cacheSizeL3 = 0;
 
     enum CodeType {
         CORNER = 1,
@@ -73,10 +73,10 @@ private:
 
     inline void confReorderDense(const float* confData, const float* ARMConfData, float* reorderedConfData);
 
-    inline void confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confFilterCF(const float* pConf, int* pindices, int* pbuffer, int* detectionsData, const int& n);
 
     inline void confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+        int* indicesData, int* indicesBufData, int* detectionsData, const int& n);
 
     inline void confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
         int* indicesData, int* indicesBufData, int* detectionsData);

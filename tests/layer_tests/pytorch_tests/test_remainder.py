@@ -8,12 +8,12 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize(
-    "input_rhs",
-    (
-        np.random.randn(2, 5, 3, 4).astype(np.float32),
-        np.random.randn(1, 5, 3, 4).astype(np.float32),
-        np.random.randn(1).astype(np.float32),
-    ),
+    "input_shape_rhs",
+    [
+        [2, 5, 3, 4],
+        [1, 5, 3, 4],
+        [1]
+    ]
 )
 class TestRemainder(PytorchLayerTest):
     def _prepare_input(self):
@@ -30,9 +30,9 @@ class TestRemainder(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_remainder(self, ie_device, precision, ir_version, input_rhs):
-        self.input_rhs = input_rhs
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+    def test_remainder(self, ie_device, precision, ir_version, input_shape_rhs):
+        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestRemainderTypes(PytorchLayerTest):

@@ -18,9 +18,20 @@
 using namespace ov;
 using namespace testing;
 
+enum class ZPType { INT8_T, FLOAT };
+
+union FloatInt8Union {
+    FloatInt8Union(int8_t val) : int8_val{val} {}
+    FloatInt8Union(float val) : float_val{val} {}
+    int8_t int8_val;
+    float float_val;
+};
+
 struct FQ_as_Mul_Sub_dequantize {
     int8_t min_int, max_int;
-    float zp, scale;
+    ZPType zp_type;
+    FloatInt8Union zp;
+    float scale;
     float o_low, o_high;
     size_t levels;
 };
@@ -40,15 +51,28 @@ public:
             auto i_weights = std::make_shared<opset6::Constant>(element::i8, Shape{weights.size()}, weights);
 
             auto f_weights = std::make_shared<opset6::Convert>(i_weights, float_element_type);
-
-            auto zp = std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.zp});
-            auto subtract_zp = std::make_shared<opset6::Subtract>(f_weights, zp);
+            std::shared_ptr<opset6::Subtract> subtract_zp;
+            float zp;
+            if (test_case.zp_type == ZPType::FLOAT) {
+                auto f_zp = std::make_shared<opset6::Constant>(float_element_type,
+                                                               Shape{},
+                                                               std::vector<float>{test_case.zp.float_val});
+                subtract_zp = std::make_shared<opset6::Subtract>(f_weights, f_zp);
+                zp = test_case.zp.float_val;
+            } else {
+                auto i_zp = std::make_shared<opset6::Constant>(element::i8,
+                                                               Shape{},
+                                                               std::vector<int8_t>{test_case.zp.int8_val});
+                auto f_zp = std::make_shared<opset6::Convert>(i_zp, float_element_type);
+                subtract_zp = std::make_shared<opset6::Subtract>(f_weights, f_zp);
+                zp = test_case.zp.int8_val;
+            }
 
             auto scale =
                 std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.scale});
 
             NodeVector output;
-            if (test_case.zp == 0)
+            if (zp == 0)
                 output.push_back(std::make_shared<opset6::Multiply>(f_weights, scale));
             else
                 output.push_back(std::make_shared<opset6::Multiply>(subtract_zp, scale));
@@ -97,11 +121,19 @@ TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+// clang-format off
 INSTANTIATE_TEST_SUITE_P(
     NGraph,
     TranslateNewWeightFormatToOldOne,
-    testing::Combine(testing::Values(FQ_as_Mul_Sub_dequantize{-128, 127, 1, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
-                                     FQ_as_Mul_Sub_dequantize{-127, 127, 1, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
-                                     FQ_as_Mul_Sub_dequantize{-128, 127, 0, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
-                                     FQ_as_Mul_Sub_dequantize{-127, 127, 0, 2, (-127 - 0) * 2, (127 - 0) * 2, 255}),
-                     testing::Values(element::f32, element::f16)));
+    testing::Combine(
+        testing::Values(
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, 1.0f, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, 1.0f, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::FLOAT, 0.0f, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::FLOAT, 0.0f, 2, (-127 - 0) * 2, (127 - 0) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, (int8_t)1, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::INT8_T, (int8_t)1, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},
+            FQ_as_Mul_Sub_dequantize{-128, 127, ZPType::INT8_T, (int8_t)0, 2, (-128 - 0) * 2, (127 - 0) * 2, 256},
+            FQ_as_Mul_Sub_dequantize{-127, 127, ZPType::INT8_T, (int8_t)0, 2, (-127 - 0) * 2, (127 - 0) * 2, 255}),
+        testing::Values(element::f32, element::f16)));
+// clang-format on

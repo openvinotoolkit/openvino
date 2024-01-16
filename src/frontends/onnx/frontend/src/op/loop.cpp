@@ -11,7 +11,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/reshape.hpp"
@@ -46,7 +45,7 @@ OutputVector loop(const Node& node) {
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_outputs = body_graph->get_ov_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
     // Infer loop body inputs' element type based on carried dependencies
@@ -58,7 +57,7 @@ OutputVector loop(const Node& node) {
     // optional inputs
     Output<ngraph::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
-    if (ngraph::op::is_null(ng_inputs.at(0)) ||
+    if (ov::op::util::is_null(ng_inputs.at(0)) ||
         (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
          ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
@@ -68,8 +67,8 @@ OutputVector loop(const Node& node) {
         trip_count = ng_inputs.at(0);
     }
 
-    Output<ngraph::Node> termination_cond;                           // true means that first interation should be run
-    if (ngraph::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
+    Output<ngraph::Node> termination_cond;                             // true means that first interation should be run
+    if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&

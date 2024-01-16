@@ -4,17 +4,11 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include "executors/interpolate.hpp"
 #include "executors/interpolate_list.hpp"
+#include "node.h"
 
 #define MAX_INPUT_INTERPOLATE 8
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -23,8 +17,8 @@ namespace node {
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     int src_data_size;
     int dst_data_size;
     int indices_size;
@@ -78,7 +72,7 @@ public:
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 
 public:
-    Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -91,7 +85,7 @@ public:
     }
     bool canFuse(const NodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
@@ -110,6 +104,7 @@ private:
     // 2. axis alignment [1,2] to [2,3].
     // 3. config planar layout support and treated it as channel_first layout.
     bool NCHWAsNHWC = false;
+    size_t dataRank = 0;
 
     class InterpolateExecutorBase {
         public:
@@ -123,15 +118,15 @@ private:
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
         private:
-            void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                             InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
-            void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                     InterpolateLayoutType layout);
-            void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
+            void buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
                                 bool antialias);
-            void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
+            void buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
                                InterpolateLayoutType layout);
-            void buildTblPillow(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+            void buildTblPillow(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
                                 float cubicCoeff, InterpolateLayoutType layout);
 
             float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
@@ -147,7 +142,7 @@ private:
             InterpolateCoordTransMode coordTransMode;
             InterpolateLayoutType configured_for_layout;
             VectorDims srcDimPad5d, dstDim5d;
-            InferenceEngine::Precision inputPrec, outputPrec;
+            ov::element::Type inputPrec, outputPrec;
             size_t srcDataSize, dstDataSize;
             int spatialDimSize;
             size_t dataRank;
@@ -213,8 +208,8 @@ private:
                                       float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
             void pillowRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
-            static float getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec);
-            static void setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec);
+            static float getValue(const uint8_t *base, size_t offset, ov::element::Type prec);
+            static void setValue(uint8_t *base, size_t offset, float value, ov::element::Type prec);
 
         private:
             bool antialias;
@@ -223,7 +218,7 @@ private:
 
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
-    static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
+    static VectorDims getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
     static size_t getSpatialDimsNum(const Dim rank);
 

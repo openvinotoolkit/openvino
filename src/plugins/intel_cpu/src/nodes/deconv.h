@@ -4,14 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
-
 #include "executors/deconv_list.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +14,7 @@ namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -38,9 +33,9 @@ public:
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
@@ -118,7 +113,7 @@ private:
 
     std::string errorPrefix;
 
-    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
+    MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
 };
 
 }   // namespace node

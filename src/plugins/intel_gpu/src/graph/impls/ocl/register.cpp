@@ -12,7 +12,6 @@ void register_implementations() {
     REGISTER_OCL(activation);
     REGISTER_OCL(adaptive_pooling);
     REGISTER_OCL(arg_max_min);
-    REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
@@ -40,10 +39,13 @@ void register_implementations() {
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
+    REGISTER_OCL(group_normalization);
+    REGISTER_OCL(kv_cache);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
+    REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);
     REGISTER_OCL(mvn);
     REGISTER_OCL(non_max_suppression);
@@ -64,6 +66,7 @@ void register_implementations() {
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(rms);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);

@@ -10,7 +10,6 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -38,6 +37,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/util.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -344,10 +344,8 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto pad_begin_const = get_constant_from_source(pad->input_value(1));
-        auto pad_end_const = get_constant_from_source(pad->input_value(2));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto pad_begin_const = ov::util::get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = ov::util::get_constant_from_source(pad->input_value(2));
 
         if (!pad_begin_const || !pad_end_const) {
             return false;
@@ -833,7 +831,8 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze>(pattern::rank_equals(0));
+    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
+        pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                               op::util::BinaryElementwiseComparison,

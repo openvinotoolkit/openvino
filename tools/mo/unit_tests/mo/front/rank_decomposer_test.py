@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.rank_decomposer import RankDecomposer
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -24,10 +23,9 @@ nodes = lambda output_type: {
 }
 
 
-@generator
-class RankDecomposerTest(unittest.TestCase):
+class TestRankDecomposerTest():
 
-    @generate(np.int32, np.int64)
+    @pytest.mark.parametrize("output_type", [np.int32, np.int64])
     def test_rank_decomposer(self, output_type):
         graph = build_graph(nodes_attrs=nodes(output_type), edges=[
             *connect('input', 'rank'),
@@ -44,9 +42,9 @@ class RankDecomposerTest(unittest.TestCase):
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-        self.assertEqual(graph.get_op_nodes(type='Squeeze')[0]['name'], 'my_rank',
-                         'Name is not inherited from original node for RankDecomposer')
+        assert flag, resp
+        assert graph.get_op_nodes(type='Squeeze')[0]['name'] == 'my_rank',\
+        'Name is not inherited from original node for RankDecomposer'
         print(output_type)
 
     def test_rank_decomposer_assertion(self):
@@ -54,4 +52,5 @@ class RankDecomposerTest(unittest.TestCase):
             *connect('input', 'rank'),
             *connect('rank', 'output'),
         ], nodes_with_edges_only=True)
-        self.assertRaises(AssertionError, RankDecomposer().find_and_replace_pattern, graph)
+        with pytest.raises(AssertionError):
+            RankDecomposer().find_and_replace_pattern (graph)

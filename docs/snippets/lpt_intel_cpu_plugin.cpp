@@ -35,7 +35,7 @@ auto pass_config = manager.get_pass_config();
 // check if the function is quantized to ignore LPT transformations for not quantized function to speed up model loading
 const bool useLpt = ov::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
 auto defaultPrecisions =
-    useLpt ? ov::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 if (useLpt) {
     // disable constant folding on dequantization subgraphs so they can be processed by LPT
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);

@@ -11,35 +11,40 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        std::vector<ov::PartialShape>,     // Input shapes
-        std::vector<ov::element::Type>,    // Input Element types
-        ov::element::Type,                 // Inference precision
-        bool,                              // With Multiply
-        size_t,                            // Expected num nodes
-        size_t,                            // Expected num subgraphs
-        std::string,                       // Target Device
-        std::map<std::string, std::string> // Config
-> MHAParams;
+typedef std::tuple<std::vector<ov::PartialShape>,   // Input shapes
+                   std::vector<ov::element::Type>,  // Input Element types
+                   ov::element::Type,               // Inference precision
+                   bool,                            // With Multiply
+                   size_t,                          // Thread count
+                   size_t,                          // Expected num nodes
+                   size_t,                          // Expected num subgraphs
+                   std::string,                     // Target Device
+                   ov::AnyMap                       // Config
+                   >
+    MHAParams;
 
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
             virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
 
+    constexpr static size_t default_thread_count = 0;
+
 protected:
     void SetUp() override;
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void compile_model() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph();
 
     bool m_with_mul = false;
+    size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
 };
 
 class MHASelect : public MHA {
 protected:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
@@ -86,6 +91,6 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

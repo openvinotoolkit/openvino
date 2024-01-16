@@ -25,6 +25,7 @@ void get_cur_stream_info(const int stream_id,
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool cpu_reserve = cpu_reservation;
+    bool ecore_used = false;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += streams_info_table[i][NUMBER_OF_STREAMS];
         if (stream_id < stream_total) {
@@ -39,9 +40,10 @@ void get_cur_stream_info(const int stream_id,
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
-                if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
+                if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
+                    ecore_used = true;
+                } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
                     max_threads_per_core = 2;
-                    break;
                 }
             } else {
                 break;
@@ -51,15 +53,24 @@ void get_cur_stream_info(const int stream_id,
         max_threads_per_core = 2;
     }
 
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(__APPLE__)
     cpu_reserve = false;
+#elif defined(_WIN32)
+    if (proc_type_table.size() > 1) {
+        cpu_reserve = false;
+    }
 #endif
     if (cpu_reserve) {
         stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
+        // Pcore only or Ecore only with no cpu binding in hybrid cores machine
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type != ALL_PROC) {
             stream_type = STREAM_WITH_CORE_TYPE;
+        } else if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type == ALL_PROC &&
+                   !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
+            stream_type = STREAM_WITH_CORE_TYPE;
+            core_type = MAIN_CORE_PROC;
         } else if (proc_type_table.size() > 1 && numa_node_id >= 0) {
             stream_type = STREAM_WITH_NUMA_ID;
         }
@@ -127,23 +138,25 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     }
 
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
-        std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
-                                 std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
-                                 std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
-        for (size_t j = 0; j < stream_conditions.size(); j++) {
-            if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
-                stream_conditions[j].end()) {
-                _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
-                if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
-                    streams_table[j][THREADS_PER_STREAM]) {
-                    stream_pos[j]++;
-                    stream_num[j]++;
+        if (_cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
+            std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
+                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
+                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
+            for (size_t j = 0; j < stream_conditions.size(); j++) {
+                if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
+                    stream_conditions[j].end()) {
+                    _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                    _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
+                    if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
+                        streams_table[j][THREADS_PER_STREAM]) {
+                        stream_pos[j]++;
+                        stream_num[j]++;
+                    }
+                    if (stream_num[j] >= streams_table[j][NUMBER_OF_STREAMS]) {
+                        stream_conditions[j].clear();
+                    }
+                    break;
                 }
-                if (stream_num[j] >= streams_table[j][NUMBER_OF_STREAMS]) {
-                    stream_conditions[j].clear();
-                }
-                break;
             }
         }
     }

@@ -41,22 +41,16 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
     cd <openvino_repo>
     pip install -r src/bindings/python/requirements.txt
     pip install -r src/bindings/python/requirements_test.txt
-    pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
     ```
     If `-DENABLE_WHEEL=ON` flag is present in `cmake` command, additionally install wheel requirements:
     ```
     pip install -r src/bindings/python/wheel/requirements-dev.txt
     ```
 
-6. Add following flags to the main `cmake` command to use specific virtual environment:
+6. Add following flags to the main `cmake` command to use specific virtual environment (requires cmake 3.16 and higher):
     ```shell
-    -DPYTHON_EXECUTABLE=`which python` \
-    -DPYTHON_LIBRARY=/home/user/.pyenv/versions/3.10.7/lib/libpython3.10.so \
-    -DPYTHON_INCLUDE_DIR=/home/user/.pyenv/versions/3.10.7/include/python3.10
+    -DPython3_EXECUTABLE=/home/user/.pyenv/versions/3.10.7/bin/python
     ```
-    *Note: In order to use `which python`, specific virtual environment has to be activated in a current shell.*
-
-    *Note: `libpython3.10.so` is created with `--enable-shared` flag while installing specific Python version. For static build name of library may differ.*
 
 7. Follow the rest of building and installation steps from ["How to build OpenVINO" developer documentation](../../../../docs/dev/build.md).
 

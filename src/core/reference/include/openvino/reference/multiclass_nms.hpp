@@ -4,20 +4,9 @@
 
 #pragma once
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
 #include <cstddef>
-#include <functional>
-#include <map>
-#include <ngraph/runtime/host_tensor.hpp>
-#include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/multiclass_nms_base.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
 
 namespace ov {
 namespace reference {

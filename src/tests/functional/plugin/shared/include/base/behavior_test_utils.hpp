@@ -10,6 +10,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace BehaviorTestsUtils {
 
@@ -87,7 +88,7 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
+    std::string pluginName = "openvino_template_plugin" OV_BUILD_POSTFIX;
     ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
         ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
@@ -174,7 +175,7 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::utils::make_conv_pool_relu();
     }
     void TearDown() override {
         if (!configuration.empty()) {

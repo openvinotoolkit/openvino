@@ -8,6 +8,13 @@ from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
 from openvino.runtime import Core
 
+try:
+    # 129480 - remove try-except when openvino-tokenizers wheel is built in OpenVINO GHA Workflow
+    # noinspection PyUnresolvedReferences
+    import openvino_tokenizers  # do not delete, needed for text models
+except:
+    pass
+
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
 rng = np.random.default_rng(seed=56190)
@@ -35,9 +42,15 @@ class TestConvertModel:
             assert False, "Unsupported type {}".format(input_type)
 
     def prepare_inputs(self, inputs_info):
-        inputs = {}
-        for input_name, input_shape, input_type in inputs_info:
-            inputs[input_name] = self.prepare_input(input_shape, input_type)
+        if len(inputs_info) > 0 and inputs_info[0] == 'list':
+            inputs = []
+            inputs_info = inputs_info[1:]
+            for input_name, input_shape, input_type in inputs_info:
+                inputs.append(self.prepare_input(input_shape, input_type))
+        else:
+            inputs = {}
+            for input_name, input_shape, input_type in inputs_info:
+                inputs[input_name] = self.prepare_input(input_shape, input_type)
         return inputs
 
     def convert_model(self, model_obj):
@@ -55,7 +68,7 @@ class TestConvertModel:
 
     def compare_results(self, fw_outputs, ov_outputs):
         assert len(fw_outputs) == len(ov_outputs), \
-            "Different number of outputs between TensorFlow and OpenVINO:" \
+            "Different number of outputs between framework and OpenVINO:" \
             " {} vs. {}".format(len(fw_outputs), len(ov_outputs))
 
         fw_eps = 5e-2
@@ -67,13 +80,13 @@ class TestConvertModel:
                     "OpenVINO outputs does not contain tensor with name {}".format(out_name)
                 cur_ov_res = ov_outputs[out_name]
                 print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                is_ok = compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
+                is_ok = is_ok and compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         else:
             for i in range(len(ov_outputs)):
                 cur_fw_res = fw_outputs[i]
                 cur_ov_res = ov_outputs[i]
-                print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                is_ok = compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
+                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                is_ok = is_ok and compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         assert is_ok, "Accuracy validation failed"
 
     def teardown_method(self):
@@ -81,6 +94,7 @@ class TestConvertModel:
         gc.collect()
 
     def _run(self, model_name, model_link, ie_device):
+        self.model_name = model_name
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")
@@ -93,7 +107,7 @@ class TestConvertModel:
         fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-        print("Compare TensorFlow and OpenVINO results")
+        print("Compare framework and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
 
     def run(self, model_name, model_link, ie_device):

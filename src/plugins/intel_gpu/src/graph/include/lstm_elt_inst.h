@@ -38,6 +38,8 @@ class typed_primitive_inst<lstm_elt> : public typed_primitive_inst_base<lstm_elt
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(lstm_elt_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_elt_node const& node);
 

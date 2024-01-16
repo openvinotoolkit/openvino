@@ -4,17 +4,18 @@
 
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "tensor_bundle.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
 
 using namespace std;
 using namespace ov::opset8;
 using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -44,15 +45,12 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
             node,
             static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
             "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
-        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::make_shared<Constant>(
             ov_type,
             shape,
-            std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(
-                mapped_memory->data() + entry.offset(),
-                entry.size(),
-                mapped_memory));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + entry.offset(),
+                                                                              entry.size(),
+                                                                              mapped_memory));
     } else {
         std::vector<T> var_data;
         var_data.resize(size);
@@ -72,7 +70,11 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
-    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto model = dynamic_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        model,
+        "[TensorFlow Frontend] internal error: cannot cast a pointer to ov::frontend::tensorflow::InputModel*");
     auto var_index = model->get_variables_index();
     auto ov_type = node.get_attribute<element::Type>("dtype");
     std::shared_ptr<Node> const_node;
@@ -191,10 +193,20 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
-    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto model = dynamic_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        model,
+        "[TensorFlow Frontend] internal error: cannot cast a pointer to ov::frontend::tensorflow::InputModel*");
     auto var_index = model->get_variables_index();
-    auto tensor_names =
-        reinterpret_cast<StringConstant*>(node.get_input(1).get_node())->get_data().as<std::vector<std::string>>();
+
+    auto string_constant_node = as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        string_constant_node && string_constant_node->get_output_element_type(0) == element::string,
+        "[TensorFlow Frontend] internal error: cannot cast a node pointer to string Constant pointer");
+    auto tensor_names = string_constant_node->get_vector<std::string>();
+
     auto tensor_types = node.get_attribute<std::vector<ov::element::Type>>("dtypes");
 
     OutputVector outs = {};

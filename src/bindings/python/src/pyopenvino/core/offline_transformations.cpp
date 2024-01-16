@@ -9,7 +9,6 @@
 #include <compress_quantize_weights.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
-#include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
@@ -56,16 +55,6 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
-        "apply_pot_transformations",
-        [](std::shared_ptr<ov::Model> model, std::string device) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::POTTransformations>(std::move(device));
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("device"));
-
-    m_offline_transformations.def(
         "apply_low_latency_transformation",
         [](std::shared_ptr<ov::Model> model, bool use_const_initializer = true) {
             ov::pass::Manager manager;
@@ -95,6 +84,16 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("param_res_names"));
 
     m_offline_transformations.def(
+        "apply_make_stateful_transformation",
+        [](std::shared_ptr<ov::Model> model, const ov::pass::MakeStateful::ParamResPairs& pairs_to_replace) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MakeStateful>(pairs_to_replace);
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("pairs_to_replace"));
+
+    m_offline_transformations.def(
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
@@ -109,7 +108,6 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::CompressQuantizeWeights>();
-            manager.register_pass<ov::pass::ZeroPointOptimizer>();
             manager.run_passes(model);
         },
         py::arg("model"));

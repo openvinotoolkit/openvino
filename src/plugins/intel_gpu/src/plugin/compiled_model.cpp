@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/legacy_api_helper.hpp"
-#include "intel_gpu/plugin/legacy_remote_context.hpp"
-
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -35,6 +33,20 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     if (config.get_property(ov::internal::exclusive_async_requests)) {
         //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
+    } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
+        auto executor_config =
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                    0,
+                                                    0,
+                                                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
+                                                    1,
+                                                    0,
+                                                    0,
+                                                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
+                                                    {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
+                                                    true};
+        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
@@ -48,12 +60,12 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const ExecutionConfig& config)
     : ov::ICompiledModel(model,
                          plugin,
-                         wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         context,
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(model->is_dynamic() ? model : nullptr)
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
@@ -65,20 +77,21 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config)
+                             const ExecutionConfig& config,
+                             const bool loaded_from_cache)
     : ov::ICompiledModel(nullptr,
                          plugin,
-                         wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         context,
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model(nullptr)
     , m_model_name("")
-    , m_loaded_from_cache(true) {
+    , m_loaded_from_cache(loaded_from_cache) {
     {
         size_t num_params;
         ib >> num_params;
@@ -152,10 +165,9 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
         }
     }
 
-    auto pos = ib.tellg();
+    auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, 0);
+        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
 }
@@ -174,14 +186,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
+    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+        return;
+
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
     cldnn::BinaryOutputBuffer ob(model);
 
-    bool is_dynamic = get_graph(0)->get_network()->is_dynamic();
-
-    ob << is_dynamic;
     // Inputs
     {
         const auto& params = inputs();
@@ -221,12 +233,7 @@ void CompiledModel::export_model(std::ostream& model) const {
         }
     }
 
-    if (is_dynamic) {
-        ov::pass::StreamSerialize serializer(model, {}, ov::pass::Serialize::Version::UNSPECIFIED);
-        serializer.run_on_model(m_model);
-    } else {
-        get_graph(0)->export_model(ob);
-    }
+    get_graph(0)->export_model(ob);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -250,6 +257,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 
             // Configs
             ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
@@ -257,6 +265,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
@@ -270,35 +279,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::model_name)::value_type {m_model_name};
     } else if (name == ov::loaded_from_cache) {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        static const std::vector<std::string> metrics {
-            METRIC_KEY(NETWORK_NAME),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-        };
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        static const std::vector<std::string> config_keys {
-            CONFIG_KEY(MODEL_PRIORITY),
-            CONFIG_KEY(PERFORMANCE_HINT),
-            CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
-            CONFIG_KEY(PERF_COUNT),
-            CONFIG_KEY(CONFIG_FILE),
-            CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-            CONFIG_KEY(CACHE_DIR),
-            CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
-            GPU_CONFIG_KEY(PLUGIN_PRIORITY),
-            GPU_CONFIG_KEY(PLUGIN_THROTTLE),
-            GPU_CONFIG_KEY(HOST_TASK_PRIORITY),
-            GPU_CONFIG_KEY(NV12_TWO_INPUTS),
-            GPU_CONFIG_KEY(MAX_NUM_THREADS),
-            GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
-        };
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, config_keys);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_property(ov::num_streams);
         if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY)
@@ -308,17 +288,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
     }
 
-    auto actual_name = name;
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, is_new_api())) {
-        actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
-    }
-
-    auto val = m_config.get_property(actual_name);
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, is_new_api())) {
-        val = LegacyAPIHelper::convert_to_legacy_property({actual_name, val}).second;
-    }
-
-    return val;
+    return m_config.get_property(name);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {

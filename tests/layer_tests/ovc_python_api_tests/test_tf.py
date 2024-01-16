@@ -1,20 +1,23 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import openvino.runtime as ov
 import pytest
+import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
 
-from common.mo_convert_test_class import CommonMOConvertTest
+from common import constants
 from common.layer_test_class import CommonLayerTest
+from common.mo_convert_test_class import CommonMOConvertTest
+from common.tf_layer_test_class import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):
-    import tensorflow as tf
-
     tf.compat.v1.reset_default_graph()
 
     with tf.compat.v1.Session() as sess:
@@ -41,8 +44,6 @@ def create_tf_graph_def(tmp_dir):
 
 
 def create_keras_model(temp_dir):
-    import tensorflow as tf
-
     tf.keras.backend.clear_session()
     tf.compat.v1.reset_default_graph()
 
@@ -69,8 +70,6 @@ def create_keras_model(temp_dir):
 
 
 def create_tf1_wrap_function(tmp_dir):
-    import tensorflow as tf
-
     def f(x, y):
         return tf.nn.sigmoid(tf.nn.relu(x + y))
 
@@ -91,7 +90,6 @@ def create_tf1_wrap_function(tmp_dir):
 
 
 def create_tf_session(tmp_dir):
-    import tensorflow as tf
     from tensorflow.python.eager.context import graph_mode
 
     with graph_mode():
@@ -119,8 +117,6 @@ def create_tf_session(tmp_dir):
 
 
 def create_tf_module(tmp_dir):
-    import tensorflow as tf
-
     class Net(tf.Module):
         def __init__(self, name=None):
             super(Net, self).__init__(name=name)
@@ -139,12 +135,11 @@ def create_tf_module(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_tf_module_dynamic(tmp_dir):
-    import tensorflow as tf
-
     class Net(tf.Module):
         def __init__(self, name=None):
             super(Net, self).__init__(name=name)
@@ -165,11 +160,12 @@ def create_tf_module_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -189,11 +185,11 @@ def create_keras_layer(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_dynamic(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -215,12 +211,13 @@ def create_keras_layer_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))
+                            }
 
 
 def create_tf_checkpoint(tmp_dir):
-    import tensorflow as tf
-
     input_names = ["Input1", "Input2"]
     input_shape = [1, 2, 3]
 
@@ -245,8 +242,6 @@ def create_tf_checkpoint(tmp_dir):
 
 
 def create_tf_function(temp_dir):
-    import tensorflow as tf
-
     @tf.function(
         input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
                          tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
@@ -268,8 +263,6 @@ def create_tf_function(temp_dir):
 
 
 def create_tf_graph(temp_dir):
-    import tensorflow as tf
-
     tf.compat.v1.reset_default_graph()
 
     with tf.compat.v1.Session() as sess:
@@ -296,8 +289,6 @@ def create_tf_graph(temp_dir):
 
 
 def create_tf_saved_model_dir(temp_dir):
-    import tensorflow as tf
-
     input_names = ["Input1", "Input2"]
     input_shape = [1, 2, 3]
 
@@ -322,7 +313,6 @@ def create_tf_saved_model_dir(temp_dir):
 
 
 def create_tf_stateful_partioned_call_net(temp_dir):
-    import tensorflow as tf
     tf.compat.v1.reset_default_graph()
 
     data_shape = [1, 1, 10, 10]
@@ -359,7 +349,6 @@ def create_tf_stateful_partioned_call_net(temp_dir):
 
 
 def create_keras_layer_input_list():
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -386,7 +375,6 @@ def create_keras_layer_input_list():
 
 
 def create_keras_layer_input_list_one_inp():
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -408,7 +396,6 @@ def create_keras_layer_input_list_one_inp():
 
 
 def create_keras_layer_input_dict():
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -434,7 +421,6 @@ def create_keras_layer_input_dict():
 
 
 def create_keras_layer_input_dict_one_inp():
-    import tensorflow as tf
     class LayerModel(tf.keras.layers.Layer):
 
         def __init__(self):
@@ -503,17 +489,19 @@ def create_keras_layer_with_example_input_2(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [[1, 2, 3], [1, 2, 3]]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [([1, 2, 3], np.float32), ([1, 2, 3], np.float32)]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):
     model, model_ref = create_keras_layer_input_dict_one_inp()
-    return model, model_ref, {'input': [('args', [1, 2, 3])]}
+    return model, model_ref, {'example_input':  {'args': np.random.rand(1, 2, 3).astype(np.float32)}}
 
 
 def create_keras_layer_with_input_shapes_case4(tmp_dir):
@@ -522,7 +510,6 @@ def create_keras_layer_with_input_shapes_case4(tmp_dir):
 
 
 def create_keras_layer_with_tf_function_call(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.Module):
         def __init__(self):
             super(LayerModel, self).__init__()
@@ -538,7 +525,6 @@ def create_keras_layer_with_tf_function_call(tmp_dir):
 
 
 def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.Module):
         def __init__(self):
             super(LayerModel, self).__init__()
@@ -553,8 +539,29 @@ def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir)
     return model, model_ref, {}
 
 
-def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
+def create_keras_layer_with_compressed_constants(tmp_dir):
     import tensorflow as tf
+
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.const = tf.constant([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], shape=[10], dtype=tf.float16)
+
+        @tf.function(input_signature=[tf.TensorSpec([10], tf.float32)])
+        def __call__(self, input_1):
+            return input_1 + tf.cast(self.const, dtype=tf.float32)
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+
+    ov_model_ref = Model([add_1], [param_1], "test")
+    fw_model = LayerModel()
+    return fw_model, ov_model_ref, {}
+
+
+def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
     class LayerModel(tf.Module):
         def __init__(self):
             super(LayerModel, self).__init__()
@@ -572,7 +579,6 @@ def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
 
 
 def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.Module):
         def __init__(self):
             super(LayerModel, self).__init__()
@@ -590,7 +596,6 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
 
 
 def create_keras_layer_with_string_tensor(tmp_dir):
-    import tensorflow as tf
     class LayerModel(tf.Module):
         def __init__(self):
             super(LayerModel, self).__init__()
@@ -612,6 +617,69 @@ def create_keras_layer_with_string_tensor(tmp_dir):
     return model, model_ref, {}
 
 
+def create_tf_model_three_inputs(shape=[1, 2, 3, 4], type=tf.float32):
+    tf.compat.v1.reset_default_graph()
+
+    with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(type, shape, 'Input1')
+        inp2 = tf.compat.v1.placeholder(type, shape, 'Input2')
+        inp3 = tf.compat.v1.placeholder(type, shape, 'Input3')
+
+        relu1 = tf.nn.relu(inp1, name='Relu1')
+        relu2 = tf.nn.relu(inp2, name='Relu2')
+        relu3 = tf.nn.relu(inp3, name='Relu3')
+
+        add = relu1 + relu2 + relu3
+
+        tf.compat.v1.global_variables_initializer()
+        tf_net = sess.graph
+    return tf_net
+
+
+def create_ref_model_three_inputs(shape=[1, 2, 3, 4], dtype=np.float32):
+    inp1 = ov.opset8.parameter(PartialShape(
+        shape), name="Input1", dtype=dtype)
+    inp2 = ov.opset8.parameter(PartialShape(
+        shape), name="Input2", dtype=dtype)
+    inp3 = ov.opset8.parameter(PartialShape(
+        shape), name="Input3", dtype=dtype)
+
+    relu1 = ov.opset8.relu(inp1)
+    relu2 = ov.opset8.relu(inp2)
+    relu3 = ov.opset8.relu(inp3)
+
+    add1 = ov.opset8.add(relu1, relu2)
+    add2 = ov.opset8.add(add1, relu3)
+
+    parameter_list = [inp1, inp2, inp3]
+    model = Model([add2], parameter_list, "test")
+    return model
+
+
+def create_tf_model_single_input(shape=[1, 2, 3, 4], type=tf.float32):
+    tf.compat.v1.reset_default_graph()
+
+    with tf.compat.v1.Session() as sess:
+        inp = tf.compat.v1.placeholder(type, shape, 'Input')
+        relu = tf.nn.relu(inp, name='Relu')
+        output = tf.nn.sigmoid(relu, name='Sigmoid')
+
+        tf.compat.v1.global_variables_initializer()
+        tf_net = sess.graph
+
+    return tf_net
+
+
+def create_ref_model_single_input(shape=[1, 2, 3, 4], dtype=np.float32):
+    inp = ov.opset8.parameter(PartialShape(
+        shape), name="Input", dtype=dtype)
+    relu = ov.opset8.relu(inp)
+    sigm = ov.opset8.sigmoid(relu)
+    parameter_list = [inp]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -631,6 +699,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
+        create_keras_layer_with_compressed_constants,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
@@ -667,7 +736,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
     def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
-        import tensorflow as tf
         from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         class LayerModel(tf.Module):
@@ -716,7 +784,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
 
     def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
-        import tensorflow as tf
         from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         class LayerModel(tf.Module):
@@ -767,7 +834,6 @@ class TestMoConvertTF(CommonMOConvertTest):
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
         # is not lost after returning the model from convert_model() method.
-        import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
         from openvino.tools.ovc import convert_model
@@ -820,7 +886,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
     def test_scalar(self, ie_device, precision, ir_version, temp_dir):
-        import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
         from openvino.tools.ovc import convert_model
@@ -860,12 +925,73 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": fw_infer}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": 3.2}, eps)
 
+    def test_unnamed_variable(self, ie_device, precision, ir_version, temp_dir):
+        tf.compat.v1.reset_default_graph()
+
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import compile_model
+
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([1.6, 3.8])
+                self.var2 = tf.Variable(-0.5)
+
+
+            @tf.function
+            def sub_function(self, input):
+                return (input + self.var1) * self.var2
+
+            @tf.function(input_signature=[tf.TensorSpec([2], tf.float32)])
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        if precision == 'FP32':
+            eps = 1e-4
+        else:
+            eps = 5e-2
+
+        test_input = np.array([2.0, 5.0]).astype(np.float32)
+
+        # Convert model to OV
+        fw_model = LayerModel()
+        ov_model = convert_model(fw_model)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer = cmp_model(test_input, ie_device)
+        fw_infer = fw_model(test_input).numpy()
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": fw_infer}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": [-1.8, -4.4]}, eps)
+
+
+class TFGraphDefNames(unittest.TestCase):
+    def test_graph_def_names(self):
+        from openvino.tools.ovc import convert_model
+
+        tf_model, model_ref, _ = create_tf_graph_def(None)
+        ov_model = convert_model(tf_model)
+
+        input_list = []
+        with tf.Graph().as_default() as graph:
+            tf.import_graph_def(tf_model, name='')
+            for op in graph.get_operations():
+                if op.type == "Placeholder":
+                    input_list.append(op.name)
+
+        for input in input_list:
+            found = False
+            for ov_input in ov_model.inputs:
+                if input in ov_input.get_names():
+                    found = True
+            assert found, "Could not found input {} in resulting model.".format(input)
+
 
 class TFConvertTest(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
-        import tensorflow as tf
         from openvino.tools.ovc import convert_model
 
         @tf.function()
@@ -880,8 +1006,6 @@ class TFConvertTest(unittest.TestCase):
 class TestTFLoadByModel(unittest.TestCase):
     def test_load_by_model_tf_graph_iterator(self):
         def simple_tf_model():
-            import tensorflow as tf
-
             tf.compat.v1.reset_default_graph()
 
             with tf.compat.v1.Session() as sess:
@@ -898,3 +1022,186 @@ class TestTFLoadByModel(unittest.TestCase):
         fe = fem.load_by_model(model)
         assert fe is not None
         assert fe.get_name() == "tf"
+
+
+class TestTFConvertRaises(unittest.TestCase):
+    def test_incorrect_inputs_1(self):
+        from openvino.tools.ovc import convert_model
+        tf_model, _, _ = create_keras_model('')
+
+        with self.assertRaisesRegex(Exception, ".*No node with name.*"):
+            convert_model(tf_model, input='Input1[1, 2, 3]')
+
+    def test_incorrect_inputs_2(self):
+        from openvino.tools.ovc import convert_model
+        tf_model, _, _ = create_keras_model('')
+
+        # check that it accepts specified names as is without parsing into 2 different inputs
+        with self.assertRaisesRegex(Exception, 'No node with name Input1\[1, 2, 3\],Input2\[1, 2, 3\]'):
+            convert_model(tf_model, input='Input1[1, 2, 3],Input2[1, 2, 3]')
+
+
+class TestTFConversionParams(CommonMOConvertTest):
+    test_data = [
+        {'params_test': {'input': [tf.shape(tf.zeros((2, 3, 4))), tf.zeros((2, 3, 4)).shape, tf.TensorShape((2, 3, 4))]},
+         'fw_model': create_tf_model_three_inputs([1, 2, 3, 4]),
+         'ref_model': create_ref_model_three_inputs([2, 3, 4])},
+        {'params_test': {'input': [tf.float32, tf.float32, tf.float32]},
+         'fw_model': create_tf_model_three_inputs([2, 3], tf.int32),
+         'ref_model': create_ref_model_three_inputs([2, 3], np.float32)},
+        {'params_test': {'input': tf.shape(tf.zeros((5, 8, 2)))},
+         'fw_model': create_tf_model_single_input(),
+         'ref_model': create_ref_model_single_input([5, 8, 2])},
+        {'params_test': {'input': tf.zeros((9, 2)).shape},
+         'fw_model': create_tf_model_single_input(),
+         'ref_model': create_ref_model_single_input([9, 2])},
+        {'params_test': {'input': tf.TensorShape((4, 8, 3))},
+         'fw_model': create_tf_model_single_input(),
+         'ref_model': create_ref_model_single_input([4, 8, 3])},
+        {'params_test': {'input': tf.int32},
+         'fw_model': create_tf_model_single_input(),
+         'ref_model': create_ref_model_single_input([1, 2, 3, 4], np.int32)}
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
+                                 temp_dir, use_new_frontend):
+        fw_model = params['fw_model']
+        test_params = params['params_test']
+        ref_model = params['ref_model']
+
+        test_params.update({'input_model': fw_model})
+        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+
+class TestOutputTensorName(unittest.TestCase):
+    @staticmethod
+    def create_keras_model_with_named_output():
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        input_names = ["Input1", "Input2"]
+        input_shape = [1, 2, 3]
+
+        x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
+        x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
+        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+        keras_net.output_names[0] = "output"
+
+        return keras_net
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(path, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(model, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        model_path = tmp_dir + os.sep + "model"
+
+        from openvino import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+        tf.saved_model.save(model, model_path)
+
+        ov_model = convert_model(model_path)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+
+        ov_model = convert_model(model)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_output_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            add = tf.add(x, y, name="add")
+            result1 = tf.identity(add, name="result1")
+            result2 = tf.identity(add, name="result2")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.outputs[0].get_names() == {"result1:0", "result2:0", "add:0"}
+        assert ov_model.outputs[1].get_names() == {"result1:0", "result2:0", "add:0"}

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "behavior/ov_infer_request/callback.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
 
@@ -12,13 +13,8 @@ namespace {
 auto configs = []() {
     return std::vector<ov::AnyMap>{
         {},
-        {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-          InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}},
+        {ov::num_streams(ov::streams::AUTO)},
     };
-};
-
-auto multiConfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
 };
 
 auto autoBatchConfigs = []() {
@@ -33,18 +29,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,
         ::testing::Combine(
             ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(configs())),
-        OVInferRequestCallbackTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCallbackTests,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                ::testing::ValuesIn(multiConfigs())),
-        OVInferRequestCallbackTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCallbackTests,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                ::testing::ValuesIn(multiConfigs())),
         OVInferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestCallbackTests,

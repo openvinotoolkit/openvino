@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/shape_of.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/constant.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,11 +17,11 @@ namespace {
 struct ShapeOfParamsV1 {
     template <class IT, class OT>
     ShapeOfParamsV1(const Shape& input_shape,
-                  const Shape& expected_shape,
-                  const element::Type& input_type,
-                  const element::Type& expected_type,
-                  const std::vector<IT>& input_value,
-                  const std::vector<OT>& expected_value)
+                    const Shape& expected_shape,
+                    const element::Type& input_type,
+                    const element::Type& expected_type,
+                    const std::vector<IT>& input_value,
+                    const std::vector<OT>& expected_value)
         : m_input_shape(input_shape),
           m_expected_shape(expected_shape),
           m_input_type(input_type),
@@ -139,19 +140,8 @@ std::vector<ShapeOfParamsV1> generateParamsForShapeOfSmall_V1() {
     using T2 = typename element_type_traits<OT>::value_type;
 
     std::vector<ShapeOfParamsV1> params{
-        ShapeOfParamsV1(Shape{2},
-                      Shape{1},
-                      IT,
-                      OT,
-                      std::vector<T1>{2, 0},
-                      std::vector<T2>{2}),
-        ShapeOfParamsV1(Shape{2, 4},
-                      Shape{2},
-                      IT,
-                      OT,
-                      std::vector<T1>{2 * 4, 0},
-                      std::vector<T2>{2, 4})
-    };
+        ShapeOfParamsV1(Shape{2}, Shape{1}, IT, OT, std::vector<T1>{2, 0}, std::vector<T2>{2}),
+        ShapeOfParamsV1(Shape{2, 4}, Shape{2}, IT, OT, std::vector<T1>{2 * 4, 0}, std::vector<T2>{2, 4})};
 
     return params;
 }
@@ -162,18 +152,8 @@ std::vector<ShapeOfParamsV1> generateParamsForShapeOfBig_V1() {
     using T2 = typename element_type_traits<OT>::value_type;
 
     std::vector<ShapeOfParamsV1> params{
-        ShapeOfParamsV1(Shape{2},
-                        Shape{1},
-                        IT,
-                        OT,
-                        std::vector<T1>{2, 0},
-                        std::vector<T2>{2}),
-        ShapeOfParamsV1(Shape{2, 4},
-                        Shape{2},
-                        IT,
-                        OT,
-                        std::vector<T1>{2 * 4, 0},
-                        std::vector<T2>{2, 4}),
+        ShapeOfParamsV1(Shape{2}, Shape{1}, IT, OT, std::vector<T1>{2, 0}, std::vector<T2>{2}),
+        ShapeOfParamsV1(Shape{2, 4}, Shape{2}, IT, OT, std::vector<T1>{2 * 4, 0}, std::vector<T2>{2, 4}),
         ShapeOfParamsV1(Shape{2, 4, 8, 16, 32},
                         Shape{5},
                         IT,
@@ -190,24 +170,22 @@ std::vector<ShapeOfParamsV3> generateParamsForShapeOfSmall_V3() {
     using T2 = typename element_type_traits<OT1>::value_type;
     using T3 = typename element_type_traits<OT2>::value_type;
 
-    std::vector<ShapeOfParamsV3> params{
-        ShapeOfParamsV3(Shape{2},
-                        Shape{1},
-                        IT,
-                        OT1,
-                        OT2,
-                        std::vector<T1>{2, 0},
-                        std::vector<T2>{2},
-                        std::vector<T3>{2}),
-        ShapeOfParamsV3(Shape{2, 4},
-                      Shape{2},
-                      IT,
-                      OT1,
-                      OT2,
-                      std::vector<T1>{2 * 4, 0},
-                      std::vector<T2>{2, 4},
-                      std::vector<T3>{2, 4})
-    };
+    std::vector<ShapeOfParamsV3> params{ShapeOfParamsV3(Shape{2},
+                                                        Shape{1},
+                                                        IT,
+                                                        OT1,
+                                                        OT2,
+                                                        std::vector<T1>{2, 0},
+                                                        std::vector<T2>{2},
+                                                        std::vector<T3>{2}),
+                                        ShapeOfParamsV3(Shape{2, 4},
+                                                        Shape{2},
+                                                        IT,
+                                                        OT1,
+                                                        OT2,
+                                                        std::vector<T1>{2 * 4, 0},
+                                                        std::vector<T2>{2, 4},
+                                                        std::vector<T3>{2, 4})};
 
     return params;
 }
@@ -218,32 +196,30 @@ std::vector<ShapeOfParamsV3> generateParamsForShapeOfBig_V3() {
     using T2 = typename element_type_traits<OT1>::value_type;
     using T3 = typename element_type_traits<OT2>::value_type;
 
-    std::vector<ShapeOfParamsV3> params{
-        ShapeOfParamsV3(Shape{2},
-                        Shape{1},
-                        IT,
-                        OT1,
-                        OT2,
-                        std::vector<T1>{2, 0},
-                        std::vector<T2>{2},
-                        std::vector<T3>{2}),
-        ShapeOfParamsV3(Shape{2, 4},
-                      Shape{2},
-                      IT,
-                      OT1,
-                      OT2,
-                      std::vector<T1>{2 * 4, 0},
-                      std::vector<T2>{2, 4},
-                      std::vector<T3>{2, 4}),
-        ShapeOfParamsV3(Shape{2, 4, 8, 16, 32},
-                      Shape{5},
-                      IT,
-                      OT1,
-                      OT2,
-                      std::vector<T1>{2 * 4 * 8 * 16 * 32, 0},
-                      std::vector<T2>{2, 4, 8, 16, 32},
-                      std::vector<T3>{2, 4, 8, 16, 32})
-    };
+    std::vector<ShapeOfParamsV3> params{ShapeOfParamsV3(Shape{2},
+                                                        Shape{1},
+                                                        IT,
+                                                        OT1,
+                                                        OT2,
+                                                        std::vector<T1>{2, 0},
+                                                        std::vector<T2>{2},
+                                                        std::vector<T3>{2}),
+                                        ShapeOfParamsV3(Shape{2, 4},
+                                                        Shape{2},
+                                                        IT,
+                                                        OT1,
+                                                        OT2,
+                                                        std::vector<T1>{2 * 4, 0},
+                                                        std::vector<T2>{2, 4},
+                                                        std::vector<T3>{2, 4}),
+                                        ShapeOfParamsV3(Shape{2, 4, 8, 16, 32},
+                                                        Shape{5},
+                                                        IT,
+                                                        OT1,
+                                                        OT2,
+                                                        std::vector<T1>{2 * 4 * 8 * 16 * 32, 0},
+                                                        std::vector<T2>{2, 4, 8, 16, 32},
+                                                        std::vector<T3>{2, 4, 8, 16, 32})};
 
     return params;
 }
@@ -260,8 +236,7 @@ std::vector<ShapeOfParamsV1> generateCombinedParamsForShapeOfV1() {
         generateParamsForShapeOfSmall_V1<element::Type_t::i16, element::Type_t::i64>(),
         generateParamsForShapeOfSmall_V1<element::Type_t::i8, element::Type_t::i64>(),
         generateParamsForShapeOfSmall_V1<element::Type_t::u16, element::Type_t::i64>(),
-        generateParamsForShapeOfSmall_V1<element::Type_t::u8, element::Type_t::i64>()
-    };
+        generateParamsForShapeOfSmall_V1<element::Type_t::u8, element::Type_t::i64>()};
 
     std::vector<ShapeOfParamsV1> combinedParams;
 
@@ -284,8 +259,7 @@ std::vector<ShapeOfParamsV3> generateCombinedParamsForShapeOfV3() {
         generateParamsForShapeOfSmall_V3<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
         generateParamsForShapeOfSmall_V3<element::Type_t::i8, element::Type_t::i64, element::Type_t::i32>(),
         generateParamsForShapeOfSmall_V3<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
-        generateParamsForShapeOfSmall_V3<element::Type_t::u8, element::Type_t::i64, element::Type_t::i32>()
-    };
+        generateParamsForShapeOfSmall_V3<element::Type_t::u8, element::Type_t::i64, element::Type_t::i32>()};
 
     std::vector<ShapeOfParamsV3> combinedParams;
 
@@ -296,16 +270,14 @@ std::vector<ShapeOfParamsV3> generateCombinedParamsForShapeOfV3() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ShapeOf_With_Hardcoded_Refs,
-    ReferenceShapeOfV1LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForShapeOfV1()),
-    ReferenceShapeOfV1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_With_Hardcoded_Refs,
+                         ReferenceShapeOfV1LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForShapeOfV1()),
+                         ReferenceShapeOfV1LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ShapeOf_With_Hardcoded_Refs,
-    ReferenceShapeOfV3LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForShapeOfV3()),
-    ReferenceShapeOfV3LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_With_Hardcoded_Refs,
+                         ReferenceShapeOfV3LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForShapeOfV3()),
+                         ReferenceShapeOfV3LayerTest::getTestCaseName);
 
 }  // namespace

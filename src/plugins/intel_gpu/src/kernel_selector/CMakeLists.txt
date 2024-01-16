@@ -4,7 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_kernels")
 
-find_host_package(PythonInterp 3 REQUIRED)
+find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -37,10 +37,10 @@ set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
 add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${PRIM_DB}"
   COMMAND "${CMAKE_COMMAND}" -E make_directory "${CODEGEN_CACHE_DIR}"
-  COMMAND "${PYTHON_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
-                                                     -out_file_name_prim_db "${PRIM_DB}"
-                                                     -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
-                                                     -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
+  COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
+                                                      -out_file_name_prim_db "${PRIM_DB}"
+                                                      -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
+                                                      -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
   DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${PRIM_DB} ..."
 )
@@ -81,8 +81,8 @@ elseif((NOT ANDROID) AND UNIX)
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-if(WIN32)
-  set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
+if(OV_GENERATOR_MULTI_CONFIG)
+  set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
 else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
@@ -91,8 +91,16 @@ add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
-        DESTINATION ${OV_CPACK_PLUGINSDIR}
-        COMPONENT gpu)
+if(BUILD_SHARED_LIBS)
+  set(CACHE_JSON_INSTALL_DIR ${OV_CPACK_PLUGINSDIR})
+  set(CACHE_JSON_COMPONENT gpu)
+else()
+  set(CACHE_JSON_INSTALL_DIR ${OV_CPACK_ARCHIVEDIR})
+  set(CACHE_JSON_COMPONENT ${OV_CPACK_COMP_CORE})
+endif()
 
-ov_install_static_lib(${TARGET_NAME} gpu)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
+        DESTINATION ${CACHE_JSON_INSTALL_DIR}
+        COMPONENT ${CACHE_JSON_COMPONENT})
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

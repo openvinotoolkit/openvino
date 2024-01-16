@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/ops.hpp"
-
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "matchers/single_op/convolutions.hpp"
 
 using namespace ov::tools::subgraph_dumper;
@@ -50,8 +50,11 @@ bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
     bool has_groups = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
                       std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node);
     size_t kernel_size_offset = has_groups ? 3 : 2;
-    auto ref_weights_shape = ref->get_input_tensor(1).get_shape();
-    auto cur_weights_shape = node->get_input_tensor(1).get_shape();
+    auto ref_weights_shape = ref->get_input_partial_shape(1).get_shape();
+    auto cur_weights_shape = node->get_input_partial_shape(1).get_shape();
+    if (is_strict_shape_match && ref_weights_shape != cur_weights_shape) {
+        return false;
+    }
     const auto ref_kernel_size = std::vector<size_t>(ref_weights_shape.begin() + kernel_size_offset,
                                                      ref_weights_shape.end());
     const auto cur_kernel_size = std::vector<size_t>(cur_weights_shape.begin() + kernel_size_offset,

@@ -26,13 +26,11 @@ if(TARGET OpenCL::OpenCL)
 endif()
 
 # try to find VA libraries
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
-        if(libva_FOUND)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
-        endif()
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+    if(libva_FOUND)
+        message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
     endif()
 endif()
 
