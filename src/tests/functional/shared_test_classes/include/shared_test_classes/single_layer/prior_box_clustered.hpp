@@ -17,8 +17,6 @@
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
-
 #include "functional_test_utils/blob_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"

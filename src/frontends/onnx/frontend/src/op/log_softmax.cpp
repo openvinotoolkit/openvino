@@ -7,15 +7,16 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
-    const auto coerced_data = ngraph::builder::opset1::flatten(data, static_cast<int>(axis));
+    const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
     return std::make_shared<default_opset::Reshape>(result, data_shape, false);
@@ -26,7 +27,7 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     const auto data = inputs.at(0);
     const auto data_rank = data.get_partial_shape().rank();
 
-    NGRAPH_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+    FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
     const auto axis = node.get_attribute_value<int64_t>("axis", DEFAULT_AXIS);
 

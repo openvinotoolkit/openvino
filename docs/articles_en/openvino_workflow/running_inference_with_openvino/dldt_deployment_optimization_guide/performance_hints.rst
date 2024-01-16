@@ -23,7 +23,7 @@ Performance Hints: Latency and Throughput
 
 As discussed in the :doc:`Optimization Guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>` there are a few different metrics associated with inference speed. Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
-Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::THROUGHPUT`` and ``ov::hint::PerformanceMode::LATENCY``. A special ``ov::hint::PerformanceMode::UNDEFINED`` hint acts the same as specifying no hint. 
+Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::THROUGHPUT`` and ``ov::hint::PerformanceMode::LATENCY``.
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 
@@ -163,7 +163,7 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
 Testing Performance of the Hints with the Benchmark_App
 #######################################################
 
-The ``benchmark_app``, that exists in both  :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` and :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` versions, is the best way to evaluate the functionality of the performance hints for a particular device:
+Using the :doc:`benchmark_app sample <openvino_sample_benchmark_tool>`is the best way to evaluate the functionality of the performance hints for a particular device:
 
 * benchmark_app **-hint tput** -d 'device' -m 'path to your model'
 * benchmark_app **-hint latency** -d 'device' -m 'path to your model'

@@ -75,7 +75,7 @@ Glossary of terms used in OpenVINO™
 |   Number of images to analyze during one call of infer. Maximum batch size is a property of the model set before its compilation. In NHWC, NCHW, and NCDHW image data layout representations, the 'N' refers to the number of images in the batch.
 
 | *Device Affinity*
-|   A preferred hardware device to run inference (CPU, GPU, GNA, etc.).
+|   A preferred hardware device to run inference (CPU, GPU, NPU, etc.).
 
 | *Extensibility mechanism, Custom layers*
 |   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and model conversion API so that they can work with models containing operations that are not yet supported.
@@ -87,7 +87,7 @@ Glossary of terms used in OpenVINO™
 |   The Conversion API is used to import and convert models trained in popular frameworks to a format usable by other OpenVINO components. Model conversion API is represented by a Python ``openvino.convert_model()`` method  and ``ovc`` command-line tool.
 
 | *OpenVINO™ Core*
-|   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.
+|   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, NPU, etc.
 
 | *OpenVINO™ API*
 |   The basic default API for all supported devices, which allows you to load a model from Intermediate Representation or convert from ONNX, PaddlePaddle, TensorFlow, TensorFlow Lite file formats, set input and output formats and execute the model on various devices.

@@ -39,7 +39,7 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -110,6 +110,7 @@ jobs:
             --parallel \
             --skip_tests \
             --compile_no_warning_as_error \
+            --allow_running_as_root \
             --build_dir ${ONNX_RUNTIME_BUILD_DIR}
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
@@ -138,11 +139,12 @@ jobs:
           ./onnxruntime_global_thread_pools_test
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
-      - name: Run onnxruntime_api_tests_without_env
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ./onnxruntime_api_tests_without_env
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+#      Test removed in onnxruntime 1.16.2 
+#      - name: Run onnxruntime_api_tests_without_env
+#        run: |
+#          source ${INSTALL_DIR}/setupvars.sh
+#          ./onnxruntime_api_tests_without_env
+#        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
         run: |

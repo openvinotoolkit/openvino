@@ -7,10 +7,10 @@
 #include <vector>
 #include <memory>
 
-#include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
+#include "openvino/runtime/properties.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
@@ -60,11 +60,11 @@ protected:
             nets.push_back(CNNNetwork(fn_ptr));
         }
 
-        auto ie = InferenceEngine::Core();
+        auto ie = BehaviorTestsUtils::createIECoreWithTemplate();
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
-        std::vector<int> outElementsCount;
+        std::vector<std::size_t> outElementsCount;
 
         for (size_t i = 0; i < nets.size(); ++i) {
             auto net = nets[i];
@@ -74,8 +74,8 @@ protected:
             }
             std::map<std::string, std::string> config;
             if (target_device.find("GPU") != std::string::npos) {
-                config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config["INFERENCE_PRECISION_HINT"] = "f32";
+                config[ov::num_streams.name()] = std::to_string(num_streams);
+                config[ov::hint::inference_precision.name()] = "f32";
             }
 
             if (target_device.find("CPU") != std::string::npos) {
@@ -94,7 +94,7 @@ protected:
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output->first);
                 outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
+                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), std::size_t(1),
                                         std::multiplies<size_t>()));
 
                 auto inf_req = exec_net_ref.CreateInferRequest();

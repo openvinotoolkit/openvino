@@ -26,6 +26,9 @@
 
 namespace ov {
 
+using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
 struct Parsed {
@@ -123,8 +126,8 @@ private:
         ov::util::FilePath libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
-        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
-        InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
+        CreatePluginEngineFunc* pluginCreateFunc = nullptr;
+        CreateExtensionFunc* extensionCreateFunc = nullptr;
 
         PluginDescriptor() = default;
 
@@ -136,9 +139,9 @@ private:
             this->listOfExtentions = listOfExtentions;
         }
 
-        PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
+        PluginDescriptor(CreatePluginEngineFunc* pluginCreateFunc,
                          const ov::AnyMap& defaultConfig = {},
-                         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr) {
+                         CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;
             this->defaultConfig = defaultConfig;
             this->extensionCreateFunc = extensionCreateFunc;
@@ -286,7 +289,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override;
