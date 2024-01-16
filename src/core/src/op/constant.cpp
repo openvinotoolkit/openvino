@@ -221,8 +221,26 @@ struct ValueToString : ov::element::NotSupported<std::string> {
 
 std::string Constant::convert_value_to_string(size_t index) const {
     using namespace ov::element;
-    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
-        ValueToString>(get_element_type(), this, index);
+    return IfTypeOf<boolean,
+                    bf16,
+                    f16,
+                    f32,
+                    f64,
+                    i4,
+                    i8,
+                    i16,
+                    i32,
+                    i64,
+                    u1,
+                    u4,
+                    u8,
+                    u16,
+                    u32,
+                    u64,
+                    nf4,
+                    f8e4m3,
+                    f8e5m2,
+                    string>::apply<ValueToString>(get_element_type(), this, index);
 }
 
 size_t Constant::get_byte_size() const {
