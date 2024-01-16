@@ -33,13 +33,21 @@ void ocl_user_event::wait_impl() {
     }
 
     if (_event.get() != nullptr) {
-        _event.wait();
+        try {
+            _event.wait();
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
 bool ocl_user_event::is_set_impl() {
     if (_event.get() != nullptr) {
-        return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        try {
+            return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
     return true;
 }
