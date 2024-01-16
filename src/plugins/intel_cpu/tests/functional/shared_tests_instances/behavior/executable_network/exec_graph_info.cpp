@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_constants.hpp>
-#include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
+
+#include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace {
 
@@ -31,7 +32,7 @@ ASSERT_NE(function, nullptr);
 
 for (const auto & op : function->get_ops()) {
 const auto & rtInfo = op->get_rt_info();
-auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
 ASSERT_NE(rtInfo.end(), it);
 auto opType = it->second.as<std::string>();
 

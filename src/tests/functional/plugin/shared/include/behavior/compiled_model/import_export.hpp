@@ -4,15 +4,14 @@
 
 #include <fstream>
 
-#include <exec_graph_info.hpp>
-#include <openvino/pass/serialize.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-
-#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace ov {
 namespace test {
