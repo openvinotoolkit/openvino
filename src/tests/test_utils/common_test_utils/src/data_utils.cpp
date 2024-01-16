@@ -322,7 +322,8 @@ void fill_psroi(ov::Tensor& tensor,
                            spatialScale,               \
                            spatialBinsX,               \
                            spatialBinsY,               \
-                           mode); break;
+                           mode);                      \
+        break;
 
     auto element_type = tensor.get_element_type();
     switch (element_type) {
