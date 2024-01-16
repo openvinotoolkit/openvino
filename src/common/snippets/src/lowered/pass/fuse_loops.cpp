@@ -202,7 +202,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
             continue;
 
         // Outer Loop ----> Inner Loop
-        const auto current_expr_loops = expr->get_loop_ids();
+        const auto& current_expr_loops = expr->get_loop_ids();
         const auto current_loop_depth = current_expr_loops.size();
         for (size_t i = 0; i < current_loop_depth; ++i) {
             const auto current_loop_id = current_expr_loops[i];
@@ -235,7 +235,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                         continue;
                     }
 
-                    const auto upper_loop_ids = parent_expr->get_loop_ids();
+                    const auto& upper_loop_ids = parent_expr->get_loop_ids();
                     if (upper_loop_ids.empty())
                         continue;
 
@@ -279,7 +279,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                             continue;
                         }
 
-                        const auto lower_loop_ids = consumer_expr->get_loop_ids();
+                        const auto& lower_loop_ids = consumer_expr->get_loop_ids();
                         if (lower_loop_ids.empty())
                             continue;
 

@@ -33,7 +33,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
 
         const auto& input_connector = expr->get_input_port_connector(0);
         const auto& parent_expr = input_connector->get_source().get_expr();
-        const auto parent_loop_ids = parent_expr->get_loop_ids();
+        const auto& parent_loop_ids = parent_expr->get_loop_ids();
 
         // Parent is out of Loop: just verify that Result is after Parent
         if (parent_loop_ids.empty()) {
