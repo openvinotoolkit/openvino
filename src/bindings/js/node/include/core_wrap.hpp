@@ -86,6 +86,9 @@ protected:
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
 
+    /** @brief Returns devices available for inference. */
+    Napi::Value get_available_devices(const Napi::CallbackInfo& info);
+
 private:
     ov::Core _core;
 };
