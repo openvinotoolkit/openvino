@@ -2963,7 +2963,8 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift) {
     using namespace testing;
     constexpr auto et = element::f32;
 
-    std::vector<float> input_data{0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f};
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
     const auto data_shape = Shape{input_data.size()};
 
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
@@ -2983,10 +2984,10 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift) {
     EXPECT_EQ(result.get_shape(), data_shape);
     EXPECT_THAT(
         read_vector<float>(result),
-        Pointwise(
-            FloatEq(),
-            std::vector<
-                float>{0.f, 0.1015625f, 0.203125f, 0.3125f, 0.40625f, 0.5f, 0.625f, 0.6875f, 0.8125f, 0.875f, 1.f}));
+        Pointwise(FloatEq(), std::vector<float>{0.f,         0.1015625f, 0.203125f, 0.3125f,   0.40625f, 0.5f,
+                                                0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
+                                                -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
+                                                -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
 }
 
 TEST(eval, evaluate_fake_convert_f32_seq_to_f8e4m3_scale_1) {
@@ -3223,7 +3224,8 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     using namespace testing;
     constexpr auto et = element::f32;
 
-    std::vector<float> input_data{0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f};
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
 
     const auto data_shape = Shape{input_data.size()};
 
@@ -3244,11 +3246,11 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    EXPECT_THAT(
-        read_vector<float>(result),
-        Pointwise(
-            FloatEq(),
-            std::vector<float>{0.f, 0.09375f, 0.1875f, 0.3125f, 0.375f, 0.5f, 0.625f, 0.75f, 0.75f, 0.875f, 1.f}));
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(),
+                          std::vector<float>{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
+                                             0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
+                                             -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f}));
 }
 
 TEST(eval, evaluate_fake_convert_f16_to_f8e5m2_scale_1) {
@@ -3707,7 +3709,7 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e5m2_scale_1) {
         4096.f, 5120.f, 6144.f, 7168.f,
         8192.f, 10240.f, 12288.f, 14336.f,
         16384.f, 20480.f, 24576.f, 28672.f,
-        32768.f, 40960.f, 49152.f, 57344.0
+        32768.f, 40960.f, 49152.f, 57344.f
     };
     // clang-format on
 
@@ -3764,6 +3766,92 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_f8e5m2_const_from_f32) {
+    using namespace testing;
+    constexpr auto et = element::f8e5m2;
+
+    std::vector<float> input_data{
+        0.017578125f, 0.021484375f, 0.025390625f, 0.029296875f, 0.03515625f, 0.0703125f, 0.140625f,
+        0.28125f,     0.5625f,      1.125f,       1.625f,       1.875f,      2.25f,      3.75f,
+        4.5f,         9.f,          18.f,         36.f,         72.f,        144.f,      288.f,
+    };
+    /* Rounded to f8e5m2 vals */
+    std::vector<ov::float8_e5m2> output_data{0.015625f, 0.0234375f, 0.0234375f, 0.03125f, 0.03125f, 0.0625f, 0.125f,
+                                             0.25f,     0.5f,       1.f,        1.5,      2.f,      2.f,     4.f,
+                                             4.f,       8.f,        16.f,       32.f,     64.f,     128.f,   256.f};
+
+    const auto data_shape = Shape{input_data.size()};
+
+    auto op = make_shared<op::v0::Constant>(et, data_shape, input_data);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<ov::float8_e5m2>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_f8e5m2_const_seq_from_f32) {
+    using namespace testing;
+    constexpr auto et = element::f8e5m2;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+
+    /* Rounded to f8e5m2 vals */
+    std::vector<ov::float8_e5m2> output_data{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
+                                             0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
+                                             -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f};
+
+    const auto data_shape = Shape{input_data.size()};
+
+    auto op = make_shared<op::v0::Constant>(et, data_shape, input_data);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<ov::float8_e5m2>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_f8e4m3_const_seq_from_f32) {
+    using namespace testing;
+    constexpr auto et = element::f8e4m3;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+
+    /* Rounded to f8e4m3 vals */
+    std::vector<ov::float8_e4m3> output_data{
+        0.f,  0.1015625f,  0.203125f,  0.3125f,  0.40625f,  0.5f,  0.625f,  0.6875f,  0.8125f,  0.875f,  1.f,
+        -0.f, -0.1015625f, -0.203125f, -0.3125f, -0.40625f, -0.5f, -0.625f, -0.6875f, -0.8125f, -0.875f, -1.f};
+
+    const auto data_shape = Shape{input_data.size()};
+
+    auto op = make_shared<op::v0::Constant>(et, data_shape, input_data);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<ov::float8_e4m3>(result), Pointwise(FloatEq(), output_data));
 }
 
 TEST(eval, evaluate_fake_convert_f32_seq_to_f8e5m2_scale_shift) {
