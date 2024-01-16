@@ -23,6 +23,7 @@ OPS = {
     'tf.raw_ops.RFFT2D': tf.raw_ops.RFFT2D,
     'tf.raw_ops.RFFT3D': tf.raw_ops.RFFT3D
 }
+
 class TestComplexFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
