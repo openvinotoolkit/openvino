@@ -532,7 +532,7 @@ Frames Per Second (FPS) for images.
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
 ``INT8`` models. For this purpose, use `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 in OpenVINO.
 
    **Note**: The ``benchmark_app`` tool is able to measure the
