@@ -7,9 +7,9 @@ tests to these workflows or adding an entirely new workflow.
 
 ## Add Tests to the Already Existing Workflow
 
-### Add Tests to the Existing Test Suit 
+### Add Tests to the Existing test suite 
 
-If the new tests could be executed as a part of the already existing test suit, e.g., new OVC Python API tests, 
+If the new tests could be executed as a part of the already existing test suite, e.g., new OVC Python API tests, 
 there is no need to change the workflows, the added tests would be executed automatically in the corresponding step. 
 
 Review the [workflows](./../../../../.github/workflows) and their jobs to know which tests are already enabled. 
@@ -17,7 +17,7 @@ Additionally, review the component's tests and how they are executed.
 
 ### Create a Step in the Job
 
-If there is no job in the workflows that has the needed test suit, a new step could be added to the job. 
+If there is no job in the workflows that has the needed test suite, a new step could be added to the job. 
 The steps are the commands that are executed one by one and united under one job. 
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more.
 
