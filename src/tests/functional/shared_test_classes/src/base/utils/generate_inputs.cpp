@@ -325,8 +325,10 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling>& node,
                                     node->get_mode()); break;       \
 
     switch (elemType) {
-        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f64)
         CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::bf16)
         default: OPENVINO_THROW("Unsupported element type: ", elemType);
     }
 #undef CASE
