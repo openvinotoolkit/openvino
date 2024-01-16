@@ -46,9 +46,9 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_select_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+                          use_new_frontend):
         if not use_new_frontend:
             pytest.skip("Select tests are not passing for the legacy frontend.")
         self._test(*self.create_select_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

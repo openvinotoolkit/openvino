@@ -703,9 +703,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                InferenceEngine::IExtensionPtr ext;
+                std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                AddExtensionUnsafe(ext);
+                add_extensions_unsafe(ext);
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
@@ -803,8 +803,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
     // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
-        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
+    if (!is_new_api() && !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -1300,6 +1299,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             auto cache_it = config.find(ov::cache_dir.name());
             if (cache_it != config.end()) {
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
+                config.erase(cache_it);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
             // apply and remove core properties
@@ -1316,25 +1316,27 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             }
         }
 
-        auto base_desc = pluginRegistry.find(clearDeviceName);
-        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-            PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
-            pluginRegistry[deviceName] = desc;
-        }
-
-        // set config for plugins in registry
-        bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
-            if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
-                }
-                configIsSet = true;
+        if (!config.empty()) {
+            auto base_desc = pluginRegistry.find(clearDeviceName);
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+                PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+                pluginRegistry[deviceName] = desc;
             }
-        }
 
-        if (!configIsSet && !deviceName.empty()) {
-            OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            // set config for plugins in registry
+            bool configIsSet = false;
+            for (auto& desc : pluginRegistry) {
+                if (deviceName.empty() || deviceName == desc.first) {
+                    for (auto&& conf : config) {
+                        desc.second.defaultConfig[conf.first] = conf.second;
+                    }
+                    configIsSet = true;
+                }
+            }
+
+            if (!configIsSet && !deviceName.empty()) {
+                OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            }
         }
 
         // set config for already created plugins

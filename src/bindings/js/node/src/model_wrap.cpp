@@ -12,7 +12,7 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
       _core{},
       _compiled_model{} {}
 
-Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
                        {InstanceMethod("getName", &ModelWrap::get_name),
@@ -22,29 +22,17 @@ Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object ModelWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->model_prototype = ref;
-
-    exports.Set("Model", prototype);
-    return exports;
-}
-
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
     _model = model;
 }
 
 Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }
-    const auto& model_js = prototype->New({});
+    const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;

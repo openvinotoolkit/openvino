@@ -123,7 +123,7 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
@@ -194,8 +194,8 @@ public:
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
-    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
+    std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
+    std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
@@ -231,7 +231,7 @@ public:
 #endif
 
 private:
-    using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
+    using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
     program::ptr _program;
     ExecutionConfig _config;

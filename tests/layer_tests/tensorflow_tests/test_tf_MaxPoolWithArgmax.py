@@ -68,10 +68,10 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     def test_max_pool_with_argmax_basic(self, params, input_type, padding, targmax,
                                         include_batch_in_index, with_second_output,
                                         ie_device, precision, ir_version, temp_dir,
-                                        use_new_frontend, use_old_api):
+                                        use_new_frontend):
         self._test(
             *self.create_max_pool_with_argmax_net(**params, input_type=input_type, padding=padding, targmax=targmax,
                                                   include_batch_in_index=include_batch_in_index,
                                                   with_second_output=with_second_output),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)

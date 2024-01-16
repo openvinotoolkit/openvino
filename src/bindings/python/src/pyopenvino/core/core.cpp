@@ -614,7 +614,7 @@ void regclass_Core(py::module m) {
 
                 GIL is released while running this function.
 
-                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, NPU...
                     If there more than one device of specific type, they are enumerated with .# suffix.
                     Such enumerated device can later be used as a device name in all Core methods like:
                     compile_model, query_model, set_property and so on.
@@ -629,7 +629,7 @@ void regclass_Core(py::module m) {
 
                                     GIL is released while running this function.
 
-                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, NPU...
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.

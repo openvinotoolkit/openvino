@@ -35,24 +35,10 @@ Based on the steps, the following code demonstrates how to change the applicatio
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:create_core
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ie_common.cpp
-         :language: cpp
-         :fragment: ie:create_core
-
-   .. tab-item:: C
-      :sync: c
-
-      .. doxygensnippet:: docs/snippets/ie_common.c
          :language: cpp
          :fragment: ie:create_core
 
@@ -93,27 +79,12 @@ to write extensions. However, you can also load the old extensions to the new Op
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:load_old_extension
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ie_common.cpp
          :language: cpp
          :fragment: ie:load_old_extension
-
-   .. tab-item:: C
-      :sync: c
-
-      .. doxygensnippet:: docs/snippets/ie_common.c
-         :language: cpp
-         :fragment: ie:load_old_extension
-
 
 **API 2.0**
 
@@ -148,27 +119,12 @@ to write extensions. However, you can also load the old extensions to the new Op
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:read_model
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ie_common.cpp
          :language: cpp
          :fragment: ie:read_model
-
-   .. tab-item:: C
-      :sync: c
-
-      .. doxygensnippet:: docs/snippets/ie_common.c
-         :language: cpp
-         :fragment: ie:read_model
-
 
 **API 2.0**
 
@@ -215,27 +171,12 @@ preprocessing may be necessary. See :doc:`preprocessing in API 2.0 <openvino_2_0
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:compile_model
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ie_common.cpp
          :language: cpp
          :fragment: ie:compile_model
-
-   .. tab-item:: C
-      :sync: c
-
-      .. doxygensnippet:: docs/snippets/ie_common.c
-         :language: cpp
-         :fragment: ie:compile_model
-
 
 **API 2.0**
 
@@ -273,27 +214,12 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:create_infer_request
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ie_common.cpp
          :language: cpp
          :fragment: ie:create_infer_request
-
-   .. tab-item:: C
-      :sync: c
-
-      .. doxygensnippet:: docs/snippets/ie_common.c
-         :language: cpp
-         :fragment: ie:create_infer_request
-
 
 **API 2.0**
 
@@ -335,24 +261,10 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_input_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_input_tensor
 
@@ -361,24 +273,10 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_input_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_input_tensor
 
@@ -387,24 +285,10 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_input_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_input_tensor
 
@@ -414,24 +298,10 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_input_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_input_tensor
 
@@ -560,24 +430,10 @@ API 2.0 fills inputs with data of the ``I64`` precision (aligned with the origin
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:inference
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:inference
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:inference
 
@@ -586,24 +442,10 @@ API 2.0 fills inputs with data of the ``I64`` precision (aligned with the origin
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:start_async_and_wait
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:start_async_and_wait
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:start_async_and_wait
 
@@ -679,24 +521,10 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_output_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_output_tensor
 
@@ -705,24 +533,10 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_output_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_output_tensor
 
@@ -731,24 +545,10 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_output_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_output_tensor
 
@@ -758,24 +558,10 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
             .. doxygensnippet:: docs/snippets/ie_common.cpp
-               :language: cpp
-               :fragment: ie:get_output_tensor
-
-         .. tab-item:: C
-            :sync: c
-
-            .. doxygensnippet:: docs/snippets/ie_common.c
                :language: cpp
                :fragment: ie:get_output_tensor
 

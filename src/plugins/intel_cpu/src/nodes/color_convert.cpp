@@ -13,7 +13,6 @@
 #include "kernels/x64/jit_kernel.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;

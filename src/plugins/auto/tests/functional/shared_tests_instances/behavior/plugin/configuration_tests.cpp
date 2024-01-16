@@ -5,15 +5,15 @@
 #include "behavior/plugin/configuration_tests.hpp"
 
 #include "ie_plugin_config.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
 namespace {
 #if (defined(__APPLE__) || defined(_WIN32))
 auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
-    auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto numaNodes = ov::get_available_numa_nodes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         return std::string{CONFIG_VALUE(HYBRID_AWARE)};
     } else if (numaNodes.size() > 1) {
@@ -24,7 +24,7 @@ auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
 }()};
 #else
 auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         return std::string{CONFIG_VALUE(HYBRID_AWARE)};
     } else {
