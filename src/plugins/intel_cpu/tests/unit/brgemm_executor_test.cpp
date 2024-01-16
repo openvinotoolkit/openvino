@@ -6,9 +6,8 @@
 #include <gtest/gtest.h>
 #include "nodes/kernels/scaled_attn/brgemm_executor.hpp"
 #include "openvino/core/parallel.hpp"
-#include <ie_system_conf.h>
+#include "openvino/runtime/system_conf.hpp"
 
-// This test is used to test whether mlas gemm lib compiles successfully
 TEST(BrgemmExecutor, gemm_test) {
     if (!ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
