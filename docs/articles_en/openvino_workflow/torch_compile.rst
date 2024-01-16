@@ -5,7 +5,7 @@ PyTorch Deployment via "torch.compile"
 
 
 
-The ``torch.compile`` feature enables you to use OpenVINO for PyTorch-native applications. 
+The ``torch.compile`` feature enables you to use OpenVINO for PyTorch-native applications.
 It speeds up PyTorch code by JIT-compiling it into optimized kernels.
 By default, Torch code runs in eager-mode, but with the use of ``torch.compile`` it goes through the following steps:
 
@@ -20,7 +20,7 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 
 
 How to Use
-#################
+####################
 
 To use ``torch.compile``, you need to add an import statement and define one of the two available backends:
 
@@ -38,7 +38,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       .. code-block:: console
 
-         import openvino.torch 
+         import openvino.torch
          ...
          model = torch.compile(model, backend='openvino')
 
@@ -68,20 +68,60 @@ To use ``torch.compile``, you need to add an import statement and define one of 
          :align: center
 
 
-Environment Variables
-+++++++++++++++++++++++++++
 
-* **OPENVINO_TORCH_BACKEND_DEVICE**: enables selecting a specific hardware device to run the application. 
-  By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting 
-  this variable to GPU.0, for example, will make the application use the integrated graphics processor instead.
-* **OPENVINO_TORCH_MODEL_CACHING**: enables saving the optimized model files to a hard drive, after the first application run.
-  This makes them available for the following application executions, reducing the first-inference latency.
-  By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
-* **OPENVINO_TORCH_CACHE_DIR**: enables defining a custom directory for the model files (if model caching set to ``True``).
-  By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory. 
+Options
+++++++++++++++++++++
+
+It is possible to use additional arguments for ``torch.compile`` to set the backend device,
+enable model caching, set the cache directory etc. You can use a dictionary of the available options:
+
+* ``device`` - enables selecting a specific hardware device to run the application.
+  By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications
+  on CPU. If you set this variable to ``GPU.0``, for example, the application will
+  use the integrated graphics processor instead.
+* ``model_caching`` - enables saving the optimized model files to a hard drive,
+  after the first application run. This makes them available for the following
+  application executions, reducing the first-inference latency. By default, this
+  variable is set to ``False``. Set it to ``True`` to enable caching.
+* ``cache_dir`` - enables defining a custom directory for the model files (if
+  ``model_caching`` is set to ``True``). By default, the OpenVINO IR is saved
+  in the cache sub-directory, created in the application's root directory.
+* ``config`` - enables passing any OpenVINO configuration option as a dictionary
+  to this variable. For details on the various options, refer to the
+  :ref:`OpenVINO Advanced Features <openvino-advanced-features>`.
+
+See the example below for details:
+
+.. code-block:: python
+
+   model = torch.compile(model, backend="openvino", options = {"device" : "CPU", "model_caching" : True, "cache_dir": "./model_cache"})
+
+You can also set OpenVINO specific configuration options by adding them as a dictionary under ``config`` key in ``options``:
+
+.. code-block:: python
+
+   opts = {"device" : "CPU", "config" : {"PERFORMANCE_HINT" : "LATENCY"}}
+   model = torch.compile(model, backend="openvino", options=opts)
+
+
+.. important::
+
+   The environment variables used in the previous release are still available but are not
+   recommended. They will be removed fully in future releases.
+
+   .. dropdown:: Click to view the deprecated options.
+
+      * ``OPENVINO_TORCH_BACKEND_DEVICE`` - enables selecting a specific hardware device to run the application.
+        By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting
+        this variable to ``GPU.0``, for example, will make the application use the integrated graphics processor instead.
+      * ``OPENVINO_TORCH_MODEL_CACHING``- enables saving the optimized model files to a hard drive, after the first application run.
+        This makes them available for the following application executions, reducing the first-inference latency.
+        By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
+      * ``OPENVINO_TORCH_CACHE_DIR``- enables defining a custom directory for the model files (if ``model_caching`` is set to ``True``).
+        By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory.
 
 Windows support
-++++++++++++++++++++++++++
++++++++++++++++++++++
 
 Currently, PyTorch does not support ``torch.compile`` feature on Windows officially. However, it can be accessed by running
 the below instructions:
@@ -112,10 +152,10 @@ the below instructions:
 Support for Automatic1111 Stable Diffusion WebUI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion 
-based image generation. It allows users to create realistic and creative images from text prompts. 
-Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO 
-``torch.compile`` capability. Detailed instructions are available in 
+Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion
+based image generation. It allows users to create realistic and creative images from text prompts.
+Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO
+``torch.compile`` capability. Detailed instructions are available in
 `Stable Diffusion WebUI repository. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
 
 
@@ -125,10 +165,10 @@ Architecture
 The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 
 * **TorchDynamo** - a Python-level JIT that hooks into the frame evaluation API in CPython,
-  (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators 
-  that cannot be extracted to FX graph are executed in the native Python environment). 
-  It maintains the eager-mode capabilities using 
-  `Guards <https://pytorch.org/docs/stable/dynamo/guards-overview.html>`__ to ensure the 
+  (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators
+  that cannot be extracted to FX graph are executed in the native Python environment).
+  It maintains the eager-mode capabilities using
+  `Guards <https://pytorch.org/docs/stable/dynamo/guards-overview.html>`__ to ensure the
   generated graphs are valid.
 
 * **AOTAutograd** - generates the backward graph corresponding to the forward graph captured by TorchDynamo.
@@ -138,15 +178,15 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 
 
 
-When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces the module and 
+When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces the module and
 rewrites Python bytecode to extract sequences of PyTorch operations into an FX Graph,
-which can be optimized by the OpenVINO backend. The Torch FX graphs are first converted to 
-inlined FX graphs and the graph partitioning module traverses inlined FX graph to identify 
-operators supported by OpenVINO. 
+which can be optimized by the OpenVINO backend. The Torch FX graphs are first converted to
+inlined FX graphs and the graph partitioning module traverses inlined FX graph to identify
+operators supported by OpenVINO.
 
-All the supported operators are clustered into OpenVINO submodules, converted to the OpenVINO 
-graph using OpenVINO's PyTorch decoder, and executed in an optimized manner using OpenVINO runtime. 
-All unsupported operators fall back to the native PyTorch runtime on CPU. If the subgraph 
+All the supported operators are clustered into OpenVINO submodules, converted to the OpenVINO
+graph using OpenVINO's PyTorch decoder, and executed in an optimized manner using OpenVINO runtime.
+All unsupported operators fall back to the native PyTorch runtime on CPU. If the subgraph
 fails during OpenVINO conversion, the subgraph falls back to PyTorch's default inductor backend.
 
 
