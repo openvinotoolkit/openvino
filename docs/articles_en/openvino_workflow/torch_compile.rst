@@ -72,7 +72,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 Options
 ++++++++++++++++++++
 
-You can use a dictionary with options for ``torch.compile`` to set the backend device, 
+It is possible to use additional arguments for ``torch.compile`` to set the backend device, 
 enable model caching, set the cache directory etc. See the example below:
 
 .. code-block:: python
