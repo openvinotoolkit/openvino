@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 
-from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
+from common.utils.tf_utils import summarize_graph
 
 
 def make_positive_array(inputs_dict):
@@ -80,7 +80,7 @@ def save_pb_to_tflite(pb_model):
     return tflite_model_path
 
 
-def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
+def get_tflite_results(use_new_frontend, inputs_dict, model_path):
     interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
@@ -108,8 +108,7 @@ def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
     result = dict()
     for out in tf_lite_result.keys():
         _tf_res = tf_lite_result[out]
-        result[out] = transpose_nhwc_to_nchw(_tf_res, use_new_frontend,
-                                             use_old_api)
+        result[out] = _tf_res
 
     return tf_lite_result
 

@@ -132,6 +132,19 @@ const std::vector<ov::PartialShape> shapes = {
 };
 
 const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ov::element::f16,
+            {{ov::element::f16}, {}, {{-12.3f}, ov::element::f16, {}, false, 1ul, ov::element::f16}}
+        },
+        {
+            ov::element::f16,
+            { },
+            ov::element::f32,
+            {{}, {}, {{-1.f}, ov::element::f16, {}, false, 1ul, ov::element::f16}},
+        }
+    },
     // U8 per tensor quantization
     {
         LayerTransformation::createParamsU8I8(),

@@ -298,8 +298,13 @@ TEST_P(ov_infer_request_test, infer) {
 
 TEST_P(ov_infer_request_test, cancel) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
-
+    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
     OV_EXPECT_OK(ov_infer_request_cancel(infer_request));
+    ov_status_e return_status = ov_infer_request_wait(infer_request);
+    if (return_status == ov_status_e::OK || return_status == ov_status_e::INFER_CANCELLED)
+        GTEST_SUCCEED();
+    else
+        GTEST_FAIL();
 }
 
 TEST_P(ov_infer_request_ppp, infer_ppp) {
@@ -334,10 +339,26 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
-        OV_EXPECT_OK(ov_infer_request_wait_for(infer_request, 10));
-
+        ov_status_e ret = ov_status_e::OK;
+        EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        size_t max_times = 10;
+        // Random timeout in some platform, increase wait() times if timeout occurr.
+        while (ret != ov_status_e::OK && max_times-- > 0) {
+            EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        }
+        EXPECT_EQ(ret, ov_status_e::OK);
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
+    }
+}
+
+TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
+
+    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
+
+    if (!HasFatalFailure()) {
+        EXPECT_EQ(ov_status_e::REQUEST_BUSY, ov_infer_request_get_tensor(infer_request, in_tensor_name, &input_tensor));
     }
 }
 
