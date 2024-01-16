@@ -13,6 +13,7 @@
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
@@ -1040,6 +1041,51 @@ public:
 
         for (size_t i = 0; i < expected_result.size(); i++) {
             ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
+    void test_compressed_int4_scale_zp_fusion(bool is_caching_test) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4096 }, data_types::f16, format::bfyx };
+        auto input_mem = engine.allocate_memory({ {1084, 1, 4096}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {4096, 4096}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {4096, 128}, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {4096, 128}, data_types::f16, format::bfyx });
+        auto bias_mem = engine.allocate_memory({ {1, 1, 4096}, data_types::f16, format::bfyx });
+
+        auto input_data = rg.generate_random_1d<ov::float16>(1084 * 4096, -2.0f, 2.0f);
+        set_values(input_mem, input_data);
+        auto weigths_data = rg.generate_random_1d<uint8_t>(4096 * 4096 / 2, 0, 10);
+        set_values(weights_mem, weigths_data);
+        auto scale_data = rg.generate_random_1d<ov::float16>(4096 * 128, -4.0f, 4.0f);
+        set_values(scale_mem, scale_data);
+        auto zp_data = rg.generate_random_1d<ov::float16>(4096 * 128, 0.0f, 6.0f);
+        set_values(zp_mem, zp_data);
+        auto bias_data = rg.generate_random_1d<ov::float16>(1 * 4096, -1.0f, 1.0f);
+        set_values(bias_mem, bias_data);
+
+        topology topology(
+            input_layout("input", input_dyn_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            data("bias", bias_mem),
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f32, padding(), 3, 2),
+            eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("bias_add"), format::bfyx, data_types::f16)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        constexpr int PERFTEST_ROUNDS = 100;
+        for (int i = 0; i < PERFTEST_ROUNDS; ++i) {
+            auto outputs = network->execute();
         }
     }
 
@@ -2636,6 +2682,10 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
     this->test_compressed_scale_zp_bias(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_zp_fusion) {
+    this->test_compressed_int4_scale_zp_fusion(false);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
