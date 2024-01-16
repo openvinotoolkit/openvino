@@ -16,8 +16,8 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
