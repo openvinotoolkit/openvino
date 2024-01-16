@@ -73,7 +73,7 @@ Options
 ++++++++++++++++++++
 
 It is possible to use additional arguments for ``torch.compile`` to set the backend device, 
-enable model caching, set the cache directory etc. See the example below:
+enable model caching, set the cache directory etc. You can use a dictionary of options such as below:
 
 .. code-block:: python
 
