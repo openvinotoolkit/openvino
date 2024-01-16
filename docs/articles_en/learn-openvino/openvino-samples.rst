@@ -27,7 +27,6 @@ OpenVINO™ Samples
    openvino_sample_throughput_benchmark
    openvino_sample_bert_benchmark
    openvino_sample_benchmark_tool
-   openvino_sample_automatic_speech_recognition
 
 
 The OpenVINO™ samples are simple console applications that show how to utilize
@@ -83,10 +82,6 @@ The applications include:
   .. code-block:: console
 
      benchmark_app -m <model> -i <input> -d <device>
-
-- ``[DEPRECATED]`` :doc:`Automatic Speech Recognition Sample <openvino_sample_automatic_speech_recognition>` -
-  Acoustic model inference based on Kaldi neural networks and
-  speech feature vectors.
 
 
 Additional Resources
