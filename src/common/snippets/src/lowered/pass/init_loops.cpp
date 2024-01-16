@@ -47,7 +47,6 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
         if (loop_entry.is_incremented) {
             const auto& port = loop_entry.expr_port;
             const auto source = *port->get_connected_ports().begin();
-            const auto loop_ids = port->get_expr()->get_loop_ids();
             const auto& layout = port->get_descriptor_ptr()->get_layout();
             const auto& shape = port->get_descriptor_ptr()->get_shape();
             const auto& dim = *(layout.rbegin() + loop_entry.dim_idx);
@@ -63,7 +62,6 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
         loop_exit.ptr_increment = 0;
         if (loop_exit.is_incremented) {
             const auto& port = loop_exit.expr_port;
-            const auto loop_ids = port->get_expr()->get_loop_ids();
             const auto& layout = port->get_descriptor_ptr()->get_layout();
             const auto& shape = port->get_descriptor_ptr()->get_shape();
             const auto original_dim = layout.size() - 1 - loop_exit.dim_idx;
