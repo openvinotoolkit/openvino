@@ -5,17 +5,17 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating
                  system, using the YUM repository.
 
 .. note::
-   
+
    Note that the YUM distribution:
-   
+
    * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * is dedicated to Linux users only
-   * additionally includes code samples 
+   * additionally includes code samples
 
 .. tab-set::
 
@@ -75,7 +75,7 @@ Step 1: Set Up the Repository
       EOF
 
 2. Move the new ``openvino-2023.repo`` file to the YUM configuration directory, i.e. ``/etc/yum.repos.d``:
-   
+
    .. code-block:: sh
 
       sudo mv /tmp/openvino-2023.repo /etc/yum.repos.d
@@ -107,26 +107,26 @@ Install OpenVINO Runtime
 
    .. tab-item:: The Latest Version
       :sync: latest-version
-   
+
       Run the following command:
-   
+
       .. code-block:: sh
-   
+
          sudo yum install openvino
-   
+
    .. tab-item:: A Specific Version
       :sync: specific-version
-   
+
       Run the following command:
-   
+
       .. code-block:: sh
-   
+
          sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
-   
+
       For example:
-   
+
       .. code-block:: sh
-   
+
          sudo yum install openvino-2023.2.0
 
 
@@ -145,12 +145,12 @@ Run the following command:
 
    You can additionally install Python API using one of the alternative methods (:doc:`conda <openvino_docs_install_guides_installing_openvino_conda>` or :doc:`pip <openvino_docs_install_guides_installing_openvino_pip>`).
 
-Congratulations! You've just Installed OpenVINO! For some use cases you may still 
-need to install additional components. Check the 
+Congratulations! You've just Installed OpenVINO! For some use cases you may still
+need to install additional components. Check the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
-With the YUM distribution, you can build OpenVINO sample files, as explained in the 
+With the YUM distribution, you can build OpenVINO sample files, as explained in the
 :doc:`guide for OpenVINO sample applications <openvino_docs_OV_UG_Samples_Overview>`.
 For C++ and C, just run the ``build_samples.sh`` script:
 
@@ -158,16 +158,16 @@ For C++ and C, just run the ``build_samples.sh`` script:
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. code-block:: sh
-   
+
          /usr/share/openvino/samples/cpp/build_samples.sh
-   
+
    .. tab-item:: C
       :sync: c
-   
+
       .. code-block:: sh
-   
+
          /usr/share/openvino/samples/c/build_samples.sh
 
 
@@ -181,23 +181,23 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
    .. tab-item:: The Latest Version
       :sync: latest-version
-   
+
       .. code-block:: sh
-   
+
          sudo yum autoremove openvino
-   
-   
+
+
    .. tab-item:: A Specific Version
       :sync: specific-version
-   
+
       .. code-block:: sh
-   
+
          sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-   
+
       For example:
-   
+
       .. code-block:: sh
-   
+
          sudo yum autoremove openvino-2023.2.0
 
 
@@ -205,10 +205,10 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 What's Next?
 #############
 
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! 
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications!
 Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
-* Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ 
+* Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_
   for step-by-step instructions on building and running a basic image classification C++ application.
 
   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
@@ -216,8 +216,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-  * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
 
 You can also try the following things:
 

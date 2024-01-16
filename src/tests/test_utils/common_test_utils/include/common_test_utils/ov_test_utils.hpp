@@ -35,6 +35,10 @@ public:
     ov::pass::Manager manager;
     FunctionsComparator comparator;
 
+protected:
+    float m_abs_threshold = 5e-4f;
+    float m_rel_threshold = 1e-3f;
+
 private:
     std::shared_ptr<ov::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};

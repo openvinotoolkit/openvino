@@ -5,7 +5,7 @@ Install OpenVINO™ Development Tools
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Development Tools on Windows, 
+   :description: Learn how to install OpenVINO™ Development Tools on Windows,
                  Linux, and macOS operating systems, using a PyPi package.
 
 OpenVINO Development Tools is a set of utilities that make it easy to develop and optimize models and applications for OpenVINO. It provides the following tools:
@@ -20,9 +20,9 @@ The instructions on this page show how to install OpenVINO Development Tools. If
 
 In both cases, Python 3.8 - 3.11 needs to be installed on your machine before starting.
 
-.. note:: 
+.. note::
 
-   From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
+   From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
 .. _python_developers:
 
@@ -30,7 +30,7 @@ For Python Developers
 #####################
 
 If you are a Python developer, follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
-   
+
 .. _cpp_developers:
 
 For C/C++ Developers
@@ -64,7 +64,7 @@ Installation in a New Environment
 +++++++++++++++++++++++++++++++++
 
 If you do not have an environment with a deep learning framework for the input model or you encounter any compatibility issues between OpenVINO
-and your version of deep learning framework, you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
+and your version of deep learning framework, you may install OpenVINO Development Tools with validated versions of frameworks into a new environment.
 
 Step 1. Set Up Python Virtual Environment
 -----------------------------------------
@@ -75,19 +75,19 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
 
    .. tab-item:: Windows
       :sync: windows
-   
+
       .. code-block:: sh
-      
+
          python -m venv openvino_env
 
    .. tab-item:: Linux and macOS
       :sync: linux-and-macos
-   
+
       .. code-block:: sh
-      
+
          python3 -m venv openvino_env
-     
-     
+
+
 
 Step 2. Activate Virtual Environment
 ------------------------------------
@@ -98,16 +98,16 @@ Activate the newly created Python virtual environment by issuing this command:
 
    .. tab-item:: Windows
       :sync: windows
-   
+
       .. code-block:: sh
-   
+
          openvino_env\Scripts\activate
 
    .. tab-item:: Linux and macOS
       :sync: linux-and-macos
 
       .. code-block:: sh
-   
+
          source openvino_env/bin/activate
 
 .. important::
@@ -138,7 +138,7 @@ To install and configure the components of the development package together with
 
 
 where the ``extras`` parameter specifies the source deep learning framework for the input model
-and is one or more of the following values separated with "," :  ``caffe``, ``kaldi``, ``mxnet``, ``onnx``, ``pytorch``, ``tensorflow``, ``tensorflow2``. 
+and is one or more of the following values separated with "," :  ``caffe``, ``kaldi``, ``mxnet``, ``onnx``, ``pytorch``, ``tensorflow``, ``tensorflow2``.
 
 For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 
@@ -147,7 +147,7 @@ For example, to install and configure dependencies required for working with Ten
    pip install openvino-dev[tensorflow2,onnx]
 
 
-.. note:: 
+.. note::
 
    Model conversion API support for TensorFlow 1.x environment has been deprecated. Use the ``tensorflow2`` parameter to install a TensorFlow 2.x environment that can convert both TensorFlow 1.x and 2.x models. If your model isn't compatible with the TensorFlow 2.x environment, use the `tensorflow` parameter to install the TensorFlow 1.x environment. The TF 1.x environment is provided only for legacy compatibility reasons.
 
@@ -196,8 +196,7 @@ Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_dem
 
 Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
-* :doc:`Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README>`
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd>`
 
 Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++
@@ -205,7 +204,7 @@ Learn OpenVINO Development Tools
 * Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
 * Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
 * Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>`.
-* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
+* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>`.
 
 Additional Resources
 ####################
