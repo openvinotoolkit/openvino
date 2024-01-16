@@ -464,7 +464,3 @@ See Also
 
 * :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
 * :doc:`Converting Model <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`
-* :doc:`Convert model from Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
-
-
-
