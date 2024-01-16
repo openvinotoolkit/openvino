@@ -29,7 +29,6 @@
 #include <utility>
 #include <vector>
 
-#include "details/ie_blob_iterator.hpp"
 #include "details/ie_pre_allocator.hpp"
 #include "ie_allocator.hpp"
 #include "ie_common.h"
@@ -39,8 +38,6 @@
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
-
-class RemoteBlob;
 
 /**
  * @brief This class represents a universal container in the Inference Engine
@@ -82,7 +79,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(getHardwareBlob()) != nullptr;
+        return dynamic_cast<T*>(this) != nullptr;
     }
 
     /**
@@ -95,7 +92,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(getHardwareBlob()) != nullptr;
+        return dynamic_cast<const T*>(this) != nullptr;
     }
 
     /**
@@ -106,25 +103,9 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <
-        typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
-    T* as() noexcept {
-        return dynamic_cast<T*>(getHardwareBlob());
-    }
-
-    /**
-     * @brief Casts this Blob object to the type RemoteBlob.
-     *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Blob
-     * @return Raw pointer to the object of the type T or nullptr on error
-     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
     }
@@ -137,27 +118,11 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <
-        typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
-    const T* as() const noexcept {
-        return dynamic_cast<const T*>(getHardwareBlob());
-    }
-
-    /**
-     * @brief Casts this Blob object to the type RemoteBlob.
-     *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Blob
-     * @return Raw pointer to the object of the type T or nullptr on error
-     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<const T*>(this);
     }
 
     /**
@@ -320,9 +285,6 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
-
-    const Blob* getHardwareBlob() const;
-    Blob* getHardwareBlob();
 };
 
 /**
@@ -711,50 +673,6 @@ public:
 
     Blob::Ptr createROI(const std::vector<std::size_t>& begin, const std::vector<std::size_t>& end) const override {
         return Blob::Ptr(new TBlob<T>(*this, begin, end));
-    }
-
-    /**
-     * @brief Gets BlobIterator for the data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type T
-     */
-    details::BlobIterator<T> begin() {
-        return details::BlobIterator<T>(data());
-    }
-
-    /**
-     * @brief Gets BlobIterator for the end of data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type T representing end of the data
-     */
-    details::BlobIterator<T> end() {
-        return details::BlobIterator<T>(data(), size());
-    }
-
-    /**
-     * @brief Gets a const BlobIterator for the read-only data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type const T
-     */
-    details::BlobIterator<const T> begin() const {
-        return details::BlobIterator<const T>(readOnly());
-    }
-
-    /**
-     * @brief Gets a const BlobIterator for the end of read-only data.
-     *
-     * Enables a ranged loop support for the TBlob object.
-     *
-     * @return BlobIterator object of type const T representing end of data
-     */
-    details::BlobIterator<const T> end() const {
-        return details::BlobIterator<const T>(readOnly(), size());
     }
 
 protected:

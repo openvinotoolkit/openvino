@@ -4,7 +4,7 @@
 
 /**
  * @brief A file with helper functions to uniformly create Blob objects
- * @file blob_transform.hpp
+ * @file blob_factory.hpp
  */
 
 #pragma once
@@ -16,7 +16,6 @@
 #include "ie_blob.h"
 #include "ie_data.h"
 #include "ie_memcpy.h"
-#include "ie_preprocess.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 /**
@@ -82,17 +81,6 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
 make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
-
-/**
- * @brief      Creates a plain Blob::Ptr
- * @ingroup    ie_dev_api_memory
- *
- * @param[in]  prec  The Precision value
- * @param[in]  dims  The dims
- * @return     A Blob::Ptr pointer
- */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
-make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
 
 /**
  * @brief      Creates Blob::Ptr with precision
