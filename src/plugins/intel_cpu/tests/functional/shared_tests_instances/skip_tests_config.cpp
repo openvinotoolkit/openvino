@@ -140,9 +140,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
-        // Issue: 95607
-        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
-        R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
         // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
         // float values like 0.333333745.
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
