@@ -71,6 +71,7 @@ void TransformationTestsF::TearDown() {
     if (acc_enabled) {
         OPENVINO_ASSERT(cloned_function != nullptr, "Accuracy cannot be checked. Cloned Model is not initialized.");
         auto acc_comparator = FunctionsComparator::no_default();
+        acc_comparator.set_accuracy_thresholds(m_abs_threshold, m_rel_threshold);
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
         auto res = acc_comparator.compare(model, cloned_function);
         ASSERT_TRUE(res.valid) << res.message;
