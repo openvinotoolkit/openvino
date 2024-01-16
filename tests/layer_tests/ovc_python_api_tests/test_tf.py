@@ -1,16 +1,20 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import openvino.runtime as ov
 import pytest
+import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
 
-from common.mo_convert_test_class import CommonMOConvertTest
+from common import constants
 from common.layer_test_class import CommonLayerTest
-import tensorflow as tf
+from common.mo_convert_test_class import CommonMOConvertTest
+from common.tf_layer_test_class import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):
@@ -1069,3 +1073,135 @@ class TestTFConversionParams(CommonMOConvertTest):
 
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+
+class TestOutputTensorName(unittest.TestCase):
+    @staticmethod
+    def create_keras_model_with_named_output():
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        input_names = ["Input1", "Input2"]
+        input_shape = [1, 2, 3]
+
+        x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
+        x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
+        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+        keras_net.output_names[0] = "output"
+
+        return keras_net
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(path, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(model, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        model_path = tmp_dir + os.sep + "model"
+
+        from openvino import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+        tf.saved_model.save(model, model_path)
+
+        ov_model = convert_model(model_path)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+
+        ov_model = convert_model(model)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_output_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            add = tf.add(x, y, name="add")
+            result1 = tf.identity(add, name="result1")
+            result2 = tf.identity(add, name="result2")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.outputs[0].get_names() == {"result1:0", "result2:0", "add:0"}
+        assert ov_model.outputs[1].get_names() == {"result1:0", "result2:0", "add:0"}
