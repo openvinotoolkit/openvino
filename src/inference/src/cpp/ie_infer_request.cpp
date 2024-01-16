@@ -13,7 +13,6 @@
 #include "dev/converter_utils.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "ie_remote_context.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/infer_request.hpp"
@@ -52,14 +51,9 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
     if (blobPtr == nullptr)
         IE_THROW() << error;
-    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
-    if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
+    if (blobPtr->buffer() == nullptr)
         IE_THROW() << error;
     return blobPtr;
-}
-
-const PreProcessInfo& InferRequest::GetPreProcess(const std::string& name) const {
-    INFER_REQ_CALL_STATEMENT(return _impl->GetPreProcess(name);)
 }
 
 void InferRequest::Infer() {

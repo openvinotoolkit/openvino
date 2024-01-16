@@ -278,63 +278,6 @@ TEST_F(BlobTests, cannotCreateBlobWithIncorrectPrecision) {
     ASSERT_THROW(InferenceEngine::make_shared_blob<float>(desc), InferenceEngine::Exception);
 }
 
-TEST_F(BlobTests, canUseBlobInMoveSemantics) {
-    InferenceEngine::TBlob<float> b(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, InferenceEngine::C));
-
-    b.getTensorDesc().setDims({3});
-    b.allocate();
-    b.data()[0] = 1.0f;
-    b.data()[1] = 2.0f;
-    b.data()[2] = 3.0f;
-
-    std::vector<float> dump;
-
-    for (const auto& e : b) {
-        dump.push_back(e);
-    }
-
-    ASSERT_EQ(dump.size(), 3);
-
-    ASSERT_EQ(dump[0], 1.0f);
-    ASSERT_EQ(dump[1], 2.0f);
-    ASSERT_EQ(dump[2], 3.0f);
-}
-
-TEST_F(BlobTests, DISABLED_canUseLockedMemoryAsRvalueReference) {
-    std::vector<float> dump;
-    std::vector<float> v({1.0f, 2.0f, 3.0f});
-    auto blob = InferenceEngine::make_shared_blob<float>(
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, InferenceEngine::C),
-        &v[0],
-        v.size());
-    for (auto e : *blob) {
-        dump.push_back(e);
-    }
-
-    ASSERT_EQ(dump.size(), 3);
-
-    ASSERT_EQ(dump[0], 1.0f);
-    ASSERT_EQ(dump[1], 2.0f);
-    ASSERT_EQ(dump[2], 3.0f);
-}
-
-TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
-    float input[] = {0.1f, 0.2f, 0.3f};
-    {
-        auto b = InferenceEngine::make_shared_blob<float>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {1, 2}, InferenceEngine::HW),
-            input);
-        auto i = b->begin();
-        ASSERT_NEAR(*i, 0.1, 0.00001);
-        i++;
-        ASSERT_NEAR(*i, 0.2, 0.00001);
-        i++;
-        ASSERT_EQ(i, b->end());
-
-        ASSERT_EQ(&*b->begin(), input);
-    }
-}
-
 // SetShape
 TEST_F(BlobTests, canSetShape) {
     auto b = InferenceEngine::make_shared_blob<float>(
@@ -348,20 +291,6 @@ TEST_F(BlobTests, canSetShape) {
     ASSERT_EQ(newDims[0], 4);
     ASSERT_EQ(newDims[1], 5);
     ASSERT_EQ(newDims[2], 6);
-}
-
-TEST_F(BlobTests, canModifyDataInRangedFor) {
-    InferenceEngine::SizeVector v = {1, 2, 3};
-    InferenceEngine::TBlob<int> blob({InferenceEngine::Precision::I32, v, InferenceEngine::CHW});
-    blob.allocate();
-
-    for (auto& data : blob) {
-        data = 5;
-    }
-
-    for (size_t i = 0; i < v.size(); i++) {
-        ASSERT_EQ(5, blob.data()[i]) << "Mismatch at" << i;
-    }
 }
 
 TEST_F(BlobTests, makeRoiBlobNchw) {
