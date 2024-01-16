@@ -9,8 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include "openvino/core/type/element_type.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -24,8 +22,7 @@ typedef std::tuple<ConstantSubgraphType,
                    ov::Shape,          // input shape
                    ov::element::Type,  // input element type
                    std::string         // Device name
-                   >
-    constResultParams;
+    > constResultParams;
 
 class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
                                    virtual public ov::test::SubgraphBaseTest {
@@ -41,28 +38,3 @@ protected:
 
 }  // namespace test
 }  // namespace ov
-
-namespace SubgraphTestsDefinitions {
-
-using ov::test::ConstantSubgraphType;
-
-typedef std::tuple<ConstantSubgraphType,
-                   InferenceEngine::SizeVector,  // input shape
-                   InferenceEngine::Precision,   // input precision
-                   std::string                   // Device name
-                   >
-    constResultParams;
-
-class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
-                                   virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
-    void createGraph(const ConstantSubgraphType& type,
-                     const InferenceEngine::SizeVector& inputShape,
-                     const InferenceEngine::Precision& inputPrecision);
-
-protected:
-    void SetUp() override;
-};
-
-}  // namespace SubgraphTestsDefinitions
