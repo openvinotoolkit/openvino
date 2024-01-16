@@ -39,7 +39,7 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::get(
 
     return std::make_shared<ov::Model>(
         ov::ResultVector{ std::make_shared<ov::opset1::Result>(parent) },
-        ov::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
+        ov::ParameterVector{ ov::as_type_ptr<ov::op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
 
@@ -83,7 +83,7 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::get(
 
     return std::make_shared<ov::Model>(
         ov::ResultVector{ std::make_shared<ov::opset1::Result>(parent) },
-        ov::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
+        ov::ParameterVector{ ov::as_type_ptr<ov::op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
 
@@ -112,7 +112,7 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::getOriginal(
 
     return std::make_shared<ov::Model>(
         ov::ResultVector{ std::make_shared<ov::opset1::Result>(multiply) },
-        ov::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
+        ov::ParameterVector{ ov::as_type_ptr<ov::op::v0::Parameter>(input) },
         "Dequantization");
 }
 
@@ -120,7 +120,7 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::getReference(
     ov::pass::low_precision::FakeQuantizeDequantization dequantization) {
     return std::make_shared<ov::Model>(
         ov::ResultVector{ std::make_shared<ov::opset1::Result>(dequantization.multiply) },
-        ov::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
+        ov::ParameterVector{ ov::as_type_ptr<ov::op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
         "Dequantization");
 }
 

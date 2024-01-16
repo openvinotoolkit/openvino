@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <regex>
 
+#include "ngraph/graph_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"

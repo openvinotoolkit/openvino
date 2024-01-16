@@ -68,8 +68,8 @@ std::shared_ptr<ov::Model> PadFunction::get(
     pad->set_friendly_name("Pad");
 
     const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
-        ParameterVector{ input }, "PadTransformation");
+        ov::ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
+        ov::ParameterVector{ input }, "PadTransformation");
 
     return function;
 }

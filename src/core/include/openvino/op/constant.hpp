@@ -12,8 +12,8 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/util.hpp"
-#include "openvino/core/rtti.hpp"
+#include "openvino/core/axis_vector.hpp"
+#include "openvino/core/graph_util.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #    undef IN_OV_COMPONENT

@@ -18,6 +18,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/util/common_util.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "ov_models/ov_builders/split.hpp"
 
@@ -191,9 +192,7 @@ struct LSTMAttributes {
           m_activation_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
           m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))} {
         m_clip_threshold = std::abs(m_clip_threshold);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::string direction = ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
 
         m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
     }

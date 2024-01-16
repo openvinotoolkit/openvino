@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/graph_util.hpp"
+
 #include "snippets/lowered/linear_ir.hpp"
 
 #include "snippets/itt.hpp"
