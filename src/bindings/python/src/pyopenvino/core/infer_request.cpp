@@ -716,10 +716,12 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self, false, false);
+            return Common::outputs_to_dict(self, false, true);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
+
+            Note: All string-based data is decoded by default.
 
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
