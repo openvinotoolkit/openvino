@@ -376,10 +376,16 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                 }
             }
 
-            for (size_t d = 0; d < input0_pshape.size(); ++d) {
-                bool sizes_equal = input0_pshape[d] == input_pshape[d];
+            auto base_pshape = input0_pshape;
+            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
+                base_pshape.size() < input_pshape.size()) {
+                base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
+            }
+
+            for (size_t d = 0; d < base_pshape.size(); ++d) {
+                bool sizes_equal = base_pshape[d] == input_pshape[d];
                 bool broadcast =
-                    (input0_pshape[d] == 1 || input_pshape[d] == 1) && (input0_pshape[d] != 1 || input_pshape[d] != 1);
+                    (base_pshape[d] == 1 || input_pshape[d] == 1) && (base_pshape[d] != 1 || input_pshape[d] != 1);
                 CLDNN_ERROR_BOOL(node.id(),
                                  "Sizes equal or broadcast is possible",
                                  !(sizes_equal || broadcast),
