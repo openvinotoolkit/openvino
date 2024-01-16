@@ -7,17 +7,17 @@ tests to these workflows or adding an entirely new workflow.
 
 ## Add Tests to the Already Existing Workflow
 
-### Add Tests to the Existing test suite 
+### Add Tests to the Existing Test Suite
 
 If the new tests could be executed as a part of the already existing test suite, e.g., new OVC Python API tests, 
 there is no need to change the workflows, the added tests would be executed automatically in the corresponding step. 
 
 Review the [workflows](./../../../../.github/workflows) and their jobs to know which tests are already enabled. 
-Additionally, review the component's tests and how they are executed. 
+Additionally, review the component's tests and how they are executed.
 
-### Create a Step in the Job
+### Create a Step in a Job
 
-If there is no job in the workflows that has the needed test suite, a new step could be added to the job. 
+If there is no step in the jobs that has the needed test suite, a new step could be added to the job. 
 The steps are the commands that are executed one by one and united under one job. 
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more.
 
@@ -115,3 +115,33 @@ The dedicated workflow example is [`fedora.yml`](./../../../../.github/workflows
 * the usage of the [Smart CI system](./smart_ci.md)
 * the usage of the [self-hosted runners](./runners.md) and [Docker images](./docker_images.md)
 * the usage of [caches](./caches.md)
+
+## Test Times and Usage
+
+Be mindful about time and runners usage when adding new steps, jobs and workflows.
+
+### Adding a Step
+
+When adding a step in a job, consider checking the times of the other steps in the job, 
+it is best if the step's execution time does not lengthen the execution time of the job too much and is in-line with the execution times of other steps.
+
+If the step takes a lot of time, it might be better to [extract it into a separate job](#adding-a-job) so that it runs in parallel with other jobs. 
+Additionally, when creating a job with this step, it would be possible to [pick a more powerful runner](./runners.md) to shorten the execution time.
+
+### Adding a Job
+
+When adding a job, consider checking the times of the other jobs in a workflow, it is best if the new job's execution time 
+does not exceed the time of the longest job in the workflow.
+
+If the job takes a lot of time, it might be possible to run it not on the pre-commit basis but on a post-commit/nightly/weekly basis. 
+Refer to [this document](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules. 
+Additionally, it could be possible to [pick a more powerful runner](./runners.md) to shorten the execution time.
+
+### Adding a Workflow
+
+When adding a workflow, consider checking the times of the other workflows, it is best if the new workflow's execution time 
+does not exceed the time of the longest workflow.
+
+If the workflow takes a lot of time, it might be possible to run it not on the pre-commit basis but on a post-commit/nightly/weekly basis. 
+Refer to [this document](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules. 
+Additionally, make sure [the right runners](./runners.md) are picked for each job so that the execution times are optimal.
