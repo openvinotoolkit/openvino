@@ -403,7 +403,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::index - Supported in limited set of patterns
         {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
         {"aten::index_add", op::translate_index_add},
-        {"aten::index_add_",  op::inplace_op<op::translate_index_add>},
+        {"aten::index_add_", op::inplace_op<op::translate_index_add>},
         {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
