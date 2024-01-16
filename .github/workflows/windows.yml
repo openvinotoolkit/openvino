@@ -280,12 +280,14 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Build cpp samples
-        run: & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/cpp_samples
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Build c samples
-        run: & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       - name: Samples tests
         run: |
