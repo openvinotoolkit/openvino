@@ -166,7 +166,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
     list(APPEND BUILD_PATH_VARS "ONEDNN_GPU_LIB_PATH")
 endif()
 
-set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(OV_TBB_DIR "${TBB_DIR}")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
