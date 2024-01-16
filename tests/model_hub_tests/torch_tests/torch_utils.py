@@ -59,7 +59,7 @@ class TestTorchConvertModel(TestConvertModel):
         if isinstance(inputs, dict):
             return dict((k, v.numpy()) for k, v in inputs.items())
         else:
-            return [i.numpy() for i in inputs]
+            return flattenize_structure(inputs)
 
     def convert_model(self, model_obj):
         try:
