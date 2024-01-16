@@ -3,6 +3,7 @@
 //
 
 #include "compress_quantize_weights.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -235,7 +236,7 @@ static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
         return false;
 
     ov::TensorVector output_tensors{ov::Tensor(node->get_output_element_type(0), node->get_output_shape(0))};
-    if (!node->evaluate(output_tensors, input_tensors))
+    if (!ov::util::evaluate_node(node, input_tensors, output_tensors))
         return false;
 
     output_tensor = output_tensors[0];
