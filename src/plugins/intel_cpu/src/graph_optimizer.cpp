@@ -1378,7 +1378,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
         }
 //Disable ACL post-ops in fp16 to avoid performance degradation
 #if defined(OPENVINO_ARCH_ARM64)
-        if (childNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
             parent++;
             continue;
         }
@@ -1434,7 +1434,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
         }
 //Disable ACL post-ops in fp16 to avoid performance degradation
 #if defined(OPENVINO_ARCH_ARM64)
-        if (childNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
             parent++;
             continue;
         }
@@ -1573,7 +1573,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
 //Disable ACL post-ops in fp16 to avoid performance degradation
 #if defined(OPENVINO_ARCH_ARM64)
-        ret = ret && child->getOriginalInputPrecisionAtPort(0) != ov::element::f16;
+        ret = ret && conv->getOriginalInputPrecisionAtPort(0) != ov::element::f16;
 #endif
     return ret;
     };
