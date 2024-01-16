@@ -85,7 +85,7 @@ jobs:
       - name: Clone ONNX Runtime
         run: |
           branch=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
-          git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git ${ONNX_RUNTIME_REPO}
+          git clone --branch $branch --single-branch --recursive https://github.com/ilya-lavrenov/onnxruntime.git ${ONNX_RUNTIME_REPO}
 
       #
       # Tests
