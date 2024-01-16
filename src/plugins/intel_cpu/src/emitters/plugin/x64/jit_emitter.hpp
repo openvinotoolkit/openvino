@@ -19,6 +19,33 @@
 namespace ov {
 namespace intel_cpu {
 
+inline std::string jit_emitter_pretty_name(const std::string &pretty_func) {
+    // Example:
+    //      pretty_func := void ov::intel_cpu::jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const
+    //      begin := -----------|
+    //      end := ---------------------------------------------------|
+    //      result := ov::intel_cpu::jit_load_memory_emitter
+    auto find_3th = [](const std::string &pretty_func, size_t begin) {
+        const auto nested_namespaces = 3; // ov, intel_cpu, class_name
+        size_t end = begin;
+        for (size_t i = 0; i < nested_namespaces; i++)
+            end = pretty_func.find("::", end + 1);
+        return end;
+    };
+    const auto scope_op = pretty_func.find("::");
+    const auto begin = pretty_func.substr(0, scope_op).rfind(" ") + 1;
+    const auto end = find_3th(pretty_func, begin);
+    return pretty_func.substr(begin, end - begin);
+}
+
+#ifdef __GNUC__
+#define OV_CPU_JIT_EMITTER_NAME jit_emitter_pretty_name(__PRETTY_FUNCTION__)
+#else /* __GNUC__ */
+#define OV_CPU_JIT_EMITTER_NAME jit_emitter_pretty_name(__FUNCSIG__)
+#endif /* __GNUC__ */
+#define OV_CPU_JIT_EMITTER_THROW(...) OPENVINO_THROW(OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
+#define OV_CPU_JIT_EMITTER_ASSERT(cond, ...) OPENVINO_ASSERT((cond), OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
+
 enum emitter_in_out_map {
     vec_to_vec,
     vec_to_gpr,
@@ -167,7 +194,7 @@ private:
         // share their broadcast property
         // TODO: enforce through data structure
         const auto it = entry_map_.find(key); // search an entry for a key
-        OPENVINO_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
+        OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
         const auto &te = (*it).second;
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
