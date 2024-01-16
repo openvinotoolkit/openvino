@@ -6,33 +6,66 @@
 
 #include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "ov_models/ov_builders/split.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
+NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
                         int64_t num_heads,
                         const std::vector<int64_t>& qkv_hidden_sizes);
 
-using NodeTuple = std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>;
+using NodeTuple = std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
 
 NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional);
 
-std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
-                                                const std::shared_ptr<ngraph::Node>& Q,
-                                                std::shared_ptr<ngraph::Node> K,
-                                                std::shared_ptr<ngraph::Node> V,
-                                                const std::shared_ptr<ngraph::Node>& attention_mask,
-                                                const std::shared_ptr<ngraph::Node>& bin_mask,
-                                                const std::shared_ptr<ngraph::Node>& head_size,
-                                                bool unidirectional);
+std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
+                                            const std::shared_ptr<ov::Node>& Q,
+                                            std::shared_ptr<ov::Node> K,
+                                            std::shared_ptr<ov::Node> V,
+                                            const std::shared_ptr<ov::Node>& attention_mask,
+                                            const std::shared_ptr<ov::Node>& bin_mask,
+                                            const std::shared_ptr<ov::Node>& head_size,
+                                            bool unidirectional);
 
-std::shared_ptr<ngraph::Node> get_present_state(const std::shared_ptr<ngraph::Node>& K,
-                                                const std::shared_ptr<ngraph::Node>& V,
-                                                const OutputVector& op_inputs);
+std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
+                                            const std::shared_ptr<ov::Node>& V,
+                                            const OutputVector& op_inputs);
 }  // namespace
 }  // namespace detail
 
@@ -51,8 +84,8 @@ OutputVector attention(const Node& node) {
     // So the approach here is to do a single big matrix multiply
     // and then split the result into Q, K, V matrices
 
-    auto matmul = std::make_shared<default_opset::MatMul>(input, weights);
-    auto add = std::make_shared<default_opset::Add>(matmul, bias);
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto add = std::make_shared<v1::Add>(matmul, bias);
 
     const auto num_heads = node.get_attribute_value<int64_t>("num_heads");
     const auto qkv_hidden_sizes = node.get_attribute_value<std::vector<int64_t>>("qkv_hidden_sizes", {});
@@ -63,7 +96,7 @@ OutputVector attention(const Node& node) {
     // broadcastable to (batch_size, num_heads, sequence_length, past_sequence_length + sequence_length)
     // so it can be added to Q x K' later
     // past_sequence_length can be 0 if 'past' input is not available
-    std::shared_ptr<ngraph::Node> attention_mask = nullptr, bin_mask = nullptr;
+    std::shared_ptr<ov::Node> attention_mask = nullptr, bin_mask = nullptr;
     std::tie(attention_mask, bin_mask) = detail::get_attention_mask(nodes, unidirectional);
 
     const auto& Q = split_result[0];
@@ -86,57 +119,55 @@ OutputVector attention(const Node& node) {
 namespace detail {
 namespace {
 
-std::shared_ptr<ngraph::Node> get_dimensions(const std::shared_ptr<default_opset::ShapeOf>& shape,
-                                             const std::vector<int>& dims) {
-    static const auto zero = default_opset::Constant::create(element::i32, Shape{}, {0});
-    const auto dims_const = default_opset::Constant::create(element::i32, Shape{dims.size()}, dims);
-    return std::make_shared<default_opset::Gather>(shape, dims_const, zero);
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
+    static const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+    const auto dims_const = v0::Constant::create(element::i32, Shape{dims.size()}, dims);
+    return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
-std::shared_ptr<ngraph::Node> get_dimensions(const std::shared_ptr<ngraph::Node>& node, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<default_opset::ShapeOf>(node), dims);
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
+    return get_dimensions(std::make_shared<v3::ShapeOf>(node), dims);
 }
 
-std::shared_ptr<ngraph::Node> get_hidden_size(const std::shared_ptr<default_opset::ShapeOf>& node_shape) {
+std::shared_ptr<ov::Node> get_hidden_size(const std::shared_ptr<v3::ShapeOf>& node_shape) {
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
-    const auto zero = default_opset::Constant::create(element::i32, Shape{}, {0});
+    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     const auto hidden_size_x3 = get_dimensions(node_shape, {2});
-    const auto three = default_opset::Constant::create(element::i64, Shape{}, {3});
-    const auto hidden_size = std::make_shared<default_opset::Divide>(hidden_size_x3, three);
+    const auto three = v0::Constant::create(element::i64, Shape{}, {3});
+    const auto hidden_size = std::make_shared<v1::Divide>(hidden_size_x3, three);
     return hidden_size;
 }
 
-NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
+NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
                         int64_t num_heads,
                         const std::vector<int64_t>& qkv_hidden_sizes) {
     OutputVector split;
-    std::shared_ptr<ngraph::Node> head_size = nullptr;
+    std::shared_ptr<ov::Node> head_size = nullptr;
     const auto& node_type = node->get_element_type();
-    const auto node_shape = std::make_shared<default_opset::ShapeOf>(node);
+    const auto node_shape = std::make_shared<v3::ShapeOf>(node);
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
     // fetch the first two dimensions
     const auto batch_size_seq_len = get_dimensions(node_shape, {0, 1});
-    const auto num_heads_node = default_opset::Constant::create(element::i64, Shape{1}, {num_heads});
+    const auto num_heads_node = v0::Constant::create(element::i64, Shape{1}, {num_heads});
     if (qkv_hidden_sizes.size() == 0) {
         const auto hidden_size = get_hidden_size(node_shape);
         // head_size = hidden_size / num_heads
-        head_size = std::make_shared<default_opset::Divide>(hidden_size, num_heads_node);
+        head_size = std::make_shared<v1::Divide>(hidden_size, num_heads_node);
         // split the node into 3 even parts Q, K, V with shape (batch_size, sequence_len, hidden_size)
         split = ov::op::util::split(node, 3, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
-        auto new_shape =
-            std::make_shared<default_opset::Concat>(NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
+        auto new_shape = std::make_shared<v0::Concat>(NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
         for (size_t i = 0; i < split.size(); i++) {
-            split[i] = std::make_shared<default_opset::Reshape>(split[i], new_shape, false);
+            split[i] = std::make_shared<v1::Reshape>(split[i], new_shape, false);
         }
-        head_size = std::make_shared<default_opset::Convert>(head_size, node_type);
+        head_size = std::make_shared<v0::Convert>(head_size, node_type);
     } else {
         // in this case, weights have shape
         // (input_hidden_size, qkv_hidden_sizes[0] + qkv_hidden_sizes[1] + qkv_hidden_sizes[2])
         // so user specified hidden_sizes for Q, K and V
-        NGRAPH_CHECK(qkv_hidden_sizes.size() == 3, "qkv_hidden_sizes attribute needs to have 3 values");
-        NGRAPH_CHECK(qkv_hidden_sizes[0] == qkv_hidden_sizes[1],
-                     "qkv_hidden_sizes first element should be same as the second");
+        FRONT_END_GENERAL_CHECK(qkv_hidden_sizes.size() == 3, "qkv_hidden_sizes attribute needs to have 3 values");
+        FRONT_END_GENERAL_CHECK(qkv_hidden_sizes[0] == qkv_hidden_sizes[1],
+                                "qkv_hidden_sizes first element should be same as the second");
         // split the node into 3 parts Q, K, V with shapes
         // Q: (batch_size, sequence_len, qkv_hidden_sizes[0])
         // K: (batch_size, sequence_len, qkv_hidden_sizes[1])
@@ -144,23 +175,23 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         split = ov::op::util::split(node, qkv_hidden_sizes, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         for (size_t i = 0; i < split.size(); i++) {
-            auto new_shape = std::make_shared<default_opset::Concat>(
+            auto new_shape = std::make_shared<v0::Concat>(
                 NodeVector{batch_size_seq_len,
                            num_heads_node,
-                           default_opset::Constant::create(element::i64, Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
+                           v0::Constant::create(element::i64, Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
                 0);
-            split[i] = std::make_shared<default_opset::Reshape>(split[i], new_shape, false);
+            split[i] = std::make_shared<v1::Reshape>(split[i], new_shape, false);
         }
         float head_size_val = qkv_hidden_sizes[0] > 0 ? static_cast<float>(qkv_hidden_sizes[0]) / num_heads
                                                       : static_cast<float>(qkv_hidden_sizes[2]) / num_heads;
-        head_size = default_opset::Constant::create(node_type, Shape{1}, {head_size_val});
+        head_size = v0::Constant::create(node_type, Shape{1}, {head_size_val});
     }
 
     // transpose Q, K and V to (batch_size, num_heads, sequence_len, head_size)
-    auto perm = default_opset::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
-    auto Q = std::make_shared<default_opset::Transpose>(split[0], perm);
-    auto K = std::make_shared<default_opset::Transpose>(split[1], perm);
-    auto V = std::make_shared<default_opset::Transpose>(split[2], perm);
+    auto perm = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
+    auto Q = std::make_shared<v1::Transpose>(split[0], perm);
+    auto K = std::make_shared<v1::Transpose>(split[1], perm);
+    auto V = std::make_shared<v1::Transpose>(split[2], perm);
 
     return {Q, K, V, head_size};
 }
@@ -188,7 +219,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
 // e.g., for batch = 1, -10000 values appear within two ranges [0, mask_index[4]] and [mask_index[1]:5] (or [0:2],[4:5])
 //
 //
-// This is how it's done with nGraph operations:
+// This is how it's done with OpenVINO operations:
 //
 //  First the 'base' is generated by range + broadcast:
 //     base = range(0, all_seq_len)
@@ -235,62 +266,51 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
 // Handling both mask_index variants (so (batch_size) and (2 * batch_size)) is tricky since we don't
 // know its dimensions upfront. So we compute both variants and use Select operator to select
 // the right one in the runtime (unless it gets constantfolded before).
-std::shared_ptr<ngraph::Node> attention_mask_from_indices(const Output<ngraph::Node>& mask_index,
-                                                          const element::Type_t& type,
-                                                          const std::shared_ptr<ngraph::Node>& batch_size,
-                                                          const std::shared_ptr<ngraph::Node>& all_seq_len) {
-    const auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
-    const auto one = default_opset::Constant::create(element::i64, Shape{}, {1});
-    const auto stop = std::make_shared<default_opset::Squeeze>(all_seq_len, zero);
-    std::shared_ptr<ngraph::Node> base =
-        std::make_shared<default_opset::Range>(zero, stop, one, mask_index.get_element_type());
-    const auto target_shape = std::make_shared<default_opset::Concat>(NodeVector{batch_size, all_seq_len}, 0);
+std::shared_ptr<ov::Node> attention_mask_from_indices(const Output<ov::Node>& mask_index,
+                                                      const element::Type_t& type,
+                                                      const std::shared_ptr<ov::Node>& batch_size,
+                                                      const std::shared_ptr<ov::Node>& all_seq_len) {
+    const auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+    const auto one = v0::Constant::create(element::i64, Shape{}, {1});
+    const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
+    std::shared_ptr<ov::Node> base = std::make_shared<v4::Range>(zero, stop, one, mask_index.get_element_type());
+    const auto target_shape = std::make_shared<v0::Concat>(NodeVector{batch_size, all_seq_len}, 0);
     // broadcast 'base' to (batch_size, all_seq_len)
-    base = std::make_shared<default_opset::Broadcast>(base, target_shape);
-    const auto indices_shape = std::make_shared<default_opset::Concat>(
-        NodeVector{default_opset::Constant::create(element::i64, Shape{1}, {-1}), batch_size},
-        0);
-    std::shared_ptr<ngraph::Node> indices = std::make_shared<default_opset::Reshape>(mask_index, indices_shape, false);
+    base = std::make_shared<v3::Broadcast>(base, target_shape);
+    const auto indices_shape =
+        std::make_shared<v0::Concat>(NodeVector{v0::Constant::create(element::i64, Shape{1}, {-1}), batch_size}, 0);
+    std::shared_ptr<ov::Node> indices = std::make_shared<v1::Reshape>(mask_index, indices_shape, false);
     // fetch first row from indices
-    std::shared_ptr<ngraph::Node> tail_range_indices = std::make_shared<default_opset::Gather>(indices, zero, zero);
+    std::shared_ptr<ov::Node> tail_range_indices = std::make_shared<v8::Gather>(indices, zero, zero);
     tail_range_indices =
-        std::make_shared<default_opset::Reshape>(tail_range_indices,
-                                                 default_opset::Constant::create(element::i32, Shape{2}, {-1, 1}),
-                                                 false);
-    const auto greater_eq = std::make_shared<default_opset::GreaterEqual>(base, tail_range_indices);
-    std::shared_ptr<ngraph::Node> tail_range_mask =
-        std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Convert>(greater_eq, type),
-                                                  default_opset::Constant::create(type, Shape{}, {-10000}));
+        std::make_shared<v1::Reshape>(tail_range_indices, v0::Constant::create(element::i32, Shape{2}, {-1, 1}), false);
+    const auto greater_eq = std::make_shared<v1::GreaterEqual>(base, tail_range_indices);
+    std::shared_ptr<ov::Node> tail_range_mask =
+        std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(greater_eq, type),
+                                       v0::Constant::create(type, Shape{}, {-10000}));
     tail_range_mask =
-        std::make_shared<default_opset::Unsqueeze>(tail_range_mask,
-                                                   default_opset::Constant::create(element::i64, Shape{2}, {1, 2}));
+        std::make_shared<v0::Unsqueeze>(tail_range_mask, v0::Constant::create(element::i64, Shape{2}, {1, 2}));
 
     const auto gather_index =
-        std::make_shared<default_opset::FloorMod>(default_opset::Constant::create(element::i64, Shape{}, {1}),
-                                                  get_dimensions(indices, {0}));
+        std::make_shared<v1::FloorMod>(v0::Constant::create(element::i64, Shape{}, {1}), get_dimensions(indices, {0}));
     // fetch indices from the second row (or first if not available)
-    std::shared_ptr<ngraph::Node> head_range_indices =
-        std::make_shared<default_opset::Gather>(indices, gather_index, zero);
+    std::shared_ptr<ov::Node> head_range_indices = std::make_shared<v8::Gather>(indices, gather_index, zero);
     head_range_indices =
-        std::make_shared<default_opset::Reshape>(head_range_indices,
-                                                 default_opset::Constant::create(element::i32, Shape{2}, {-1, 1}),
-                                                 false);
-    const auto less = std::make_shared<default_opset::Less>(base, head_range_indices);
-    std::shared_ptr<ngraph::Node> mask = std::make_shared<default_opset::LogicalOr>(less, greater_eq);
-    mask = std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Convert>(mask, type),
-                                                     default_opset::Constant::create(type, Shape{}, {-10000}));
+        std::make_shared<v1::Reshape>(head_range_indices, v0::Constant::create(element::i32, Shape{2}, {-1, 1}), false);
+    const auto less = std::make_shared<v1::Less>(base, head_range_indices);
+    std::shared_ptr<ov::Node> mask = std::make_shared<v1::LogicalOr>(less, greater_eq);
+    mask = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(mask, type),
+                                          v0::Constant::create(type, Shape{}, {-10000}));
     // reshape from (batch_size, all_seq_len) to (batch_size, 1, 1, all_seq_len)
-    mask = std::make_shared<default_opset::Unsqueeze>(mask,
-                                                      default_opset::Constant::create(element::i64, Shape{2}, {1, 2}));
+    mask = std::make_shared<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{2}, {1, 2}));
 
     const auto mask_index_first_dim = get_dimensions(mask_index.get_node_shared_ptr(), {0});
     // compare mask_index.shape[0] with batch_size value
     // if they're equal - select tail_range_mask
     // else select full mask
-    mask = std::make_shared<default_opset::Select>(
-        std::make_shared<default_opset::Equal>(batch_size, mask_index_first_dim),
-        tail_range_mask,
-        mask);
+    mask = std::make_shared<v1::Select>(std::make_shared<v1::Equal>(batch_size, mask_index_first_dim),
+                                        tail_range_mask,
+                                        mask);
 
     return mask;
 }
@@ -320,26 +340,24 @@ std::shared_ptr<ngraph::Node> attention_mask_from_indices(const Output<ngraph::N
 // The approach used to generate those masks is similar to one from attention_mask_from_indices function (see comments
 // there).
 NodeTuple unidirectional_mask(const element::Type_t& type,
-                              const std::shared_ptr<ngraph::Node>& seq_len,
-                              const std::shared_ptr<ngraph::Node>& all_seq_len,
-                              const std::shared_ptr<ngraph::Node>& past_seq_len) {
-    const auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
-    const auto one = default_opset::Constant::create(element::i64, Shape{}, {1});
-    const auto stop = std::make_shared<default_opset::Squeeze>(all_seq_len, zero);
-    std::shared_ptr<ngraph::Node> bin_mask = std::make_shared<default_opset::Range>(zero, stop, one, element::i32);
-    auto target_shape = std::make_shared<default_opset::Concat>(NodeVector{seq_len, all_seq_len}, 0);
-    bin_mask = std::make_shared<default_opset::Broadcast>(bin_mask, target_shape);
-    auto start =
-        std::make_shared<default_opset::Squeeze>(std::make_shared<default_opset::Add>(past_seq_len, one), zero);
-    auto end = std::make_shared<default_opset::Squeeze>(std::make_shared<default_opset::Add>(all_seq_len, one), zero);
-    auto indices = std::make_shared<default_opset::Unsqueeze>(
-        std::make_shared<default_opset::Range>(start, end, one, element::i32),
-        default_opset::Constant::create(element::i32, Shape{1}, {1}));
-    bin_mask = std::make_shared<default_opset::GreaterEqual>(bin_mask, indices);
-    std::shared_ptr<ngraph::Node> attention_mask =
-        std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Convert>(bin_mask, type),
-                                                  default_opset::Constant::create(type, Shape{}, {-10000}));
-    bin_mask = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::LogicalNot>(bin_mask), type);
+                              const std::shared_ptr<ov::Node>& seq_len,
+                              const std::shared_ptr<ov::Node>& all_seq_len,
+                              const std::shared_ptr<ov::Node>& past_seq_len) {
+    const auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+    const auto one = v0::Constant::create(element::i64, Shape{}, {1});
+    const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
+    std::shared_ptr<ov::Node> bin_mask = std::make_shared<v4::Range>(zero, stop, one, element::i32);
+    auto target_shape = std::make_shared<v0::Concat>(NodeVector{seq_len, all_seq_len}, 0);
+    bin_mask = std::make_shared<v3::Broadcast>(bin_mask, target_shape);
+    auto start = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(past_seq_len, one), zero);
+    auto end = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(all_seq_len, one), zero);
+    auto indices = std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(start, end, one, element::i32),
+                                                   v0::Constant::create(element::i32, Shape{1}, {1}));
+    bin_mask = std::make_shared<v1::GreaterEqual>(bin_mask, indices);
+    std::shared_ptr<ov::Node> attention_mask =
+        std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(bin_mask, type),
+                                       v0::Constant::create(type, Shape{}, {-10000}));
+    bin_mask = std::make_shared<v0::Convert>(std::make_shared<v1::LogicalNot>(bin_mask), type);
     return NodeTuple{attention_mask, bin_mask};
 }
 
@@ -354,43 +372,37 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
 //
 // Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
-std::shared_ptr<ngraph::Node> raw_mask(const Output<ngraph::Node>& mask_index,
-                                       Dimension::value_type mask_rank,
-                                       const element::Type_t& type) {
-    std::shared_ptr<ngraph::Node> mask = std::make_shared<default_opset::Convert>(mask_index, type);
-    mask = std::make_shared<default_opset::Convert>(mask, type);
-    mask = std::make_shared<default_opset::Subtract>(default_opset::Constant::create(type, Shape{}, {1}), mask);
-    mask = std::make_shared<default_opset::Multiply>(mask, default_opset::Constant::create(type, Shape{}, {-10000}));
+std::shared_ptr<ov::Node> raw_mask(const Output<ov::Node>& mask_index,
+                                   ov::Dimension::value_type mask_rank,
+                                   const element::Type_t& type) {
+    std::shared_ptr<ov::Node> mask = std::make_shared<v0::Convert>(mask_index, type);
+    mask = std::make_shared<v0::Convert>(mask, type);
+    mask = std::make_shared<v1::Subtract>(v0::Constant::create(type, Shape{}, {1}), mask);
+    mask = std::make_shared<v1::Multiply>(mask, v0::Constant::create(type, Shape{}, {-10000}));
     switch (mask_rank) {
     // Handle mask_index with (batch_size, past_sequence_length + sequence_length) shape
     // Reshape it to (batch_size, 1, 1, past_sequence_length + sequence_length)
     case 2:
-        mask = std::make_shared<default_opset::Reshape>(
-            mask,
-            default_opset::Constant::create(element::i64, Shape{4}, {0, 1, 1, -1}),
-            true);
+        mask = std::make_shared<v1::Reshape>(mask, v0::Constant::create(element::i64, Shape{4}, {0, 1, 1, -1}), true);
         break;
     // Handle mask_index with (batch_size, sequence_length, past_sequence_length + sequence_length) shape
     // Reshape it to (batch_size, 1, sequence_length, past_sequence_length + sequence_length)
     case 3:
-        mask = std::make_shared<default_opset::Reshape>(
-            mask,
-            default_opset::Constant::create(element::i64, Shape{4}, {0, 1, 0, -1}),
-            true);
+        mask = std::make_shared<v1::Reshape>(mask, v0::Constant::create(element::i64, Shape{4}, {0, 1, 0, -1}), true);
         break;
     }
     return mask;
 }
 
 bool is_past_input_available(const OutputVector& op_inputs) {
-    return op_inputs.size() > 4 && !ngraph::op::is_null(op_inputs[4]);
+    return op_inputs.size() > 4 && !ov::op::util::is_null(op_inputs[4]);
 }
 
 NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional) {
-    const auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
-    const auto one = default_opset::Constant::create(element::i64, Shape{1}, {1});
+    const auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+    const auto one = v0::Constant::create(element::i64, Shape{1}, {1});
 
-    std::shared_ptr<ngraph::Node> past_seq_len;
+    std::shared_ptr<ov::Node> past_seq_len;
     // get the value of past_sequence_length
     if (is_past_input_available(op_inputs)) {
         const auto& past = op_inputs[4];
@@ -401,23 +413,23 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
     }
 
     // 'input' node has shape (batch_size, sequence_length, input_hidden_size)
-    auto input_shape = std::make_shared<default_opset::ShapeOf>(op_inputs[0]);
+    auto input_shape = std::make_shared<v3::ShapeOf>(op_inputs[0]);
     auto seq_len = get_dimensions(input_shape, {1});
-    auto all_seq_len = std::make_shared<default_opset::Add>(seq_len, past_seq_len);
+    auto all_seq_len = std::make_shared<v1::Add>(seq_len, past_seq_len);
     const auto& type = op_inputs[0].get_element_type();
-    std::shared_ptr<ngraph::Node> attention_mask = nullptr;
-    std::shared_ptr<ngraph::Node> bin_mask = nullptr;
+    std::shared_ptr<ov::Node> attention_mask = nullptr;
+    std::shared_ptr<ov::Node> bin_mask = nullptr;
     if (unidirectional) {
         std::tie(attention_mask, bin_mask) = unidirectional_mask(type, seq_len, all_seq_len, past_seq_len);
     }
-    if (op_inputs.size() > 3 && !ngraph::op::is_null(op_inputs[3])) {
+    if (op_inputs.size() > 3 && !ov::op::util::is_null(op_inputs[3])) {
         const auto& mask_index = op_inputs[3];
-        NGRAPH_CHECK(mask_index.get_element_type() == element::i32, "'mask_index' type must be int32");
+        FRONT_END_GENERAL_CHECK(mask_index.get_element_type() == element::i32, "'mask_index' type must be int32");
         auto batch_size = get_dimensions(input_shape, {0});
         const auto mask_rank = mask_index.get_partial_shape().rank();
-        NGRAPH_CHECK(mask_rank.is_static(), "'mask_index' rank must be static");
+        FRONT_END_GENERAL_CHECK(mask_rank.is_static(), "'mask_index' rank must be static");
         auto mask_rank_val = mask_rank.get_length();
-        std::shared_ptr<ngraph::Node> mask;
+        std::shared_ptr<ov::Node> mask;
         if (mask_rank_val == 1) {
             // case when mask_index has shape (batch_size) or (2 * batch_size)
             // so it contains positions that specify how mask should be generated
@@ -425,11 +437,12 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
         } else if (mask_rank_val < 4) {
             mask = raw_mask(mask_index, mask_rank.get_length(), type);
         } else {
-            NGRAPH_CHECK(false, "mask_index with rank " + std::to_string(mask_rank_val) + " is not supported");
+            FRONT_END_GENERAL_CHECK(false,
+                                    "mask_index with rank " + std::to_string(mask_rank_val) + " is not supported");
         }
         // add the mask with unidirectional mask if available
         if (attention_mask) {
-            attention_mask = std::make_shared<default_opset::Add>(attention_mask, mask);
+            attention_mask = std::make_shared<v1::Add>(attention_mask, mask);
         } else {
             attention_mask = mask;
         }
@@ -438,15 +451,15 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
 }
 
 // Compute softmax(Q x K' / sqrt(head_size)) x V
-std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
-                                                const std::shared_ptr<ngraph::Node>& Q,
-                                                std::shared_ptr<ngraph::Node> K,
-                                                std::shared_ptr<ngraph::Node> V,
-                                                const std::shared_ptr<ngraph::Node>& attention_mask,
-                                                const std::shared_ptr<ngraph::Node>& bin_mask,
-                                                const std::shared_ptr<ngraph::Node>& head_size,
-                                                bool unidirectional) {
-    auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
+std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
+                                            const std::shared_ptr<ov::Node>& Q,
+                                            std::shared_ptr<ov::Node> K,
+                                            std::shared_ptr<ov::Node> V,
+                                            const std::shared_ptr<ov::Node>& attention_mask,
+                                            const std::shared_ptr<ov::Node>& bin_mask,
+                                            const std::shared_ptr<ov::Node>& head_size,
+                                            bool unidirectional) {
+    auto zero = v0::Constant::create(element::i64, Shape{}, {0});
     if (is_past_input_available(op_inputs)) {
         // concat past K and V with present ones
         const auto& past = op_inputs[4];
@@ -456,46 +469,46 @@ std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
         // so we need to split it into two parts, remove first dimension from each part and concatenate first part
         // with current K and second part with current V
         const auto split = ov::op::util::split(past, 2, 0);
-        const auto past_K = std::make_shared<default_opset::Squeeze>(split[0], zero);
-        K = std::make_shared<default_opset::Concat>(NodeVector{past_K, K}, 2);
-        const auto past_V = std::make_shared<default_opset::Squeeze>(split[1], zero);
-        V = std::make_shared<default_opset::Concat>(NodeVector{past_V, V}, 2);
+        const auto past_K = std::make_shared<v0::Squeeze>(split[0], zero);
+        K = std::make_shared<v0::Concat>(NodeVector{past_K, K}, 2);
+        const auto past_V = std::make_shared<v0::Squeeze>(split[1], zero);
+        V = std::make_shared<v0::Concat>(NodeVector{past_V, V}, 2);
     }
     // perform Q x K'
-    std::shared_ptr<ngraph::Node> softmax_input = std::make_shared<default_opset::MatMul>(Q, K, false, true);
+    std::shared_ptr<ov::Node> softmax_input = std::make_shared<v0::MatMul>(Q, K, false, true);
     // Q x K' + mask
     if (attention_mask) {
         if (unidirectional) {
             // Perform the equivalent of
             // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_cpu_base.h#L158-L166
             // For positions where unidirectional_mask has -10000 values - attention_mask is moved to softmax input
-            softmax_input = std::make_shared<default_opset::Multiply>(softmax_input, bin_mask);
+            softmax_input = std::make_shared<v1::Multiply>(softmax_input, bin_mask);
         }
-        softmax_input = std::make_shared<default_opset::Add>(softmax_input, attention_mask);
+        softmax_input = std::make_shared<v1::Add>(softmax_input, attention_mask);
     }
-    const auto sqrt = std::make_shared<default_opset::Sqrt>(head_size);
+    const auto sqrt = std::make_shared<v0::Sqrt>(head_size);
     // (Q x K' + mask) / sqrt(head_size)
-    softmax_input = std::make_shared<default_opset::Divide>(softmax_input, sqrt);
+    softmax_input = std::make_shared<v1::Divide>(softmax_input, sqrt);
     // handle 'extra_add' input
-    if (op_inputs.size() > 5 && !ngraph::op::is_null(op_inputs[5])) {
-        NGRAPH_CHECK(!is_past_input_available(op_inputs),
-                     "Cannot use both 'past' and 'extra_add' inputs in the same node");
+    if (op_inputs.size() > 5 && !ov::op::util::is_null(op_inputs[5])) {
+        FRONT_END_GENERAL_CHECK(!is_past_input_available(op_inputs),
+                                "Cannot use both 'past' and 'extra_add' inputs in the same node");
         const auto& extra_add = op_inputs[5];
-        softmax_input = std::make_shared<default_opset::Add>(softmax_input, extra_add);
+        softmax_input = std::make_shared<v1::Add>(softmax_input, extra_add);
     }
     // softmax((Q x K' + mask) / sqrt(head_size))
-    const auto softmax = std::make_shared<default_opset::Softmax>(softmax_input, 3);
+    const auto softmax = std::make_shared<v8::Softmax>(softmax_input, 3);
 
     // softmax((Q x K' + mask) / sqrt(head_size)) x V
-    std::shared_ptr<ngraph::Node> output = std::make_shared<default_opset::MatMul>(softmax, V);
+    std::shared_ptr<ov::Node> output = std::make_shared<v0::MatMul>(softmax, V);
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
     // to (batch_size, sequence_length, num_heads, head_size)
-    const auto perm = default_opset::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
-    output = std::make_shared<default_opset::Transpose>(output, perm);
-    auto new_shape = default_opset::Constant::create(element::i32, Shape{3}, {0, 0, -1});
+    const auto perm = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
+    output = std::make_shared<v1::Transpose>(output, perm);
+    auto new_shape = v0::Constant::create(element::i32, Shape{3}, {0, 0, -1});
     // reshape the result from (batch_size, sequence_length, num_heads, head_size) to (batch_size, sequence_length,
     // num_heads * head_size)
-    output = std::make_shared<default_opset::Reshape>(output, new_shape, true);
+    output = std::make_shared<v1::Reshape>(output, new_shape, true);
 
     return output;
 }
@@ -504,40 +517,35 @@ std::shared_ptr<ngraph::Node> attention_softmax(const OutputVector& op_inputs,
 // (batch_size, num_heads, sequence_length, head_size) to (1, batch_size, num_heads, sequence_length, head_size)
 // and concatenating them along first axis to make 'present' output.
 // If fifth input ('past') is available, it gets concatenated with 'present' output along fourth axis.
-std::shared_ptr<ngraph::Node> get_present_state(const std::shared_ptr<ngraph::Node>& K,
-                                                const std::shared_ptr<ngraph::Node>& V,
-                                                const OutputVector& op_inputs) {
-    auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
+std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
+                                            const std::shared_ptr<ov::Node>& V,
+                                            const OutputVector& op_inputs) {
+    auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
     // expand K shape (batch_size, num_heads, sequence_length, head_size) to
     // (1, batch_size, num_heads, sequence_length, head_size)
-    auto K_unsqueezed = std::make_shared<default_opset::Unsqueeze>(K, zero);
+    auto K_unsqueezed = std::make_shared<v0::Unsqueeze>(K, zero);
     // similarly expand V shape
-    auto V_unsqueezed = std::make_shared<default_opset::Unsqueeze>(V, zero);
+    auto V_unsqueezed = std::make_shared<v0::Unsqueeze>(V, zero);
 
     // add padding in case K and V have different shapes (it happens when used provided uneven qkv_hidden_sizes)
     // if the shapes are equal (so padding will be zero), Pad gets eliminated in NopElimination pass
-    const auto K_shape = std::make_shared<default_opset::ShapeOf>(K_unsqueezed);
-    const auto V_shape = std::make_shared<default_opset::ShapeOf>(V_unsqueezed);
-    const auto K_pads_end =
-        std::make_shared<default_opset::Maximum>(std::make_shared<default_opset::Subtract>(V_shape, K_shape), zero);
-    const auto V_pads_end =
-        std::make_shared<default_opset::Maximum>(std::make_shared<default_opset::Subtract>(K_shape, V_shape), zero);
-    const auto pads_begin =
-        std::make_shared<default_opset::Broadcast>(zero, std::make_shared<default_opset::ShapeOf>(K_shape));
-    const auto K_padded =
-        std::make_shared<default_opset::Pad>(K_unsqueezed, pads_begin, K_pads_end, ngraph::op::PadMode::CONSTANT);
-    const auto V_padded =
-        std::make_shared<default_opset::Pad>(V_unsqueezed, pads_begin, V_pads_end, ngraph::op::PadMode::CONSTANT);
+    const auto K_shape = std::make_shared<v3::ShapeOf>(K_unsqueezed);
+    const auto V_shape = std::make_shared<v3::ShapeOf>(V_unsqueezed);
+    const auto K_pads_end = std::make_shared<v1::Maximum>(std::make_shared<v1::Subtract>(V_shape, K_shape), zero);
+    const auto V_pads_end = std::make_shared<v1::Maximum>(std::make_shared<v1::Subtract>(K_shape, V_shape), zero);
+    const auto pads_begin = std::make_shared<v3::Broadcast>(zero, std::make_shared<v3::ShapeOf>(K_shape));
+    const auto K_padded = std::make_shared<v12::Pad>(K_unsqueezed, pads_begin, K_pads_end, ov::op::PadMode::CONSTANT);
+    const auto V_padded = std::make_shared<v12::Pad>(V_unsqueezed, pads_begin, V_pads_end, ov::op::PadMode::CONSTANT);
 
     // concat key and value tensors along first axis to make 'present' state
     // after that operation, 'present' has shape (2, batch_size, num_heads, sequence_length, head_size)
-    std::shared_ptr<ngraph::Node> present = std::make_shared<default_opset::Concat>(NodeVector{K_padded, V_padded}, 0);
+    std::shared_ptr<ov::Node> present = std::make_shared<v0::Concat>(NodeVector{K_padded, V_padded}, 0);
     if (is_past_input_available(op_inputs)) {
         const auto& past = op_inputs[4];
         // concat 'past' to 'present' output along fourth axis
         // after that operation, 'present' has shape:
         // (2, batch_size, num_heads, past_sequence_length + sequence_length, head_size)
-        present = std::make_shared<default_opset::Concat>(OutputVector{past, present}, 3);
+        present = std::make_shared<v0::Concat>(OutputVector{past, present}, 3);
     }
     return present;
 }

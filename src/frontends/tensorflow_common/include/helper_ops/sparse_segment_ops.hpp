@@ -65,6 +65,19 @@ public:
 
         set_output_type(0, get_input_element_type(0), output_shape);
     }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        size_t input_size = inputs.size();
+        FRONT_END_OP_CONVERSION_CHECK(
+            input_size == 3 || input_size == 4,
+            "[TensorFlow Frontend] internal error: SparseSegmentSum expects three or four inputs");
+        auto sparse_segment_sum_node =
+            (input_size == 3)
+                ? std::make_shared<SparseSegmentSum>(inputs[0], inputs[1], inputs[2], m_decoder)
+                : std::make_shared<SparseSegmentSum>(inputs[0], inputs[1], inputs[2], inputs[3], m_decoder);
+        sparse_segment_sum_node->set_attrs(get_attrs());
+        return sparse_segment_sum_node;
+    }
 };
 }  // namespace tensorflow
 }  // namespace frontend

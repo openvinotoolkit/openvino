@@ -5,7 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include "nodes/input.h"
 
 using namespace dnnl;
 namespace ov {
@@ -52,36 +51,46 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::drop() {
-    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
-
-        if (myself != list.end())
-            list.erase(myself);
-    };
-
-    _drop_from(getParent()->childEdges);
-    _drop_from(getChild()->parentEdges);
-}
-
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
-    if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
-        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+    auto add_result_node = [](std::vector<NodePtr>& result, const NodePtr& node) -> bool {
+        if (Type::ShapeOf == node->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return false;
+        }
+        result.push_back(node);
+        return true;
+    };
+    auto childNode = this->getChild();
+    if (childNode->getChildEdges().empty()) {
+        add_result_node(result, childNode);
+        return;
+    }
+
+    if (this->inPlace(LOOK_DOWN)) {
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
+            auto& vecChildEdges = childNode->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
         }
     } else {
-        auto childNode = this->getChild();
-        if (Type::ShapeOf == childNode->getType()) {
-            // ShapeOf doesn't actually read the data, it only reads shape
+        if (!add_result_node(result, childNode))
             return;
+
+        // collect consumers in case of an upstream in-place memory reference
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto&& conf = peerChildSPD->getConfig();
+            for (size_t i = 0; i < conf.outConfs.size(); i++) {
+                const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
+                if (peerOutInPlacePort == this->getOutputNum()) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
+                        childEdge->collectConsumers(result);
+                    }
+                }
+            }
         }
-        result.push_back(childNode);
     }
 }
 

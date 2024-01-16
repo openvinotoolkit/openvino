@@ -31,7 +31,7 @@ DeblurGAN-v2 in OpenVINO, by first converting the
 `VITA-Group/DeblurGANv2 <https://github.com/VITA-Group/DeblurGANv2>`__
 model to OpenVINO Intermediate Representation (OpenVINO IR) format. For
 more information about the model, see the
-`documentation <https://docs.openvino.ai/2023.0/omz_models_model_deblurgan_v2.html>`__.
+`documentation <https://docs.openvino.ai/2023.3/omz_models_model_deblurgan_v2.html>`__.
 
 What is deblurring? 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -223,7 +223,7 @@ an OpenVINO model ready to load on a device and start making
 predictions. We can save the model on the disk for next usage with
 ``ov.save_model``. For more information about model conversion Python
 API, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 
 Model conversion may take a while.
 

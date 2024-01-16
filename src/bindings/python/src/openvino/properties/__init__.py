@@ -4,6 +4,7 @@
 
 # Enums
 from openvino._pyopenvino.properties import Affinity
+from openvino._pyopenvino.properties import CacheMode
 
 # Properties
 import openvino._pyopenvino.properties as __properties
