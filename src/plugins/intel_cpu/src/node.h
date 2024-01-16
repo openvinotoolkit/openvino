@@ -609,8 +609,6 @@ protected:
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
-    bool permanent = false;
-    bool temporary = false;
 
     enum class InPlaceType {
         Unknown,

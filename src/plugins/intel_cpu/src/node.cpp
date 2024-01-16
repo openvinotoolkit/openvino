@@ -76,8 +76,6 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
            const GraphContext::CPtr ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
-      permanent(false),
-      temporary(false),
       constant(ConstantType::NoConst),
       context(ctx),
       algorithm(Algorithm::Default),
@@ -182,8 +180,6 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
 
 Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
     : selectedPrimitiveDescriptorIndex(-1),
-      permanent(false),
-      temporary(false),
       constant(ConstantType::NoConst),
       context(ctx),
       fusingPort(-1),
