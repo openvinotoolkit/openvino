@@ -91,15 +91,15 @@ TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantChec
  *         params[0]   params[1]
  *                \     /
  *                 \   /
- *                  add----result1
+ *                  add---reshape2---result2
  *                   |
- *                reshape
+ *                reshape1
  *                   |
  *                  MVN
  *                   |
- *                result2
+ *                result1
  *
- *  If parent of reshape have more than one edges, reshape in place should be not applicable.
+ *  If parent of reshape is shared, reshape in place should be not applicable.
  *  This is becuase multiple branches could change data on the same port, then pollute result each other.
  */
 
@@ -107,23 +107,30 @@ class InPlaceReshapeShareInputCheck : public SubgraphBaseTest {
 protected:
     void SetUp() override {
         const auto rtPrc = ov::element::f32;
-        const ov::Shape inpShape = {1, 8, 16, 16};
+        const ov::Shape inpShape = {1, 16, 16};
         targetStaticShapes = {{inpShape, inpShape}};
         targetDevice = ov::test::utils::DEVICE_CPU;
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape),
                                    std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape)};
+
         auto add = std::make_shared<ov::op::v1::Add>(params[0], params[1]);
-        auto res0 = std::make_shared<ov::op::v0::Result>(add);
-        std::vector<int> newShape = {1, 2, 64, 16};
-        auto targetShape = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape);
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(add, targetShape, false);
-        auto mvn = std::make_shared<ov::op::v6::MVN>(reshape,
+        std::vector<int> newShape1 = {1, 1, 16, 16};
+        auto targetShape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape1);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(add, targetShape1, false);
+        auto mvn = std::make_shared<ov::op::v6::MVN>(reshape1,
                                                      ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {2, 3}),
                                                      true,
                                                      0.1,
                                                      ov::op::MVNEpsMode::INSIDE_SQRT);
         auto res1 = std::make_shared<ov::op::v0::Result>(mvn);
-        function = std::make_shared<ov::Model>(ov::ResultVector{res0, res1}, params, "reshape_share_input_check");
+
+        std::vector<int> newShape2 = {1, 4, 8, 8};
+        auto targetShape2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape2);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(add, targetShape2, false);
+
+        auto res2 = std::make_shared<ov::op::v0::Result>(reshape2);
+
+        function = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, params, "reshape_share_input_check");
     }
 };
 
