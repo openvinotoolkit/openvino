@@ -164,6 +164,12 @@ public:
         case Type_t::nf4:
             fill_data<Type_t::nf4>(value);
             break;
+        case Type_t::f8e4m3:
+            fill_data<Type_t::f8e4m3>(value);
+            break;
+        case Type_t::f8e5m2:
+            fill_data<Type_t::f8e5m2>(value);
+            break;
         case Type_t::string:
             fill_data<Type_t::string>(value);
             break;
@@ -881,6 +887,12 @@ private:
             break;
         case Type_t::nf4:
             write_buffer<Type_t::nf4>(source);
+            break;
+        case Type_t::f8e4m3:
+            write_buffer<Type_t::f8e4m3>(source);
+            break;
+        case Type_t::f8e5m2:
+            write_buffer<Type_t::f8e5m2>(source);
             break;
         case Type_t::string:
             write_buffer<Type_t::string>(source);
