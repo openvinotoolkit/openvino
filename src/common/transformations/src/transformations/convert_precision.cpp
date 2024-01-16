@@ -219,7 +219,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
 
     if (is_subgraph && skip_precision_sensitive) {
         pass::Manager manager(pass_config);
-        manager.register_pass<pass::AlignMixedFP32FP16Types>();
+        manager.register_pass<pass::AlignMixedFP32FP16Types>(is_subgraph);
         manager.run_passes(f);
     }
 
