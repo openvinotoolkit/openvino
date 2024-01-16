@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "extension_mngr.h"
 #include "graph.h"
 #include "graph_context.h"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -26,8 +25,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const ExtensionManager::Ptr& extMgr,
-                  const bool loaded_from_cache = false);
+                  const bool loaded_from_cache);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -55,7 +53,6 @@ private:
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
     std::shared_ptr<std::mutex> m_mutex;
     Config m_cfg;
-    ExtensionManager::Ptr extensionManager;
     mutable std::atomic_int m_numRequests = {0};
     std::string m_name;
     struct GraphGuard : public Graph {
