@@ -158,6 +158,18 @@ inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
     fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode);
+
 void fill_data_roi(ov::runtime::Tensor& tensor,
                    const uint32_t range,
                    const int height,
@@ -165,8 +177,6 @@ void fill_data_roi(ov::runtime::Tensor& tensor,
                    const float omega,
                    const bool is_roi_max_mode,
                    const int seed = 1);
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <class T>
 void inline fill_data_random(T* pointer,
@@ -191,6 +201,32 @@ void inline fill_data_random(T* pointer,
     }
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+    }
+}
+
+template <class T>
+void inline fill_data_random_act_dft(T* pointer,
+                                     std::size_t size,
+                                     const uint32_t range = 10,
+                                     double_t start_from = 0,
+                                     const int32_t k = 1,
+                                     const int seed = 1) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<T>(start_from);
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;  // range with respect to k
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
+        start_from = 0;
+    }
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<T>(start_from + static_cast<double>(random.Generate(k_range)) / k);
     }
 }
 

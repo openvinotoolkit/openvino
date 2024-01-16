@@ -14,3 +14,10 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_preprocess_functions()),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PrePostProcessTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_PostProcess,
+    PostProcessTest,
+    ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_postprocess_functions()),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    PostProcessTest::getTestCaseName);

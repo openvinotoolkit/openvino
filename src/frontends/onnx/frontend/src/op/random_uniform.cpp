@@ -7,7 +7,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
 
@@ -27,17 +26,17 @@ OutputVector random_uniform(const Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);
     const auto target_shape_const = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
 
-    const auto target_type = common::get_ngraph_element_type(dtype);
+    const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
     // TODO: This multiplication leads to a mismatch in accuracy. Issue: 123003
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
-                                                            low_const,
-                                                            high_const,
-                                                            target_type,
-                                                            global_seed,
-                                                            seed_uint64)};
+    return {std::make_shared<ov::op::v8::RandomUniform>(target_shape_const,
+                                                        low_const,
+                                                        high_const,
+                                                        target_type,
+                                                        global_seed,
+                                                        seed_uint64)};
 }
 
 }  // namespace set_1

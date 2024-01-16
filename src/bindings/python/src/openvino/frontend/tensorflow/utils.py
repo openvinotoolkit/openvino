@@ -363,7 +363,7 @@ def extract_model_graph(argv):
     if isinstance(model, tf.compat.v1.GraphDef):
         graph = tf.Graph()
         with graph.as_default():
-            tf.graph_util.import_graph_def(model)
+            tf.graph_util.import_graph_def(model, name='')
         argv["input_model"] = graph
         return True
     if isinstance(model, tf.compat.v1.Session):

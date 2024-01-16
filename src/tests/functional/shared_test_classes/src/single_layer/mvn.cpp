@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/mvn.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -83,7 +84,7 @@ void Mvn6LayerTest::SetUp() {
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
-    auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto axesNode = ov::test::utils::deprecated::make_constant(axesType, ngraph::Shape{axes.size()}, axes);
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto mvn = ngraph::builder::makeMVN6(param[0], axesNode, normalizeVariance, eps, epsMode);
     OPENVINO_SUPPRESS_DEPRECATED_END

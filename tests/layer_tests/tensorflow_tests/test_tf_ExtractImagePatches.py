@@ -37,8 +37,7 @@ class TestExtractImagePatches(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     def test_extract_image_patches_basic(self, params, padding, ie_device, precision, ir_version, temp_dir,
-                                         use_new_frontend,
-                                         use_old_api):
+                                         use_new_frontend):
         self._test(*self.create_extract_image_patches_net(**params, padding=padding),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

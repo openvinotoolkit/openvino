@@ -53,6 +53,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.CacheMode,
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
+                (props.CacheMode.OPTIMIZE_SPEED, "CacheMode.OPTIMIZE_SPEED", 1),
+            ),
+        ),
+        (
             hints.Priority,
             (
                 (hints.Priority.LOW, "Priority.LOW", 0),
@@ -207,6 +214,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (("./test_cache", "./test_cache"),),
         ),
         (
+            props.cache_mode,
+            "CACHE_MODE",
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, props.CacheMode.OPTIMIZE_SIZE),
+                (props.CacheMode.OPTIMIZE_SPEED, props.CacheMode.OPTIMIZE_SPEED),
+            ),
+        ),
+        (
             props.auto_batch_timeout,
             "AUTO_BATCH_TIMEOUT",
             (
@@ -245,7 +260,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.performance_mode,
             "PERFORMANCE_HINT",
-            ((hints.PerformanceMode.THROUGHPUT, hints.PerformanceMode.THROUGHPUT),),
+            ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
         ),
         (
             hints.enable_cpu_pinning,

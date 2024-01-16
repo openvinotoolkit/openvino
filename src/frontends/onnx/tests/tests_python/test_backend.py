@@ -85,6 +85,7 @@ from tests import (
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
+    skip_issue_124587,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -412,20 +413,14 @@ tests_expected_to_fail = [
     (
         skip_bitwise_ui64,
         "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_or_ui64_bcast_3v1d_cpu",
+        "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
         xfail_issue_99949,
         "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_i16_4d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_i32_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_ui64_bcast_3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_ui8_bcast_4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_i16_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_i32_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_ui8_bcast_4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
         xfail_issue_99950,
@@ -703,13 +698,9 @@ tests_expected_to_fail = [
     (
         xfail_issue_125485,
         "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
     ),
     (
         xfail_issue_125486,
@@ -783,6 +774,13 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+    ),
+    (
+        skip_issue_124587,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset13_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset18_cpu",
     ),
 ]
 
