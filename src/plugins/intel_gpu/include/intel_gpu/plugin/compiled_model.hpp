@@ -32,7 +32,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
-                  const bool loaded_from_cache = false);
+                  const bool loaded_from_cache);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;

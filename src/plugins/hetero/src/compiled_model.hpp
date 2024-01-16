@@ -24,7 +24,7 @@ public:
     CompiledModel(std::istream& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Configuration& cfg,
-                  const bool loaded_from_cache = false);
+                  const bool loaded_from_cache);
 
     void export_model(std::ostream& model) const override;
 

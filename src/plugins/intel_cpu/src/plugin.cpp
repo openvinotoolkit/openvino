@@ -611,7 +611,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
