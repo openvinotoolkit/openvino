@@ -41,6 +41,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
@@ -300,14 +301,13 @@ public:
 
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
         auto convert_eps_pattern = pattern::wrap_type<ov::op::v0::Convert>({eps_const_pattern});
-        auto eps_const_or_convert =
-            std::make_shared<pattern::op::Or>(OutputVector{eps_const_pattern, convert_eps_pattern});
+        auto eps_const_or_convert = pattern::optional<ov::op::v0::Convert>(convert_eps_pattern);
 
         auto max_or_add =
             pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_or_convert});
 
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
-        auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
+        auto sqrt_or_max_add = pattern::optional<ov::op::v0::Sqrt>(sqrt);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
         auto divide = std::make_shared<ov::op::v1::Divide>(input_1, sqrt_or_max_add);
 
