@@ -537,9 +537,8 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // update layout to ensure that it repsects paddings for correct allocation size
     if (_node_output_layout.data_padding.get_dynamic_pad_dims() != tensor(0)) {
-        //const auto current_buf_size = updated_layout.get_buffer_size().sizes();
         size_t rank = updated_layout.get_shape().size();
-        auto current_buf_shape = updated_layout.get_buffer_size().get_partial_shape(rank, std::min(4UL, rank));
+        auto current_buf_shape = updated_layout.get_buffer_size().get_partial_shape(rank, std::min(static_cast<size_t>(4), rank));
         updated_layout = layout(current_buf_shape, updated_layout.data_type, updated_layout.format);
     }
 
@@ -859,7 +858,7 @@ bool primitive_inst::update_impl() {
     return true;
 }
 
-void primitive_inst::init_variable() {
+void primitive_inst::update_paddings() {
     auto reset_pad = [](kernel_impl_params& params, const program_node* node) {
         params.output_layouts[0].data_padding = node->get_output_layout(0).data_padding;
     };
@@ -879,6 +878,13 @@ void primitive_inst::init_variable() {
                 }
             }
         }
+        return;
+    }
+    if (_node->is_type<gather>() && _impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        if (can_be_optimized())
+            _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
+        else
+            reset_pad(*_impl_params, _node);
         return;
     }
 }
@@ -943,18 +949,6 @@ void primitive_inst::do_runtime_skip_reorder() {
 
 void primitive_inst::do_runtime_in_place_kv_cache() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_kv_cache: " + id()));
-    auto reset_pad = [](kernel_impl_params& params, const program_node* node) {
-        params.output_layouts[0].data_padding = node->get_output_layout(0).data_padding;
-    };
-
-    if (_node->is_type<gather>() && _impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0)) {
-        if (can_be_optimized())
-            _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
-        else
-            reset_pad(*_impl_params, _node);
-        return;
-    }
-
     if (!_node->is_type<kv_cache>())
         return;
 
@@ -1212,9 +1206,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Check successor reorder if layouts are same
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
-        init_variable();
         do_runtime_skip_reorder();
         do_runtime_skip_gather();
+        update_paddings();
         do_runtime_in_place_kv_cache();
         do_runtime_skip_permute();
 
