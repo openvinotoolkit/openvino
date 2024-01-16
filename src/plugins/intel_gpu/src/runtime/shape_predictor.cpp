@@ -59,7 +59,11 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
 std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& id,
                                                                        const ov::Shape& current_shape,
                                                                        size_t dt_bitwidth,
-                                                                       bool can_reuse_buffer) {
+                                                                       bool can_reuse_buffer,
+                                                                       int32_t custom_next_iters_prealloc_count) {
+    size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
+                                           ? static_cast<size_t>(custom_next_iters_prealloc_count)
+                                           : _next_iters_preallocation_count;
     add_shape(id, current_shape);
 
     // Save shape information and exit without pre-allocation suggestion if current
@@ -83,7 +87,6 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
                 break;
             diffs.push_back(result);
         }
-
         bool can_use_iterations_preallocation = diffs.size() == min_shapes_num - 1;
         for (size_t i = 1; i < diffs.size(); ++i) {
             if (diffs[0] != diffs[i]) {
@@ -116,7 +119,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
 
         if (can_use_iterations_preallocation) {
             // Apply preallocation for the next N iterations
-            ov::Shape mul_shape(diffs[0].size(), _next_iters_preallocation_count);
+            ov::Shape mul_shape(diffs[0].size(), next_iters_prealloc_count);
             auto preallocation_shape = diffs[0] * mul_shape;
             auto new_shape = current_shape + preallocation_shape;
             return {true, new_shape};

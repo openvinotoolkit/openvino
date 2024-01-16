@@ -47,9 +47,20 @@ void VariableState::set() {
     m_is_set = true;
 }
 
+void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {
+    GPU_DEBUG_TRACE_DETAIL << m_name << " : Update memory (Ptr : " << new_mem->buffer_ptr()
+                           << ", layout : " << actual_layout.to_short_string() << ")" << std::endl;
+    m_memory = new_mem;
+    m_layout = actual_layout;
+    actual_size = m_memory->size();
+    update_device_buffer();
+}
+
 void VariableState::set_layout(const cldnn::layout& new_layout) {
+    if (m_layout == new_layout)
+        return;
     m_layout = new_layout;
-    GPU_DEBUG_TRACE_DETAIL << "Update state layout to " << new_layout.to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << m_name << " : " << "Update state layout to " << new_layout.to_short_string() << std::endl;
     update_device_buffer();
 }
 
@@ -61,8 +72,12 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableState::update_device_buffer() {
-    if (m_layout.is_dynamic() || m_layout.bytes_count() == 0)
+    if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
+        m_shape_predictor->reset();
+        m_memory.reset();
+        actual_size = 0;
         return;
+    }
 
     if (actual_size < m_layout.bytes_count()) {
         const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
