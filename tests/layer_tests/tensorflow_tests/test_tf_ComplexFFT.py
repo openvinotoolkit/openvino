@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -165,7 +165,7 @@ class TestComplexRFFT(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
                                 use_new_frontend):
-        params = dict(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op]}
+        params = dict(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op])
         self._test(
             *self.create_complex_rfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -211,7 +211,7 @@ class TestComplexIRFFT(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir,
                                  use_new_frontend):
-        params = dict(input_shape=input_shape, fft_length=fft_length, irfft_op=OPS[irfft_op]}
+        params = dict(input_shape=input_shape, fft_length=fft_length, irfft_op=OPS[irfft_op])
         self._test(
             *self.create_complex_irfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
