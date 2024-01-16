@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,14 +36,25 @@ INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelImportExportTestP,
         ::testing::Values(targetDevice));
 
-const std::vector<ov::element::Type> netPrc = {
+const std::vector<ov::element::Type> nPrc = {
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::i64,
+    ov::element::u8,
+    ov::element::u16,
+    ov::element::u32,
+    ov::element::u64,
+    ov::element::f16,
     ov::element::f32,
+    ov::element::f64,
+    ov::element::bf16,
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVCompiledModelGraphUniqueNodeNamesTest,
-                         ::testing::Combine(::testing::ValuesIn(netPrc),
+                         ::testing::Combine(::testing::ValuesIn(nPrc),
                                             ::testing::Values(ov::Shape{1, 2, 5, 5}),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(targetDevice)),
                          OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
 }  // namespace
