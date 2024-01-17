@@ -87,17 +87,18 @@ build = [
     "wheel >= 0.38.1",
 ]
 
-# [build-system]
-# requires = ["setuptools", "wheel"]
-# build-backend = "setuptools.build_meta"
-
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+###
+# Tools configs
+###
 [tool.pdm]
 plugins = [
     "-e file:///${PROJECT_ROOT}/pdm-custom-plugins/"
-]
 
-# [project.scripts]
-# ov-runtime-tests = "pytest ./tests/test_runtime/"  # try to add -s -v into cli!
+[tool.pdm.scripts]
+ov-runtime-tests = "pytest ./tests/test_runtime/"  # try to add -s -v into cli!
 
 [tool.black]
 line-length = 160

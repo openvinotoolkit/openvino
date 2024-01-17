@@ -88,19 +88,22 @@ string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
 set(pip_version ${CMAKE_MATCH_1})
 
 if(pip_version VERSION_GREATER_EQUAL 22.0)
+    message("!!!!!!!!!!!!!!!!!!!HELLO: HERE!!!!!!!!!!!!!!!!!!!!!!!!")
     set(wheel_build_command
         ${Python3_EXECUTABLE} -m pip wheel
             --no-deps
+            --no-build-isolation
             --wheel-dir ${openvino_wheels_output_dir}
-            # --verbose
-            --build-option --build-number=${WHEEL_BUILD}
-            --build-option --plat-name=${PLATFORM_TAG}
-            "${CMAKE_CURRENT_SOURCE_DIR}")
+            --verbose
+            --config-settings --build-number=${WHEEL_BUILD}
+            --config-settings --plat-name=${PLATFORM_TAG}
+            "${CMAKE_CURRENT_SOURCE_DIR}/..")
 else()
     set(wheel_build_command
-        ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/../setup.py"
             --quiet
             --no-user-cfg
+            --no-build-isolation
             bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}

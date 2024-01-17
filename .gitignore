@@ -41,6 +41,7 @@ CMakeUserPresets.json
 *.?env*
 *.pyc
 __pycache__
+*.lock
 # Tests-specific
 *.coverage
 *htmlcov
