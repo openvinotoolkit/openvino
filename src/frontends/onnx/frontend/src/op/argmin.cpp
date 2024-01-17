@@ -5,7 +5,6 @@
 #include "op/argmin.hpp"
 
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "utils/arg_min_max_factory.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

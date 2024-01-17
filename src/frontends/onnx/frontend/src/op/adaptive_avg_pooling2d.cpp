@@ -4,8 +4,10 @@
 
 #include "op/adaptive_avg_pooling2d.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -19,7 +21,7 @@ OutputVector adaptive_avg_pooling2d(const Node& node) {
 
     CHECK_VALID_NODE(node, num_inputs == 2, "adaptive_avg_pooling2d expects 2 input tensors. Got: ", num_inputs);
 
-    return {std::make_shared<default_opset::AdaptiveAvgPool>(inputs[0], inputs[1])};
+    return {std::make_shared<v8::AdaptiveAvgPool>(inputs[0], inputs[1])};
 }
 
 }  // namespace set_1

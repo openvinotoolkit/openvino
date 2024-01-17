@@ -4,9 +4,11 @@
 
 #include "op/affine.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -28,8 +30,7 @@ OutputVector affine(const Node& node) {
     const auto alpha_const = node.get_attribute_as_constant<float>("alpha", data.get_element_type());
     const auto beta_const = node.get_attribute_as_constant<float>("beta", data.get_element_type());
 
-    return {
-        std::make_shared<default_opset::Add>(std::make_shared<default_opset::Multiply>(data, alpha_const), beta_const)};
+    return {std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(data, alpha_const), beta_const)};
 }
 
 }  // namespace set_1
