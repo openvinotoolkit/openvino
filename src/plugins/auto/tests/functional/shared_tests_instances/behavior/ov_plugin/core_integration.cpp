@@ -12,7 +12,6 @@
 #include "openvino/runtime/core.hpp"
 
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 // defined in plugin_name.cpp
 extern const char* cpu_plugin_file_name;

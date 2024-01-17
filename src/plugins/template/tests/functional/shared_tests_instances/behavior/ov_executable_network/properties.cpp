@@ -5,6 +5,7 @@
 #include "behavior/compiled_model/properties.hpp"
 
 #include "openvino/runtime/properties.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 

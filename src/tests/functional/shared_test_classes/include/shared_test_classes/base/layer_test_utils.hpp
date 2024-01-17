@@ -11,6 +11,7 @@
 #include <tuple>
 #include <gtest/gtest.h>
 #include <ngraph/node.hpp>
+#include <ie_core.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
