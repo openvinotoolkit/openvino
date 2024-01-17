@@ -188,22 +188,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             for (auto& row : proc_socket_table) {
                 n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
             }
-            for (auto& row : proc_socket_table) {
-                if (n_threads_per_stream <= row[ALL_PROC]) {
-                    n_streams++;
-                }
-            }
-            n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, n_streams) : n_streams;
+            n_streams = 1;
         } else {
             for (size_t i = 1; i < proc_type_table.size(); i++) {
                 n_threads_per_stream = std::max(n_threads_per_stream, proc_type_table[i][ALL_PROC]);
             }
-            for (size_t i = 1; i < proc_type_table.size(); i++) {
-                if (n_threads_per_stream <= proc_type_table[i][ALL_PROC]) {
-                    n_streams++;
-                }
-            }
-            n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, n_streams) : n_streams;
+            n_streams = 1;
         }
     } else {
         n_threads =

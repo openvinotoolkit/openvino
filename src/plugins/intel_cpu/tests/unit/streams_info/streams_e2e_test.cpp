@@ -303,7 +303,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_6 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}, {1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
@@ -325,7 +325,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}, {1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
