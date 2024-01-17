@@ -96,7 +96,7 @@ cd <INSTALLDIR>/samples/cpp
 Windows:
 ```sh
 cd <INSTALLDIR>\samples\cpp
-build_samples_msvc.bat
+build_samples.bat
 ```
 
 2. Install OpenVINO Development Tools

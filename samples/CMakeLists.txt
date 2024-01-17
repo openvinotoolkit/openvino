@@ -53,7 +53,7 @@ if(UNIX)
             COMPONENT ${OV_CPACK_COMP_C_SAMPLES}
             ${OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL})
 elseif(WIN32)
-    install(PROGRAMS cpp/build_samples_msvc.bat cpp/build_samples_msvc.ps1
+    install(PROGRAMS cpp/build_samples.bat cpp/build_samples.ps1
             DESTINATION ${OV_CPACK_SAMPLESDIR}/c
             COMPONENT ${OV_CPACK_COMP_C_SAMPLES}
             ${OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL})
