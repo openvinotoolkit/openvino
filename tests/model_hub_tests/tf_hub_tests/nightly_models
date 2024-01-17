@@ -1,8 +1,8 @@
-universal-sentence-encoder,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/universal-sentence-encoder/versions/2
+universal-sentence-encoder,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/universal-sentence-encoder/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
 imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2
 imagenet/mobilenet_v2_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-classification/versions/2
 universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2
-universal-sentence-encoder-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/large/versions/2
+universal-sentence-encoder-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/large/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
 imagenet/mobilenet_v2_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-224-classification/versions/2
 movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
 imagenet/mobilenet_v1_025_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-224-classification/versions/2
@@ -13,7 +13,7 @@ nnlm-en-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/
 bert_en_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-uncased-l-12-h-768-a-12/versions/4
 bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-12-h-768-a-12/versions/1,xfail,129153 TimeoutError or killed with a signal 11
 elmo,https://www.kaggle.com/models/google/elmo/frameworks/tensorFlow1/variations/elmo/versions/3
-universal-sentence-encoder-multilingual-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-large/versions/2
+universal-sentence-encoder-multilingual-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-large/versions/2,xfail,129830 unsupported operations RaggedTensorToSparse SegmentMean SentencepieceOp SentencepieceTokenizeOp
 small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
 imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
 spice,https://www.kaggle.com/models/google/spice/frameworks/tensorFlow1/variations/spice/versions/2,xfail,128817 Model references undeclared parameters
@@ -28,7 +28,7 @@ efficientnet/lite0/feature-vector,https://www.kaggle.com/models/tensorflow/effic
 i3d-kinetics-400,https://www.kaggle.com/models/deepmind/i3d-kinetics/frameworks/tensorFlow1/variations/400/versions/1
 imagenet/mobilenet_v2_035_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-224-classification/versions/2
 tf2-preview/gnews-swivel-20dim,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
-faster_rcnn/openimages_v4/inception_resnet_v2,https://www.kaggle.com/models/google/faster-rcnn-inception-resnet-v2/frameworks/tensorFlow1/variations/faster-rcnn-openimages-v4-inception-resnet-v2/versions/1
+faster_rcnn/openimages_v4/inception_resnet_v2,https://www.kaggle.com/models/google/faster-rcnn-inception-resnet-v2/frameworks/tensorFlow1/variations/faster-rcnn-openimages-v4-inception-resnet-v2/versions/1,xfail,127962 unsupported operation LookupTableFindV2
 imagenet/mobilenet_v2_140_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/140-224-feature-vector/versions/2
 imagenet/mobilenet_v2_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
 bert_en_cased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-cased-l-12-h-768-a-12/versions/4
@@ -55,12 +55,12 @@ efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientd
 small_bert/bert_en_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-2-h-128-a-2/versions/2
 albert_base,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/base/versions/3,skip,129153 TimeoutError or killed with a signal 11
 nnlm-ja-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128/versions/1,skip,120721 AssertionError No signatures for a model
-universal-sentence-encoder-multilingual-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-qa/versions/2
+universal-sentence-encoder-multilingual-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-qa/versions/2,xfail,129830 unsupported operations RaggedTensorToSparse SegmentMean SentencepieceOp SentencepieceTokenizeOp
 nnlm-ja-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 LaBSE,https://www.kaggle.com/models/google/labse/frameworks/tensorFlow2/variations/labse/versions/2
 nnlm-en-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 resnet_50/feature_vector,https://www.kaggle.com/models/tensorflow/resnet-50/frameworks/tensorFlow2/variations/feature-vector/versions/1
-universal-sentence-encoder-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/qa/versions/2
+universal-sentence-encoder-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/qa/versions/2,xfail,127962 128994 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 StaticRegexReplace StringSplit StringToHashBucketFast
 biggan-deep-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/deep-256/versions/1
 efficientdet/lite2/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite2-detection/versions/1
 imagenet/mobilenet_v2_050_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-224-classification/versions/2
@@ -119,7 +119,7 @@ imagenet/resnet_v2_50/classification,https://www.kaggle.com/models/google/resnet
 aiy/vision/classifier/birds_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-birds-v1/versions/1
 MuRIL,https://www.kaggle.com/models/google/muril/frameworks/tensorFlow2/variations/muril/versions/1
 efficientdet/lite1/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite1-feature-vector/versions/1
-random-nnlm-en-dim128,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim128/versions/1
+random-nnlm-en-dim128,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim128/versions/1,xfail,127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows SparseSegmentSqrtN StringSplit StringToHashBucketFast
 imagenet/inception_resnet_v2/classification,https://www.kaggle.com/models/google/inception-resnet-v2/frameworks/tensorFlow2/variations/classification/versions/2
 ssd_mobilenet_v2/fpnlite_320x320,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/fpnlite-320x320/versions/1
 centernet/resnet50v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512/versions/1
@@ -194,7 +194,7 @@ efficientnet/b7/classification,https://www.kaggle.com/models/tensorflow/efficien
 small_bert/bert_en_uncased_L-12_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-256-a-4/versions/2
 imagenet/efficientnet_v2_imagenet21k_ft1k_xl/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-xl-feature-vector/versions/1
 ssd_mobilenet_v1/fpn_640x640,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v1/frameworks/tensorFlow2/variations/fpn-640x640/versions/1
-mil-nce/s3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/s3d/versions/1
+mil-nce/s3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/s3d/versions/1,xfail,127962 129654 128996 unsupported operations LookupTableFindV2 StringLower StringSplitV2
 imagenet/nasnet_mobile/feature_vector,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/mobile-feature-vector/versions/2
 efficientnet/b4/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b4-feature-vector/versions/1
 imagenet/efficientnet_v2_imagenet21k_m/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-m-feature-vector/versions/2
@@ -225,7 +225,7 @@ imagenet/resnet_v2_101/feature_vector,https://www.kaggle.com/models/google/resne
 imagenet/efficientnet_v2_imagenet21k_l/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-l-feature-vector/versions/2
 imagenet/nasnet_large/classification,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/large-classification/versions/2
 faster_rcnn/resnet152_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet152-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
-vit_s16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-fe/versions/1
+vit_s16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-fe/versions/1,xfail,118324 unsupported operation XlaGather
 zh_segmentation,https://www.kaggle.com/models/google/zh-segmentation/frameworks/tensorFlow1/variations/zh-segmentation/versions/1
 wiki40b-lm-es,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/es/versions/1
 centernet/resnet50v1_fpn_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512-kpts/versions/1
@@ -265,7 +265,7 @@ imagenet/efficientnet_v2_imagenet21k_ft1k_b3/feature_vector,https://www.kaggle.c
 humpback_whale,https://www.kaggle.com/models/google/humpback-whale/frameworks/tensorFlow2/variations/humpback-whale/versions/1,skip,120720 InvalidArgumentError Graph execution error
 nnlm-id-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim50/versions/1,skip,120721 AssertionError No signatures for a model
 nonsemantic-speech-benchmark/frill,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/frill/versions/1
-vit_s16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-classification/versions/1
+vit_s16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-classification/versions/1,xfail,118324 unsupported operation XlaGather
 faster_rcnn/resnet152_v1_800x1333,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet152-v1-800x1333/versions/1
 bit/s-r152x4,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r152x4/versions/1
 imagenet/resnet_v1_101/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/101-classification/versions/2
@@ -300,7 +300,7 @@ efficientnet/b5/feature-vector,https://www.kaggle.com/models/google/efficientnet
 distilbert_multi_cased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/multi-cased-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
 nnlm-de-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim128/versions/1,skip,120721 AssertionError No signatures for a model
 bertseq2seq/roberta24_gigaword,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/roberta24-gigaword/versions/1,skip,128817 Model references undeclared parameters
-vit_b8_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-fe/versions/1
+vit_b8_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-fe/versions/1,xfail,118324 unsupported operation XlaGather
 aiy/vision/classifier/insects_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-insects-v1/versions/1
 bertseq2seq/roberta24_cnndm,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/roberta24-cnndm/versions/1,skip,128817 Model references undeclared parameters
 movinet/a1/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a1-base-kinetics-600-classification/versions/3
@@ -399,12 +399,12 @@ imagenet/mobilenet_v1_050_128/classification,https://www.kaggle.com/models/googl
 tf2-preview/nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/mobilenet_v1_100_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-192-feature-vector/versions/2
 efficientnet/b6/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b6-classification/versions/1
-vit_b8_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-classification/versions/1
+vit_b8_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-classification/versions/1,xfail,118324 unsupported operation XlaGather
 universal-sentence-encoder-xling/en-es,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/xling-en-es/versions/1
-mil-nce/i3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/i3d/versions/1
-vit_l16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-l16-fe/versions/1
+mil-nce/i3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/i3d/versions/1,xfail,127962 129654 128996 unsupported operations LookupTableFindV2 StringLower StringSplitV2
+vit_l16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-l16-fe/versions/1,xfail,118324 unsupported operation XlaGather
 nonsemantic-speech-benchmark/frill-nofrontend,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/frill-nofrontend/versions/1
-vit_r50_l32_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r50-l32-fe/versions/1
+vit_r50_l32_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r50-l32-fe/versions/1,xfail,118324 118325 unsupported operation XlaGather XlaReduceWindow
 imagenet/efficientnet_v2_imagenet21k_ft1k_b2/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b2-feature-vector/versions/1
 remote_sensing/so2sat-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-so2sat-resnet50/versions/1
 imagenet/efficientnet_v2_imagenet21k_ft1k_b3/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b3-classification/versions/1
@@ -572,7 +572,7 @@ small_bert/bert_uncased_L-2_H-256_A-4,https://www.kaggle.com/models/google/bert/
 edgetpu/vision/autoseg-edgetpu/fused_argmax/s,https://www.kaggle.com/models/google/autoseg-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-s/versions/1
 image_augmentation/flipx_crop_rotate_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/flipx-crop-rotate-color/versions/1,skip,128817 Model references undeclared parameters
 circularnet_3,https://www.kaggle.com/models/google/circularnet/frameworks/tensorFlow2/variations/3/versions/1
-random-nnlm-en-dim50,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim50/versions/1
+random-nnlm-en-dim50,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim50/versions/1,xfail,127962 128996 128995 unsupported operation LookupTableFindV2 LookupTableSizeV2 StringSplit StringToHashBucketFast
 mixer_b16_i21k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i21k-classification/versions/1
 imagenet/mobilenet_v1_025_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
 imagenet/mobilenet_v1_075_224/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-224-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
