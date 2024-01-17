@@ -204,7 +204,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "scale", "ScaleShift" },
                 { "shuffle_channels", "ShuffleChannels" },
                 { "softmax", "SoftMax" },
-                { "split", "Split" },
                 { "strided_slice", "StridedSlice" },
                 { "tile", "Tile" },
                 { "resample", "Resample" },

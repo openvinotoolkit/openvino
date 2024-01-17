@@ -6,7 +6,6 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
-#include "split_inst.h"
 #include "lstm_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "quantize_inst.h"
@@ -82,7 +81,6 @@ public:
 
 private:
     void run(program& p) override;
-    void handle_split_node(program& p, split_node& node);
     void handle_lstm_node(program& p, lstm_node& node);
     void handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node);
     void set_outputs(program& p);

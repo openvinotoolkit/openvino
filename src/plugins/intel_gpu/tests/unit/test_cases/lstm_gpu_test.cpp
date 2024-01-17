@@ -7,7 +7,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/lstm.hpp>
-#include <intel_gpu/primitives/split.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
@@ -347,11 +346,14 @@ void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, 
     bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true) {
     auto hidden_size = hidden->get_layout().get_tensor();
     t.add(input_layout("input", input->get_layout()));
-    std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<input_info> output_ids_offsets;
-    for (int i = 0; i < sequence_len; ++i)
-        input_ids_offsets.push_back({ get_string_id(i),{ 0, i, 0, 0 } });
-    t.add(split("inputSplit", input_info("input"), input_ids_offsets));
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
+    for (int i = 0; i < sequence_len; ++i) {
+        t.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
+    }
     t.add(data("weights", weights));
     t.add(data("recurrent", recurrent));
 
@@ -560,16 +562,18 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
     }
 
     topology topology;
-    std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
     for (int i = 0; i < sequence_len; ++i) {
-        input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
         lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
+        topology.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
     }
-    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     cldnn::primitive_id prev_lstm_id;
     for(int i = 0; i < layers; ++i) {
         std::string sid = get_string_id(i);
@@ -700,17 +704,18 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
                             output_selection == lstm_output_selection::hidden_cell;
 
     topology topology;
-    std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
-    for (int i = 0; i < sequence_len; ++i)
-    {
-        input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
+    for (int i = 0; i < sequence_len; ++i) {
         lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
+        topology.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
     }
-    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -864,17 +869,18 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions, bool is_c
                             output_selection == lstm_output_selection::hidden_cell;
 
     topology topology;
-    std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
-    for (int i = 0; i < sequence_len; ++i)
-    {
-        input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
+    for (int i = 0; i < sequence_len; ++i) {
         lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
+        topology.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
     }
-    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -1040,16 +1046,17 @@ void lstm_gpu_users_test(bool is_caching_test = false) {
     set_values(cell, ref_cell_vec);
 
     topology topology;
-    std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<input_info> lstm_inputs;
 
     topology.add(input_layout("input", input->get_layout()));
-    for (int i = 0; i < sequence_len; ++i)
-    {
-        input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
+    for (int i = 0; i < sequence_len; ++i) {
         lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
+        topology.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
     }
-    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -1178,7 +1185,6 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 	}
 
 	topology topology;
-	std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
 	std::vector<primitive_id> lstm_inputs;
 	std::vector<primitive_id> output_ids_offsets;
 
@@ -1444,17 +1450,19 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
 
     // Start creating the topology
     cldnn::topology topology;
-    std::vector<std::pair<primitive_id, cldnn::tensor>> input_ids_offsets;
     std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
 
-    for (int feature = 0; feature < sequence_len; feature++) {
-        input_ids_offsets.push_back({ get_string_id(feature), {0, feature, 0, 0} });
-        lstm_inputs.push_back(input_info("inputSplit:" + get_string_id(feature)));
+    tensor offset(0);
+    auto ref_size = input->get_layout().get_tensor();
+    ref_size.feature[0] /= sequence_len;
+    for (int i = 0; i < sequence_len; ++i) {
+        lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
+        topology.add(crop("inputSplit:" + get_string_id(i) , input_info("input"), ref_size, offset));
+        offset.feature[0]++;
     }
-    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
 
     bool emit_last_hidden = output_selection == lstm_output_selection::hidden
         || output_selection == lstm_output_selection::hidden_cell;

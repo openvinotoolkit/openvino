@@ -5,7 +5,6 @@
 #include "pass_manager.h"
 #include "program_node.h"
 
-#include "split_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
 #include "lstm_inst.h"
@@ -35,65 +34,6 @@ std::string get_id_string(size_t i) {
     return ss.str();
 }
 }  // namespace
-
-void graph_initializations::handle_split_node(program& p, split_node& node) {
-    if (!node.get_users().empty()) {
-        throw std::logic_error("Split layer cannot be used directly! Please use split output \"" + node.id() +
-                               ":<split_output_id>\"!");
-    }
-    // get_output size and validate split primitive inputs
-    layout output_layout = node.get_output_layout();
-    tensor output_layout_size = output_layout.get_tensor();
-
-    auto split_prim = node.typed_desc();
-    std::size_t split_num = split_prim->output_offsets.size();
-
-    std::vector<primitive_id> transformed_ids;
-
-    // create crop for each split output provided
-    for (std::size_t i = 0; i < split_num; i++) {
-        primitive_id output_id = node.id() + ":" + split_prim->output_ids[i];
-
-        auto output_node_itr = p.nodes_map.find(output_id);
-        if (output_node_itr == p.nodes_map.end()) {
-            continue;
-        }
-
-        transformed_ids.push_back(std::move(output_id));
-
-        auto node_ptr = output_node_itr->second;
-
-        // calculate crop reference input size
-        tensor reference_input_size;
-
-        // For all the split offsets before the last split offset, the size can be calculated
-        // size_of_offset[n] = offset[n + 1] - offset[n];
-        if (i != (split_num - 1)) {
-            reference_input_size += split_prim->output_offsets[i + 1] - split_prim->output_offsets[i];
-        } else {  // For the last split i.e. size[split_num - 1] = split_input.size - offsets[n];
-            reference_input_size += output_layout_size - split_prim->output_offsets[i];
-        }
-
-        // For all the other dimensions, copy from the split_input
-        for (int32_t dimension = 0; dimension < tensor_dim_max; dimension++) {
-            if (reference_input_size.raw[dimension] == 0) {
-                reference_input_size.raw[dimension] = output_layout_size.raw[dimension];
-            }
-        }
-
-        // update crop primitive
-        node_ptr->set_output_padding(output_layout.data_padding);
-        auto crop_prim = node_ptr->as<crop>().typed_desc();
-        crop_prim->reference_input = reference_input_size;
-    }
-
-    // remove input->split connection and remove original split node
-    p.remove_connection(node.input(), node);
-
-    p.add_optimized_primitive_info(node.id(), transformed_ids);
-    p.optimized_out.push_back(node.id());
-    p.nodes_map.erase(node.id());
-}
 
 void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // lstm_node& lstm_node = node->as<lstm>();
@@ -421,9 +361,7 @@ void graph_initializations::run(program& p) {
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
         auto& node = node_itr->second;
-        if (node->is_type<split>()) {
-            handle_split_node(p, node->as<split>());
-        } else if (node->is_type<lstm>()) {
+        if (node->is_type<lstm>()) {
             handle_lstm_node(p, node->as<lstm>());
         } else if (node->is_type<lstm_dynamic>()) {
             handle_dynamic_lstm_node(p, node->as<lstm_dynamic>());

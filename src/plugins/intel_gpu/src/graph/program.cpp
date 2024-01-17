@@ -56,7 +56,6 @@
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
-#include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
 #include "adaptive_pooling_inst.h"
@@ -423,7 +422,6 @@ void program::prepare_nodes(topology const& topology) {
     for (const auto& prim : topo_map) {
         get_or_create(prim.second);
     }
-    add_split_outputs();
     for (const auto& node : nodes_map) {
         auto node_ptr = node.second.get();
         if (node_ptr == nullptr)
@@ -717,30 +715,6 @@ void program::transfer_memory_to_device() {
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
-            }
-        }
-    }
-}
-
-void program::add_split_outputs() {
-    auto itr = nodes_map.begin();
-    while (itr != nodes_map.end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr).second;
-
-        if (node->is_type<split>()) {
-            auto split_prim = node->as<split>().typed_desc();
-            input_info input(split_prim->input[0]);
-            auto split_num = split_prim->output_offsets.size();
-
-            // create crop for each split output provided
-            for (decltype(split_num) i = 0; i < split_num; i++) {
-                primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
-
-                // create dummy crop primitive and add it to nodes map
-                auto crop_prim =
-                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
-                get_or_create(crop_prim);
             }
         }
     }
