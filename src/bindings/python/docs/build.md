@@ -41,7 +41,6 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
     cd <openvino_repo>
     pip install -r src/bindings/python/requirements.txt
     pip install -r src/bindings/python/requirements_test.txt
-    pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
     ```
     If `-DENABLE_WHEEL=ON` flag is present in `cmake` command, additionally install wheel requirements:
     ```

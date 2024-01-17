@@ -369,13 +369,6 @@ TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     ASSERT_THROW(ie.ImportNetwork("model", ov::test::utils::DEVICE_MULTI), InferenceEngine::NetworkNotRead);
 }
 
-TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::RemoteContext::Ptr context = nullptr;
-    std::istringstream stream("None");
-    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), InferenceEngine::Exception);
-}
-
 //
 // QueryNetwork
 //
@@ -1246,31 +1239,4 @@ TEST_P(IEClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
     }
 }
 
-TEST_P(IEClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
-    InferenceEngine::Core ie;
-
-    std::string cleartarget_device;
-    auto pos = target_devices.begin()->find('.');
-    if (pos != std::string::npos) {
-        cleartarget_device = target_devices.begin()->substr(0, pos);
-    }
-    if (!supportsDeviceID(ie, cleartarget_device)) {
-        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
-    }
-    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
-    }
-    auto deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-    if (deviceIDs.size() < target_devices.size())
-        GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
-
-    for (size_t i = 0; i < target_devices.size(); ++i) {
-        ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, target_devices[i]));
-    }
-    std::string res;
-    for (size_t i = 0; i < target_devices.size(); ++i) {
-        ASSERT_NO_THROW(res = ie.GetConfig(target_devices[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
-        ASSERT_EQ(res, std::to_string(i + 2));
-    }
-}
 } // namespace BehaviorTestsDefinitions

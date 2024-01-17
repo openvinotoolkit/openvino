@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "ngraph/log.hpp"
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
@@ -276,7 +275,7 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by OpenVINO";
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
@@ -286,7 +285,8 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
-            throw error::UnsupportedVersion{op.first, version, domain};
+            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
+                           std::to_string(version));
         }
         result.emplace(op.first, it->second);
     }
@@ -404,8 +404,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
-    REGISTER_OPERATOR("Greater_Or_Equal", 1, greater_or_equal);
-    REGISTER_OPERATOR("Greater_Or_Equal", 16, greater_or_equal);
+    REGISTER_OPERATOR("GreaterOrEqual", 1, greater_or_equal);
+    REGISTER_OPERATOR("GreaterOrEqual", 16, greater_or_equal);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GroupNormalization", 1, group_normalization);
     REGISTER_OPERATOR("GRU", 1, gru);

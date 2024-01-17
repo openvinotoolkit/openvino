@@ -4,8 +4,6 @@
 
 #include "plugin.h"
 
-#include "extension.h"
-#include "extension_mngr.h"
 #include "itt.h"
 #include "internal_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -171,7 +169,6 @@ Engine::Engine() :
     get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
@@ -614,7 +611,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
@@ -696,6 +693,8 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_runtime_properties.as<std::string>()));
+    } else if (name == ov::log::level) {
+        return engConfig.logLevel;
     } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
@@ -810,6 +809,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::hint::enable_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
@@ -862,14 +862,8 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     if(!ret.empty())
         return ret;
 
-    OPENVINO_THROW("Cannot get unsupport property: ", name);
+    OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-void Engine::add_extension(const InferenceEngine::IExtensionPtr& extension) {
-    extensionManager->AddExtension(extension);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
@@ -889,7 +883,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto context =
-        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, false);
+        std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
@@ -937,12 +931,20 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-    conf.readProperties(config, modelType);
+
+    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
+    auto _config = config;
+    const auto& it = _config.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _config.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _config.erase(it);
+    }
+    conf.readProperties(_config, modelType);
 
     // import config props from caching model
     calculate_streams(conf, model, true);
-
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
 }   // namespace intel_cpu

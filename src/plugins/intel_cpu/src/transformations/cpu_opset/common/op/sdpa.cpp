@@ -28,6 +28,8 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     auto q_ps = get_input_partial_shape(0);
     // [B, H, L0, S]
     auto past_kv_ps = get_input_partial_shape(input_num - 1);
+    // [present_kv_batch_size]
+    auto beam_idx_ps = get_input_partial_shape(input_num - 3);
 
     auto output_logits = q_ps;
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
@@ -35,6 +37,7 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     // permute_axes from original to [B, H, L, S]
     const auto& permute_axes = this->m_config.permute_axes;
     if (past_kv_ps.rank().is_static()) {
+        const size_t batch_index = permute_axes.empty() ? 0 : permute_axes[0];
         const size_t length_index = permute_axes.empty() ? q_ps.size() - 2 : permute_axes[permute_axes.size() - 2];
         const size_t head_num_index = permute_axes.empty() ? q_ps.size() - 3 : permute_axes[permute_axes.size() - 3];
         NODE_VALIDATION_CHECK(this, q_ps.size() == past_kv_ps.size());
@@ -46,15 +49,12 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
                                           "shape not compatiable at index ",
                                           i);
                 }
-            } else if (i == length_index) {
-                continue;
             } else {
-                NODE_VALIDATION_CHECK(this,
-                                        q_ps[i].compatible(past_kv_ps[i]),
-                                        "shape not compatiable at index ",
-                                        i);
+                continue;
             }
         }
+        // batch_size can be dynamically changed by gather logic
+        past_kv_ps[batch_index] = beam_idx_ps[0];
         past_kv_ps[length_index] += q_ps[length_index];
     }
     if (!permute_axes.empty()) {

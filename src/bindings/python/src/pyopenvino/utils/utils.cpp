@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,6 +186,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::CacheMode>()) {
+        return py::cast(any.as<ov::CacheMode>());
     } else if (any.is<ov::device::UUID>()) {
         std::stringstream uuid_stream;
         uuid_stream << any.as<ov::device::UUID>();
