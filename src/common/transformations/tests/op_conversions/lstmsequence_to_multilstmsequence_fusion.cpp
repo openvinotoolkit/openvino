@@ -17,6 +17,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/tanh.hpp"
 
 using namespace ov;
@@ -30,74 +31,136 @@ class LSTMSequenceFusionTestSuite : public testing::WithParamInterface<LSTMSeque
 TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
     size_t input_size = 3;
     size_t hidden_size = 2;
+    size_t batch = 1;
+    size_t cells_cnt = 2;
 
     {
-        auto X_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, input_size});
-        auto H_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        auto C_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        auto sequence_length_1 = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
-        Shape W_shape{4 * hidden_size, input_size};
-        Shape R_shape{4 * hidden_size, hidden_size};
-        std::vector<float> W_values =
-            std::vector<float>{4, 12, 20, 5, 13, 21, 0, 8, 16, 1, 9, 17, 2, 10, 18, 3, 11, 19, 6, 14, 22, 7, 15, 23};
-        auto W_1 = op::v0::Constant::create(element::f32, W_shape, W_values);
-        std::vector<float> R_values =
-            std::vector<float>{28, 36, 29, 37, 24, 32, 25, 33, 26, 34, 27, 35, 30, 38, 31, 39};
-        auto R_1 = op::v0::Constant::create(element::f32, R_shape, R_values);
-        Shape B_shape{4 * hidden_size};
-        std::vector<float> B_values{5, 6, 0, 1, 2, 3, 6, 7};
-        auto B_1 = op::v0::Constant::create(element::f32, B_shape, B_values);
-        auto lstm_sequence_1 = std::make_shared<op::v5::LSTMSequence>(X_1,
-                                                                      H_1,
-                                                                      C_1,
-                                                                      sequence_length_1,
-                                                                      W_1,
-                                                                      R_1,
-                                                                      B_1,
-                                                                      hidden_size,
-                                                                      op::RecurrentSequenceDirection::FORWARD);
+        auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
+        auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
+
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, input_size});
+        auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto W = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, input_size});
+        auto R = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, hidden_size});
+        auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
+        auto A = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
+
+        
+        auto unH = std::make_shared<op::v0::Unsqueeze>(H, axis_1);
+        auto unC = std::make_shared<op::v0::Unsqueeze>(C, axis_1);
+        auto unW = std::make_shared<op::v0::Unsqueeze>(W, axis_0);
+        auto unR = std::make_shared<op::v0::Unsqueeze>(R, axis_0);
+        auto unB = std::make_shared<op::v0::Unsqueeze>(B, axis_0);
+
+        OutputVector in_X;
+        OutputVector in_A;
+        for (size_t i = 0; i < cells_cnt; ++i) {
+            in_X.push_back(std::make_shared<op::v0::Unsqueeze>(X, axis_1));
+            in_A.push_back(std::make_shared<op::v0::Unsqueeze>(A, axis_1));
+        }
+        auto concat_X = std::make_shared<op::v0::Concat>(in_X, 1);
+        auto concat_A = std::make_shared<op::v0::Concat>(in_A, 1);
+
+        auto lstm_sequence_1 = std::make_shared<op::v5::LSTMSequence>(concat_X,
+                                        unH,
+                                        unC,
+                                        seq_len,
+                                        unW,
+                                        unR,
+                                        unB,
+                                        hidden_size,
+                                        op::RecurrentSequenceDirection::FORWARD);
+
         auto squeeze_1 = std::make_shared<op::v0::Squeeze>(lstm_sequence_1->output(0));
 
-        auto H_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        auto C_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        auto sequence_length_2 = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
-        auto W_2 = op::v0::Constant::create(element::f32, W_shape, W_values);
-        auto R_2 = op::v0::Constant::create(element::f32, R_shape, R_values);
-        auto B_2 = op::v0::Constant::create(element::f32, B_shape, B_values);
+        //auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        //auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
+        //auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
+
+        auto X_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, input_size});
+        auto H_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto C_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto W_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, input_size});
+        auto R_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, hidden_size});
+        auto B_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
+        auto A_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
+
+        
+        auto unH_2 = std::make_shared<op::v0::Unsqueeze>(H_2, axis_1);
+        auto unC_2 = std::make_shared<op::v0::Unsqueeze>(C_2, axis_1);
+        auto unW_2 = std::make_shared<op::v0::Unsqueeze>(W_2, axis_0);
+        auto unR_2 = std::make_shared<op::v0::Unsqueeze>(R_2, axis_0);
+        auto unB_2 = std::make_shared<op::v0::Unsqueeze>(B_2, axis_0);
+
+        OutputVector in_X_2;
+        OutputVector in_A_2;
+        for (size_t i = 0; i < cells_cnt; ++i) {
+            in_X.push_back(std::make_shared<op::v0::Unsqueeze>(X_2, axis_1));
+            in_A.push_back(std::make_shared<op::v0::Unsqueeze>(A_2, axis_1));
+        }
+        auto concat_X_2 = std::make_shared<op::v0::Concat>(in_X_2, 1);
+        auto concat_A_2 = std::make_shared<op::v0::Concat>(in_A_2, 1);
+
         auto lstm_sequence_2 = std::make_shared<op::v5::LSTMSequence>(squeeze_1->output(0),
-                                                                      H_2,
-                                                                      C_2,
-                                                                      sequence_length_2,
-                                                                      W_2,
-                                                                      R_2,
-                                                                      B_2,
-                                                                      hidden_size,
-                                                                      op::RecurrentSequenceDirection::FORWARD);
+                                        unH_2,
+                                        unC_2,
+                                        seq_len,
+                                        unW_2,
+                                        unR_2,
+                                        unB_2,
+                                        hidden_size,
+                                        op::RecurrentSequenceDirection::FORWARD);
+
         auto squeeze_2 = std::make_shared<op::v0::Squeeze>(lstm_sequence_2->output(0));
 
         auto abs = std::make_shared<op::v0::Abs>(squeeze_2->output(0));
-        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{X_1, H_1, H_2, C_1, C_2});
+
+        ParameterVector params = {X, H, W, R, B, C, X_2, H_2, W_2, R_2, B_2, C_2}; 
+        model = std::make_shared<Model>(NodeVector{abs}, params);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
     }
 
     {
-        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, input_size});
-        auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_size});
-        // auto lstm_count = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
-        Shape W_shape{4 * hidden_size, input_size};
-        Shape R_shape{4 * hidden_size, hidden_size};
-        std::vector<float> W_values =
-            std::vector<float>{4, 12, 20, 5, 13, 21, 0, 8, 16, 1, 9, 17, 2, 10, 18, 3, 11, 19, 6, 14, 22, 7, 15, 23};
-        auto W = op::v0::Constant::create(element::f32, W_shape, W_values);
-        std::vector<float> R_values =
-            std::vector<float>{28, 36, 29, 37, 24, 32, 25, 33, 26, 34, 27, 35, 30, 38, 31, 39};
-        auto R = op::v0::Constant::create(element::f32, R_shape, R_values);
-        Shape B_shape{4 * hidden_size};
-        std::vector<float> B_values{5, 6, 0, 1, 2, 3, 6, 7};
-        auto B = op::v0::Constant::create(element::f32, B_shape, B_values);
-        auto multi_lstm_sequence = std::make_shared<
-            op::v13::MultiLSTMSequence>(X, H, C, 4, W, R, B, hidden_size, op::RecurrentSequenceDirection::FORWARD);
+        size_t sequences_count = 2;
+        auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
+        auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
+
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, input_size});
+        auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
+        auto W = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, input_size});
+        auto R = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size, hidden_size});
+        auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
+        auto A = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
+
+        
+        auto unH = std::make_shared<op::v0::Unsqueeze>(H, axis_1);
+        auto unC = std::make_shared<op::v0::Unsqueeze>(C, axis_1);
+        auto unW = std::make_shared<op::v0::Unsqueeze>(W, axis_0);
+        auto unR = std::make_shared<op::v0::Unsqueeze>(R, axis_0);
+        auto unB = std::make_shared<op::v0::Unsqueeze>(B, axis_0);
+
+        OutputVector in_X;
+        OutputVector in_A;
+        for (int i = 0; i < cells_cnt; ++i) {
+            in_X.push_back(std::make_shared<op::v0::Unsqueeze>(X, axis_1));
+            in_A.push_back(std::make_shared<op::v0::Unsqueeze>(A, axis_1));
+        }
+        auto concat_X = std::make_shared<op::v0::Concat>(in_X, 1);
+        auto concat_A = std::make_shared<op::v0::Concat>(in_A, 1);
+
+        auto multi_lstm_sequence = std::make_shared<op::v13::MultiLSTMSequence>(concat_X,
+                                        unH,
+                                        unC,
+                                        sequences_count,
+                                        unW,
+                                        unR,
+                                        unB,
+                                        hidden_size,
+                                        op::RecurrentSequenceDirection::FORWARD);
         auto abs = std::make_shared<op::v0::Abs>(multi_lstm_sequence->output(0));
         model_ref = std::make_shared<Model>(NodeVector{abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
