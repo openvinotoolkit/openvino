@@ -58,7 +58,7 @@ public:
     // in destructor of PerfCountRdtscEnd, output the perf info
     // accumulation is cycle count
     uint64_t accumulation = 0ul;
-    uint64_t iteration = 0;
+    uint64_t iteration = 0ul;
 };
 
 } // namespace intel_cpu

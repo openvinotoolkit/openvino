@@ -117,6 +117,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     return expr;
 }
 
+#ifdef SNIPPETS_DEBUG_CAPS
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::PerfCountBeginBase>& n,
                                                   const std::vector<PortConnectorPtr>& inputs,
                                                   const LinearIR& linear_ir) {
@@ -139,6 +140,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create_without_connections(const std:
     expr->validate();
     return expr;
 }
+#endif
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n,
                                                   const std::vector<PortConnectorPtr>& inputs,
