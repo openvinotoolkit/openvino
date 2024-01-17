@@ -42,8 +42,4 @@ TEST_F(HeteroTests, set_property_device_priorities) {
     EXPECT_EQ("", core.get_property("HETERO", ov::device::priorities));
     core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
     EXPECT_EQ("MOCK0,MOCK1", core.get_property("HETERO", ov::device::priorities));
-    EXPECT_EQ("MOCK0,MOCK1", core.get_property("HETERO", "TARGET_FALLBACK").as<std::string>());
-    core.set_property("HETERO", {{"TARGET_FALLBACK", "MOCK1,MOCK0"}});
-    EXPECT_EQ("MOCK1,MOCK0", core.get_property("HETERO", ov::device::priorities));
-    EXPECT_EQ("MOCK1,MOCK0", core.get_property("HETERO", "TARGET_FALLBACK").as<std::string>());
 }

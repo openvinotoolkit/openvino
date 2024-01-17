@@ -18,7 +18,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         const auto& key = it.first;
         const auto& value = it.second;
 
-        if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
+        if (ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
         } else {
             if (throwOnUnsupported)
@@ -29,7 +29,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 }
 
 ov::Any Configuration::get(const std::string& name) const {
-    if (name == "TARGET_FALLBACK" || name == ov::device::priorities) {
+    if (name == ov::device::priorities) {
         return {device_priorities};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
@@ -37,12 +37,12 @@ ov::Any Configuration::get(const std::string& name) const {
 }
 
 std::vector<ov::PropertyName> Configuration::get_supported() const {
-    static const std::vector<ov::PropertyName> names = {"TARGET_FALLBACK", ov::device::priorities};
+    static const std::vector<ov::PropertyName> names = {ov::device::priorities};
     return names;
 }
 
 ov::AnyMap Configuration::get_hetero_properties() const {
-    return {{"TARGET_FALLBACK", device_priorities}, {ov::device::priorities.name(), device_priorities}};
+    return {{ov::device::priorities.name(), device_priorities}};
 }
 
 ov::AnyMap Configuration::get_device_properties() const {
@@ -50,8 +50,5 @@ ov::AnyMap Configuration::get_device_properties() const {
 }
 
 bool Configuration::dump_dot_files() const {
-    bool res = false;
-    if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
-        res = true;
-    return res;
+    return std::getenv("OPENVINO_HETERO_VISUALIZE") != NULL;
 }
