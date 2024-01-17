@@ -65,4 +65,14 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_floating_point, CompileModelCacheTestBase,
                                  ::testing::Values(pluginConfig)),
                          CompileModelCacheTestBase::getTestCaseName);
 
+const std::vector<ov::AnyMap> default_properties = {
+        {ov::enable_profiling(false)}
+};
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheRuntimePropertiesTestBase,
+                        ::testing::Combine(
+                                ::testing::Values(targetDevice),
+                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(default_properties))),
+                        CompileModelCacheRuntimePropertiesTestBase::getTestCaseName);
+
 } // namespace
