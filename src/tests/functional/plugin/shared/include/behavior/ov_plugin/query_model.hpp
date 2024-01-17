@@ -43,7 +43,7 @@ TEST_P(OVClassModelTestP, ImportModelWithNullContextThrows) {
     ov::Core ie = createCoreWithTemplate();
     ov::RemoteContext context;
     std::istringstream stream("None");
-    ASSERT_THROW(ie.import_model(stream, context, {}), InferenceEngine::Exception);
+    ASSERT_THROW(ie.import_model(stream, context, {}), ov::Exception);
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
