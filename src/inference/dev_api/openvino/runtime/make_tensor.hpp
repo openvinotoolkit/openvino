@@ -12,7 +12,7 @@ namespace InferenceEngine {
 
 class Blob;
 
-}  // InferenceEngine
+}  // namespace InferenceEngine
 
 namespace ov {
 
