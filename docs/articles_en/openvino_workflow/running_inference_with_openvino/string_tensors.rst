@@ -7,7 +7,7 @@ String Tensors
 .. meta::
    :description: Learn how to pass and retrieve text to and from OpenVINO model.
 
-OpenVINO tensors can hold not only numerical data, like floating point or integer numbers,
+OpenVINO tensors can hold not only numerical data, like floating-point or integer numbers,
 but also textual information, represented as one or multiple strings.
 Such a tensor is called a string tensor and can be passed as input or retrieved as output of a text-processing model, such as
 `tokenizers and detokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__.
@@ -27,7 +27,7 @@ of arbitrary length, including an empty string, and can be set independently of 
 Depending on the API used (C++ or Python), the underlying data type that represents the string when accessing the tensor elements is
 different:
 
- - in C++, std::string is used 
+ - in C++, std::string is used
  - in Python, `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used, as a read-only copy of the underlying C++ content
 
 String tensor implementation doesn't imply any limitations on string encoding, as underlying `std::string` doesn't have such limitations.
