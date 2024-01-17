@@ -6,7 +6,6 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
-#include "ngraph/graph_util.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/exception.hpp"

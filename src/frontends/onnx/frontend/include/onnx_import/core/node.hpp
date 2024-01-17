@@ -17,11 +17,11 @@
 #include <cstddef>
 #include <string>
 
-#include "ngraph/deprecated.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ONNX_NAMESPACE {
 // forward declaration

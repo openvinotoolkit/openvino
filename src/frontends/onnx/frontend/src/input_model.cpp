@@ -404,15 +404,15 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, co
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
-    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
+    std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> map;
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
 
-        std::shared_ptr<ngraph::op::Constant> constant =
-            ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        std::shared_ptr<ov::op::v0::Constant> constant =
+            ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
 
         constant->set_friendly_name(name);
         map.emplace(name, constant);

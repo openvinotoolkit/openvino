@@ -8,7 +8,7 @@
 
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ngraph {
 namespace onnx_import {

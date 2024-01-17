@@ -34,8 +34,8 @@ public:
 
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = default;
-    std::shared_ptr<Function> decode();
-    virtual std::shared_ptr<Function> convert();
+    std::shared_ptr<ov::Model> decode();
+    virtual std::shared_ptr<ov::Model> convert();
     OutputVector get_ov_outputs();
     const std::string& get_name() const {
         return m_model->get_graph().name();
@@ -80,7 +80,7 @@ protected:
     void convert_to_ov_nodes();
     void remove_dangling_parameters();
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
-    std::shared_ptr<Function> create_function();
+    std::shared_ptr<ov::Model> create_model();
 
     ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
@@ -111,7 +111,7 @@ public:
     /// \return     Vector of edge nodes from parent scope.
     const std::vector<Output<ov::Node>> get_inputs_from_parent() const;
 
-    std::shared_ptr<Function> convert() override;
+    std::shared_ptr<ov::Model> convert() override;
 
     Subgraph() = delete;
 

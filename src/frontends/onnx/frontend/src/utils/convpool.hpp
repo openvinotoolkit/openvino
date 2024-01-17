@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/coordinate_diff.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape.hpp"

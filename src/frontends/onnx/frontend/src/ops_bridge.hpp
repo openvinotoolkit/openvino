@@ -13,7 +13,6 @@
 
 #include "onnx_import/core/operator_set.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/except.hpp"
 #include "version_range.hpp"
 
 namespace ngraph {
