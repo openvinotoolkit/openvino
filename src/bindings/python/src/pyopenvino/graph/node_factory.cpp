@@ -94,10 +94,37 @@ public:
         return op_node;
     }
 
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) {
+        auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
+        ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
+        if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
+            auto op_type = op_extension->get_type_info().name;
+            // keep so extension instead of extension_extracted to hold loaded library
+            m_opset_so_extensions[op_type] = so_extension;
+        }
+    }
+
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
+        // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
+        // them in m_opset_so_extensions for future use in create methods.
+        // NodeFactory provides a simplified API for node creation without involving version of operation.
+        // It means all operations share the same name space and real operation versions (opsets) from extension
+        // library are ignored.
+        for (auto extension : extensions) {
+            auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
+            ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
+            if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
+                auto op_type = op_extension->get_type_info().name;
+                // keep so extension instead of extension_extracted to hold loaded library
+                m_opset_so_extensions[op_type] = so_extension;
+            }
+        }
+    }
+
     void add_extension(const std::string& lib_path) {
         // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
         // them in m_opset_so_extensions for future use in create methods.
-        // NodeFactory provides a simplified API for node creation withotu involving version of operation.
+        // NodeFactory provides a simplified API for node creation without involving version of operation.
         // It means all operations share the same name space and real operation versions (opsets) from extension
         // library are ignored.
         auto extensions = ov::detail::load_extensions(lib_path);
@@ -147,6 +174,15 @@ void regclass_graph_NodeFactory(py::module m) {
         [](NodeFactory& self, const std::string name, const ov::OutputVector& arguments, const py::dict& attributes) {
             return self.create(name, arguments, attributes);
         });
+
+    node_factory.def("add_extension", [](NodeFactory& self, const std::shared_ptr<ov::Extension>& extension) {
+        return self.add_extension(extension);
+    });
+
+    node_factory.def("add_extension",
+                     [](NodeFactory& self, const std::vector<std::shared_ptr<ov::Extension>>& extension) {
+                         return self.add_extension(extension);
+                     });
 
     node_factory.def("add_extension", [](NodeFactory& self, const py::object& lib_path) {
         return self.add_extension(Common::utils::convert_path_to_string(lib_path));
