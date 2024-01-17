@@ -12,7 +12,8 @@
         "bruteForce" : "BruteForce"
     },
     "utilMap" : {
-        "map_builder" : "mapBuilder"
+        "map_builder" : "mapBuilder",
+        "log_parser" : "logParser"
     },
     "extendBuildCommand" : false,
     "commandList" : [
