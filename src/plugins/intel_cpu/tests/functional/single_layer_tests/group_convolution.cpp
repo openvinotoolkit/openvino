@@ -101,7 +101,7 @@ protected:
                 return it->second.as<std::string>();
             };
 
-            if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Convolution") {
+            if (getExecValue(ov::exec_model_info::LAYER_TYPE) == "Convolution") {
                 foundConv = true;
                 ASSERT_EQ(3, node->inputs().size());
                 break;
@@ -225,8 +225,8 @@ TEST_P(ExpectFallbackGroupConvolutionLayerCPUTest, CompareWithRefs) {
             OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
-        if ("Convolution" == getExecValue(ExecGraphInfoSerialization::LAYER_TYPE)) {
-            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+        if ("Convolution" == getExecValue(ov::exec_model_info::LAYER_TYPE)) {
+            auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
             ASSERT_TRUE(selectedType != primType) << "primType is unexpected: " << primType;
         }
     }

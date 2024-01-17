@@ -4,16 +4,16 @@
 
 #include "graph_dumper.h"
 
-#include "utils/debug_capabilities.h"
-#include "exec_graph_info.hpp"
+#include "dnnl_debug.h"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include <dnnl_debug.h>
+#include "openvino/runtime/exec_model_info.hpp"
+#include "utils/debug_capabilities.h"
 
-#include <vector>
-#include <string>
-#include <memory>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -28,16 +28,16 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
 
     if (node->getType() == Type::Input && node->isConstant()) {
         // We need to separate Input and Const layers
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
+        serialization_info[ov::exec_model_info::LAYER_TYPE] = "Const";
     } else {
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
+        serialization_info[ov::exec_model_info::LAYER_TYPE] = NameFromType(node->getType());
     }
 
     // Original layers
-    serialization_info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
+    serialization_info[ov::exec_model_info::ORIGINAL_NAMES] = node->getOriginalLayers();
 
     // Implementation type name
-    serialization_info[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
+    serialization_info[ov::exec_model_info::IMPL_TYPE] = node->getPrimitiveDescriptorType();
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
@@ -62,7 +62,7 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
             outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
         }
     }
-    serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
+    serialization_info[ov::exec_model_info::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
     std::string outputLayoutsStr;
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
@@ -87,18 +87,18 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     } else {
         outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
-    serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
+    serialization_info[ov::exec_model_info::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
     // Performance
     if (node->PerfCounter().avg() != 0) {
-        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
+        serialization_info[ov::exec_model_info::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
     } else {
-        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
+        serialization_info[ov::exec_model_info::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
     }
 
-    serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+    serialization_info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 
-    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
+    serialization_info[ov::exec_model_info::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
 
     return serialization_info;
 }
@@ -164,7 +164,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             results.emplace_back(std::make_shared<ov::op::v0::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
-            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+            return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {

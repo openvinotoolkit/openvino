@@ -2,7 +2,6 @@
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
-#include <exec_graph_info.hpp>
 #include <fstream>
 #include <openvino/pass/serialize.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
@@ -13,6 +12,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
@@ -367,10 +367,10 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
         };
 
         // Each layer from the execGraphInfo network must have PM data option set
-        EXPECT_EQ("not_executed", getExecValue(ExecGraphInfoSerialization::PERF_COUNTER));
+        EXPECT_EQ("not_executed", getExecValue(ov::exec_model_info::PERF_COUNTER));
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        auto origFromExecLayer = getExecValue(ov::exec_model_info::ORIGINAL_NAMES);
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
@@ -420,7 +420,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 
         // At least one layer in the topology should be executed and have valid perf counter value
         try {
-            float x = static_cast<float>(std::atof(getExecValue(ExecGraphInfoSerialization::PERF_COUNTER).c_str()));
+            float x = static_cast<float>(std::atof(getExecValue(ov::exec_model_info::PERF_COUNTER).c_str()));
             std::cout << "TIME: " << x << std::endl;
             EXPECT_GE(x, 0.0f);
             hasOpWithValidTime = true;
@@ -429,7 +429,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        auto origFromExecLayer = getExecValue(ov::exec_model_info::ORIGINAL_NAMES);
         std::vector<std::string> origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
         if (origFromExecLayer.empty()) {
             constCnt++;
