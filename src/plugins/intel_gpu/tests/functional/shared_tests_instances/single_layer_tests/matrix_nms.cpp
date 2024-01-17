@@ -10,8 +10,6 @@ using ov::test::MatrixNmsLayerTest;
 const std::vector<std::vector<ov::Shape>> inStaticShapeParams = {{{3, 100, 4}, {3, 1, 100}},
                                                                  {{1, 10, 4}, {1, 100, 10}}};
 
-//const auto inputPrecisions = InputPrecisions{ov::element::f32, ov::element::i32, ov::element::f32};
-
 const std::vector<ov::op::v8::MatrixNms::SortResultType> sortResultType = {ov::op::v8::MatrixNms::SortResultType::CLASSID,
                                                                            ov::op::v8::MatrixNms::SortResultType::SCORE,
                                                                            ov::op::v8::MatrixNms::SortResultType::NONE};
@@ -25,8 +23,6 @@ const std::vector<int> backgroudClass = {-1, 1};
 const std::vector<bool> normalized = {true, false};
 const std::vector<ov::op::v8::MatrixNms::DecayFunction> decayFunction = {ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                                      ov::op::v8::MatrixNms::DecayFunction::LINEAR};
-
-//const std::vector<bool> outStaticShape = {true};   // only be true as gpu plugin not support nms with internal dynamic yet.
 
 const auto nmsParamsStatic =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
