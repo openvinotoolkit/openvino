@@ -50,11 +50,7 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::str
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                   const ov::AnyMap& properties,
                                                                   const ov::SoPtr<ov::IRemoteContext>& context) const {
-    return ov::legacy_convert::convert_compiled_model(
-               update_exec_network(m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                             any_copy(properties),
-                                                             ov::legacy_convert::convert_remote_context(context))))
-        ._ptr;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 void IPluginWrapper::set_property(const ov::AnyMap& properties) {
@@ -70,11 +66,11 @@ ov::Any IPluginWrapper::get_property(const std::string& name, const ov::AnyMap& 
 }
 
 ov::SoPtr<ov::IRemoteContext> IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
-    return ov::legacy_convert::convert_remote_context(m_old_plugin->CreateContext(remote_properties));
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::SoPtr<ov::IRemoteContext> IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
-    return ov::legacy_convert::convert_remote_context(m_old_plugin->GetDefaultContext(remote_properties));
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
@@ -87,11 +83,7 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& m
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
                                                                  const ov::SoPtr<ov::IRemoteContext>& context,
                                                                  const ov::AnyMap& properties) const {
-    return ov::legacy_convert::convert_compiled_model(
-               update_exec_network(m_old_plugin->ImportNetwork(model,
-                                                               ov::legacy_convert::convert_remote_context(context),
-                                                               any_copy(properties))))
-        ._ptr;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,
