@@ -580,8 +580,6 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<concat_input_order>();
     }
 
-    apply_opt_pass<strided_slice_optimize>();
-
     apply_opt_pass<handle_reshape>();
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);

@@ -314,12 +314,6 @@ private:
     void run(program& p) override;
 };
 
-class strided_slice_optimize : public base_pass {
-public:
-    strided_slice_optimize() : base_pass("strided_slice_optimize") {}
-    void run(program& p) override;
-};
-
 class reverse_optional_nodes_outputs : public base_pass {
 public:
     reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
