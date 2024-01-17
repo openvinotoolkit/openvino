@@ -379,6 +379,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
+        if (withSubtract &&
+            !one_of(subtractConstNode->getOriginalOutputPrecisionAtPort(0), weightsNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32))
+            continue;
 
         // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
@@ -412,6 +415,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
             if (shape_to_check.size() > decompressionConstShape.size())
                 return false;
+            if (shape_to_check.size() == 1 && shape_to_check[0] == 1)
+                return true;
             const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
             // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
             return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
@@ -463,8 +468,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
             }
 
-            VectorDims memoryDims(decompressionConstShape.size(), 1);
-            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(memoryDims));
+            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
             auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
             (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
             fcNode->fuseDecompressionSubtract(memory);

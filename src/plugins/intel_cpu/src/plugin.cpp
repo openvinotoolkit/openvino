@@ -480,6 +480,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
                                                     RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                    RW_property(ov::dynamic_quantization_group_size.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -524,6 +525,8 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
+    } else if (name == ov::dynamic_quantization_group_size) {
+        return decltype(ov::dynamic_quantization_group_size)::value_type(engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (name == ov::device::type) {

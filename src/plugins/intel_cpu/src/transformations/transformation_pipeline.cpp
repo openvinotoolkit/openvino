@@ -288,8 +288,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4};
-    // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);

@@ -215,6 +215,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
+        } else if (key == ov::dynamic_quantization_group_size.name()) {
+            try {
+                fcDynamicQuantizationGroupSize = val.as<uint64_t>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                                ov::dynamic_quantization_group_size.name(),
+                                ". Expected only unsinged integer numbers");
+            }
         } else if (key == ov::enable_profiling.name()) {
             try {
                 collectPerfCounters = val.as<bool>();

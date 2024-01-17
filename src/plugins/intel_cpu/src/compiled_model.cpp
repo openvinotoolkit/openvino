@@ -198,6 +198,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::dynamic_quantization_group_size.name()),
         };
     }
 
@@ -261,6 +262,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
+    } else if (name == ov::dynamic_quantization_group_size) {
+        return decltype(ov::dynamic_quantization_group_size)::value_type(
+            config.fcDynamicQuantizationGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

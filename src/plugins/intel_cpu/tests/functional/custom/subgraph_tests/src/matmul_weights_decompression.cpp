@@ -6,6 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 using namespace CPUTestUtils;
 
@@ -200,7 +201,8 @@ protected:
             mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
         }
 
-        std::shared_ptr<ov::Node> scale_const = ov::test::utils::deprecated::make_constant<float>(decompression_precision, scaleshift_const_shape, {}, true);
+        std::shared_ptr<ov::Node> scale_const =
+            ov::test::utils::deprecated::make_constant<float>(decompression_precision, scaleshift_const_shape, {}, true, 0.01f, 0.001f);
         if (reshape_on_decompression_constant) {
             auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
             auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);
@@ -364,7 +366,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(true),
+                                            // todo: zero points converted to fp32 for reshape == true case
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
@@ -377,7 +380,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(true),
+                                            // todo: zero points converted to fp32 for reshape == true case
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_amx()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
@@ -425,6 +429,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_amx,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
+
+const std::vector<ShapeParams> input_shapes_basic_dyn_quant = {
+    {{{}, {{1, 7, 256}}}, {256, 128}, 32lu},
+    {{{}, {{1, 1, 128}}}, {128, 32}},
+    {{{}, {{1, 3, 144}}}, {144, 64}, 16lu},
+};
+
+const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8,
+                                                                         ov::element::u4};
+
+std::vector<ov::AnyMap> filter_additional_config_dyn_quant() {
+    std::vector<ov::AnyMap> additional_config = {
+        {{ov::dynamic_quantization_group_size(0)}}, // dynamic quantization is disabled
+        {{ov::dynamic_quantization_group_size(16)}},
+        {{ov::dynamic_quantization_group_size(128)}},
+    };
+    return additional_config;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_group_sizes,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant),
+                                            ::testing::ValuesIn(weights_precisions_dyn_quant),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(decompression_subtract_type),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_dyn_quant()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

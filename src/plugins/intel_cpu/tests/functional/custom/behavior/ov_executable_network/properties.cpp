@@ -38,6 +38,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::dynamic_quantization_group_size.name()),
     };
 
     ov::Core ie;
@@ -156,6 +157,17 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompression
 
     core.set_property(deviceName, ov::intel_cpu::sparse_weights_decompression_rate(0.8));
     ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckDynamicQuantizationGroupSize) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::dynamic_quantization_group_size(64));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    size_t groupSize = 0;
+    ASSERT_NO_THROW(groupSize = compiledModel.get_property(ov::dynamic_quantization_group_size));
+    ASSERT_EQ(groupSize, 64);
 }
 
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;

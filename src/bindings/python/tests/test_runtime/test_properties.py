@@ -253,6 +253,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
+        (
+            props.dynamic_quantization_group_size,
+            "DYNAMIC_QUANTIZATION_GROUP_SIZE",
+            ((64, 64),),
+        ),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,

@@ -116,6 +116,47 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
            one_of(weightsType, u8, nf4, u4, i4);
 }
 
+bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr weightsDesc,
+                                                 MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose) {
+    if (dqGroupSize == 0)
+        return false;
+
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
+        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
+        return false;
+
+    if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4))
+        return false;
+
+    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined))
+        return false;
+
+    const size_t simdWidth = 16;
+    if (dqGroupSize % simdWidth)
+        return false;
+
+    if (weightsDesc->getPrecision() == ov::element::u4) {
+        int ic = weightsDesc->getShape().getStaticDims()[1];
+        int minGroupSize = INT_MAX;
+        if (scalesPtr && scalesPtr->getShape().getRank() == 3) {
+            auto scalesDims = scalesPtr->getShape().getStaticDims();
+            auto groupsNum = needTranspose ? scalesDims[1] : scalesDims[0];
+            minGroupSize = ic / groupsNum;
+        }
+        if (zpPtr && zpPtr->getShape().getRank() == 3) {
+            auto zpDims = zpPtr->getShape().getStaticDims();
+            int groupsNum = needTranspose ? zpDims[1] : zpDims[0];
+            minGroupSize = std::min(minGroupSize, ic / groupsNum);
+        }
+
+        const size_t minLoopSize = 8;
+        if (minGroupSize != INT_MAX && minGroupSize % minLoopSize)
+            return false;
+    }
+
+    return true;
+}
+
 template <typename T>
 static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
     return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
@@ -124,7 +165,8 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                                const PostOps& postOps,
                                                const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context) {
+                                               ExecutorContext::CPtr context,
+                                               bool useDynamicQuantization) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -148,9 +190,12 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (attrs.decompressionMultiplyPtr)
         dnnlpoc.appendDecompressionScales(attrs.decompressionMultiplyPtr, !attrs.weightsNonTransposed);
-    if (attrs.decompressionSubtractPtr)
-        dnnlpoc.appendDecompressionZeroPoints(attrs.decompressionSubtractPtr,
-                                              !attrs.weightsNonTransposed);
+    if (attrs.decompressionSubtractPtr) {
+        auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
+        dnnlpoc.appendDecompressionZeroPoints(attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed, dstPrc);
+    }
+    if (useDynamicQuantization)
+        dnnlpoc.setDynamicQuantizationParams(attrs.dynamicQuantizationGroupSize);
 
     return dnnlpoc.compose();
 }
@@ -268,7 +313,12 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context);
+    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
+    const auto useDynamicQuantization = useWeightsDecompression &&
+        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, weiDesc,
+                                   attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
+
+    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 
     if (!cacheWeights)
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
@@ -287,7 +337,6 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const auto useSparseWeights = attrs.sparseWeights;
-    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
 
     const dnnl::memory::desc biaDnnlDesc =
         memory.at(ARG_BIAS)->getDescPtr()->getCurrentMemSize() != 0
