@@ -29,7 +29,7 @@ struct ExecutorConfigTestCase {
 };
 
 class ExecutorConfigTest : public ov::test::TestsCommon,
-                                 public testing::WithParamInterface<std::tuple<ExecutorConfigTestCase>> {
+                           public testing::WithParamInterface<std::tuple<ExecutorConfigTestCase>> {
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());
