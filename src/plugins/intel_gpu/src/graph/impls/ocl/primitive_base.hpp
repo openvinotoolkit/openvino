@@ -14,6 +14,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "primitive_inst.h"
+#include "program_node.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
 #include "implementation_map.hpp"
@@ -280,9 +281,9 @@ protected:
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            new_events.push_back(ev);
+            if (_kernel_data.needs_sub_kernels_sync)
+                new_events.push_back(ev);
             all_events.push_back(ev);
-
             tmp_events = new_events;
         }
 

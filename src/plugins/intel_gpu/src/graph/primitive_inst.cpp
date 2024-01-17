@@ -1173,9 +1173,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
         if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
-            need_args_update = true;
-
             if (update_impl()) {
+                need_args_update = true;
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
