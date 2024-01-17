@@ -3,8 +3,8 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
-#include "ie_plugin_config.hpp"
 
+#include "ie_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
