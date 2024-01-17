@@ -589,6 +589,11 @@ void program::pre_optimize_graph(bool is_internal) {
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
+    // Check fusing primitives based on preferred format or layout optimization
+    if (optimize_data) {
+        apply_opt_pass<fuse_primitives_with_layout>();
+    }
+
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
 
