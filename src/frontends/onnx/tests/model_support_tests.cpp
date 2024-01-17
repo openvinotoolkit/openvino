@@ -11,7 +11,7 @@
 
 namespace {
 std::string model_path(const char* model) {
-    std::string path = ONNX_TEST_MODELS;
+    std::string path = TEST_ONNX_MODELS_DIRNAME;
     path += "support_test/";
     path += model;
     return ov::test::utils::getModelFromTestModelZoo(path);
@@ -19,7 +19,7 @@ std::string model_path(const char* model) {
 }  // namespace
 
 TEST(ONNXReader_ModelSupported, basic_model) {
-    // this model is a basic ONNX model taken from ngraph's unit test (add_abc.onnx)
+    // this model is a basic ONNX model taken from OpenVINO's unit test (add_abc.onnx)
     // it contains the minimum number of fields required to accept this file as a valid model
     EXPECT_NO_THROW(ov::Core{}.read_model(model_path("supported/basic.onnx")));
 }

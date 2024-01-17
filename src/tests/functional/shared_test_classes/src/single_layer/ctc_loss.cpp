@@ -52,12 +52,12 @@ void CTCLossLayerTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngFpPrc, ov::Shape(logitsShapes))};
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto ctcLoss = std::dynamic_pointer_cast<ngraph::opset4::CTCLoss>(
+    auto ctcLoss = std::dynamic_pointer_cast<ov::op::v4::CTCLoss>(
             ngraph::builder::makeCTCLoss(params[0], logitsLength, labels, labelsLength, blankIndex,
                 ngFpPrc, ngIntPrc, preprocessCollapseRepeated, ctcMergeRepeated, unique));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcLoss)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcLoss)};
     function = std::make_shared<ngraph::Function>(results, params, "CTCLoss");
 }
 }  // namespace LayerTestsDefinitions

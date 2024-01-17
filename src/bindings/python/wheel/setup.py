@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -625,8 +625,8 @@ package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 
-long_description_md = OPENVINO_SOURCE_DIR / "docs" / "install_guides" / "pypi-openvino-rt.md"
-md_files = [long_description_md, OPENVINO_SOURCE_DIR / "docs" / "install_guides" / "pre-release-note.md"]
+long_description_md = OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pypi-openvino-rt.md"
+md_files = [long_description_md, OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pre-release-note.md"]
 docs_url = "https://docs.openvino.ai/2023.0/index.html"
 
 if os.getenv("CI_BUILD_DEV_TAG"):

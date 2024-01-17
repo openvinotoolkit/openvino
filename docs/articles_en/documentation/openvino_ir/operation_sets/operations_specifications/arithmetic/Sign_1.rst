@@ -28,7 +28,7 @@ Sign
 
 **Outputs**
 
-* **1**: The result of element-wise *Sign* operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
+* **1**: The result of element-wise *Sign* operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive), nan is returned for nan inputs.
 
 **Types**
 

@@ -80,13 +80,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                                             ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> default_properties = {{ov::enable_profiling(false)},
-                                                    {ov::log::level("LOG_NONE")},
-                                                    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-                                                    {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
-                                                    {ov::intel_auto::device_bind_buffer(false)},
-                                                    {ov::intel_auto::enable_startup_fallback(true)},
-                                                    {ov::device::priorities("")}};
+const std::vector<ov::AnyMap> default_properties = {
+    {ov::enable_profiling(false)},
+    {ov::log::level("LOG_NONE")},
+    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
+    {ov::intel_auto::device_bind_buffer(false)},
+    {ov::intel_auto::enable_startup_fallback(true)},
+    {ov::intel_auto::schedule_policy(ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)},
+    {ov::device::priorities("")}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
                          OVPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
@@ -127,11 +129,11 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    OVCheckSetSupportedRWMandatoryMetricsPropsTests,
+    smoke_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
-                           {ov::hint::model_priority.name(), ov::log::level.name()}))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
@@ -159,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MultiAutoOVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
-                           {ov::hint::model_priority.name(), ov::log::level.name()}))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 }  // namespace

@@ -7,12 +7,9 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/abs.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -22,7 +19,7 @@ inline OutputVector abs(const Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Abs op is not supported");
-    return {std::make_shared<default_opset::Abs>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v0::Abs>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1
 

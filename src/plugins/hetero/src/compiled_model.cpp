@@ -135,11 +135,12 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg)
+                                         const Configuration& cfg,
+                                         const bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
       m_cfg(cfg),
       m_name(),
-      m_loaded_from_cache(true) {
+      m_loaded_from_cache(loaded_from_cache) {
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 
@@ -241,7 +242,8 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                   "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {

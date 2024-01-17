@@ -32,12 +32,7 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    if(APPLE)
-        # Apple M1 / M2 is assumed
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-    else()
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
-    endif()
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
@@ -157,28 +152,21 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/dot_product.cpp
-        API         src/nodes/kernels/scaled_attn/dot_product.hpp
-        NAME        attn_dot_products
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+                    src/nodes/kernels/scaled_attn/mha_single_token.cpp
+        API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
+        NAME        mha_single_token
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/acc_value.cpp
-        API         src/nodes/kernels/scaled_attn/acc_value.hpp
-        NAME        attn_acc_values
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/reduce.cpp
-        API         src/nodes/kernels/scaled_attn/reduce.hpp
-        NAME        attn_reduce
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+                    src/nodes/kernels/scaled_attn/attn_memcpy.cpp
+        API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
+        NAME        attn_memcpy
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)

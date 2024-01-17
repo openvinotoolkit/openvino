@@ -41,7 +41,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::AxisSet reductionAxes;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     TestTransformationParams params;
     Actual actual;
@@ -134,6 +134,21 @@ const std::vector<ov::PartialShape> inputShapes = {
 };
 
 const std::vector<MVNTransformationTestValues> testValues = {
+    {
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ov::element::f16,
+            {{ov::element::f16}, {}, {{0.45f}, ov::element::f16, {}, false, 1ul, ov::element::f16}}
+        },
+        {
+            ov::element::f16,
+            { },
+            ov::element::f32,
+            {{}, {}, {1.f}},
+        }
+    },
     {
         {1, 2, 3},
         true,

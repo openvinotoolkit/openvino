@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-
 #ifdef CPU_DEBUG_CAPS
 
 #include <string>
@@ -10,7 +9,7 @@
 #include <sstream>
 #include <chrono>
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <dnnl_debug.h>
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/model.hpp"
@@ -45,7 +44,7 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
-
+class IMemory;
 class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
@@ -93,6 +92,7 @@ public:
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
+std::ostream & operator<<(std::ostream & os, const IMemory& mem);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);

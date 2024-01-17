@@ -6,13 +6,12 @@
 
 #include "core/graph.hpp"
 #include "core/model.hpp"
-#include "ngraph/log.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 Subgraph Attribute::get_subgraph(Graph* parent_graph) const {
     if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH) {
-        throw error::attribute::InvalidData{m_attribute_proto->type()};
+        ONNX_INVALID_ATTR(m_attribute_proto->type(), "GRAPH");
     }
 
     auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();

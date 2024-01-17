@@ -7,14 +7,12 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerCPUTestParamSet>& obj) {
     MatMulLayerTestParamsSet basicParamsSet;
@@ -27,9 +25,9 @@ std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Mat
     ElementType netType;
     ElementType inType, outType;
     ShapeRelatedParams shapeRelatedParams;
-    ngraph::helpers::InputLayerType secondaryInputType;
+    utils::InputLayerType secondaryInputType;
     TargetDevice targetDevice;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
         basicParamsSet;
 
@@ -59,7 +57,7 @@ std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Mat
     result << "trgDev=" << targetDevice;
     result << "config=(";
     for (const auto& configEntry : additionalConfig) {
-        result << configEntry.first << ", " << configEntry.second << ":";
+        result << configEntry.first << ", " << configEntry.second.as<std::string>() << ":";
     }
     result << ")";
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -85,8 +83,8 @@ void MatMulLayerCPUTest::SetUp() {
 
     ShapeRelatedParams shapeRelatedParams;
     ElementType netType;
-    helpers::InputLayerType secondaryInputType;
-    std::map<std::string, std::string> additionalConfig;
+    utils::InputLayerType secondaryInputType;
+    ov::AnyMap additionalConfig;
 
     std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
 
@@ -119,7 +117,8 @@ void MatMulLayerCPUTest::SetUp() {
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+    auto it = additionalConfig.find(ov::hint::inference_precision.name());
+    if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16)
         inType = outType = netType = ElementType::bf16;
     else
         inType = outType = netType;
@@ -130,7 +129,7 @@ void MatMulLayerCPUTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
     std::shared_ptr<ov::Node> matrixB;
-    if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
+    if (secondaryInputType == utils::InputLayerType::PARAMETER) {
         auto param = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
         matrixB = param;
         params.push_back(param);
@@ -139,7 +138,13 @@ void MatMulLayerCPUTest::SetUp() {
         auto tensor = ov::test::utils::create_and_fill_tensor(netType, inShapeB.to_shape());
         matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
     }
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
+
+    ov::OutputVector paramOuts;
+    for (auto&& node : params) {
+        for (auto&& param : node->outputs())
+            paramOuts.push_back(param);
+    }
+
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
     function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;
@@ -161,8 +166,8 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
 }
 
 namespace MatMul {
-const std::map<std::string, std::string>& emptyAdditionalConfig() {
-    static const std::map<std::string, std::string> emptyAdditionalConfig;
+const ov::AnyMap& emptyAdditionalConfig() {
+    static const ov::AnyMap emptyAdditionalConfig;
     return emptyAdditionalConfig;
 }
 
@@ -181,14 +186,13 @@ const std::vector<ElementType>& netPRCs() {
     return netPRCs;
 }
 
-const std::vector<std::map<std::string, std::string>>& additionalConfig() {
-    static std::vector<std::map<std::string, std::string>> additionalConfig {
-    #ifndef OV_CPU_WITH_MLAS
+const std::vector<ov::AnyMap>& additionalConfig() {
+    static std::vector<ov::AnyMap> additionalConfig{
+#ifndef OV_CPU_WITH_MLAS
         // FP32 precision is covered by MLAS
-        std::map<std::string, std::string>{/* empty config */},
-    #endif
-        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
-    };
+        ov::AnyMap{/* empty config */},
+#endif
+        {ov::hint::inference_precision(ov::element::bf16)}};
     return additionalConfig;
 }
 
@@ -313,5 +317,6 @@ const std::vector<ShapeRelatedParams>& IS3D_smoke() {
     return IS3D_smoke;
 }
 
-} // namespace MatMul
-} // namespace CPULayerTestsDefinitions
+}  // namespace MatMul
+}  // namespace test
+}  // namespace ov

@@ -59,29 +59,36 @@ public:
 
 protected:
     void SetUp() override {
-        bool is_optimized, with_split_loops;
-        std::tie(is_optimized, with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
+        std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
 
         const auto body = GetModel();
         m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
         m_linear_ir.set_loop_depth(m_loop_depth);
-        ApplyTransformations(is_optimized, with_split_loops);
+        // When Subgraph::control_flow_transformations become public method,
+        // please use this method instead of ApplyTransformations
+        ApplyTransformations(GetPassConfig());
     }
 
-    void ApplyTransformations(bool is_optimized, bool with_split_loops) {
-        ov::snippets::lowered::pass::PassPipeline pipeline;
-        pipeline.register_pass<ov::intel_cpu::pass::BrgemmBlocking>();
+    std::shared_ptr<ov::snippets::lowered::pass::PassConfig> GetPassConfig() {
+        auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+        if (!m_with_split_loops)
+            config->disable<ov::snippets::lowered::pass::SplitLoops>();
+        return config;
+    }
+
+    void ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config) {
+        ov::snippets::lowered::pass::PassPipeline pipeline(pass_config);
         pipeline.register_pass<ov::snippets::lowered::pass::MarkLoops>(m_vector_size);
+        pipeline.register_pass<ov::intel_cpu::pass::BrgemmBlocking>();
         pipeline.register_pass<ov::snippets::lowered::pass::SoftmaxDecomposition>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
-        if (with_split_loops)
-            pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
+        pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>(2);
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
         pipeline.register_pass<ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape>();
-        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, is_optimized);
+        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
         pipeline.run(m_linear_ir);
     }
 
@@ -115,12 +122,15 @@ protected:
 
     size_t m_loop_depth = 2;
     size_t m_vector_size = 16;
+
+    bool m_is_buffer_optimized = true;
+    bool m_with_split_loops = true;
 };
 
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
 protected:
     std::shared_ptr<ov::Model> GetModel() const override {
-        const auto subtensor_scalar = std::vector<size_t>{1, 1};
+        const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_softmax = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
 
@@ -136,10 +146,12 @@ protected:
 
         const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(
             convert1, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::OnlyRepacking, 0, 0, 0);
-        const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
+        const auto scratch0 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             parameter0, brgemm_copyb0->output(0), scratch0, ov::intel_cpu::BrgemmCPU::Type::AMX);
         brgemm_cpu0->set_m_block_size(32);
+        brgemm_cpu0->set_k_block_size(16);
+        brgemm_cpu0->set_n_block_size(64);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
         const auto softmax = std::make_shared<ov::op::v1::Softmax>(relu1, 3);
@@ -147,10 +159,12 @@ protected:
 
         const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(
             parameter2, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::OnlyRepacking, 0, 0, 0);
-        const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
+        const auto scratch1 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             convert2, brgemm_copyb1->output(0), scratch1, ov::intel_cpu::BrgemmCPU::Type::AMX);
         brgemm_cpu1->set_m_block_size(32);
+        brgemm_cpu1->set_k_block_size(16);
+        brgemm_cpu1->set_n_block_size(64);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
@@ -191,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHA
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(90112),
-                                 ::testing::Values(4)),
+                                 ::testing::Values(3)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
