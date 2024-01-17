@@ -4,7 +4,6 @@
 
 #include "op/average_pool.hpp"
 
-#include "ngraph/node.hpp"
 #include "utils/pooling_factory.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

@@ -40,6 +40,10 @@ void read_value_inst::update_output_memory() {
         return;
 
     const auto& variable = get_network().get_variable(variable_id());
+    GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << variable_id() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - ptr : " << variable.get_memory()->buffer_ptr() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - layout " << variable.get_layout().to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 }
 } // namespace cldnn
