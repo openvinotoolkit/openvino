@@ -547,9 +547,9 @@ jobs:
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
-          repository: 'ilya-lavrenov/openvino_contrib'
+          repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'cuda-plugin'
+          ref: 'master'
 
       #
       # Dependencies
