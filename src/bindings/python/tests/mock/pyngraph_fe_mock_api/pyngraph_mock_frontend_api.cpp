@@ -119,6 +119,9 @@ static void register_frontend_wrappers(py::module m) {
     fe_tensorflow.def(
         "add_extension",
         static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
+    fe_tensorflow.def("add_extension",
+                      static_cast<void (FrontEnd::*)(const std::vector<std::shared_ptr<ov::Extension>>& extension)>(
+                          &FrontEnd::add_extension));
     fe_tensorflow.def("check_conversion_extension_registered",
                       [](FrontEndWrapperTensorflow& self, const std::string& name) {
                           return self.check_conversion_extension_registered(name);

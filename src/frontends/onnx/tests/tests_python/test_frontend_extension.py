@@ -64,6 +64,31 @@ def test_tensorflow_conversion_extension_fe_wrapper():
     assert fe.check_conversion_extension_registered("CustomConverter")
 
 
+@skip_if_frontend_is_disabled(TENSORFLOW_FRONTEND_NAME)
+@skip_if_tensorflow_not_install_by_wheel_pkg()
+def test_tensorflow_multiple_extensions_fe_wrapper():
+    from openvino.frontend.tensorflow import ConversionExtension
+    from openvino.frontend import NodeContext
+
+    fe = FrontEndWrapperTensorflow()
+
+    def custom_converter_one(node: NodeContext):
+        node.get_input(0)
+        node.get_attribute("alpha")
+
+    def custom_converter_two(node: NodeContext):
+        node.get_input(0)
+        node.get_attribute("beta")
+
+    extensions = [
+        ConversionExtension("CustomConverterOne", custom_converter_one),
+        ConversionExtension("CustomConverterTwo", custom_converter_two),
+    ]
+    fe.add_extension(extensions)
+    assert fe.check_conversion_extension_registered("CustomConverterOne")
+    assert fe.check_conversion_extension_registered("CustomConverterTwo")
+
+
 @skip_if_frontend_is_disabled(PADDLE_FRONTEND_NAME)
 def test_paddle_conversion_extension_fe_wrapper():
     from openvino.frontend.paddle import ConversionExtension
