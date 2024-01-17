@@ -9,11 +9,7 @@ String Tensors
 
 OpenVINO tensors can hold not only numerical data, like floating point or integer numbers,
 but also textual information, represented as one or multiple strings.
-Such a tensor is called a string tensor.
-
-A string tensor can be passed as an input or retrieved as an output of OpenVINO model.
-Models with string inputs and/or outputs are dedicatedly designed to process textual information.
-For example, string tensors provide a way to feed and retrieve textual data when using OpenVINO
+Such a tensor is called a string tensor and can be passed as input or retrieved as output of a text-processing model, such as
 `tokenizers and detokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__.
 
 While this section describes basic API to handle string tensors, more practical examples that leverage both
@@ -35,13 +31,11 @@ different:
  - in Python, `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used, as a read-only copy of the underlying C++ content
 
 String tensor implementation doesn't imply any limitations on string encoding, as underlying `std::string` doesn't have such limitations.
-It is capable of representing all valid UTF-8 encoded symbol sequences and even arbitrary byte sequences not
-mandatory limited by UTF-8.
+It is capable of representing all valid UTF-8 characters but also any other byte sequence outside of the UTF-8 encoding standard.
 Users should pay extra attention when handling arbitrary byte sequences when accessing tensor content as encoded UTF-8 symbols.
 
 As the string representation is more sophisticated in contrast to for example `float` or `int` data type,
-the underlying memory that is used for string tensor representation cannot be handled without proper construction and
-destroying of string objects.
+the underlying memory that is used for string tensor representation cannot be handled without properly constructing and destroying string objects.
 Also, in contrast to numerical data, C++ and Python do not share the same memory layout, so there is no immediate
 sharing of tensor content between the two APIs. Python provides only a numpy-compatible view of the data
 allocated and held in C++ core as an array of the `std::string` objects.
@@ -108,7 +102,7 @@ with Unicode or byte strings:
          tensor = ov.Tensor(np.array([b'text', b'more text', b'even more text']))
 
 If `ov::Tensor` is created without providing initialization strings,
-a tensor of specified shape with empty strings as elements is created:
+a tensor of a specified shape and empty strings as elements is created:
 
 .. tab-set::
 
@@ -136,7 +130,7 @@ Accessing Elements
 The following code prints all elements in the 1D string tensor constructed above.
 In C++ code the same `.data` template method is used for other data types,
 and to access string data it should be called with the `std::string` type.
-In Python, dedicated fields `std_data` or `byte_data` are used instead of `data` field for numerical data.
+In Python, dedicated `std_data` and `byte_data` fields are used instead of `data` field for numerical data.
 
 .. tab-set::
 
@@ -197,11 +191,11 @@ storage is returned and it can be used for tensor element modification:
 When reading or setting string tensor elements in Python, it is recommended to use `str` objects (or `numpy.str_` if used in numpy array)
 when it is known that the underlying byte sequence forms a valid UTF-8 encoded string.
 Otherwise, if arbitrary byte sequences are allowed,
-not mandatory UTF-8 encoded, use `bytes` strings (or `numpy.bytes_` correspondingly) instead.
+not necessarily within the UTF-8 standard, use `bytes` strings (or `numpy.bytes_` correspondingly) instead.
 
 Accessing tensor content through `str_data` implicitly applies UTF-8 decoding.
 If parts of the byte stream cannot be represented as valid Unicode symbols,
-the replacement symbol � is used to signal errors in such invalid Unicode streams.
+The � replacement symbol is used to signal errors in such invalid Unicode streams.
 
 Additional Resources
 ####################
