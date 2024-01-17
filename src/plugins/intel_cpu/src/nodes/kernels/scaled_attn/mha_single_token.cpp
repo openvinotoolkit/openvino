@@ -177,13 +177,7 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();
-        if (attention_mask) {
-            if (attn_mask_prec == ov::element::f32) {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
-            } else {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<bfloat16>({b, h, 0, 0}, true));
-            }
-        }
+        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
         attn_softmax_kernel(&buf_attn_w.at<float>({b, h, pq, 0}),
                             &buf_attn_w.at<float>({b, h, pq, 0}),

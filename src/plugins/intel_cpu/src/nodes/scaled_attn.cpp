@@ -62,24 +62,12 @@ bool ScaledDotProductAttentionKey::operator==(const ScaledDotProductAttentionKey
     return retVal;
 }
 
-inline uint8_t* get_attn_mask_ptr(const PlainTensor& attention_mask, size_t b, size_t h) {
-    auto attn_mask_prec = attention_mask.get_precision();
-    uint8_t* attn_mask_ptr = nullptr;
-
-    if (attn_mask_prec == ov::element::f32) {
-        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
-    } else {
-        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<bfloat16>({b, h, 0, 0}, true));
-    }
-
-    return attn_mask_ptr;
-}
-
 // default implementation: reference
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
     const GraphContext::CPtr context;
-    MHAKernel(GraphContext::CPtr ctx) : context(ctx) {}
+    MHAKernel() = delete;
+    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {}
 
     template <typename D>
     float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
@@ -257,7 +245,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
     std::shared_ptr<brgemmExecutor> qk_gemm_ptr = nullptr;
     std::shared_ptr<brgemmExecutor> wv_gemm_ptr = nullptr;
-    MHAKernel(GraphContext::CPtr ctx)
+
+    MHAKernel() = delete;
+    explicit MHAKernel(GraphContext::CPtr ctx)
         : context(ctx),
           fp32_out(true),
           qk_scratch_a(true),
@@ -440,13 +430,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 if (alibi_mask.size(2) > 1)
                     alibi_stride = alibi_mask.stride(2);
             }
-            auto attn_mask_prec = attention_mask.get_precision();
+
             uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
@@ -467,7 +457,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
-                             attn_mask_prec,
+                             precision_of<T>::value,
                              precision_of<T>::value);
             }
             bfloat16* w_ptr = &weight.at<bfloat16>({b, h, m_start, 0});
@@ -562,12 +552,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             // apply attention mask & sofmax
             auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
             uint8_t* attn_mask_ptr = nullptr;
-            auto attn_mask_prec = attention_mask.get_precision();
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
             }
             attn_softmax(&score.at<float>({b, h, m, 0}),
                          &weight.at<T>({b, h, m, 0}),
@@ -578,7 +567,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                          select_nfltmax_at_0,
                          ncausal,
                          kv_len,
-                         attn_mask_prec,
+                         precision_of<T>::value,
                          precision_of<T>::value);
         });
 
@@ -594,7 +583,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     // buffer to hold qk temp
     std::vector<PlainTensor> qk_buffers;
 
-    MHAKernel(GraphContext::CPtr ctx): context(ctx) {
+    MHAKernel() = delete;
+    explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 4;
         select_nfltmax_at_0 = false;
         qk_buffers.resize(parallel_get_max_threads(), PlainTensor(true));
@@ -661,13 +651,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                 if (alibi_mask.size(2) > 1)
                     alibi_stride = alibi_mask.stride(2);
             }
-            auto attn_mask_prec = attention_mask.get_precision();
             uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = get_attn_mask_ptr(attention_mask, b, h);
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2) * attn_mask_prec.size();
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(float);
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
@@ -723,7 +712,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
-                             attn_mask_prec,
+                             ov::element::f32,
                              ov::element::f32);
             }
             mlas_sgemm("N",

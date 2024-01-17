@@ -16,6 +16,7 @@ namespace intel_cpu {
 class brgemmExecutor {
 public:
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
+    // BF16 * BF16 -> FP32
     // lda is the first dimension for A matrix
     // ldb is the first dimension for B matrix
     // ldc is the first dimension for C matrix
@@ -70,7 +71,7 @@ private:
         bool transpose_b = false;
         float beta = 0.0f;
     };
-    brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
+    brgemmCtx brgCtxs[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel;
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel;

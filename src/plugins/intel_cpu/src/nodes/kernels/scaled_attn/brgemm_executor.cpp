@@ -54,18 +54,18 @@ brgemmExecutor::brgemmExecutor(size_t M,
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
-                auto& brgemmCtx = brgCtxs0[getBrgIdx(m, k, n)];
+                auto& brgemmCtx = brgCtxs[getBrgIdx(m, k, n)];
 
                 auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
                 auto N_ = n ? N_tail : N - N_tail;
                 auto K_ = k ? K_tail : K - K % K_blk;
-                auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+                auto beta = k && brgCtxs[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = k ? K_blk : lda;
-                brgemmCtx.LDB = rnd_up(N, N_blk);  // ???
+                brgemmCtx.LDB = rnd_up(N, N_blk);  // B is copied with bf16
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
@@ -81,7 +81,7 @@ brgemmExecutor::brgemmExecutor(size_t M,
         }
     }
 
-    auto& brgemmCtx0 = brgCtxs0[brg0BaseIdx];
+    auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
 
     if (brgemmCtx0.is_with_amx && K_tail) {
         init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, K_blk, brgemmCtx0.dt_in0, false, lda * brgPrc.size());
@@ -290,7 +290,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
-    size_t K0_step0 = brgCtxs0[brgIdx0].K;
+    size_t K0_step0 = brgCtxs[brgIdx0].K;
     bool is_M_tail = m_blk < M_blk;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
@@ -320,7 +320,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
         size_t count_K = 0;
         for (size_t k = 0; k < 2; k++) {
             size_t mIdx = is_M_tail ? 1 : 0;
-            auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
+            auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                 auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * dataType.size();
