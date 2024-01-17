@@ -12,8 +12,8 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ov::element::Type,
+    ov::Shape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     bool> OutputLayersHandlingInTransformationsParams;

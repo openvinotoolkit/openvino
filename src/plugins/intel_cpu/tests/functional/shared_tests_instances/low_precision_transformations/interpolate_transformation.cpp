@@ -5,7 +5,6 @@
 #include "low_precision_transformations/interpolate_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ov::element::Type> precisions = {

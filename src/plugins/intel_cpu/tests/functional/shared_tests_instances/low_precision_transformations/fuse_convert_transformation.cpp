@@ -5,7 +5,6 @@
 #include "low_precision_transformations/fuse_convert_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ov::element::Type> precisions = {

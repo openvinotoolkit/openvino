@@ -25,7 +25,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersConcat,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
     OutputLayersConcat::getTestCaseName);

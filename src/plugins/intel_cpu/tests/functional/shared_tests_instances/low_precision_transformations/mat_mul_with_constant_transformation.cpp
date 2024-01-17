@@ -7,7 +7,6 @@
 #include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ov::element::Type> precisions = {

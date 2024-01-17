@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 using namespace ngraph;
 
 namespace {
