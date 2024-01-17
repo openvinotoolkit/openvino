@@ -196,7 +196,7 @@ not necessarily within the UTF-8 standard, use `bytes` strings (or `numpy.bytes_
 
 Accessing tensor content through `str_data` implicitly applies UTF-8 decoding.
 If parts of the byte stream cannot be represented as valid Unicode symbols,
-The � replacement symbol is used to signal errors in such invalid Unicode streams.
+the � replacement symbol is used to signal errors in such invalid Unicode streams.
 
 Additional Resources
 ####################
