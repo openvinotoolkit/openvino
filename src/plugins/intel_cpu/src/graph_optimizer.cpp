@@ -189,10 +189,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
-
-    ShareReorders(graph);
-    graph.RemoveDroppedNodes();
-
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
@@ -2098,20 +2094,9 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
     auto getSuitableReorder = [](NodePtr node) -> Reorder* {
         if (node->getType() != Type::Reorder)
             return nullptr;
-
         Reorder* reorder = dynamic_cast<Reorder*>(node.get());
         if (reorder == nullptr)
             OPENVINO_THROW("Cannot get reorder layer ", node->getName());
-
-        if (!reorder->getShareable())
-            return nullptr;
-
-        // inplace children may write to data, cannot be safely shared
-        auto reorderConsumers = reorder->getChildEdgesAtPort(0);
-        if (std::any_of(reorderConsumers.begin(), reorderConsumers.end(), [](EdgePtr e) {
-                return e->inPlace(Edge::LOOK_DOWN);
-            }))
-            return nullptr;
         return reorder;
     };
 
@@ -2138,7 +2123,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
             if (!reorder->getOutput().isCompatible(siblingReorder->getOutput()))
                 continue;
 
-            DEBUG_LOG(node->getName(), " becomes a shared-replacement of ", siblingNode->getName());
+            DEBUG_LOG(node->getName(), " is shared by ", siblingNode->getName());
 
             // siblingReorder can share output with current reorder
             for (auto pwEdge : siblingReorder->getParentEdges()) {

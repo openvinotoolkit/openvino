@@ -233,7 +233,12 @@ void Graph::InitGraph() {
 
     InitOptimalPrimitiveDescriptors(graphNodes);
 
-    ResolveEdgeConflicts();
+    ResolveLayoutConflicts();
+
+    optimizer.ShareReorders(*this);
+    RemoveDroppedNodes();
+
+    ResolveInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
@@ -422,8 +427,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     return dnnl_success == status;
 }
 
-void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+void Graph::ResolveLayoutConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveLayoutConflicts");
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
@@ -445,7 +450,7 @@ void Graph::ResolveEdgeConflicts() {
         uniqueLayerNames.insert(layerName);
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
-        return InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
     auto updateEdge = [&](ptrdiff_t& i) {
@@ -491,6 +496,39 @@ void Graph::ResolveEdgeConflicts() {
             updateEdge(i);
         }
     }
+}
+
+void Graph::ResolveInplaceConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveInplaceConflicts");
+
+    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+
+    std::unordered_set<std::string> uniqueLayerNames;
+    for (auto node : graphNodes) {
+        uniqueLayerNames.insert(node->getName());
+    }
+
+    auto insertReorder = [&](EdgePtr& edge, bool isOptimized) {
+        std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                     node::Reorder::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                     edge->getChild()->getName();
+        std::string layerName = basicLayerName;
+        int idx = 0;
+        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+            idx++;
+            layerName = basicLayerName + "_" + std::to_string(idx);
+        }
+        uniqueLayerNames.insert(layerName);
+
+        // optimized flag indicate that just desc update w/o actual physical memory movement.
+        return InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+    };
+
+    auto updateEdge = [&](ptrdiff_t& i) {
+        graphEdges.erase(graphEdges.begin() + i);
+        i--;
+        numberOfEdges--;
+    };
 
     // secondary pass to eliminate complex inplace conflicts
     auto needReorder = [](const EdgePtr& edge) -> bool {
@@ -517,16 +555,11 @@ void Graph::ResolveEdgeConflicts() {
         return false;
     };
 
-    numberOfEdges = graphEdges.size(); //update the total number
-
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         if (needReorder(edge)) {
             constexpr bool optimizedReorder = false;
             auto newReorder = insertReorder(edge, optimizedReorder);
-            // this reorder cannot be safely shared with other consumer
-            auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
-            reorderPtr->setShareable(false);
             updateEdge(i);
         }
     }
