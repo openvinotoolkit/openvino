@@ -30,7 +30,7 @@ class TestGcd(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, int_a: int, int_b: int):
-                return torch.gcd(int_a, int_b)
+                return torch.tensor(torch.gcd(int_a, int_b))
 
         ref_net = None
 
