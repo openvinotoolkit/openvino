@@ -8,7 +8,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "exceptions.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;

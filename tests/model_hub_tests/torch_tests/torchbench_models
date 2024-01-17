@@ -4,8 +4,8 @@ Background_Matting,None
 LearningToPaint,None
 Super_SloMo,None,xfail,Unsupported ops aten::l1_loss aten::mse_loss
 #alexnet,None - Already tested by torchvision tests
-basic_gnn_edgecnn,None,xfail,Accuracy validation failed
-basic_gnn_gcn,None,xfail,Unsupported ops aten::pow_
+basic_gnn_edgecnn,None
+basic_gnn_gcn,None,xfail,CPU failed to allocate
 basic_gnn_gin,None
 basic_gnn_sage,None
 #cm3leon_generate,None,skip,No install.py is found
@@ -60,7 +60,6 @@ mobilenet_v2_quantized_qat,None
 #nanogpt,None,skip,No install.py is found
 nvidia_deeprecommender,None
 opacus_cifar10,None,skip,Modules that have backward hooks assigned can't be compiled
-phi_1_5,None
 phlippe_densenet,None
 phlippe_resnet,None
 pyhpc_equation_of_state,None,xfail,Accuracy validation failed

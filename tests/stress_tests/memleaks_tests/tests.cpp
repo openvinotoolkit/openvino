@@ -9,8 +9,6 @@
 
 #include <gtest/gtest.h>
 
-using namespace InferenceEngine;
-
 class MemLeaksTestSuiteNoModel : public ::testing::TestWithParam<MemLeaksTestCase> {
 };
 
@@ -107,7 +105,7 @@ TEST_P(MemLeaksTestSuite, recreate_compiled_model) {
                                                    test_params.api_version));
     }
     auto test = [&] {
-        log_info("Recreate ExecutableNetworks within existing InferenceEngine::Core from networks: "
+        log_info("Recreate CompiledModels within existing ov::Core from networks: "
                          << test_params.model_name << " for \"" << test_params.device << "\" device for "
                          << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);

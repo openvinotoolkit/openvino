@@ -40,6 +40,42 @@ public:
     OPENVINO_API Shape& operator=(const Shape& v);
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
     OPENVINO_API std::string to_string() const;
+
+    /**
+     * @brief Gets dimension at index.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::reference operator[](std::ptrdiff_t i);
+
+    /**
+     * @brief Gets dimension at index.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A const reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::const_reference operator[](std::ptrdiff_t i) const;
+
+    /**
+     * @brief Gets dimension at index, with bounds checking.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::reference at(std::ptrdiff_t i);
+
+    /**
+     * @brief Gets dimension at index, with bounds checking.
+     *
+     * @param i  Index to shape dimension [-rank, rank).
+     *
+     * @return A const reference to i-th dimension of this shape.
+     */
+    OPENVINO_API typename Shape::const_reference at(std::ptrdiff_t i) const;
 };
 
 /**

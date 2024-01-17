@@ -19,6 +19,7 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
@@ -29,17 +30,8 @@ namespace InferenceEngine {
 
 class ExecutorManager;
 class IExecutableNetworkInternal;
-class RemoteContext;
 class IExtension;
 class ICore;
-
-/**
- * @brief      Copies preprocess info
- *
- * @param[in]  from  PreProcessInfo to copy from
- * @return     copy of preprocess info
- */
-INFERENCE_ENGINE_API_CPP(PreProcessInfo) copyPreProcess(const PreProcessInfo& from);
 
 /**
  * @brief       Copies the values of `std::string` indexed map and apply const cast
@@ -180,18 +172,6 @@ public:
                                                                     const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Creates an executable network from network object, on specified remote context
-     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @param context A pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @return Created Executable Network object
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
-                                                                    const std::map<std::string, std::string>& config,
-                                                                    const std::shared_ptr<RemoteContext>& context);
-
-    /**
      * @brief Creates an executable network from model file path
      * @param modelPath A path to model
      * @param config A string-string map of config parameters relevant only for this load operation
@@ -235,20 +215,6 @@ public:
     virtual Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const;
 
     /**
-     * @brief      Creates a remote context instance based on a map of parameters
-     * @param[in]  params  The map of parameters
-     * @return     A remote context object
-     */
-    virtual std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params);
-
-    /**
-     * @brief      Provides a default remote context instance if supported by a plugin
-     * @param[in]  params  The map of parameters
-     * @return     The default context.
-     */
-    virtual std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params);
-
-    /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
      * @brief Creates an executable network from an previously exported network
      * @param modelFileName - path to the location of the exported file
@@ -266,19 +232,6 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::map<std::string, std::string>& config);
-
-    /**
-     * @brief Creates an executable network from an previously exported network using plugin implementation
-     *        and removes Inference Engine magic and plugin name
-     * @param networkModel Reference to network model output stream
-     * @param context A pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::shared_ptr<RemoteContext>& context,
                                                                       const std::map<std::string, std::string>& config);
 
     /**
@@ -333,24 +286,6 @@ protected:
         const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Creates an executable network using remote context from a parsed network object,
-     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW
-     * resources)
-     * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
-     * RemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
-     * after.
-     * @param network A network object
-     * @param context A remote context
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @return Shared pointer to the ExecutableNetwork object
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
-        const CNNNetwork& network,
-        const std::shared_ptr<RemoteContext>& context,
-        const std::map<std::string, std::string>& config);
-
-    /**
      * @brief Set input and output information to executable network. This method is used to
      * set addtional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
      * @param exeNetwork An executable network object to set information to
@@ -376,16 +311,6 @@ protected:
     std::shared_ptr<ov::threading::ExecutorManager> _executorManager;  //!< A tasks execution manager
     bool _isNewAPI;                                                    //!< A flag which shows used API
 };
-
-/**
- * @private
- */
-using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
-
-/**
- * @private
- */
-using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
 
 /**
  * @def IE_CREATE_PLUGIN
@@ -428,17 +353,3 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
         ie_plugin->SetVersion(version);                                               \
         plugin = convert_plugin(ie_plugin);                                           \
     }
-
-/**
- * @private
- */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
-    INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false)
-
-/**
- * @private
- */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_IE_CREATE_EXTENSION_FUNC) \
-    INFERENCE_EXTENSION_API(void)                                                  \
-    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr& ext)

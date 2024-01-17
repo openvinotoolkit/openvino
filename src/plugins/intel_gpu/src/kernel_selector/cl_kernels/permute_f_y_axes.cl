@@ -25,22 +25,21 @@ KERNEL (permute_f_y_axes)(
 #endif
     )
 {
-    const int f_idx = get_global_id(2);
-    const int b_idx = get_global_id(1);;
-    const int y_idx = get_global_id(0);
+    const int bf = get_global_id(2);
+    const int f_idx = bf % INPUT0_FEATURE_NUM;
+    const int b_idx = bf / INPUT0_FEATURE_NUM;
+    const int x_start = get_global_id(0) * BLOCK_SIZE;
+    const int y_idx = get_global_id(1);
 
-    for (int x_idx = 0; x_idx < J_TIMES * VEC_SIZE; x_idx+=VEC_SIZE) {
-        IN_VEC_TYPE resv = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
+    __attribute__((opencl_unroll_hint(J_TIMES)))
+    for (int j = 0; j < J_TIMES; ++j) {
+        const int x_idx = x_start + j * VEC_SIZE;
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
 #if HAS_FUSED_OPS
-        OUT_VEC_TYPE result;
-        for (int i = 0; i < VEC_SIZE; i++)
-        {
-            INPUT0_TYPE res = resv[i];
-            FUSED_OPS;
-            result[i] = FUSED_OPS_RESULT;
-        }
+        FUSED_OPS_VEC;
+        OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
 #else
-        OUT_VEC_TYPE result = ACTIVATION(resv, ACTIVATION_PARAMS);
+        OUT_VEC_TYPE result = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f_idx, x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);
@@ -133,16 +132,18 @@ KERNEL (permute_f_y_axes)(
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
         const int y_idx = y_begin + j_vec;
-        IN_VEC_TYPE resv = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
-        for (int k = 0; k < VEC_SIZE; ++k) {
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
 #if HAS_FUSED_OPS
-            INPUT0_TYPE res = resv[k];
-            FUSED_OPS
-            transpose_buf[j_vec + k][bf_local] = FUSED_OPS_RESULT;
-#else
-            transpose_buf[j_vec + k][bf_local] = ACTIVATION(resv[k], ACTIVATION_PARAMS);
-#endif
+        FUSED_OPS_VEC;
+        OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
+        for (int k = 0; k < VEC_SIZE; ++k) {
+            transpose_buf[j_vec + k][bf_local] = result[k];
         }
+#else
+        for (int k = 0; k < VEC_SIZE; ++k) {
+            transpose_buf[j_vec + k][bf_local] = ACTIVATION(res[k], ACTIVATION_PARAMS);
+        }
+#endif
     }
 
     __attribute__((opencl_unroll_hint(J_TIMES)))

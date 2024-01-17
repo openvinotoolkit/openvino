@@ -4,6 +4,7 @@
 #pragma once
 
 #include <napi.h>
+
 #include <thread>
 
 #include "async_reader.hpp"
@@ -22,11 +23,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Core class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Core class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     /**
      * @brief Reads a model synchronously.
@@ -88,6 +85,9 @@ protected:
                                    const Napi::String& model_path,
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
+
+    /** @brief Returns devices available for inference. */
+    Napi::Value get_available_devices(const Napi::CallbackInfo& info);
 
 private:
     ov::Core _core;

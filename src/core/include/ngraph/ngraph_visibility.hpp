@@ -13,7 +13,6 @@
 #    endif
 #endif
 
-#include "ngraph/visibility.hpp"
 #include "openvino/core/core_visibility.hpp"
 
 #define NGRAPH_API      OPENVINO_API
