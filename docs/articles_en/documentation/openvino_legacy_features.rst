@@ -111,8 +111,8 @@ offering.
              :language: python
              :fragment: [export_compiled_model]
 
-          .. tab-item:: C++
-             :sync: cpp
+       .. tab-item:: C++
+          :sync: cpp
 
           .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
              :language: cpp
