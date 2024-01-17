@@ -8,7 +8,6 @@
 
 #include "async_infer_request.hpp"
 #include "graph_debug_dump.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/op/util/op_types.hpp"

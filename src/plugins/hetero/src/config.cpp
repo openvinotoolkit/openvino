@@ -9,7 +9,7 @@
 
 using namespace ov::hetero;
 
-Configuration::Configuration() : dump_graph(false) {}
+Configuration::Configuration() {}
 
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
@@ -50,7 +50,7 @@ ov::AnyMap Configuration::get_device_properties() const {
 }
 
 bool Configuration::dump_dot_files() const {
-    bool res = dump_graph;
+    bool res = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         res = true;
     return res;

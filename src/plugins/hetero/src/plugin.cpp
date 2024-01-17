@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "ie/ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
