@@ -636,7 +636,16 @@ bool primitive_inst::use_async_compilation() {
         return false;
     }
 
-    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() || _node->is_type<gemm>() ||
+    bool compile_fc_impls = _node->is_type<fully_connected>();
+    if (compile_fc_impls) {
+        const auto& fc_node = _node->as<fully_connected>();
+        if (fc_node.get_primitive()->compressed_weights) {
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            compile_fc_impls = !one_of(weights_dt, {data_types::i4, data_types::u4});
+        }
+    }
+
+    return (_node->is_type<convolution>() || compile_fc_impls || _node->is_type<gemm>() ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
