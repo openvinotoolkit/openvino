@@ -55,15 +55,85 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float scale
 static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float scale, float zp) {
     size_t i = 0;
     weight *= scale;
-// #if defined(HAVE_AVX512F)
-//     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
-//     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
-//         auto v_value = mm512_uni_loadu_ps(v + i);
-//         auto v_out = mm512_uni_loadu_ps(out + i);
-//         v_out = _mm512_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
-//         _mm512_storeu_ps(out + i, v_out);
-//     }
-#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX512F)
+    auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
+    auto v_zp = _mm512_set1_ps(zp);
+    for (; i + 4 * vec_len_f32_avx512 <= S; i += 4* vec_len_f32_avx512) {
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i));
+        auto v1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512));
+        auto v2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512 * 2));
+        auto v3_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512 * 3));
+
+        auto v0_out = mm512_uni_loadu_ps(out + i);
+        auto v1_out = mm512_uni_loadu_ps(out + i + vec_len_f32_avx512);
+        auto v2_out = mm512_uni_loadu_ps(out + i + vec_len_f32_avx512 * 2);
+        auto v3_out = mm512_uni_loadu_ps(out + i + vec_len_f32_avx512 * 3);
+
+        auto v0_256 = _mm512_cvtepu8_epi32(v0_128);
+        auto v1_256 = _mm512_cvtepu8_epi32(v1_128);
+        auto v2_256 = _mm512_cvtepu8_epi32(v2_128);
+        auto v3_256 = _mm512_cvtepu8_epi32(v3_128);
+
+        auto v0_value = _mm512_cvtepi32_ps(v0_256);
+        auto v1_value = _mm512_cvtepi32_ps(v1_256);
+        auto v2_value = _mm512_cvtepi32_ps(v2_256);
+        auto v3_value = _mm512_cvtepi32_ps(v3_256);
+
+        v0_value = _mm512_sub_ps(v0_value, v_zp);
+        v1_value = _mm512_sub_ps(v1_value, v_zp);
+        v2_value = _mm512_sub_ps(v2_value, v_zp);
+        v3_value = _mm512_sub_ps(v3_value, v_zp);
+
+        v0_out = _mm512_fmadd_ps(attn_w_vec_fp32, v0_value, v0_out);
+        v1_out = _mm512_fmadd_ps(attn_w_vec_fp32, v1_value, v1_out);
+        v2_out = _mm512_fmadd_ps(attn_w_vec_fp32, v2_value, v2_out);
+        v3_out = _mm512_fmadd_ps(attn_w_vec_fp32, v3_value, v3_out);
+
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 0, v0_out);
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 1, v1_out);
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 2, v2_out);
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 3, v3_out);
+    }
+    if (i + 2 * vec_len_f32_avx512 <= S) {
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i));
+        auto v1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512));
+
+        auto v0_out = mm512_uni_loadu_ps(out + i);
+        auto v1_out = mm512_uni_loadu_ps(out + i + vec_len_f32_avx512);
+
+        auto v0_256 = _mm512_cvtepu8_epi32(v0_128);
+        auto v1_256 = _mm512_cvtepu8_epi32(v1_128);
+
+        auto v0_value = _mm512_cvtepi32_ps(v0_256);
+        auto v1_value = _mm512_cvtepi32_ps(v1_256);
+
+        v0_value = _mm512_sub_ps(v0_value, v_zp);
+        v1_value = _mm512_sub_ps(v1_value, v_zp);
+
+        v0_out = _mm512_fmadd_ps(attn_w_vec_fp32, v0_value, v0_out);
+        v1_out = _mm512_fmadd_ps(attn_w_vec_fp32, v1_value, v1_out);
+
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 0, v0_out);
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 1, v1_out);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= S) {
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i));
+
+        auto v0_out = mm512_uni_loadu_ps(out + i);
+
+        auto v0_256 = _mm512_cvtepu8_epi32(v0_128);
+
+        auto v0_value = _mm512_cvtepi32_ps(v0_256);
+
+        v0_value = _mm512_sub_ps(v0_value, v_zp);
+
+        v0_out = _mm512_fmadd_ps(attn_w_vec_fp32, v0_value, v0_out);
+
+        mm512_uni_storeu_ps(out + i + vec_len_f32_avx512 * 0, v0_out);
+        i += vec_len_f32_avx512;
+    }
+#elif defined(HAVE_AVX2)
     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
     auto v_zp = _mm256_set1_ps(zp);
     for (; i + 4 * vec_len_f32_avx2 <= S; i += 4* vec_len_f32_avx2) {
@@ -146,7 +216,38 @@ static float sum_q_head(T* a, size_t n) {
     float sum = 0.0f;
     size_t i = 0;
 #if defined(HAVE_AVX512F)
+    auto vsum0 = _mm512_set1_ps(0.0f);
+    auto vsum1 = _mm512_set1_ps(0.0f);
+    auto vsum2 = _mm512_set1_ps(0.0f);
+    auto vsum3 = _mm512_set1_ps(0.0f);
+    for (; i + 4 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 4) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+        auto va2 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 2);
+        auto va3 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 3);
 
+        vsum0 = _mm512_add_ps(va0, vsum0);
+        vsum1 = _mm512_add_ps(va1, vsum1);
+        vsum2 = _mm512_add_ps(va2, vsum2);
+        vsum3 = _mm512_add_ps(va3, vsum3);
+    }
+    if (i + 2 * vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+
+        vsum0 = _mm512_add_ps(va0, vsum0);
+        vsum1 = _mm512_add_ps(va1, vsum1);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        vsum0 = _mm512_add_ps(va0, vsum0);
+        i += vec_len_f32_avx512;
+    }
+    vsum0 = _mm512_add_ps(vsum0, vsum1);
+    vsum2 = _mm512_add_ps(vsum2, vsum3);
+    vsum0 = _mm512_add_ps(vsum0, vsum2);
+    sum = _mm512_reduce_add_ps(vsum0);
 #elif defined(HAVE_AVX2)
     auto vsum0 = _mm256_set1_ps(0.0f);
     auto vsum1 = _mm256_set1_ps(0.0f);
@@ -222,15 +323,71 @@ template<typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum) {
     size_t i = 0;
     float sum = 0.0f;
-// #if defined(HAVE_AVX512F)
-//     auto vsum = _mm512_setzero_ps();
-//     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-//         auto va = mm512_uni_loadu_ps(a + i);
-//         auto vb = mm512_uni_loadu_ps(b + i);
-//         vsum = _mm512_fmadd_ps(va, vb, vsum);
-//     }
-//     sum = _mm512_reduce_add_ps(vsum);
-#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX512F)
+    auto vsum0 = _mm512_set1_ps(0.0f);
+    auto vsum1 = _mm512_set1_ps(0.0f);
+    auto vsum2 = _mm512_set1_ps(0.0f);
+    auto vsum3 = _mm512_set1_ps(0.0f);
+    for (; i + 4 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 4) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+        auto va2 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 2);
+        auto va3 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 3);
+
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512));
+        auto vb2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512 * 2));
+        auto vb3_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512 * 3));
+
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+        auto vb2_256 = _mm512_cvtepu8_epi32(vb2_128);
+        auto vb3_256 = _mm512_cvtepu8_epi32(vb3_128);
+
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+        auto vb2 = _mm512_cvtepi32_ps(vb2_256);
+        auto vb3 = _mm512_cvtepi32_ps(vb3_256);
+
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+        vsum2 = _mm512_fmadd_ps(va2, vb2, vsum2);
+        vsum3 = _mm512_fmadd_ps(va3, vb3, vsum3);
+    }
+    if (i + 2 * vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512));
+
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        i += vec_len_f32_avx512;
+    }
+    vsum0 = _mm512_add_ps(vsum0, vsum1);
+    vsum2 = _mm512_add_ps(vsum2, vsum3);
+    vsum0 = _mm512_add_ps(vsum0, vsum2);
+    sum = _mm512_reduce_add_ps(vsum0);
+#elif defined(HAVE_AVX2)
     auto vsum0 = _mm256_set1_ps(0.0f);
     auto vsum1 = _mm256_set1_ps(0.0f);
     auto vsum2 = _mm256_set1_ps(0.0f);
@@ -488,7 +645,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto* temp = &buf_attn_score.at<float>(0, b, pq, h, false);
         size_t temp_stride = buf_attn_score.stride(0);
-        auto* dst = has_out_transpose ? &output_emb.at<T>(b, pq, h * S) : &output_emb.at<T>(b, h, pq);
+        auto* dst = has_out_transpose ? &output_emb.at<T>(b, pq, h * S, false) : &output_emb.at<T>(b, h, pq, false);
         attn_reduce(dst, temp, nthr, S, temp_stride);
     });
 }

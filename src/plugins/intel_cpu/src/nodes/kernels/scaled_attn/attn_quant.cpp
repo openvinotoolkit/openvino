@@ -30,18 +30,100 @@ static void quant_u8(TA* a, TB* b, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
-#if defined(HAVE_AVX2)
-    auto v_max = _mm256_set1_ps(-FLT_MAX);
-    auto v_min = _mm256_set1_ps(FLT_MAX);
-    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto v = mm256_uni_loadu_ps(b + i);
-        v_max = _mm256_max_ps(v_max, v);
-        v_min = _mm256_min_ps(v_min, v);
+#if defined(HAVE_AVX512F)
+    auto v0_max = _mm512_set1_ps(-FLT_MAX);
+    auto v0_min = _mm512_set1_ps(FLT_MAX);
+    auto v1_max = _mm512_set1_ps(-FLT_MAX);
+    auto v1_min = _mm512_set1_ps(FLT_MAX);
+    auto v2_max = _mm512_set1_ps(-FLT_MAX);
+    auto v2_min = _mm512_set1_ps(FLT_MAX);
+    auto v3_max = _mm512_set1_ps(-FLT_MAX);
+    auto v3_min = _mm512_set1_ps(FLT_MAX);
+    for (; i + 4 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 4) {
+        auto v0 = mm512_uni_loadu_ps(b + i);
+        auto v1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
+        auto v2 = mm512_uni_loadu_ps(b + i + 2 * vec_len_f32_avx512);
+        auto v3 = mm512_uni_loadu_ps(b + i + 3 * vec_len_f32_avx512);
+        v0_max = _mm512_max_ps(v0_max, v0);
+        v0_min = _mm512_min_ps(v0_min, v0);
+        v1_max = _mm512_max_ps(v1_max, v1);
+        v1_min = _mm512_min_ps(v1_min, v1);
+        v2_max = _mm512_max_ps(v2_max, v2);
+        v2_min = _mm512_min_ps(v2_min, v2);
+        v3_max = _mm512_max_ps(v3_max, v3);
+        v3_min = _mm512_min_ps(v3_min, v3);
     }
-    hmax(v_max);
-    hmin(v_min);
-    max = _mm256_cvtss_f32(v_max);
-    min = _mm256_cvtss_f32(v_min);
+    if (i + 2 * vec_len_f32_avx512 <= n) {
+        auto v0 = mm512_uni_loadu_ps(b + i);
+        auto v1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
+        v0_max = _mm512_max_ps(v0_max, v0);
+        v0_min = _mm512_min_ps(v0_min, v0);
+        v1_max = _mm512_max_ps(v1_max, v1);
+        v1_min = _mm512_min_ps(v1_min, v1);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= n) {
+        auto v0 = mm512_uni_loadu_ps(b + i);
+        v0_max = _mm512_max_ps(v0_max, v0);
+        v0_min = _mm512_min_ps(v0_min, v0);
+        i += vec_len_avx512;
+    }
+    v0_max = _mm512_max_ps(v0_max, v1_max);
+    v0_min = _mm512_min_ps(v0_min, v1_min);
+    v2_max = _mm512_max_ps(v2_max, v3_max);
+    v2_min = _mm512_min_ps(v2_min, v3_min);
+    v0_max = _mm512_max_ps(v0_max, v2_max);
+    v0_min = _mm512_min_ps(v0_min, v2_min);
+    max = _mm512_reduce_max_ps(v0_max);
+    min = _mm512_reduce_min_ps(v0_min);
+#elif defined(HAVE_AVX2)
+    auto v0_max = _mm256_set1_ps(-FLT_MAX);
+    auto v0_min = _mm256_set1_ps(FLT_MAX);
+    auto v1_max = _mm256_set1_ps(-FLT_MAX);
+    auto v1_min = _mm256_set1_ps(FLT_MAX);
+    auto v2_max = _mm256_set1_ps(-FLT_MAX);
+    auto v2_min = _mm256_set1_ps(FLT_MAX);
+    auto v3_max = _mm256_set1_ps(-FLT_MAX);
+    auto v3_min = _mm256_set1_ps(FLT_MAX);
+    for (; i + 4 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 4) {
+        auto v0 = mm256_uni_loadu_ps(b + i);
+        auto v1 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2);
+        auto v2 = mm256_uni_loadu_ps(b + i + 2 * vec_len_f32_avx2);
+        auto v3 = mm256_uni_loadu_ps(b + i + 3 * vec_len_f32_avx2);
+        v0_max = _mm256_max_ps(v0_max, v0);
+        v0_min = _mm256_min_ps(v0_min, v0);
+        v1_max = _mm256_max_ps(v1_max, v1);
+        v1_min = _mm256_min_ps(v1_min, v1);
+        v2_max = _mm256_max_ps(v2_max, v2);
+        v2_min = _mm256_min_ps(v2_min, v2);
+        v3_max = _mm256_max_ps(v3_max, v3);
+        v3_min = _mm256_min_ps(v3_min, v3);
+    }
+    if (i + 2 * vec_len_f32_avx2 <= n) {
+        auto v0 = mm256_uni_loadu_ps(b + i);
+        auto v1 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2);
+        v0_max = _mm256_max_ps(v0_max, v0);
+        v0_min = _mm256_min_ps(v0_min, v0);
+        v1_max = _mm256_max_ps(v1_max, v1);
+        v1_min = _mm256_min_ps(v1_min, v1);
+        i += 2 * vec_len_f32_avx2;
+    }
+    if (i + vec_len_f32_avx2 <= n) {
+        auto v0 = mm256_uni_loadu_ps(b + i);
+        v0_max = _mm256_max_ps(v0_max, v0);
+        v0_min = _mm256_min_ps(v0_min, v0);
+        i += vec_len_avx2;
+    }
+    v0_max = _mm256_max_ps(v0_max, v1_max);
+    v0_min = _mm256_min_ps(v0_min, v1_min);
+    v2_max = _mm256_max_ps(v2_max, v3_max);
+    v2_min = _mm256_min_ps(v2_min, v3_min);
+    v0_max = _mm256_max_ps(v0_max, v2_max);
+    v0_min = _mm256_min_ps(v0_min, v2_min);
+    hmax(v0_max);
+    hmin(v0_min);
+    max = _mm256_cvtss_f32(v0_max);
+    min = _mm256_cvtss_f32(v0_min);
 #endif
     for (; i < n; i++) {
         float tmp = b[i];
@@ -51,7 +133,19 @@ static void quant_u8(TA* a, TB* b, size_t n, float& scale, float& zp) {
     scale = (max - min) / 255;
     zp = -min / scale;
 
-#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX512F)
+    i = 0;
+    auto v_scale = _mm512_set1_ps(1 / scale);
+    auto v_zp = _mm512_set1_ps(zp);
+    auto v_zero = _mm512_setzero_epi32();
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto v = mm512_uni_loadu_ps(b + i);
+        v = _mm512_fmadd_ps(v, v_scale, v_zp);
+        auto v_i32 = _mm512_cvt_roundps_epi32(v, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        v_i32 = _mm512_max_epi32(v_i32, v_zero);
+        _mm512_mask_cvtusepi32_storeu_epi8(a + i, 0xffff, v_i32);
+    }
+#elif defined(HAVE_AVX2)
     i = 0;
     auto v_scale = _mm256_set1_ps(1 / scale);
     auto v_zp = _mm256_set1_ps(zp);
@@ -70,7 +164,7 @@ static void quant_u8(TA* a, TB* b, size_t n, float& scale, float& zp) {
 #endif
     for (; i < n; i++) {
         float tmp = b[i];
-        a[i] = tmp / scale + zp;
+        a[i] = static_cast<TA>(tmp / scale + zp);
     }
 }
 
