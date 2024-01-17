@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <debug.h>
 #include "shared_test_classes/subgraph/reshape_permute_reshape.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace SubgraphTestsDefinitions {
     std::string ReshapePermuteReshape::getTestCaseName(const testing::TestParamInfo<ReshapePermuteReshapeTuple> &obj) {
@@ -23,7 +23,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<std::vector<size_t >> inputs;
         InferenceEngine::Precision netPrecision;
         std::tie(inputs, netPrecision, targetDevice) = this->GetParam();
-        const std::size_t input_dim = InferenceEngine::details::product(inputs[0]);
+        const std::size_t input_dim = ov::util::product(inputs[0]);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
         ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape_input))};

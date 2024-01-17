@@ -29,8 +29,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 

@@ -21,8 +21,8 @@
 #include "ie_parameter.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/pp.hpp"
-#include "so_ptr.hpp"
 
 using namespace ov::threading;
 

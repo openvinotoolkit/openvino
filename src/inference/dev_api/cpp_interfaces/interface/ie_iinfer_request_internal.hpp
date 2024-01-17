@@ -12,7 +12,7 @@
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "openvino/core/node_output.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace InferenceEngine {
 
