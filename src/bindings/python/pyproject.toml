@@ -96,6 +96,7 @@ build-backend = "setuptools.build_meta"
 [tool.pdm]
 plugins = [
     "-e file:///${PROJECT_ROOT}/pdm-custom-plugins/"
+]
 
 [tool.pdm.scripts]
 ov-runtime-tests = "pytest ./tests/test_runtime/"  # try to add -s -v into cli!

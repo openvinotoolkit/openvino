@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.entry-points.pdm]
+custom-install = "pdm_custom_install:register"
 pip-install = "pdm_pip_install:register"
 pip-lock = "pdm_pip_lock:register"
 
