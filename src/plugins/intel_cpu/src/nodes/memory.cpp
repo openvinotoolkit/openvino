@@ -3,8 +3,8 @@
 //
 
 #include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
@@ -16,7 +16,6 @@
 #include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -463,10 +462,10 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     return &holder;
 }
 
-void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
+void MemoryNodeVirtualEdge::remove(MemoryNode* node, Holder* holder) {
     std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
+        ov::util::erase_if(*holder, [&](const Holder::value_type& it) {
             return it.second == node;
         });
     }

@@ -7,16 +7,16 @@
 #include <signal.h>
 
 #include <functional_test_utils/core_config.hpp>
-#include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
-#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/pass/low_latency.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "ov_models/builders.hpp"
 
 using namespace ngraph;
-using namespace opset7;
+using ov::op::v1::Add;
+using ov::op::v0::TensorIterator;
+using ov::op::v0::Result;
 
 namespace LayerTestsDefinitions {
 
@@ -191,9 +191,9 @@ void MemoryTest::CreateCommonFunc() {
                                    : VariableInfo{inputShape, ngPrc, "v0"};
     auto variable = std::make_shared<Variable>(variable_info);
     auto read_value = CreateReadValueOp(param.at(0), variable);
-    auto add = std::make_shared<Add>(read_value, param.at(0));
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
-    auto res = std::make_shared<Result>(add);
+    auto res = std::make_shared<ov::op::v0::Result>(add);
     function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
 }
 

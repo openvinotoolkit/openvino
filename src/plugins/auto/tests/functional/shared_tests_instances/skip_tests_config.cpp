@@ -4,12 +4,10 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <ie_system_conf.h>
-
 #include <string>
 #include <vector>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/visibility.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{

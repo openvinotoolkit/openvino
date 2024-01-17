@@ -5,6 +5,11 @@ allow-licenses:
   - 'BSD-2-Clause AND BSD-3-Clause'
   - 'MIT'
   - 'Apache-2.0'
+  - 'ISC'
+  - 'Apache-2.0 AND MIT'
+  - 'BlueOak-1.0.0'
+  - '0BSD'
+  - 'Python-2.0'
 fail-on-scopes:
   - 'runtime'
   - 'development'

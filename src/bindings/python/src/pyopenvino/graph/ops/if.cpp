@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,20 @@ void regclass_graph_op_If(py::module m) {
             :type execution_condition: openvino.runtime.Node
 
             :rtype: openvino.impl.op.If
+        )");
+
+    cls.def(
+        "get_then_body",
+        [](ov::op::v8::If& self) {
+            auto model = self.get_then_body();
+            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            return model_class(py::cast(model));
+        },
+        R"(
+            Gets then_body as Model object.
+
+            :return: then_body as Model object.
+            :rtype: openvino.Model
         )");
 
     cls.def(

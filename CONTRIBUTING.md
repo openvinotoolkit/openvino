@@ -61,7 +61,7 @@ product better.
      [./docs/dev](https://github.com/openvinotoolkit/openvino/tree/master/docs/dev) folder.
 
    * **User documentation** is built from several sources and published at 
-     [docs.openvino.ai](docs.openvino.ai), which is the recommended place for reading 
+     [docs.openvino.ai](https://docs.openvino.ai/), which is the recommended place for reading 
      these documents. Use the files maintained in this repository only for editing purposes. 
 
    * The easiest way to help with documentation is to review it and provide feedback on the 
@@ -69,7 +69,7 @@ product better.
      or think more information should be added, you can reach out to any of the documentation 
      contributors to discuss the potential changes.
      
-     You can also create a Pull Request directly, following the [editor's guide](./docs/CONTRIBUTING_DOCS.md).
+     You can also create a Pull Request directly, following the [editor's guide](./CONTRIBUTING_DOCS.md).
 
 
 ### Promote and Support OpenVINO
@@ -101,6 +101,7 @@ You can start with the following links:
 - [User documentation](https://docs.openvino.ai/)
 - [Blog post on contributing to OpenVINO](https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e)
 - [Pick up a Good First Issue](https://github.com/orgs/openvinotoolkit/projects/3)
+- Check out [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) - engage in discussions, ask questions and talk to OpenVINO developers
 
 ### 2. Building the project
 
@@ -138,7 +139,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 
 ### 3. Start working on your Good First Issue
 
-Use the issue description and locally built OpenVINO to complete the task. Remember that you can always ask users tagged in the "Contact points" section for help!
+Use the issue description and locally built OpenVINO to complete the task. Remember that you can always ask users tagged in the "Contact points" section for help! You can also visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) and ask questions in the channel dedicated to Good First Issue support.
 
 ### 4. Submit a PR with your changes
 
@@ -151,4 +152,4 @@ We'll make sure to review your Pull Request as soon as possible and provide you 
 ## License
 
 By contributing to the OpenVINO project, you agree that your contributions will be 
-licensed under the terms stated in the [LICENSE](./LICENSE.md) file.
+licensed under the terms stated in the [LICENSE](./LICENSE) file.

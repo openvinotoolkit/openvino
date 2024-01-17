@@ -111,24 +111,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
         if (it != rt_info.end()) {
             seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
         }
-
-        it = rt_info.find("ie_legacy_preproc");
-        if (it != rt_info.end()) {
-            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
-
-            seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
-
-            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
-                seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
-                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
-                    seed = ov::hash_combine(seed, channelInfo->stdScale);
-                    seed = ov::hash_combine(seed, channelInfo->meanValue);
-                }
-            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
-                // TODO: think if we need to compute hash for mean image if it exists
-            }
-        }
     }
     for (auto&& output : model->outputs()) {
         auto& rt_info = output.get_rt_info();
@@ -190,9 +172,12 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
 CompiledBlobHeader::CompiledBlobHeader() {}
 
-CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo)
+CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
+                                       const std::string& fileInfo,
+                                       const std::string& runtimeInfo)
     : m_ieVersion(ieVersion),
-      m_fileInfo(fileInfo) {}
+      m_fileInfo(fileInfo),
+      m_runtimeInfo(runtimeInfo) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
@@ -208,6 +193,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_node compiledBlobNode = document.document_element();
     header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
     header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
+    header.m_runtimeInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "runtime_info");
 
     return stream;
 }
@@ -217,6 +203,7 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     auto compiledBlobNode = document.append_child("compiled_blob");
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
+    compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
 
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();

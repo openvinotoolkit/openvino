@@ -538,7 +538,7 @@ flowchart LR
 
 `LinearIR` is our graph representation, it's an analog to an OpenVINO model. 
 It is simply a container for `Expressions`, the order of `Expressions` represents control flow. 
-`LIR` also incorporates a range of useful methods to manage the `Expressions`, for example `create_expression(...)` to build `Expressions` from OpenVINO nodes, or `replace_input(...)` to modify data dependencies between `Expressions`. 
+`LIR` also incorporates a range of useful methods to manage the `Expressions`, for example `create_expression(...)` to build `Expressions` from OpenVINO nodes. 
 Please refer to the implementation in [linear_ir.cpp](../src/lowered/linear_ir.cpp) for more details.
 
 `Expression` is the main building block of a `Linear IR`. 
