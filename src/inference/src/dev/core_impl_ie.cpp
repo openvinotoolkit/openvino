@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "any_copy.hpp"
+#include "blob_factory.hpp"
 #include "compilation_context.hpp"
 #include "core_impl.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"

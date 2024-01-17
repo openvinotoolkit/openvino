@@ -12,8 +12,6 @@
 #include <gtest/gtest.h>
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/pass/serialize.hpp>
