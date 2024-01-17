@@ -38,18 +38,15 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
                 perf_count_end_pos++;
             }
             OPENVINO_ASSERT(perf_count_end_pos != linear_ir.cend(), "Failed to find requested op name to insert PerfCountEnd");
-            // insert perf_count_begin after last parameter
-            // linear_ir.insert has insert before behavior, need move to next.
-            perf_count_end_pos++;
             const auto& perf_count_begin = std::make_shared<snippets::op::PerfCountBegin>();
             perf_count_begin->set_friendly_name(std::string("PerfCount_Begin_") + std::to_string(seq_number));
             const auto empty_inputs = std::vector<PortConnectorPtr>{};
             linear_ir.insert_node(perf_count_begin, empty_inputs, perf_count_begin_pos->get()->get_loop_ids(), false, perf_count_begin_pos);
 
-            // insert perf_count_end before first result
             const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0));
             perf_count_end->set_friendly_name(std::string("PerfCount_End_") + std::to_string(seq_number));
-            linear_ir.insert_node(perf_count_end, empty_inputs, perf_count_end_pos->get()->get_loop_ids(), false, perf_count_end_pos);
+            // linear_ir.insert has insert before behavior, need to increment perf_count_end_pos
+            linear_ir.insert_node(perf_count_end, empty_inputs, perf_count_end_pos->get()->get_loop_ids(), false, next(perf_count_end_pos));
             seq_number++;
         }
     }
