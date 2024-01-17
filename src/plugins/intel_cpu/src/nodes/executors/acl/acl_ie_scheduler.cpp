@@ -24,10 +24,11 @@ void ACLScheduler::set_num_threads(unsigned int num_threads) {}
 
 void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
     const Window & max_window = window;
-    const unsigned int num_iterations = max_window.num_iterations_total();
+    const unsigned int num_iterations =
+            max_window.num_iterations(hints.split_dimension()) == 1 ? 1 : max_window.num_iterations_total();
     const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
 
-    if (num_iterations == 0) {
+    if (num_iterations < 1) {
         return;
     }
 

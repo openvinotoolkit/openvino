@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/pass/serialize.hpp"
 
 namespace py = pybind11;

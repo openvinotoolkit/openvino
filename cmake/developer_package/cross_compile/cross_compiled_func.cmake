@@ -42,7 +42,7 @@ set(DISPATCHER_GEN_OPTIONS_HOLDER ${CMAKE_CURRENT_LIST_DIR}/cross_compiled_disp_
 #
 #  Allow to enable multiple cross compilation of source file inside one module
 #  with keeping requirements on minimal instruction set. The CPU check performed
-#  in runtime via common utils declared in "ie_system_conf.h".
+#  in runtime via common utils declared in "system_conf.h".
 #
 #  Usage example:
 #  cross_compiled_file(<target>

@@ -10,6 +10,14 @@
 #include "common_test_utils/file_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;
@@ -20,16 +28,16 @@ namespace LayerTestsDefinitions {
 
 static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
-    auto constant = ngraph::opset6::Constant::create(type, ngraph::Shape{1}, {2});
+    auto constant = ov::op::v0::Constant::create(type, ngraph::Shape{1}, {2});
     constant->set_friendly_name("constant");
-    auto mul = std::make_shared<ngraph::opset6::Multiply>(data, constant);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(data, constant);
     mul->set_friendly_name("mul");
 
     // Create Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(mul);
+    auto res = std::make_shared<ov::op::v0::Result>(mul);
     res->set_friendly_name("res");
 
     // Create nGraph function
@@ -40,14 +48,14 @@ static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::elemen
 
 static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
-    auto relu = std::make_shared<ngraph::opset6::Relu>(data);
+    auto relu = std::make_shared<ov::op::v0::Relu>(data);
     relu->set_friendly_name("relu");
 
     // Create Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(relu);
+    auto res = std::make_shared<ov::op::v0::Result>(relu);
     res->set_friendly_name("res");
 
     // Create nGraph function
@@ -72,34 +80,34 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnly
         inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}),
         "SplitConvConcat"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}),
         "KSOFunction"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}),
         "SingleConv"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}),
         "2InputSubtract"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_nested_split_conv_concat, {1, 4, 20, 20}),
         "NestedSplitConvConcat"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_input_in_branch, {1, 4, 20, 20}),
         "SplitConvConcatInputInBranch"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranch"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
+        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranchNestedOut"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}),
         "ConvBias"});
     res.push_back(nGraphFunctionWithName{
-        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}),
         "MatMulBias" });
     return res;
 }
@@ -113,7 +121,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunc
 std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
     res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+        return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
 }

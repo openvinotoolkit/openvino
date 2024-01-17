@@ -39,7 +39,7 @@ void BatchToSpaceLayerTest::SetUp() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto b2s = ngraph::builder::makeBatchToSpace(params[0], ngPrc, blockShape, cropsBegin, cropsEnd);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(b2s)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
 }
 

@@ -4,7 +4,10 @@
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -60,7 +63,7 @@ void QuantGroupConvLayerTest::SetUp() {
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(params[0], element_type, quantLevels, dataFqConstShapes);
+    auto dataFq = ov::test::utils::make_fake_quantize(params[0], element_type, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {convOutChannels, inputShape[1]};
     if (weightsShapes[0] % numGroups || weightsShapes[1] % numGroups)
@@ -71,7 +74,7 @@ void QuantGroupConvLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ngraph::builder::makeConstant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
@@ -79,13 +82,13 @@ void QuantGroupConvLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> weights;
     if (quantizeWeights) {
-        weights = ngraph::builder::makeFakeQuantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
+        weights = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
     } else {
         weights = weightsNode;
     }
 
     auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
-            ngraph::builder::makeGroupConvolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
+            ov::test::utils::make_group_convolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
     function = std::make_shared<ov::Model>(results, params, "QuantGroupConvolution");

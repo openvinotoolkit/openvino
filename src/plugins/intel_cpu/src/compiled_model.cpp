@@ -13,19 +13,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
-#define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#    include <threading/ie_tbb_streams_executor.hpp>
-#endif
-
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
 #include <utility>
 
@@ -45,13 +40,11 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
-                             const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
       m_cfg{cfg},
-      extensionManager(extMgr),
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache) {
     bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
@@ -71,20 +64,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
-#else
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
-#endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
-        m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
-#else
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
-#endif
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -139,7 +123,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, extensionManager, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
@@ -250,6 +234,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
+            RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
     }
@@ -261,7 +246,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            streams);  // ov::optimal_number_of_infer_requests has no negative values
+            streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
@@ -288,8 +273,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
-        return perfHint;
+        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
+    } else if (name == ov::log::level) {
+        return decltype(ov::log::level)::value_type(config.logLevel);
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
@@ -302,8 +288,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
-        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {
@@ -319,7 +304,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, extensionManager);
+    ModelSerializer serializer(modelStream);
     serializer << m_model;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,7 +262,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
             auto body = std::make_shared<ov::Model>(body_outputs, body_parameters);
             adapter.set(body);
         } else {
-            NGRAPH_CHECK(false, "No AttributeVisitor support for accessing attribute named: ", name);
+            OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
         }
     }
 }
@@ -272,7 +272,7 @@ util::DictAttributeSerializer::DictAttributeSerializer(const std::shared_ptr<ov:
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (m_attributes.contains(name)) {
-        NGRAPH_CHECK(false, "No AttributeVisitor support for accessing attribute named: ", name);
+        OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
     }
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) {

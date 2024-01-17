@@ -47,7 +47,7 @@ public:
 typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
-    ngraph::op::EpsMode,
+    ov::op::EpsMode,
     std::vector<size_t>,
     NormalizeL2TransformationTestValues> NormalizeL2TransformationParams;
 
@@ -56,7 +56,7 @@ public:
     void SetUp() override {
         ov::element::Type precision;
         ov::PartialShape shape;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         std::vector<size_t> axes;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = GetParam();
@@ -88,7 +88,7 @@ public:
         ov::element::Type precision;
         ov::PartialShape shape;
         ov::Shape axes;
-        ngraph::op::EpsMode epsMode;
+        ov::op::EpsMode epsMode;
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = obj.param;
 
@@ -115,9 +115,9 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f16
 };
 
-std::vector<ngraph::op::EpsMode> epsMode = {
-    ngraph::op::EpsMode::ADD,
-    ngraph::op::EpsMode::MAX
+std::vector<ov::op::EpsMode> epsMode = {
+    ov::op::EpsMode::ADD,
+    ov::op::EpsMode::MAX
 };
 
 std::vector<std::vector<size_t>> axes = {
@@ -132,6 +132,19 @@ const std::vector<ov::PartialShape> shapes = {
 };
 
 const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ov::element::f16,
+            {{ov::element::f16}, {}, {{-12.3f}, ov::element::f16, {}, false, 1ul, ov::element::f16}}
+        },
+        {
+            ov::element::f16,
+            { },
+            ov::element::f32,
+            {{}, {}, {{-1.f}, ov::element::f16, {}, false, 1ul, ov::element::f16}},
+        }
+    },
     // U8 per tensor quantization
     {
         LayerTransformation::createParamsU8I8(),

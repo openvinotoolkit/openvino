@@ -246,6 +246,7 @@ struct loop : public primitive_base<loop> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<loop>::save(ob);
+        body_program->save(ob);
         ob << trip_count_id;
         ob << first_execution_condition_id;
         ob << num_iteration_id;
@@ -259,6 +260,8 @@ struct loop : public primitive_base<loop> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<loop>::load(ib);
+        body_program = std::make_shared<cldnn::program>(ib.get_engine());
+        body_program->load(ib);
         ib >> trip_count_id;
         ib >> first_execution_condition_id;
         ib >> num_iteration_id;

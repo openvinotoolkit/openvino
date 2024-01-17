@@ -3,57 +3,46 @@
 //
 
 #include "eltwise.h"
-
-#include <common/float16.hpp>
-#include <map>
-#include <set>
-
-#include "openvino/core/parallel.hpp"
-
-#include "config.h"
-#include "cpu_types.h"
-#include "utils/bfloat16.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/ref_eltwise.hpp>
-#include <openvino/core/except.hpp>
-
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "input.h"
 #include "common/cpu_convert.h"
-
-#include "emitters/x64/jit_emitter.hpp"
-#include "emitters/x64/jit_eltwise_emitters.hpp"
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include <selective_build.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
-#include <common/primitive_hashing_utils.hpp>
-
-#include <ngraph/opsets/opset1.hpp>
-#include <openvino/op/bitwise_and.hpp>
-#include <openvino/op/bitwise_not.hpp>
-#include <openvino/op/bitwise_or.hpp>
-#include <openvino/op/bitwise_xor.hpp>
-#include "transformations/cpu_opset/common/op/power_static.hpp"
+#include "common/float16.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "config.h"
+#include "cpu/ref_eltwise.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
+#include "fake_quantize.h"
+#include "input.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "pooling.h"
+#include "selective_build.h"
+#include "shape_inference/custom/eltwise.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
 
-#include <string>
-#include <vector>
-#include <memory>
 #include <algorithm>
 #include <cmath>
-#include <map>
 #include <functional>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "shape_inference/custom/eltwise.hpp"
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -294,7 +283,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                     this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
         }
 
-        if (mayiuse(avx512_core))
+        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2))
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         const auto &jep = jep_;
@@ -782,11 +771,19 @@ private:
                 uni_vmovss(xmm_src, op);
                 break;
             case ov::element::bf16:
-                uni_vpinsrw(xmm_src, xmm_src, op, 0);
-                uni_vpslld(xmm_src, xmm_src, 16);
+                if (isa == x64::avx2_vnni_2) {
+                    vbcstnebf162ps(xmm_src, op);
+                } else {
+                    uni_vpinsrw(xmm_src, xmm_src, op, 0);
+                    uni_vpslld(xmm_src, xmm_src, 16);
+                }
                 break;
             case ov::element::f16:
-                vcvtph2ps(xmm_src, op);
+                if (isa == x64::avx2_vnni_2) {
+                    vbcstnesh2ps(xmm_src, op);
+                } else {
+                    vcvtph2ps(xmm_src, op);
+                }
                 break;
             case ov::element::i16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -850,8 +847,15 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case ov::element::bf16:
-                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
+                if (isa == x64::avx512_core) {
+                    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                                 {static_cast<size_t>(ymm_dst.getIdx())});
+                    vmovdqu16(op, ymm_dst);
+                } else {
+                    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                                 {static_cast<size_t>(xmm_dst.getIdx())});
+                    uni_vmovdqu(op, xmm_dst);
+                }
                 break;
             case ov::element::f16:
                 vcvtps2ph(op, vmm_dst, 0x4);
@@ -2195,8 +2199,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
-
-    if (!mayiuse(avx512_core)) {
+    if (!hasHardwareSupport(ov::element::bf16)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == ov::element::bf16)

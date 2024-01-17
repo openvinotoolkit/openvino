@@ -4,11 +4,9 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/filter_cpu_info.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/general_utils.h"
-#include <cstdint>
 
 namespace CPUTestUtils {
 
@@ -28,7 +26,11 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
         if (selectedTypeStr.find("acl") == std::string::npos &&
             selectedTypeStr.find("ref") == std::string::npos)
             continue;
-
+#if defined(OPENVINO_ARCH_ARM)
+        // disable gemm_acl on 32-bit arm platforms because oneDNN\ACL does not support it
+        if (selectedTypeStr.find("gemm_acl") != std::string::npos)
+            continue;
+#endif
         resCPUParams.push_back(param);
     }
 

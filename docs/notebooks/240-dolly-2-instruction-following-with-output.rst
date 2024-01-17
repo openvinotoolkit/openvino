@@ -83,6 +83,7 @@ and `repo <https://github.com/databrickslabs/dolly>`__
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 
    -  `Select inference device <#select-inference-device>`__
@@ -120,7 +121,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino==2023.2.0.dev20230922" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino>=2023.2.0" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git" 
 
 Select inference device
@@ -218,10 +219,10 @@ compatible with Optimum models.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-10-09 11:07:22.234444: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-09 11:07:22.273745: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-11-17 13:10:43.359093: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-11-17 13:10:43.398436: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-09 11:07:22.903943: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-11-17 13:10:44.026743: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Compiling the model to CPU ...
 
 
@@ -282,7 +283,6 @@ accuracy drop.
     
     if to_compress.value:
         if not compressed_model_path.exists():
-            ov_model = OVModelForCausalLM.from_pretrained(model_id, device=current_device, export=True, ov_config=ov_config)       
             quantizer = OVQuantizer.from_pretrained(ov_model)
             quantizer.quantize(save_directory=compressed_model_path, weights_only=True)
             del quantizer
@@ -295,8 +295,8 @@ accuracy drop.
 .. parsed-literal::
 
     * Original IR model size: 5297.21 MB
-    * Compressed IR model size: 2660.29 MB
-    * Model compression rate: 1.991
+    * Compressed IR model size: 2657.89 MB
+    * Model compression rate: 1.993
 
 
 .. parsed-literal::
@@ -717,23 +717,3 @@ generation parameters:
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    /tmp/ipykernel_709262/2332051390.py:57: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
-      demo.launch(enable_queue=True, share=False, height=800)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-

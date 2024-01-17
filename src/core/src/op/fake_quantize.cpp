@@ -113,25 +113,29 @@ bool FakeQuantize::evaluate(TensorVector& outputs, const TensorVector& inputs) c
     outputs[0].set_shape(shape0);
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<fake_quantize::Evaluate>(inputs[0].get_element_type(),
-                                                                                  inputs[0],
-                                                                                  inputs[1],
-                                                                                  inputs[2],
-                                                                                  inputs[3],
-                                                                                  inputs[4],
-                                                                                  outputs[0],
-                                                                                  shape0,
-                                                                                  inputs[1].get_shape(),
-                                                                                  inputs[2].get_shape(),
-                                                                                  inputs[3].get_shape(),
-                                                                                  inputs[4].get_shape(),
-                                                                                  get_levels(),
-                                                                                  get_auto_broadcast());
+    return IF_TYPE_OF(v0_FakeQuantize_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32, i32, i64, u32, u64),
+                      fake_quantize::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      inputs[2],
+                      inputs[3],
+                      inputs[4],
+                      outputs[0],
+                      shape0,
+                      inputs[1].get_shape(),
+                      inputs[2].get_shape(),
+                      inputs[3].get_shape(),
+                      inputs[4].get_shape(),
+                      get_levels(),
+                      get_auto_broadcast());
 }
 
 bool FakeQuantize::has_evaluate() const {
     OV_OP_SCOPE(v0_FakeQuantize_has_evaluate);
     switch (get_input_element_type(0)) {
+    case element::bf16:
     case element::f16:
     case element::f32:
     case element::i32:

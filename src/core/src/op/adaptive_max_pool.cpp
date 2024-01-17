@@ -30,9 +30,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
                           m_index_element_type == element::i64 || m_index_element_type == element::i32,
                           "Index element type must be i32 or i64");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);

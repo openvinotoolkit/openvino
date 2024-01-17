@@ -5,6 +5,9 @@
 #include "input_model.hpp"
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 #include <queue>
 
 #include "decoder_proto.hpp"
@@ -34,6 +37,9 @@ public:
                    const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> get_inputs() const;
     std::vector<Place::Ptr> get_outputs() const;
+    int64_t get_version() const {
+        return m_fw_ptr->version().version();
+    }
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
     void override_all_outputs(const std::vector<Place::Ptr>& outputs);
     void override_all_inputs(const std::vector<Place::Ptr>& inputs);
@@ -288,7 +294,12 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
 
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)),
+                             std::ios::in | std::ifstream::binary);
+#else
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
+#endif
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             const size_t header_size = 16;
             std::vector<char> header(header_size);
@@ -587,6 +598,10 @@ std::vector<Place::Ptr> InputModel::get_inputs() const {
 
 std::vector<Place::Ptr> InputModel::get_outputs() const {
     return _impl->get_outputs();
+}
+
+int64_t InputModel::get_version() const {
+    return _impl->get_version();
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {

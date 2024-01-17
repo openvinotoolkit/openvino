@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -91,6 +91,9 @@ class TFGraphNodeDecoder(DecoderBase):
             if not self.m_inner_graph:
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
                 if variable_value is not None:
+                    # Disable sharing for variables which are not on CPU
+                    if "device:CPU" not in variable_value.device:
+                        self.m_shared_memory = False
                     # does not copy data
                     self.m_parsed_content = variable_value.__array__()
 
