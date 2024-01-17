@@ -171,13 +171,10 @@ bool default_bound_evaluator(const ov::Node* node,
     return node->evaluate(output_values, inputs);
 }
 
-ov::Tensor equality_mask(const ov::Tensor& tensor, const std::shared_ptr<op::v0::Constant>& constant) {
+ov::Tensor equality_mask(const ov::Tensor& tensor, const ov::Tensor& c_tensor) {
     auto mask_out = ov::TensorVector{{element::boolean, tensor.get_shape()}};
-
-    auto c_tensor = ov::Tensor(constant->get_element_type(), constant->get_shape());
-    memcpy(c_tensor.data(), constant->get_data_ptr(), c_tensor.get_byte_size());
-
     const auto& param = std::make_shared<op::v0::Parameter>(tensor.get_element_type(), tensor.get_shape());
+    const auto& constant = std::make_shared<op::v0::Parameter>(c_tensor.get_element_type(), c_tensor.get_shape());
     op::v1::Equal(param, constant).evaluate(mask_out, ov::TensorVector{tensor, c_tensor});
     return mask_out.front();
 }
@@ -428,17 +425,17 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
         unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
     }
-    auto input_0_maximum_value = ov::util::get_constant_max_of_type(low_0.get_element_type());
-    auto input_1_maximum_value = ov::util::get_constant_max_of_type(low_1.get_element_type());
-    if (input_0_maximum_value == nullptr || input_1_maximum_value == nullptr)
+    const auto input_0_maximum_value = ov::util::make_tensor_of_max_value(low_0.get_element_type());
+    const auto input_1_maximum_value = ov::util::make_tensor_of_max_value(low_1.get_element_type());
+    if (!input_0_maximum_value || !input_1_maximum_value)
         return false;
 
-    auto input_0_low_dyn_mask = equality_mask(low_0, input_0_maximum_value);
-    auto input_0_up_dyn_mask = equality_mask(up_0, input_0_maximum_value);
-    auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
-    auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
-    auto final_input_dyn_mask = or_tensor(or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
-                                          or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
+    const auto input_0_low_dyn_mask = equality_mask(low_0, input_0_maximum_value);
+    const auto input_0_up_dyn_mask = equality_mask(up_0, input_0_maximum_value);
+    const auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
+    const auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
+    const auto final_input_dyn_mask = or_tensor(or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
+                                                or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
 
     bool fully_defined = true;
     for (size_t i = 0; i < num_of_outputs; ++i) {
@@ -476,7 +473,7 @@ bool ov::interval_bound_evaluator(const Node* node,
         if (!lower_output_values[i]) {
             fully_defined = false;
         } else {
-            // Can not set to get_constant_min_of_type(lower_output_values[i]->get_element_type()) yet
+            // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
             const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
             const auto then_data = static_cast<char*>(then.data());
             std::memset(then_data, 0, then.get_byte_size());
@@ -511,7 +508,11 @@ bool ov::tensor_is_non_negative(const Tensor& bound) {
 bool ov::tensor_has_max_value(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
-    auto max_constant = ov::util::get_constant_max_of_type(bound.get_element_type());
+
+    const auto max_values = ov::util::make_tensor_of_max_value(bound.get_element_type());
+    if (!max_values)
+        return false;
+    const auto max_constant = std::make_shared<ov::op::v0::Constant>(max_values);
     OutputVector equal(1);
 
     bool folded = std::make_shared<op::v1::Equal>(bound_constant, max_constant)

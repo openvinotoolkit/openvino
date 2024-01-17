@@ -99,9 +99,9 @@ bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     // In case dimensions has a zero dimension - it should return 0 in any case
     if (tensor_has_max_value(get_input_tensor(0).get_upper_value()) &&
         !tensor_has_zero_value(get_input_tensor(0).get_upper_value())) {
-        auto max_constant = ov::util::get_constant_max_of_type(get_output_element_type(0));
-        OPENVINO_ASSERT(max_constant->get_byte_size() <= output_values[0].get_byte_size());
-        memcpy(output_values[0].data(), max_constant->get_data_ptr(), max_constant->get_byte_size());
+        const auto max_constant = ov::util::make_tensor_of_max_value(get_output_element_type(0));
+        OPENVINO_ASSERT(max_constant.get_byte_size() <= output_values[0].get_byte_size());
+        memcpy(output_values[0].data(), max_constant.data(), max_constant.get_byte_size());
         return true;
     }
 

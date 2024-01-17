@@ -63,15 +63,6 @@ OPENVINO_API Tensor make_tensor_of_max_value(const element::Type_t et);
 /// \return Tensor with minimum value.
 OPENVINO_API Tensor make_tensor_of_min_value(const element::Type_t et);
 
-/// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
-OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t);
-
-/// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
-OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t);
-
-/// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
-OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t);
-
 /// \brief Apply auto padding to padding_above and padding_below inputs
 ///        if all needed informations are known.
 ///

@@ -256,47 +256,6 @@ Tensor make_tensor_of_min_value(const element::Type_t et) {
     }
 }
 
-std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
-    auto tensor = ov::util::make_tensor_of_max_value(t);
-    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
-}
-
-std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t) {
-    auto tensor = ov::util::make_tensor_of_min_value(t);
-    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
-}
-
-std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t) {
-#define OPENVINO_TYPE_TO_LOWEST_CONST(t)                                                                               \
-    case t:                                                                                                            \
-        return op::v0::Constant::create(t,                                                                             \
-                                        {},                                                                            \
-                                        {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
-        break
-
-    switch (t) {
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::boolean);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::bf16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f64);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i8);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i64);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u1);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u8);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u64);
-
-    case element::undefined:
-    case element::dynamic:
-    default:
-        return nullptr;
-    }
-}
-
 std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors) {
     std::vector<PartialShape> shapes;
     shapes.reserve(tensors.size());
