@@ -44,7 +44,7 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
-
+class IMemory;
 class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
@@ -92,6 +92,7 @@ public:
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
+std::ostream & operator<<(std::ostream & os, const IMemory& mem);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);

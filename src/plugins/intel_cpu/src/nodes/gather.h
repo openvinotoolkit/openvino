@@ -56,6 +56,9 @@ private:
     void initShortParams(threadExecParams& p, uint64_t start);
     void execReference();
 
+    bool canOptimize1DCase = false;
+    void exec1DCase();
+
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;
     bool isAxisInputConst = false;
