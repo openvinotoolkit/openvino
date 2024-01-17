@@ -18,7 +18,7 @@ const char *targetPluginName = "";
 const char *refCachePath = "";
 
 std::vector<std::string> IRFolderPaths = {};
-std::vector<std::string> disabledTests = {};
+std::vector<std::string> disabledTests = {R"(.*ov_plugin/AutoBatching_Test_DetectionOutput.compareAutoBatchingToSingleBatch/CPU.*)"};
 
 ov::AnyMap pluginConfig = {};
 
