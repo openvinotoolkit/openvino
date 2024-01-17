@@ -16,7 +16,7 @@ namespace {
 
 #if defined(__linux__) || defined(_WIN32)
 
-struct UpdateExecutorConfigTestCase {
+struct ExecutorConfigTestCase {
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     int _num_streams;
@@ -28,8 +28,8 @@ struct UpdateExecutorConfigTestCase {
     std::vector<std::vector<int>> _stream_processors;
 };
 
-class UpdateExecutorConfigTest : public ov::test::TestsCommon,
-                                 public testing::WithParamInterface<std::tuple<UpdateExecutorConfigTestCase>> {
+class ExecutorConfigTest : public ov::test::TestsCommon,
+                                 public testing::WithParamInterface<std::tuple<ExecutorConfigTestCase>> {
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());
@@ -53,7 +53,7 @@ public:
     }
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
+ExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}
     {
@@ -88,7 +88,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
+ExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -115,7 +115,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
+ExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -146,7 +146,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
+ExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -177,7 +177,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
+ExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -207,7 +207,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
+ExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -237,7 +237,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
+ExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -267,7 +267,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
+ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
     {
         {12, 6, 0, 6, 0, 0},
     },
@@ -296,7 +296,7 @@ UpdateExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
     {{0}, {2}, {4}, {6}, {8}},
 };
 
-UpdateExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
+ExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -352,7 +352,7 @@ UpdateExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
+ExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -408,7 +408,7 @@ UpdateExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
+ExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -465,7 +465,7 @@ UpdateExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
+ExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
     {
         {72, 36, 0, 36, -1, -1},
         {36, 18, 0, 18, 0, 0},
@@ -522,7 +522,7 @@ UpdateExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_5_threads_2 = {
+ExecutorConfigTestCase _pecore_streams_5_threads_2 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -552,7 +552,7 @@ UpdateExecutorConfigTestCase _pecore_streams_5_threads_2 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_5_threads_5 = {
+ExecutorConfigTestCase _pecore_streams_5_threads_5 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -583,7 +583,7 @@ UpdateExecutorConfigTestCase _pecore_streams_5_threads_5 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_4_threads_5 = {
+ExecutorConfigTestCase _pecore_streams_4_threads_5 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -614,7 +614,7 @@ UpdateExecutorConfigTestCase _pecore_streams_4_threads_5 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_4_threads_1 = {
+ExecutorConfigTestCase _pecore_streams_4_threads_1 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -643,7 +643,7 @@ UpdateExecutorConfigTestCase _pecore_streams_4_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_5_threads_10 = {
+ExecutorConfigTestCase _pecore_streams_5_threads_10 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -674,7 +674,7 @@ UpdateExecutorConfigTestCase _pecore_streams_5_threads_10 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_26_threads_1 = {
+ExecutorConfigTestCase _pecore_streams_26_threads_1 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -705,7 +705,7 @@ UpdateExecutorConfigTestCase _pecore_streams_26_threads_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
+ExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -735,7 +735,7 @@ UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
+ExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -764,7 +764,7 @@ UpdateExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_0 = {
+ExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -791,7 +791,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
+ExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -820,7 +820,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
+ExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -849,7 +849,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
+ExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -880,7 +880,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
+ExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -911,7 +911,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
+ExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -942,7 +942,7 @@ UpdateExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
+ExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -971,7 +971,7 @@ UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
+ExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -1002,7 +1002,7 @@ UpdateExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
     {{0, 2}, {4, 6}, {8, 10}, {12, 14}, {16, 17}, {18, 19}, {20, 21}, {22, 23}, {1, 3}, {5, 7}},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_info_table_1 = {
+ExecutorConfigTestCase _pecore_streams_info_table_1 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -1035,7 +1035,7 @@ UpdateExecutorConfigTestCase _pecore_streams_info_table_1 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_info_table_2 = {
+ExecutorConfigTestCase _pecore_streams_info_table_2 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -1067,7 +1067,7 @@ UpdateExecutorConfigTestCase _pecore_streams_info_table_2 = {
     {},
 };
 
-UpdateExecutorConfigTestCase _pecore_streams_info_table_3 = {
+ExecutorConfigTestCase _pecore_streams_info_table_3 = {
     {
         {24, 8, 8, 8, 0, 0},
     },
@@ -1102,10 +1102,10 @@ UpdateExecutorConfigTestCase _pecore_streams_info_table_3 = {
     {{0, 2}, {4, 6}, {16, 17}, {18, 19}, {1, 3}, {5, 7}},
 };
 
-TEST_P(UpdateExecutorConfigTest, UpdateExecutorConfig) {}
+TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
-INSTANTIATE_TEST_SUITE_P(smoke_UpdateExecutorConfig,
-                         UpdateExecutorConfigTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
+                         ExecutorConfigTest,
                          testing::Values(_1sockets_streams_4_threads_1,
                                          _1sockets_streams_4_threads_0,
                                          _1sockets_streams_1_threads_12,
