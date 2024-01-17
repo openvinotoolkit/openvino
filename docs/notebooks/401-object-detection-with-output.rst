@@ -154,7 +154,7 @@ Convert the Model
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format, using `model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 

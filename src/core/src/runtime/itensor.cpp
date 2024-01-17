@@ -65,10 +65,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (dst->get_shape() == ov::Shape{0} || ov::util::is_dynamic_shape(dst->get_shape()))
+
+    if (dst->get_shape() == ov::Shape{0})
         dst->set_shape(get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     OPENVINO_ASSERT(shapes_equal(get_shape(), dst->get_shape()),
                     "Tensor shapes are not equal. (src: ",
                     get_shape(),
@@ -158,9 +158,24 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         return offset;
     };
 
+    using copy_function_def = std::function<void(const uint8_t*, uint8_t*, size_t)>;
+    copy_function_def memcpy_based_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        memcpy(dst_data, src_data, bytes_size);
+    };
+    copy_function_def strings_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        // in case string tensors, it needs to copy of new values for std::string objects
+        // memcpy is not suitable
+        auto dst_string = reinterpret_cast<std::string*>(dst_data);
+        auto src_string = reinterpret_cast<const std::string*>(src_data);
+        size_t num_elements_stride = bytes_size / element::string.size();
+        std::copy_n(src_string, num_elements_stride, dst_string);
+    };
+    copy_function_def copy_function = (get_element_type() == element::string) ? strings_copy : memcpy_based_copy;
+
     bool finish = false;
     for (size_t dst_idx = 0, src_idx = 0; !finish;) {
-        memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
+        copy_function(src_data + src_idx, dst_data + dst_idx, src_strides[src_strides.size() - 1]);
+
         // update indexes
         for (size_t i = 0; i < cur_pos.size(); i++) {
             size_t inverted_idx = cur_pos.size() - i - 1;

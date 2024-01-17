@@ -71,6 +71,12 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
         return {64, false, false, false, "uint64_t", "u64"};
     case ov::element::Type_t::nf4:
         return {4, false, false, true, "nfloat4", "nf4"};
+    case ov::element::Type_t::f8e4m3:
+        return {8, true, true, true, "f8e4m3", "f8e4m3"};
+    case ov::element::Type_t::f8e5m2:
+        return {8, true, true, true, "f8e5m2", "f8e5m2"};
+    case ov::element::Type_t::string:
+        return {8 * sizeof(std::string), false, false, false, "string", "string"};
     default:
         OPENVINO_THROW("ov::element::Type_t not supported: ", type);
     }
@@ -109,12 +115,18 @@ ov::element::Type type_from_string(const std::string& type) {
         return ::ov::element::Type(::ov::element::Type_t::u64);
     } else if (type == "boolean" || type == "BOOL") {
         return ::ov::element::Type(::ov::element::Type_t::boolean);
+    } else if (type == "string" || type == "STRING") {
+        return ::ov::element::Type(::ov::element::Type_t::string);
     } else if (type == "undefined" || type == "UNSPECIFIED") {
         return ::ov::element::Type(::ov::element::Type_t::undefined);
     } else if (type == "dynamic") {
         return ::ov::element::Type(::ov::element::Type_t::dynamic);
     } else if (type == "nf4" || type == "NF4") {
         return ::ov::element::Type(::ov::element::Type_t::nf4);
+    } else if (type == "f8e4m3" || type == "F8E4M3") {
+        return ::ov::element::Type(::ov::element::Type_t::f8e4m3);
+    } else if (type == "f8e5m2" || type == "F8E5M2") {
+        return ::ov::element::Type(::ov::element::Type_t::f8e5m2);
     } else {
         OPENVINO_THROW("Incorrect type: ", type);
     }
@@ -122,23 +134,12 @@ ov::element::Type type_from_string(const std::string& type) {
 }  // namespace
 
 std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
-    std::vector<const ov::element::Type*> rc = {&ov::element::dynamic,
-                                                &ov::element::boolean,
-                                                &ov::element::bf16,
-                                                &ov::element::f16,
-                                                &ov::element::f32,
-                                                &ov::element::f64,
-                                                &ov::element::i4,
-                                                &ov::element::i8,
-                                                &ov::element::i16,
-                                                &ov::element::i32,
-                                                &ov::element::i64,
-                                                &ov::element::u1,
-                                                &ov::element::u4,
-                                                &ov::element::u8,
-                                                &ov::element::u16,
-                                                &ov::element::u32,
-                                                &ov::element::u64};
+    std::vector<const ov::element::Type*> rc = {
+        &ov::element::dynamic, &ov::element::boolean, &ov::element::bf16, &ov::element::f16,    &ov::element::f32,
+        &ov::element::f64,     &ov::element::i4,      &ov::element::i8,   &ov::element::i16,    &ov::element::i32,
+        &ov::element::i64,     &ov::element::u1,      &ov::element::u4,   &ov::element::u8,     &ov::element::u16,
+        &ov::element::u32,     &ov::element::u64,     &ov::element::nf4,  &ov::element::f8e4m3, &ov::element::f8e5m2,
+        &ov::element::string};
     return rc;
 }
 
@@ -167,7 +168,10 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
-        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "nf4"}},
+        {ov::element::Type_t::nf4, {4, false, false, true, "nfloat4", "nf4"}},
+        {ov::element::Type_t::f8e4m3, {8, true, true, true, "f8e4m3", "f8e4m3"}},
+        {ov::element::Type_t::f8e5m2, {8, true, true, true, "f8e5m2", "f8e5m2"}},
+        {ov::element::Type_t::string, {8 * sizeof(std::string), false, false, false, "string", "string"}},
     };
     for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
@@ -259,6 +263,18 @@ template <>
 Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
+template <>
+Type from<ov::float8_e4m3>() {
+    return Type_t::f8e4m3;
+}
+template <>
+Type from<ov::float8_e5m2>() {
+    return Type_t::f8e5m2;
+}
+template <>
+Type from<std::string>() {
+    return Type_t::string;
+}
 
 Type fundamental_type_for(const Type& type) {
     switch (type) {
@@ -272,6 +288,10 @@ Type fundamental_type_for(const Type& type) {
         return from<element_type_traits<Type_t::f32>::value_type>();
     case Type_t::f64:
         return from<element_type_traits<Type_t::f64>::value_type>();
+    case Type_t::f8e4m3:
+        return from<element_type_traits<Type_t::f8e4m3>::value_type>();
+    case Type_t::f8e5m2:
+        return from<element_type_traits<Type_t::f8e5m2>::value_type>();
     case Type_t::i4:
         return from<element_type_traits<Type_t::i4>::value_type>();
     case Type_t::i8:
@@ -294,6 +314,10 @@ Type fundamental_type_for(const Type& type) {
         return from<element_type_traits<Type_t::u32>::value_type>();
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
+    case Type_t::nf4:
+        return from<element_type_traits<Type_t::nf4>::value_type>();
+    case Type_t::string:
+        return from<element_type_traits<Type_t::string>::value_type>();
     default:
         OPENVINO_THROW("Unsupported Data type: ", type);
     }
@@ -308,23 +332,13 @@ std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type
 
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
     const std::unordered_map<std::string, ov::element::Type> legacy = {
-        {"BOOL", ov::element::boolean},
-        {"BF16", ov::element::bf16},
-        {"I4", ov::element::i4},
-        {"I8", ov::element::i8},
-        {"I16", ov::element::i16},
-        {"I32", ov::element::i32},
-        {"I64", ov::element::i64},
-        {"U4", ov::element::u4},
-        {"U8", ov::element::u8},
-        {"U16", ov::element::u16},
-        {"U32", ov::element::u32},
-        {"U64", ov::element::u64},
-        {"FP32", ov::element::f32},
-        {"FP64", ov::element::f64},
-        {"FP16", ov::element::f16},
-        {"BIN", ov::element::u1},
-        {"NF4", ov::element::nf4},
+        {"BOOL", ov::element::boolean},  {"BF16", ov::element::bf16},     {"I4", ov::element::i4},
+        {"I8", ov::element::i8},         {"I16", ov::element::i16},       {"I32", ov::element::i32},
+        {"I64", ov::element::i64},       {"U4", ov::element::u4},         {"U8", ov::element::u8},
+        {"U16", ov::element::u16},       {"U32", ov::element::u32},       {"U64", ov::element::u64},
+        {"FP32", ov::element::f32},      {"FP64", ov::element::f64},      {"FP16", ov::element::f16},
+        {"BIN", ov::element::u1},        {"NF4", ov::element::nf4},       {"F8E4M3", ov::element::f8e4m3},
+        {"F8E5M2", ov::element::f8e5m2}, {"STRING", ov::element::string},
     };
     std::string str;
     in >> str;
@@ -407,6 +421,9 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(u32);
         ET_CASE(u64);
         ET_CASE(nf4);
+        ET_CASE(f8e4m3);
+        ET_CASE(f8e5m2);
+        ET_CASE(string);
 #undef ET_CASE
     case ov::element::Type_t::undefined:
         return 0;
@@ -439,7 +456,10 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"u16", element::Type_t::u16},
                                                          {"u32", element::Type_t::u32},
                                                          {"u64", element::Type_t::u64},
-                                                         {"nf4", element::Type_t::nf4}});
+                                                         {"nf4", element::Type_t::nf4},
+                                                         {"f8e4m3", element::Type_t::f8e4m3},
+                                                         {"f8e5m2", element::Type_t::f8e5m2},
+                                                         {"string", element::Type_t::string}});
     return enum_names;
 }
 

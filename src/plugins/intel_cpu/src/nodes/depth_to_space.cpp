@@ -4,20 +4,19 @@
 
 #include "depth_to_space.h"
 
-#include <dnnl_extension_utils.h>
-#include <utils/general_utils.h>
+#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 
 #include <cmath>
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <string>
 
 #include "common/blocked_desc_creator.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("DepthToSpace layer with name '", getName(), "' ", __VA_ARGS__)
 
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 
 namespace ov {

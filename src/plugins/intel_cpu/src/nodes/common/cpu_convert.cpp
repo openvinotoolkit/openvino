@@ -3,24 +3,18 @@
 //
 
 #include "cpu_convert.h"
+
 #include "cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
-#include <utils/bfloat16.hpp>
-#include <utils/general_utils.h>
-#include <selective_build.h>
-#include <openvino/core/type/float16.hpp>
-#include <algorithm>
-#include <type_traits>
-#include <tuple>
-#include <cmath>
-#include <onednn/dnnl.h>
+#include "utils/bfloat16.hpp"
+
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#else
+#include "cpu_memory.h"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "selective_build.h"
+#include "utils/general_utils.h"
 #endif
-
-using namespace InferenceEngine;
-
 
 namespace ov {
 namespace intel_cpu {
@@ -577,13 +571,20 @@ void cpu_convert(const void *srcPtr,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size) {
+    if (size == 0) {
+        return;
+    }
     if (srcPtr == nullptr || dstPtr == nullptr)
         OPENVINO_THROW("cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
-        if (totalSize >= L2_cache_size) {
+        if (srcPrc == element::string) {
+            auto str_src = reinterpret_cast<const StringMemory::OvString *>(srcPtr);
+            auto str_dst = reinterpret_cast<StringMemory::OvString *>(dstPtr);
+            std::copy(str_src, str_src + size, str_dst);
+        } else if (totalSize >= L2_cache_size) {
             auto src = static_cast<const uint8_t *>(srcPtr);
             auto dst = static_cast<uint8_t *>(dstPtr);
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {

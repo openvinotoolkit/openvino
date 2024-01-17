@@ -8,14 +8,13 @@ import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
 import openvino.properties.streams as streams
+import openvino.properties.intel_auto as intel_auto
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
 
-from openvino.inference_engine import IECore
-from utils import get_model, get_ngraph_model
+from utils import get_model
 
 model = get_model()
-net = get_ngraph_model()
 
 
 def part0():
@@ -45,35 +44,6 @@ def part0():
     #! [part0]
 
 
-def part1():
-    #! [part1]
-    ### IE API ###
-    ie = IECore()
-
-    # Load a network to AUTO using the default list of device candidates.
-    # The following lines are equivalent:
-    exec_net = ie.load_network(network=net)
-    exec_net = ie.load_network(network=net, device_name="AUTO")
-    exec_net = ie.load_network(network=net, device_name="AUTO", config={})
-
-    # Optional
-    # You can also specify the devices to be used by AUTO in its selection process.
-    # The following lines are equivalent:
-    exec_net = ie.load_network(network=net, device_name="AUTO:GPU,CPU")
-    exec_net = ie.load_network(
-        network=net,
-        device_name="AUTO",
-        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"},
-    )
-
-    # Optional
-    # the AUTO plugin is pre-configured (globally) with the explicit option:
-    ie.set_config(
-        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}, device_name="AUTO"
-    )
-    #! [part1]
-
-
 def part3():
     #! [part3]
     core = ov.Core()
@@ -96,11 +66,13 @@ def part3():
         },
     )
     # To use the “CUMULATIVE_THROUGHPUT” mode:
+    # To use the ROUND_ROBIN schedule policy:
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
-            hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT
+            hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT,
+            intel_auto.schedule_policy: intel_auto.SchedulePolicy.ROUND_ROBIN
         },
     )
     #! [part3]

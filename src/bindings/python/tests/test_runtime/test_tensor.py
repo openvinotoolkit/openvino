@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,7 +9,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset11 as ops
+import openvino.runtime.opset13 as ops
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
@@ -38,7 +38,7 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.i4, np.int8),
     ],
 )
-def test_init_with_ngraph(ov_type, numpy_dtype):
+def test_init_with_ov_type(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(ov.Tensor(type=ov_type, shape=ov.Shape([1, 3, 32, 32])))
     ov_tensors.append(ov.Tensor(type=ov_type, shape=[1, 3, 32, 32]))
@@ -560,3 +560,23 @@ def test_init_from_empty_array(shared_flag, init_value):
     assert tensor.element_type.to_dtype() == init_value.dtype
     assert tensor.byte_size == init_value.nbytes
     assert np.array_equal(tensor.data, init_value)
+
+
+@pytest.mark.parametrize(
+    "init_value",
+    [
+        ([1.0, 2.0, 3.0]),
+        ([21, 37, 42]),
+        ([[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]]),
+        ([[2.2, 6.5], [0.2, 6.7]]),
+    ],
+)
+def test_init_from_list(init_value):
+    tensor = ov.Tensor(init_value)
+    assert np.array_equal(tensor.data, init_value)
+    # Convert to numpy to perform all checks. Memory is not shared,
+    # so it does not matter if data is stored in numpy format.
+    _init_value = np.array(init_value)
+    assert tuple(tensor.shape) == _init_value.shape
+    assert tensor.element_type.to_dtype() == _init_value.dtype
+    assert tensor.byte_size == _init_value.nbytes

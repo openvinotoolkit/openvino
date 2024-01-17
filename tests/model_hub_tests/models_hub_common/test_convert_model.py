@@ -8,6 +8,13 @@ from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
 from openvino.runtime import Core
 
+try:
+    # 129480 - remove try-except when openvino-tokenizers wheel is built in OpenVINO GHA Workflow
+    # noinspection PyUnresolvedReferences
+    import openvino_tokenizers  # do not delete, needed for text models
+except:
+    pass
+
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
 rng = np.random.default_rng(seed=56190)
@@ -87,6 +94,7 @@ class TestConvertModel:
         gc.collect()
 
     def _run(self, model_name, model_link, ie_device):
+        self.model_name = model_name
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")

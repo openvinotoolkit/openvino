@@ -2,23 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/mat_mul.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
-#include <string>
-#include <ov_ops/type_relaxed.hpp>
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "cpu/cpu_config.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "cpu/cpu_config.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
+namespace ov {
+namespace test {
 
 struct ShapeRelatedParams {
     std::vector<InputShape> inputShapes;
@@ -32,7 +28,7 @@ typedef std::tuple<
         ElementType,                        // Output precision
         fusingSpecificParams,
         CPUSpecificParams,
-        std::map<std::string, std::string>, // Additional config
+        ov::AnyMap, // Additional config
         float                               // Weights sparse rate
 > MatMulSparseParamSet;
 
@@ -44,7 +40,7 @@ public:
         ElementType inType, weiType, outType;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         float weiSparseRate;
         std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
             weiSparseRate) = obj.param;
@@ -76,7 +72,7 @@ public:
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
         result << "_weiSparseRate=" << weiSparseRate;
@@ -129,16 +125,15 @@ protected:
                                             bool transpose_a,
                                             bool transpose_b,
                                             const std::vector<int8_t>& weiData) {
-        using namespace ngraph;
         auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, A.get_partial_shape());
         auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
         auto matrixBFP32 = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
+        auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
             ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
-        auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = ov::test::utils::deprecated::make_constant<int8_t>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 
@@ -147,13 +142,12 @@ protected:
 
     void SetUp() override {
         abs_threshold = 0.5f;
-        using ngraph::pass::ConvertPrecision;
 
         ShapeRelatedParams shapeRelatedParams;
         ElementType inType, weiType, outType;
         fusingSpecificParams fusingParams;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> additionalConfig;
+        ov::AnyMap additionalConfig;
         float weiSparseRate;
 
         std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
@@ -196,7 +190,7 @@ protected:
         auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
         auto matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
 
-        auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
+        auto weiData = generateSparseVector(ov::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
         function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
@@ -204,9 +198,8 @@ protected:
         checkFusingPosition = false;
 
         functionRefs = ov::clone_model(*function);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-        functionRefs->validate_nodes_and_infer_types();
+        convert_precisions.insert({ov::element::i8, ov::element::f32});
+        convert_precisions.insert({ov::element::u8, ov::element::f32});
     }
 };
 
@@ -236,9 +229,9 @@ std::vector<CPUSpecificParams> filterSpecificParams(bool sparseExpected) {
 namespace fullyConnected {
 
 // cpu (sparse) configs
-const std::map<std::string, std::string> emptyConfig = {};
-const std::map<std::string, std::string> SparseRate50 = {{CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE, "0.5"}};
-const std::map<std::string, std::string> SparseRate80 = {{CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE, "0.8"}};
+const ov::AnyMap emptyConfig = {};
+const ov::AnyMap SparseRate50 = {{ov::intel_cpu::sparse_weights_decompression_rate(0.5)}};
+const ov::AnyMap SparseRate80 = {{ov::intel_cpu::sparse_weights_decompression_rate(0.8)}};
 
 const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
     {static_shapes_to_test_representation({{64, 64}, {64, 64}}), {false, true}},
@@ -340,4 +333,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8_sparse, MatMulSparseCPUTest, testParams3
 
 } // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace test
+}  // namespace ov

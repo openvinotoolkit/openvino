@@ -39,6 +39,7 @@
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
@@ -101,10 +102,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
             input_shapes[param.get()] = param->get_partial_shape();
             param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
         }
+        // After setting dynamic ranks into Parameters, the initializing subgraph of ReadValue operation might
+        // also have a dynamic rank. The shape consistency check between this subgraph and Variable might fail.
+        // We have to set dynamic rank to Variables to keep the ov::Model consistent.
         for (const auto& variable : f->get_variables()) {
             const auto& var_info = variable->get_info();
             variable_shapes[variable.get()] = var_info.data_shape;
-            variable->update_partial_shape(PartialShape::dynamic(var_info.data_shape.rank()));
+            variable->update_data_shape(PartialShape::dynamic(var_info.data_shape.rank()));
         }
         f->validate_nodes_and_infer_types();
     }
@@ -168,6 +172,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PullThroughReduce)
 
     // GRUCellFusion and SequenceFusion should be before NopElimination
+    REGISTER_PASS(manager, LSTMCellFusion)
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
 
@@ -271,7 +276,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         }
 
         for (const auto& variable : f->get_variables()) {
-            variable->update_partial_shape(variable_shapes.at(variable.get()));
+            variable->update_data_shape(variable_shapes.at(variable.get()));
         }
     }
     f->validate_nodes_and_infer_types();

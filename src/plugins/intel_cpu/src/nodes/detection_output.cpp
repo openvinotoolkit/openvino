@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <mutex>
-
-#include <onednn/dnnl.h>
 #include "openvino/op/detection_output.hpp"
-#include "openvino/core/parallel.hpp"
+
 #include "detection_output.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -40,8 +36,9 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "Node is not an instance of the DetectionOutput from the operations set v8.";
             return false;
         }
-        if (!details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CENTER_SIZE") &&
-            !details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
+        if (!ov::intel_cpu::CaselessEq<std::string>()(doOp->get_attrs().code_type,
+                                                      "caffe.PriorBoxParameter.CENTER_SIZE") &&
+            !ov::intel_cpu::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
             errorMessage = "Unsupported code_type attribute: " + doOp->get_attrs().code_type;
             return false;
         }
@@ -89,8 +86,9 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
 
-    codeType = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
-                  CodeType::CENTER_SIZE : CodeType::CORNER);
+    codeType = (ov::intel_cpu::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE")
+                    ? CodeType::CENTER_SIZE
+                    : CodeType::CORNER);
 }
 
 void DetectionOutput::prepareParams() {
@@ -833,7 +831,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
-        OPENVINO_THROW(errorPrefix, NOT_IMPLEMENTED);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix);
     }
 
     int dstDataSize = 0;
@@ -845,7 +843,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
-        OPENVINO_THROW(errorPrefix, OUT_OF_BOUNDS);
+        OPENVINO_THROW(errorPrefix, ": OUT_OF_BOUNDS");
     }
     memset(dstData, 0, dstDataSize);
 

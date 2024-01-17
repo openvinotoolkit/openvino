@@ -3,18 +3,15 @@
 //
 
 #include "reshape.h"
-#include "utils.hpp"
-#include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
-#include "shape_inference/custom/reshape.hpp"
 
 #include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/custom/reshape.hpp"
+#include "utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -65,9 +62,6 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 }
 
 bool Reshape::needShapeInfer() const {
-    if (inputShapesModified()) {
-        return true;
-    }
     const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
@@ -80,6 +74,9 @@ bool Reshape::needShapeInfer() const {
             }
             return true;
         }
+    }
+    if (inputShapesModified()) {
+        return true;
     }
     return false;
 }

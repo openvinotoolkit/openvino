@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -95,16 +95,6 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert np.isclose(node.get_box_size_scale(), fp_dtype(1.34))
     assert np.isclose(node.get_box_coordinate_scale(), fp_dtype(0.88))
     assert node.get_framework() == "OpenVINO"
-
-
-def test_dynamic_attr_cache(proposal_node):
-    node = proposal_node
-
-    assert not node._attr_cache_valid
-    node.set_nms_thresh(1.3453678102)
-    assert not node._attr_cache_valid
-    assert np.isclose(node.get_nms_thresh(), np.float64(1.3453678102))
-    assert node._attr_cache_valid
 
 
 def test_dynamic_attr_transitivity(proposal_node):

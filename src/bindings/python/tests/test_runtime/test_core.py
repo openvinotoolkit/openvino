@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -300,9 +300,9 @@ def test_query_model(device):
     model = get_relu_model()
     query_model = core.query_model(model=model, device_name=device)
     ops_model = model.get_ordered_ops()
-    ops_func_names = [op.friendly_name for op in ops_model]
+    ops_model_names = [op.friendly_name for op in ops_model]
     assert [
-        key for key in query_model.keys() if key not in ops_func_names
+        key for key in query_model.keys() if key not in ops_model_names
     ] == [], "Not all network layers present in query_model results"
     assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 

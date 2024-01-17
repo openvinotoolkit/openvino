@@ -5,7 +5,7 @@ from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
 from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
-from common.utils.tf_utils import save_to_pb, transpose_nhwc_to_nchw, transpose_nchw_to_nhwc
+from common.utils.tf_utils import save_to_pb
 
 
 class CommonTFLayerTest(CommonLayerTest):
@@ -15,7 +15,7 @@ class CommonTFLayerTest(CommonLayerTest):
             data = inputs_dict.get(key)
             if not ':' in key:
                 key += ':0'
-            input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
+            input[key] = data
 
         return input
 
@@ -32,6 +32,9 @@ class CommonTFLayerTest(CommonLayerTest):
 
         graph_summary = summarize_graph(model_path=model_path)
         outputs_list = graph_summary["outputs"]
+        fw_outputs_list = [out + ":0" for out in outputs_list]
+        if self.use_new_frontend:
+            outputs_list = fw_outputs_list
 
         tf.compat.v1.reset_default_graph()
 
@@ -42,13 +45,12 @@ class CommonTFLayerTest(CommonLayerTest):
                 sess.graph.as_default()
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
-                tf_res = sess.run([out + ":0" for out in outputs_list], inputs_dict)
+                tf_res = sess.run(fw_outputs_list, inputs_dict)
 
                 result = dict()
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
-                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
-                                                            self.use_old_api)
+                    result[output] = _tf_res
                 return result
 
     def get_framework_results(self, inputs_dict, model_path):
@@ -59,4 +61,4 @@ class CommonTFLayerTest(CommonLayerTest):
             return self.get_tf_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
+            return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)

@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "shared_test_classes/single_layer/lstm_cell.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -77,7 +78,7 @@ void LSTMCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -86,7 +87,7 @@ void LSTMCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -95,13 +96,13 @@ void LSTMCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto lstm_cell = std::make_shared<ov::op::v4::LSTMCell>(params[0], params[1], params[2], W, R, B, hidden_size, activations,
                                                           activations_alpha, activations_beta, clip);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                 std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;

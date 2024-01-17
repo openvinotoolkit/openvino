@@ -26,7 +26,6 @@ int main(int argc, char* argv[]) {
 
         // Creating ov::Model
         auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);
-        std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
         auto add = std::make_shared<ov::opset11::Add>(arg, read);
         auto assign = std::make_shared<ov::opset11::Assign>(add, variable);
         auto add2 = std::make_shared<ov::opset11::Add>(add, read);
@@ -58,9 +57,7 @@ int main(int argc, char* argv[]) {
         }
 
         // 7. Initialize memory state before starting
-        for (auto&& state : infer_request.query_state()) {
-            state.reset();
-        }
+        infer_request.reset_state();
 
         //! [part1]
         // input data

@@ -17,6 +17,7 @@
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
@@ -1259,4 +1260,19 @@ TEST(type_prop, reshape_label_not_propagated_on_minus_one_dim_as_not_same_dynami
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({-1, -1, -1, 2}));
     EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 37, 87, 98));
+}
+
+TEST(type_prop, reshape_pattern_dim_has_invalid_bound) {
+    constexpr auto data_et = element::f32;
+    constexpr auto shape_et = element::i32;
+
+    const auto a = std::make_shared<op::v0::Parameter>(data_et, PartialShape{10, {3, 4}, 3, 4});
+    const auto b = std::make_shared<op::v0::Parameter>(data_et, PartialShape{3, {4, 10}, 2, 2});
+    const auto output_pattern = std::make_shared<op::v1::Subtract>(std::make_shared<op::v3::ShapeOf>(a, shape_et),
+                                                                   std::make_shared<op::v3::ShapeOf>(b, shape_et));
+
+    const auto p = std::make_shared<op::v0::Parameter>(data_et, PartialShape::dynamic(3));
+    const auto reshape = make_shared<op::v1::Reshape>(p, output_pattern, false);
+
+    EXPECT_EQ(reshape->get_output_partial_shape(0), ov::PartialShape({7, -1, 1, 2}));
 }
