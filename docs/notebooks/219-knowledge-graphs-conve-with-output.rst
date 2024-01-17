@@ -514,7 +514,7 @@ Benchmark the converted OpenVINO model using benchmark app
 The OpenVINO toolkit provides a benchmarking application to gauge the
 platform specific runtime performance that can be obtained under optimal
 configuration parameters for a given model. For more details refer to:
-https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html
+https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html
 
 Here, we use the benchmark application to obtain performance estimates
 under optimal configuration for the knowledge graph model inference. We

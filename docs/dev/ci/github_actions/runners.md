@@ -9,7 +9,7 @@ Two types of runners are available in this repository:
 
 The runners are specified for each job using the `runs-on` key. 
 
-An example `Build` job from the `linux.yml` workflow:
+An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
 Build:
   ...
@@ -63,7 +63,7 @@ The available configurations are:
 The configuration of a runner required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is, 
 the more robust configuration is required.
 
-The `Build` job in the `linux.yml` workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
+The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
   ...
@@ -73,7 +73,7 @@ Build:
 
 This group has machines with 16 core CPU and 32 GB of RAM, which could be utilized in parallel by the build tools used in the `Build` job. 
 
-The `C++ unit tests` job in the `linux.yml` workflow uses the `aks-linux-4-cores-16gb` group:
+The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
 CXX_Unit_Tests:
   name: C++ unit tests

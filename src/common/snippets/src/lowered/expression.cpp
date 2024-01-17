@@ -104,12 +104,22 @@ void Expression::validate() const {
                     "The expression has null source node");
 }
 
-void Expression::replace_input(size_t port, PortConnectorPtr to) {
-    OPENVINO_ASSERT(port < m_input_port_connectors.size(), "Failed to replace: target input port must be less than input count!");
+void Expression::set_input_port_connector(size_t port, PortConnectorPtr to) {
+    OPENVINO_ASSERT(port < get_input_count(), "Failed to set input PortConnector: target input port must be less than input count!");
+    const auto& from = get_input_port_connector(port);
+    if (from == to)
+        return;
+
+    const auto input_port = get_input_port(port);
+    if (!to->found_consumer(input_port)) {
+        to->add_consumer(input_port);
+    }
+    from->remove_consumer(input_port);
+    // Set new PortConnector
     m_input_port_connectors[port] = std::move(to);
 }
 
-std::vector<size_t> Expression::get_loop_ids() const {
+const std::vector<size_t>& Expression::get_loop_ids() const {
     return m_loop_ids;
 }
 
@@ -169,6 +179,24 @@ ExpressionPort Expression::get_input_port(size_t i) {
 
 ExpressionPort Expression::get_output_port(size_t i) {
     return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
+}
+
+std::vector<ExpressionPort> Expression::get_input_ports() {
+    std::vector<ExpressionPort> ports;
+    ports.reserve(get_input_count());
+    for (size_t i = 0; i < get_input_count(); ++i) {
+        ports.push_back(get_input_port(i));
+    }
+    return ports;
+}
+
+std::vector<ExpressionPort> Expression::get_output_ports() {
+    std::vector<ExpressionPort> ports;
+    ports.reserve(get_output_count());
+    for (size_t i = 0; i < get_output_count(); ++i) {
+        ports.push_back(get_output_port(i));
+    }
+    return ports;
 }
 
 void Expression::updateShapes() {

@@ -53,12 +53,12 @@ jobs:
           name: samples_diff
           path: samples_diff.diff
 
-      # Python API 2.0 Flake code-style
-      - name: Run flake8 on Python API 2.0
+      # Python API Flake code-style
+      - name: Run flake8 on Python API
         run: python -m flake8 ./src/openvino --config=setup.cfg
         working-directory: src/bindings/python
 
-      - name: Create code style diff for Python API 2.0
+      - name: Create code style diff for Python API
         if: failure()
         run: |
           python -m black -l 160 -S ./
@@ -89,14 +89,14 @@ jobs:
           name: wheel_diff
           path: wheel_diff.diff
 
-      # Python API 2.0 tests Flake code-style
+      # Python API tests Flake code-style
       - name: Run flake8 on python tests
         # ignore lack of docs in tests
         run: python -m flake8 tests/ --config=setup.cfg
         working-directory: src/bindings/python
 
-      # Python API 2.0 mypy check
-      - name: Run mypy on Python API 2.0
+      # Python API mypy check
+      - name: Run mypy on Python API
         run: python -m mypy ./src/openvino --config-file ./setup.cfg
         working-directory: src/bindings/python
 

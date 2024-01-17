@@ -19,6 +19,7 @@
 #include "implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
+#include "permute_inst.h"
 
 #include <vector>
 #include <list>
@@ -82,7 +83,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
-        if (impl_param.can_be_optimized() && !((impl_param.is_type<concatenation>() || impl_param.is_type<gather>()) && impl_param.is_dynamic())) {
+        if (impl_param.can_be_optimized() &&
+            !((impl_param.is_type<concatenation>() || impl_param.is_type<gather>() || impl_param.is_type<permute>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));

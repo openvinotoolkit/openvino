@@ -235,7 +235,7 @@ Estimate Model Performance
 --------------------------
 
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/latest/openvino_sample_benchmark_tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
 
