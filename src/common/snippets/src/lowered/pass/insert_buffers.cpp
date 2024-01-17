@@ -105,8 +105,8 @@ InsertBuffers::InsertBuffers(int32_t buffer_allocation_rank)
 
 LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                                         const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {
-    const auto up_loops = up_expr->get_loop_ids();
-    const auto down_loops = down_expr->get_loop_ids();
+    const auto& up_loops = up_expr->get_loop_ids();
+    const auto& down_loops = down_expr->get_loop_ids();
     // If upper expression is out of Loop, we can insert Buffer implicitly after him
     if (up_loops.empty()) {
         return std::next(linear_ir.find(up_expr));
@@ -150,8 +150,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& input_connector = expr->get_input_port_connector(port_idx);
-        const auto& parent_expr_output = input_connector->get_source();
+        const auto& parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
         const auto& parent_expr = parent_expr_output.get_expr();
         const auto parent_port = parent_expr_output.get_index();
         const auto parent = parent_expr->get_node();
@@ -166,8 +165,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
         const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
         bool is_buffer_needed = (parent_ma && parent_ma->is_memory_access_output_port(parent_port)) ||
                                 (node_ma && node_ma->is_memory_access_input_port(port_idx));
-        const auto current_loops = expr->get_loop_ids();
-        const auto parent_loops = parent_expr->get_loop_ids();
+        const auto& current_loops = expr->get_loop_ids();
+        const auto& parent_loops = parent_expr->get_loop_ids();
         const auto buffer_loop_ids = get_buffer_loop_ids(current_loops, parent_loops, is_buffer_needed);
 
         if (is_buffer_needed) {
@@ -182,12 +181,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
-            // Output connector is automatically filled from PortDescriptor
-            const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
-            linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(*entry_port.get(), buffer_expr->get_output_port_connector(0));
-            buffer_expr->set_loop_ids(buffer_loop_ids);
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
         }
     }
 
@@ -198,8 +192,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
         const auto node = expr->get_node();
         const auto output_connector = exit_port->get_port_connector_ptr();
         const auto child_exprs_inputs = output_connector->get_consumers();
-        const auto current_loops = expr->get_loop_ids();
-        const std::vector<PortConnectorPtr> node_outs = {output_connector};
+        const auto& current_loops = expr->get_loop_ids();
 
         std::set<ExpressionPort> potential_consumers;
         std::set<ExpressionPtr> buffers;
@@ -241,7 +234,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                 for (const auto& buffer : buffers) {
                     const auto& buffer_out = buffer->get_output_port_connector(0);
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
-                    linear_ir.replace_input(buffer_consumers_inputs, output_connector);
+                    replace_input_port_connectors(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
                     linear_ir.erase(linear_ir.find_after(expr_it, buffer));
                 }
@@ -275,7 +268,6 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    *exit_port,
                                                                    m_buffer_allocation_rank);
             auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx), allocation_shape);
-            PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add
@@ -284,10 +276,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            const auto buffer_expr = linear_ir.create_expression(buffer, node_outs);
-            linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(potential_consumers, buffer_expr->get_output_port_connector(0));
-            buffer_expr->set_loop_ids(buffer_loop_ids);
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
         }
     }
 }
