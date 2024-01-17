@@ -39,6 +39,13 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
     }
 }
 
+TEST_P(OVClassModelTestP, ImportModelWithNullContextThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::RemoteContext context;
+    std::istringstream stream("None");
+    ASSERT_THROW(ie.import_model(stream, context, {}), ov::Exception);
+}
+
 TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
     ov::Core ie = createCoreWithTemplate();
 
