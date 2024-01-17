@@ -8,8 +8,6 @@
 
 using namespace ov::test::behavior;
 
-using namespace InferenceEngine::PluginConfigParams;
-
 namespace {
 //
 // Executable Network GetMetric
