@@ -305,13 +305,13 @@ jobs:
       # Test .bat scripts for samples building
       - name: Build cpp samples (bat)
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/cpp_samples_bat
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/cpp_samples_bat
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Build c samples (bat)
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
