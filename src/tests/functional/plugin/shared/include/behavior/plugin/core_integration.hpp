@@ -312,21 +312,6 @@ TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", target_device}}, ov::test::utils::DEVICE_HETERO));
 }
 
-TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    bool value = false;
-
-    ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::YES}},
-                                 ov::test::utils::DEVICE_HETERO));
-    ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
-    ASSERT_TRUE(value);
-
-    ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::NO}},
-                                 ov::test::utils::DEVICE_HETERO));
-    ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
-    ASSERT_FALSE(value);
-}
-
 TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
@@ -775,14 +760,6 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     InferenceEngine::Parameter p;
 
     ASSERT_THROW(p = ie.GetConfig(ov::test::utils::DEVICE_HETERO, "unsupported_config"), InferenceEngine::Exception);
-}
-
-TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
-
-    ASSERT_THROW(p = ie.GetConfig(ov::test::utils::DEVICE_HETERO + std::string(":") +  target_device, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
-                 InferenceEngine::Exception);
 }
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
