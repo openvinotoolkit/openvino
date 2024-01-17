@@ -2,39 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "single_op_tests/nms_rotated.hpp"
 
-#include "single_layer_tests/nms_rotated.hpp"
-#include "common_test_utils/test_constants.hpp"
+namespace {
+using LayerTestsDefinitions::NmsRotatedOpTest;
 
-using namespace LayerTestsDefinitions;
-using namespace InferenceEngine;
-using namespace ngraph;
-
-const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{2, 50, 50},
-    InputShapeParams {9, 10, 10}
+const std::vector<std::vector<ov::test::InputShape>> inShapeParams = {
+    {
+        { {}, {{2, 50, 5}} },
+        { {}, {{2, 50, 50}} }
+    },
+    {
+        { {}, {{9, 10, 5}} },
+        { {}, {{9, 10, 10}} }
+    }
 };
 
-const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
-const std::vector<float> threshold = {0.3f, 0.7f};
-const std::vector<bool> sortResDesc = {true, false};
-const std::vector<element::Type> outType = {element::i32, element::i64};
-const std::vector<bool> clockwise = {true, false};
-
-const std::vector<Precision> inputPrecisions = {Precision::FP32, Precision::FP16};
+const std::vector<ov::element::Type_t> outType = {ov::element::i32, ov::element::i64};
+const std::vector<ov::element::Type_t> inputPrecisions = {ov::element::f32, ov::element::f16};
+const ov::AnyMap empty_plugin_config{};
 
 INSTANTIATE_TEST_SUITE_P(smoke_NmsRotatedLayerTest,
-                         NmsRotatedLayerTest,
+                         NmsRotatedOpTest,
                          ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                            ::testing::Combine(::testing::ValuesIn(inputPrecisions),
-                                                               ::testing::Values(Precision::I32),
-                                                               ::testing::Values(Precision::FP32)),
-                                            ::testing::ValuesIn(maxOutBoxPerClass),
-                                            ::testing::ValuesIn(threshold),
-                                            ::testing::ValuesIn(threshold),
-                                            ::testing::ValuesIn(sortResDesc),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(ov::element::i32),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(outType),
-                                            ::testing::ValuesIn(clockwise),
+                                            ::testing::Values(5, 20),
+                                            ::testing::Values(0.3f, 0.7f),
+                                            ::testing::Values(0.3f, 0.7f),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(empty_plugin_config),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         NmsRotatedLayerTest::getTestCaseName);
+                         NmsRotatedOpTest::getTestCaseName);
+
+} // namespace
