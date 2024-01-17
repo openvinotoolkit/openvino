@@ -170,16 +170,34 @@ bool CfMarkerType::is_copyable() const {
 Type get_ov_type(const ::tensorflow::DataType& type) {
     using ::tensorflow::DataType;
 
-    static map<DataType, Type> type_map{
-        {DataType::DT_FLOAT, f32},         {DataType::DT_DOUBLE, f64},     {DataType::DT_INT32, i32},
-        {DataType::DT_UINT8, u8},          {DataType::DT_INT16, i16},      {DataType::DT_INT8, i8},
-        {DataType::DT_INT64, i64},         {DataType::DT_BOOL, boolean},   {DataType::DT_BFLOAT16, bf16},
-        {DataType::DT_UINT16, u16},        {DataType::DT_HALF, f16},       {DataType::DT_UINT32, u32},
-        {DataType::DT_UINT64, u64},        {DataType::DT_FLOAT_REF, f32},  {DataType::DT_DOUBLE_REF, f64},
-        {DataType::DT_INT32_REF, i32},     {DataType::DT_UINT8_REF, u8},   {DataType::DT_INT16_REF, i16},
-        {DataType::DT_INT8_REF, i8},       {DataType::DT_INT64_REF, i64},  {DataType::DT_BOOL_REF, boolean},
-        {DataType::DT_BFLOAT16_REF, bf16}, {DataType::DT_UINT16_REF, u16}, {DataType::DT_HALF_REF, f16},
-        {DataType::DT_UINT32_REF, u32},    {DataType::DT_UINT64_REF, u64}};
+    static map<DataType, Type> type_map{{DataType::DT_FLOAT, f32},
+                                        {DataType::DT_DOUBLE, f64},
+                                        {DataType::DT_INT32, i32},
+                                        {DataType::DT_UINT8, u8},
+                                        {DataType::DT_INT16, i16},
+                                        {DataType::DT_INT8, i8},
+                                        {DataType::DT_INT64, i64},
+                                        {DataType::DT_BOOL, boolean},
+                                        {DataType::DT_BFLOAT16, bf16},
+                                        {DataType::DT_UINT16, u16},
+                                        {DataType::DT_HALF, f16},
+                                        {DataType::DT_UINT32, u32},
+                                        {DataType::DT_UINT64, u64},
+                                        {DataType::DT_FLOAT_REF, f32},
+                                        {DataType::DT_DOUBLE_REF, f64},
+                                        {DataType::DT_INT32_REF, i32},
+                                        {DataType::DT_UINT8_REF, u8},
+                                        {DataType::DT_INT16_REF, i16},
+                                        {DataType::DT_INT8_REF, i8},
+                                        {DataType::DT_INT64_REF, i64},
+                                        {DataType::DT_BOOL_REF, boolean},
+                                        {DataType::DT_BFLOAT16_REF, bf16},
+                                        {DataType::DT_UINT16_REF, u16},
+                                        {DataType::DT_HALF_REF, f16},
+                                        {DataType::DT_UINT32_REF, u32},
+                                        {DataType::DT_UINT64_REF, u64},
+                                        {DataType::DT_STRING, element::string},
+                                        {DataType::DT_STRING_REF, element::string}};
 
     auto it = type_map.find(type);
     // for all unsupported types return dynamic type
@@ -200,17 +218,9 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
     FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
     Type ov_type = get_ov_type(tensor_type);
 
-    if (tensor_type != ::tensorflow::DataType::DT_STRING) {
-        FRONT_END_GENERAL_CHECK(
-            ov_type.is_static(),
-            "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
-    } else {
-        auto data = vector<std::string>();
-        for (const auto& item : tensor_proto.string_val()) {
-            data.push_back(item);
-        }
-        return data;
-    }
+    FRONT_END_GENERAL_CHECK(
+        ov_type.is_static(),
+        "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
 
     Tensor res(ov_type, pshape.get_shape());
     auto tensor_content = tensor_proto.tensor_content();
@@ -255,6 +265,18 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
         case f16:
             extract_tensor_content<float16>(tensor_content, &res);
             break;
+        case element::string: {
+            auto string_val_size = static_cast<size_t>(tensor_proto.string_val_size());
+            FRONT_END_GENERAL_CHECK(
+                res.get_size() == string_val_size,
+                "Internal error: OpenVINO and TensorFlow string tensors contains different number of elements");
+            auto string_src = tensor_proto.string_val();
+            auto string_dst = res.data<std::string>();
+            for (size_t ind = 0; ind < string_val_size; ++ind) {
+                string_dst[ind] = string_src[static_cast<int>(ind)];
+            }
+            break;
+        }
         default:
             FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
         }
@@ -309,6 +331,18 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             val_size = tensor_proto.half_val_size();
             extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
             break;
+        case element::string: {
+            auto string_val_size = static_cast<size_t>(tensor_proto.string_val_size());
+            FRONT_END_GENERAL_CHECK(
+                res.get_size() == string_val_size,
+                "Internal error: OpenVINO and TensorFlow string tensors contains different number of elements");
+            auto string_src = tensor_proto.string_val();
+            auto string_dst = res.data<std::string>();
+            for (size_t ind = 0; ind < string_val_size; ++ind) {
+                string_dst[ind] = string_src[static_cast<int>(ind)];
+            }
+            break;
+        }
         default:
             FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
         }

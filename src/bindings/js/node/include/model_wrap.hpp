@@ -23,12 +23,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Model class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Model class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
     /**

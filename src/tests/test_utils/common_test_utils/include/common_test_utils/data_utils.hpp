@@ -204,6 +204,32 @@ void inline fill_data_random(T* pointer,
     }
 }
 
+template <class T>
+void inline fill_data_random_act_dft(T* pointer,
+                                     std::size_t size,
+                                     const uint32_t range = 10,
+                                     double_t start_from = 0,
+                                     const int32_t k = 1,
+                                     const int seed = 1) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<T>(start_from);
+        }
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;  // range with respect to k
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
+        start_from = 0;
+    }
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<T>(start_from + static_cast<double>(random.Generate(k_range)) / k);
+    }
+}
+
 /** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
  *
  *  This function generates and fills a blob of a certain precision, with a
@@ -497,6 +523,14 @@ inline ov::bfloat16 ie_abs(const ov::bfloat16& val) {
 
 inline ov::float16 ie_abs(const ov::float16& val) {
     return ov::float16::from_bits(val.to_bits() & 0x7FFF);
+}
+
+inline ov::float8_e4m3 ie_abs(const ov::float8_e4m3& val) {
+    return ov::float8_e4m3::from_bits(val.to_bits() & 0x7F);
+}
+
+inline ov::float8_e5m2 ie_abs(const ov::float8_e5m2& val) {
+    return ov::float8_e5m2::from_bits(val.to_bits() & 0x7F);
 }
 
 }  // namespace utils
