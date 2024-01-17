@@ -10,7 +10,6 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "conj.cpp"
 
 using namespace std;
 using namespace ov::op;
