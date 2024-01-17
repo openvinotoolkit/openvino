@@ -12,7 +12,7 @@
 
 #include "cpp/ie_executable_network_base.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
