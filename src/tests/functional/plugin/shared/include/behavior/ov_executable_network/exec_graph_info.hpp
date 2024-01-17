@@ -14,25 +14,25 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-typedef std::tuple<
-        ov::element::Type_t,                // Element type
-        std::string,                        // Device name
-        ov::AnyMap                          // Config
-> OVExecGraphImportExportTestParams;
+typedef std::tuple<ov::element::Type_t,  // Element type
+                   std::string,          // Device name
+                   ov::AnyMap            // Config
+                   >
+    OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
                                     public OVCompiledNetworkTestBase {
-    public:
+public:
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj);
 
     void SetUp() override;
 
     void TearDown() override;
 
-    protected:
+protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    ov::element::Type_t elementType;
+    ov::element::Type elementType;
     std::shared_ptr<ov::Model> function;
 };
 

@@ -4,6 +4,7 @@
 
 #include "behavior/compiled_model/properties.hpp"
 
+#include "behavior/ov_executable_network/get_metric.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
@@ -73,23 +74,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 const std::vector<ov::AnyMap> properties = {{ov::num_streams(ov::streams::NUMA)},
                                             {ov::num_streams(ov::streams::AUTO)},
                                             {ov::num_streams(0), ov::inference_num_threads(1)},
-                                            {ov::num_streams(1), ov::inference_num_threads(1)},
-                                            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-                                              InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}};
+                                            {ov::num_streams(1), ov::inference_num_threads(1)}};
 
 const std::vector<ov::AnyMap> hetero_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_CPU), ov::num_streams(ov::streams::AUTO)},
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_CPU) + "(4)"}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_CPU) + "(4)"},
-     {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_CPU) + "(4)"},
-     {ov::auto_batch_timeout(10)}},
+    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)")},
+    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(1)},
+    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(10)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -163,4 +157,60 @@ INSTANTIATE_TEST_SUITE_P(smoke_HETERO_OVClassCompileModelWithCorrectPropertiesTe
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("HETERO"),
                                             ::testing::ValuesIn(heteroConfigsWithSecondaryProperties)));
+
+//
+// OV CompiledModel Get RO Property
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ::testing::Values("CPU", "HETERO:CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ::testing::Values("CPU", "HETERO:CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ::testing::Values("CPU", "HETERO:CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        ::testing::Values("CPU", "HETERO:CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        ::testing::Values("CPU", "HETERO:CPU"));
+
+//
+// OV CompiledModel GetProperty / SetProperty
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetConfigTest, OVClassExecutableNetworkGetConfigTest,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkSetConfigTest, OVClassExecutableNetworkSetConfigTest,
+        ::testing::Values("CPU"));
+
+//
+// Hetero OV CompiledModel Get RO Property
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+        ::testing::Values("CPU"));
 }  // namespace
