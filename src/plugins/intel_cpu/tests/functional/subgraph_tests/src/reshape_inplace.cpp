@@ -99,8 +99,8 @@ TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantChec
  *                   |
  *                result1
  *
- *  If parent of reshape is shared, reshape in place should be not applicable.
- *  This is becuase multiple branches could change data on the same port, then pollute result each other.
+ *  The same memory is shared between the `result2` input and `MVN` output. The CPU graph inplace memory conflict
+ *  resolution logic must prevent `result2` data being rewritten by the MVN node.
  */
 
 class InPlaceReshapeShareInputCheck : public SubgraphBaseTest {
