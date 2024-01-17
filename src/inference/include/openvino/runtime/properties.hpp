@@ -400,11 +400,11 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
- * @brief This property allows CPU threads pinning during inference.
+ * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to enable or disable CPU thread pinning during inference on Windows and Linux. MacOS
- * does not support CPU thread pinning, and this property is always disabled. If user does not explicitly set value for
+ * Developer can use this property to enable or disable CPU pinning during inference on Windows and Linux. MacOS
+ * does not support CPU pinning, and this property is always disabled. If user does not explicitly set value for
  * this property, OpenVINO may choose any desired value based on internal logic.
  *
  * The following is an example of CPU fixed behavior on a hybrid CPU (8 performance cores and 16 efficiency cores).
