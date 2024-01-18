@@ -25,7 +25,7 @@ namespace ir {
 namespace {
 
 inline size_t get_ir_version(pugi::xml_node& root) {
-    return static_cast<size_t>(ov::util::pugixml::utils::get_uint64_attr(root, "version", 0));
+    return static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
 }
 
 /**

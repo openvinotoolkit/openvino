@@ -151,7 +151,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     if (res.status != pugi::status_ok)
         OPENVINO_THROW("Failed to read Hetero device xml header");
 
-    using namespace ov::util::pugixml::utils;
+    using namespace ov::util::pugixml;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = get_str_attr(heteroNode, "name");

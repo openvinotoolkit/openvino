@@ -20,7 +20,7 @@
 # include <windows.h>
 #endif
 
-using namespace ov::util::pugixml::utils;
+using namespace ov::util::pugixml;
 
 #define CheckAndReturnError(cond, errorMsg) \
     if (cond) { std::stringstream ss; ss << errorMsg; m_ErrorMessage = ss.str(); return; }

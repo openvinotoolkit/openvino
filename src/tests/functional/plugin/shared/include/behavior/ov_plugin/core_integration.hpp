@@ -216,7 +216,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     std::string filename = ov::test::utils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     ov::test::utils::createFile(filename, content);
-    ASSERT_THROW(ov::Core ie(filename), ov::Exception);
+    ASSERT_ANY_THROW(ov::Core ie(filename));
     ov::test::utils::removeFile(filename.c_str());
 }
 

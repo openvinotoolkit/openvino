@@ -212,17 +212,17 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             isaSpecificThreshold = 1.0f;
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-        const float memThresholdAssumeLimitedForISA = ov::mem_bandwidth_pressure::LIMITED / isaSpecificThreshold;
+        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-        ov::mem_bandwidth_pressure networkToleranceForLowCache =
+        ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
         const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                                    ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT,
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
         auto streams_info = default_streams;
-        if (networkToleranceForLowCache.max_mem_tolerance == ov::mem_bandwidth_pressure::UNKNOWN) {
-            if ((networkToleranceForLowCache.ratio_compute_convs == ov::mem_bandwidth_pressure::ALL) ||
-                (networkToleranceForLowCache.ratio_compute_deconvs == ov::mem_bandwidth_pressure::ALL)) {
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                              ov::threading::IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
@@ -233,7 +233,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                          ov::threading::IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
                                          engConfig.streamExecutorConfig._enable_hyper_thread);
-        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::mem_bandwidth_pressure::LIMITED) {
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
             streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                          ov::threading::IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE,

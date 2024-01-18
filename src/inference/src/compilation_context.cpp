@@ -191,9 +191,9 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     }
 
     pugi::xml_node compiledBlobNode = document.document_element();
-    header.m_ieVersion = ov::util::pugixml::utils::get_str_attr(compiledBlobNode, "ie_version");
-    header.m_fileInfo = ov::util::pugixml::utils::get_str_attr(compiledBlobNode, "file_info");
-    header.m_runtimeInfo = ov::util::pugixml::utils::get_str_attr(compiledBlobNode, "runtime_info");
+    header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
+    header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
+    header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
 
     return stream;
 }

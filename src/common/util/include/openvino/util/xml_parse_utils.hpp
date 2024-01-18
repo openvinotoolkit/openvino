@@ -17,7 +17,7 @@
 #include <string>
 #include <utility>
 
-#include "file_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 /**
  * @brief      Defines convinient for-each based cycle to iterate over node children
@@ -35,7 +35,6 @@ namespace util {
  * @brief XML helpers function to extract values from `pugi::xml_node`
  */
 namespace pugixml {
-namespace utils {
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -180,20 +179,18 @@ float get_float_attr(const pugi::xml_node& node, const char* str, float defVal);
  */
 int get_int_child(const pugi::xml_node& node, const char* str, int defVal);
 
-}  // namespace utils
-
 /**
  * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.
  * @ingroup    ie_dev_api_xml
  */
-struct parse_result {
+struct ParseResult {
     /**
-     * @brief      Constructs parse_result with `pugi::xml_document` and an error message
+     * @brief      Constructs ParseResult with `pugi::xml_document` and an error message
      *
      * @param      xml        The `pugi::xml_document`
      * @param[in]  error_msg  The error message
      */
-    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
+    ParseResult(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
         : xml(std::move(xml)),
           error_msg(std::move(error_msg)) {}
 
@@ -209,14 +206,14 @@ struct parse_result {
 };
 
 /**
- * @brief      Parses a file and returns parse_result
+ * @brief      Parses a file and returns ParseResult
  * @ingroup    ie_dev_api_xml
  *
  * @param[in]  file_path  The file path
  *
- * @return     The parse_result.
+ * @return     The ParseResult.
  */
-inline parse_result parse_xml(const char* file_path) {
+inline ParseResult parse_xml(const char* file_path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring wFilePath = ov::util::string_to_wstring(file_path);
     const wchar_t* resolvedFilepath = wFilePath.c_str();

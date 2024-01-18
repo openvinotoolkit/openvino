@@ -13,7 +13,7 @@
 namespace ov {
 namespace util {
 
-int pugixml::utils::get_int_attr(const pugi::xml_node& node, const char* str) {
+int pugixml::get_int_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -35,7 +35,7 @@ int pugixml::utils::get_int_attr(const pugi::xml_node& node, const char* str) {
     return int_value;
 }
 
-int64_t pugixml::utils::get_int64_attr(const pugi::xml_node& node, const char* str) {
+int64_t pugixml::get_int64_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -56,7 +56,7 @@ int64_t pugixml::utils::get_int64_attr(const pugi::xml_node& node, const char* s
     return static_cast<int64_t>(int_value);
 }
 
-uint64_t pugixml::utils::get_uint64_attr(const pugi::xml_node& node, const char* str) {
+uint64_t pugixml::get_uint64_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -77,7 +77,7 @@ uint64_t pugixml::utils::get_uint64_attr(const pugi::xml_node& node, const char*
     return static_cast<uint64_t>(int_value);
 }
 
-unsigned int pugixml::utils::get_uint_attr(const pugi::xml_node& node, const char* str) {
+unsigned int pugixml::get_uint_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -98,7 +98,7 @@ unsigned int pugixml::utils::get_uint_attr(const pugi::xml_node& node, const cha
     return static_cast<unsigned int>(int_value);
 }
 
-std::string pugixml::utils::get_str_attr(const pugi::xml_node& node, const char* str) {
+std::string pugixml::get_str_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -109,7 +109,7 @@ std::string pugixml::utils::get_str_attr(const pugi::xml_node& node, const char*
     return attr.value();
 }
 
-std::string pugixml::utils::get_str_attr(const pugi::xml_node& node, const char* str, const char* def) {
+std::string pugixml::get_str_attr(const pugi::xml_node& node, const char* str, const char* def) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         if (def != nullptr)
@@ -122,7 +122,7 @@ std::string pugixml::utils::get_str_attr(const pugi::xml_node& node, const char*
     return attr.value();
 }
 
-bool pugixml::utils::get_bool_attr(const pugi::xml_node& node, const char* str, const bool def) {
+bool pugixml::get_bool_attr(const pugi::xml_node& node, const char* str, const bool def) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return def;
@@ -145,7 +145,7 @@ bool pugixml::utils::get_bool_attr(const pugi::xml_node& node, const char* str, 
     return is_true;
 }
 
-bool pugixml::utils::get_bool_attr(const pugi::xml_node& node, const char* str) {
+bool pugixml::get_bool_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -172,7 +172,7 @@ bool pugixml::utils::get_bool_attr(const pugi::xml_node& node, const char* str) 
     return is_true;
 }
 
-float pugixml::utils::get_float_attr(const pugi::xml_node& node, const char* str) {
+float pugixml::get_float_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty()) {
         std::stringstream ss;
@@ -195,42 +195,42 @@ float pugixml::utils::get_float_attr(const pugi::xml_node& node, const char* str
     return float_value;
 }
 
-int pugixml::utils::get_int_attr(const pugi::xml_node& node, const char* str, int defVal) {
+int pugixml::get_int_attr(const pugi::xml_node& node, const char* str, int defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return get_int_attr(node, str);
 }
 
-int64_t pugixml::utils::get_int64_attr(const pugi::xml_node& node, const char* str, int64_t defVal) {
+int64_t pugixml::get_int64_attr(const pugi::xml_node& node, const char* str, int64_t defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return get_int64_attr(node, str);
 }
 
-uint64_t pugixml::utils::get_uint64_attr(const pugi::xml_node& node, const char* str, uint64_t defVal) {
+uint64_t pugixml::get_uint64_attr(const pugi::xml_node& node, const char* str, uint64_t defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return get_uint64_attr(node, str);
 }
 
-unsigned int pugixml::utils::get_uint_attr(const pugi::xml_node& node, const char* str, unsigned int defVal) {
+unsigned int pugixml::get_uint_attr(const pugi::xml_node& node, const char* str, unsigned int defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return get_uint_attr(node, str);
 }
 
-float pugixml::utils::get_float_attr(const pugi::xml_node& node, const char* str, float defVal) {
+float pugixml::get_float_attr(const pugi::xml_node& node, const char* str, float defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return get_float_attr(node, str);
 }
 
-int pugixml::utils::get_int_child(const pugi::xml_node& node, const char* str, int defVal) {
+int pugixml::get_int_child(const pugi::xml_node& node, const char* str, int defVal) {
     auto child = node.child(str);
     if (child.empty())
         return defVal;

@@ -490,7 +490,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace ov::util::pugixml::utils;
+    using namespace ov::util::pugixml;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 

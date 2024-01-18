@@ -775,9 +775,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     }
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config);
-    ov::mem_bandwidth_pressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
+    ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
-    if (memPressure.max_mem_tolerance != ov::mem_bandwidth_pressure::UNKNOWN)
+    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
         batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
     ov::AnyMap options_for_max_batch;
     options_for_max_batch[ov::hint::model.name()] = model;
