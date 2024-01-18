@@ -5,6 +5,10 @@
 #include <utility>
 #include <gtest/gtest.h>
 #include "mlas/sgemm.hpp"
+#include "onednn/dnnl.h"
+#include "cpu_memory.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 // This test is used to test whether mlas gemm lib compiles successfully
 TEST(MLASGemmTests, getPackedSize) {
@@ -14,16 +18,22 @@ TEST(MLASGemmTests, getPackedSize) {
 }
 // Test mlas thread partition with even/odd threads
 TEST(MLASGemmTests, simpleGemm) {
-    size_t M = 33;
-    size_t N = 32;
-    size_t K = 33;
-    std::vector<float> a_data(M * K, (1.0f/33));
-    std::vector<float> b_data(K * N, 4.0f);
-    std::vector<float> c_data(M * N, 0.0f);
+    const auto L2cacheSize = dnnl::utils::get_cache_size(2, true);
+    size_t M = 128;
+    size_t K = 512;
+    size_t N = L2cacheSize / sizeof(float) / (M);
+    std::vector<float> aData(M * K, (1.0f/33));
+    size_t bSize = ov::intel_cpu::mlas_sgemm_pack_get_size(N, K);
+    size_t nthr = parallel_get_max_threads();
+    auto alignedB = ov::AlignedBuffer(bSize, 64);
+    float* bData = reinterpret_cast<float*>(alignedB.get_ptr());
+    std::vector<float> cData(M * N, 0.0f);
+
     ASSERT_NO_THROW(
         ov::intel_cpu::
-            mlas_sgemm("N", "T", M, N, K, 1.0f, a_data.data(), K, b_data.data(), N, 0.0f, c_data.data(), N, 3));
+            mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr));
+
     ASSERT_NO_THROW(
         ov::intel_cpu::
-            mlas_sgemm("N", "T", M, N, K, 1.0f, a_data.data(), K, b_data.data(), N, 0.0f, c_data.data(), N, 4));
+            mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr - 1));
 }
