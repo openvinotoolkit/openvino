@@ -417,22 +417,23 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
     register_matcher(m, callback);
 }
 
-static bool get_scalar_constant_value(const Output<Node>& node, int64_t& output_value) {
-    auto constant = ov::as_type<op::v0::Constant>(node.get_node());
+static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t& output_value) {
+    auto constant = ov::as_type<ov::op::v0::Constant>(node.get_node());
     if (!constant)
         return false;
-    if (shape_size(constant->get_shape()) != 1)
+    if (ov::shape_size(constant->get_shape()) != 1)
         return false;
     const auto& type = constant->get_output_element_type(0);
-    if (type != element::i32 && type != element::i64)
+    if (type != ov::element::i32 && type != ov::element::i64)
         return false;
     output_value = constant->cast_vector<int64_t>()[0];
     return true;
 }
 
+// clang-format off
 /*
 
-   Following subgraph is fused into Transpose->LSTMSequence->Transpose
+   Following subgraph in Loop is fused into LSTMSequence
 
 
    +------------------------------+
@@ -448,27 +449,25 @@ static bool get_scalar_constant_value(const Output<Node>& node, int64_t& output_
                       |      |      |
                       v      v      v        +----------------------+    +----------------------+
                   +---+------+------+---+    |          H           |    |          C           |
-                  |        Gather       |    | (merged with H_out)  |    | (merged with C_out)  |    +-----+    +-----+
-   +-----+ | [batch, input size] |    | [batch, hidden size] |    | [batch, hidden size] |    |  W  |    |  R  |    |  B
-   |
-                  +----------+----------+    +----------+-----------+    +----------+-----------+    +--+--+    +--+--+
-   +--+--+ |                          |                           |                   |          |          | | | | | |
-   | |                          |                           |                   |          |          | | | | | | | | |
-   |                   |          |          | |                          |                           | |          | |
-                             |                          |                           |                   |          | |
-                             |                          |                           |                   |          | |
-                             |                          |                           |                   |          | |
-                             |                          |           +---------------+                   |          | |
-                             |                          |           |                                   |          | |
-                             |                          |           |                                   |          | |
-                             |                          |           |    +------------------------------+          | |
-                             |                          |           |    |                                         | |
-                             |                          |           |    |                                         | |
-                             |                          +------+    |    |    +------------------------------------+ |
-                             |                                 |    |    |    | | |                                 | |
-   |    |                                               |
-                             +----------------------------+    |    |    |    |
-   +------------------------------------------+ |    |    |    |    |    |
+                  |        Gather       |    | (merged with H_out)  |    | (merged with C_out)  |    +-----+    +-----+    +-----+
+                  | [batch, input size] |    | [batch, hidden size] |    | [batch, hidden size] |    |  W  |    |  R  |    |  B  |
+                  +----------+----------+    +----------+-----------+    +----------+-----------+    +--+--+    +--+--+    +--+--+
+                             |                          |                           |                   |          |          |
+                             |                          |                           |                   |          |          |
+                             |                          |                           |                   |          |          |
+                             |                          |                           |                   |          |          |
+                             |                          |                           |                   |          |          |
+                             |                          |                           |                   |          |          |
+                             |                          |           +---------------+                   |          |          |
+                             |                          |           |                                   |          |          |
+                             |                          |           |                                   |          |          |
+                             |                          |           |    +------------------------------+          |          |
+                             |                          |           |    |                                         |          |
+                             |                          |           |    |                                         |          |
+                             |                          +------+    |    |    +------------------------------------+          |
+                             |                                 |    |    |    |                                               |
+                             +----------------------------+    |    |    |    |    +------------------------------------------+
+                                                          |    |    |    |    |    |
        +---+                                              v    v    v    v    v    v
        | Y |                                          +---+----+----+----+----+----+---+
        +---+                                          |            LSTMCell            |
@@ -504,6 +503,7 @@ static bool get_scalar_constant_value(const Output<Node>& node, int64_t& output_
                      +----------------------+
 
 */
+// clang-format on
 
 ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
     MATCHER_SCOPE(ConvertLoopToLSTMSequence);

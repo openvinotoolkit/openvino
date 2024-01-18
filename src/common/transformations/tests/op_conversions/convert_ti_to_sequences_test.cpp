@@ -908,7 +908,9 @@ TEST_P(LoopToLSTMSequenceTestSuite, ConvertLoopToLSTMSequence) {
         loop->set_merged_input(C_body, C, Co_result);
         loop->get_iter_value(Y_result, -1);
         loop->set_special_body_ports({-1, 5});
-        auto transpose = std::make_shared<op::v1::Transpose>(loop->output(0), op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
+        auto transpose =
+            std::make_shared<op::v1::Transpose>(loop->output(0),
+                                                op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
 
         model = std::make_shared<Model>(transpose, ParameterVector{X, Y, H, C});
 
