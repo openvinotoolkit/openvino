@@ -20,7 +20,6 @@
 #include <functional>
 
 #include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/pattern/op/any.hpp"
 #include "ngraph/pattern/op/any_of.hpp"
 #include "ngraph/pattern/op/any_output.hpp"

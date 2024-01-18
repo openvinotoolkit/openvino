@@ -13,7 +13,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
+
 namespace set_1 {
+
 OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
