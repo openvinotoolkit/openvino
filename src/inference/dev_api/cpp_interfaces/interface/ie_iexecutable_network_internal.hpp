@@ -12,7 +12,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "ie_parameter.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 class Function;
