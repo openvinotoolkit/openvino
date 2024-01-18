@@ -40,29 +40,7 @@ KernelsData BroadcastKernelOpt::GetKernelsData(const Params& params, const optio
     if (!Validate(params, options)) {
         return {};
     }
-    assert(params.GetType() == KernelType::BROADCAST);
-
-    const auto& prim_params = static_cast<const broadcast_params&>(params);
-
-    auto dispatchData = SetDefault(prim_params);
-    KernelData k_data = KernelData::Default<broadcast_params>(params);
-    GetUpdateDispatchDataFunc(k_data);
-
-    auto cldnn_jit = GetJitConstants(prim_params);
-    cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params)));
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
-    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-    auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT,
-                     false,
-                     false,
-                     1,
-                     0,
-                     1,
-                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic());
-    return {k_data};
+    return GetCommonKernelsData(params, options);
 }
 
 KernelsPriority BroadcastKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
@@ -74,8 +52,7 @@ JitConstants BroadcastKernelOpt::GetJitConstants(const broadcast_params& params)
 
     jit.AddConstants({MakeJitConstant("BROADCAST_ORDER", params.input_order)});
     jit.AddConstants({MakeJitConstant("VEC_SIZE", vec_size)});
-    jit.AddConstants({MakeJitConstant("Y_BLOCK_SIZE", y_block_size)});
-    jit.AddConstants({MakeJitConstant("USE_VEC", use_vec)});
+    jit.AddConstants({MakeJitConstant("Y_BLOCKS", y_blocks)});
 
     return jit;
 }
@@ -92,7 +69,7 @@ BroadcastKernelBase::DispatchData BroadcastKernelOpt::SetDefault(const broadcast
                                                                      { Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
                                                                        Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws = { output.X().v / vec_size, output.Y().v / y_block_size,  output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
+    dispatchData.gws = { output.X().v / vec_size, output.Y().v / y_blocks,  output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
@@ -105,10 +82,10 @@ bool BroadcastKernelOpt::Validate(const Params& p, const optional_params& o) con
     }
 
     const broadcast_params& params = static_cast<const broadcast_params&>(p);
-    if (params.outputs[0].GetDims().size() != 5)
+    if (4 <= params.outputs[0].GetDims().size() && params.outputs[0].GetDims().size() <= 6)
         return false;
 
-    if (params.outputs[0].Y().v % 4 != 0)
+    if (params.outputs[0].Y().v % y_blocks != 0)
         return false;
 
     if (!(params.outputs[0].Batch().v == params.inputs[0].Batch().v

@@ -2318,3 +2318,4 @@ TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x128_to_21x1x2x16x128_no_axes) {
         }
     }
 }
+

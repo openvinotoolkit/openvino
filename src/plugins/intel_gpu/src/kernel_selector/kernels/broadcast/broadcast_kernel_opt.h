@@ -20,7 +20,6 @@ public:
     JitConstants GetJitConstants(const broadcast_params& params) const override;
 
     const size_t vec_size = 2;
-    const size_t y_block_size = 4;
-    const size_t use_vec = 1;
+    const size_t y_blocks = 4;
 };
 }  // namespace kernel_selector

@@ -142,18 +142,12 @@ KERNEL(broadcast_gpu_opt)(
 #else
         const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
 #endif
-#if USE_VEC == 1
+
     INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
-    unroll_for(uint i = 0; i < Y_BLOCK_SIZE; i++) {
+    unroll_for(uint i = 0; i < Y_BLOCKS; i++) {
         VSTORE(input_vec, 0, &output[out_pos + i * OUTPUT_SIZE_X]);
     }
-#else
-    unroll_for(uint i = 0; i < Y_BLOCK_SIZE; i++) {
-        unroll_for(uint j = 0; j < VEC_SIZE; j++) {
-            output[out_pos + i * OUTPUT_SIZE_X + j] = input[idx_pos + j];
-        }
-    }
-#endif
+
     if (gdim0 < leftovers) {
         output[out_pos + offset] = input[idx_pos + offset];
     }
