@@ -8,7 +8,6 @@
 
 #include "async_infer_request.hpp"
 #include "graph_debug_dump.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -268,7 +267,6 @@ std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_
 }
 
 ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -280,13 +278,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
                                                     ov::hetero::number_of_submodels};
         return ro_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
 
     if (ov::supported_properties == name) {
         auto supported_properties = default_ro_properties();
@@ -294,13 +285,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         add_ro_properties(ov::device::properties.name(), supported_properties);
         add_ro_properties(ov::device::priorities.name(), supported_properties);
         return decltype(ov::supported_properties)::value_type(supported_properties);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(m_cfg.get_supported());
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
         for (const auto& comp_model_desc : m_compiled_submodels) {
@@ -340,7 +324,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
     }
     return m_cfg.get(name);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs() const {

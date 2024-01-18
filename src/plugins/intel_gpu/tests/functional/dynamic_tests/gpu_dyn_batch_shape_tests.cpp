@@ -119,7 +119,7 @@ auto config = []() {
 };
 
 auto hetero_config = []() {
-    return ov::AnyMap{{"TARGET_FALLBACK", ov::test::utils::DEVICE_GPU}};
+    return ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
 };
 
 const std::vector<InputShape> input_shapes = {

@@ -351,20 +351,4 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 
     std::cout << "Exe network name: " << std::endl << networkname << std::endl;
 }
-
-TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
-    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
-
-    setHeteroNetworkAffinity(target_device);
-
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
-
-    ASSERT_NO_THROW(p = exeNetwork.GetConfig("TARGET_FALLBACK"));
-    auto targets = p.as<std::string>();
-    auto expectedTargets = target_device;
-
-    std::cout << "Exe network fallback targets: " << targets << std::endl;
-    ASSERT_EQ(expectedTargets, targets);
-}
 } // namespace BehaviorTestsDefinitions
