@@ -632,9 +632,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
 
     auto model_ref = convert_model("model_editor/reference/subgraph__multiple_consumers_of_graph_initializer.onnx");
 
-    serialize(model, "E:\\test.xml");
-    serialize(model_ref, "E:\\test_ref.xml");
-
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
     func_comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
 
@@ -674,9 +671,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_rel
 
     auto model_ref =
         convert_model("model_editor/reference/subgraph__multiple_consumers_of_graph_initializer_relu2_and_init.onnx");
-
-    serialize(model, "E:\\test.xml");
-    serialize(model_ref, "E:\\test_ref.xml");
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
     func_comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
