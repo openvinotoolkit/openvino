@@ -1212,7 +1212,7 @@ public:
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f32, padding(), 2, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2)
         );
 
         auto config = get_test_default_config(engine);

@@ -5,10 +5,10 @@
 
 #include <fstream>
 
-#include "exec_graph_info.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "pugixml.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
