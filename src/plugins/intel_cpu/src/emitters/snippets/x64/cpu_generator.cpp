@@ -36,7 +36,7 @@
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #include "emitters/snippets/x64/jit_debug_emitter.hpp"
 #include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
-#include "emitters/verbose.hpp"
+#include "emitters/snippets/x64/verbose.hpp"
 #endif
 
 namespace ov {
@@ -45,10 +45,10 @@ namespace ov {
 #define CREATE_SNIPPETS_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         auto emitter = std::make_shared<e_type>(h.get(), isa, expr); \
-        if (custom_segfault_detector && is_segfault_detector_emitter(emitter.get())) { \
+        if (!debug_config.segfault_detector.empty() && is_segfault_detector_emitter(emitter.get())) { \
             auto segfault_emitter = std::make_shared<jit_uni_segfault_detector_emitter>(h.get(), isa, emitter.get(), \
                 is_load_emitter(emitter.get()), is_store_emitter(emitter.get()), expr->get_node()->get_friendly_name()); \
-            return std::make_shared<jit_debug_emitter>(emitter, segfault_emitter, emit_debug_loc::pre_emit); \
+            return std::make_shared<jit_debug_emitter>(emitter, segfault_emitter, jit_debug_emitter::EmissionLocation::preamble); \
         } else { \
             return emitter; \
         } \
@@ -178,8 +178,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
-    DebugCapsConfig debugCaps;
-    custom_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
 #endif
 }
 
@@ -251,7 +249,7 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
-    need = need || (cpu_target_machine && cpu_target_machine->custom_segfault_detector) ||
+    need = need || (cpu_target_machine && !cpu_target_machine->debug_config.segfault_detector.empty()) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||

@@ -8,20 +8,20 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
+
 namespace ov {
 namespace intel_cpu {
 
-enum emit_debug_loc {
-    pre_emit,
-    post_emit,
-    both_emit,
-};
-
 class jit_debug_emitter : public jit_emitter {
 public:
-    jit_debug_emitter(const std::shared_ptr<jit_emitter>& target_emitter, const std::shared_ptr<jit_emitter>& decorator_emitter, const emit_debug_loc& loc)
+    enum class EmissionLocation {
+        preamble,
+        postamble,
+        both
+    };
+    jit_debug_emitter(const std::shared_ptr<jit_emitter>& target_emitter, const std::shared_ptr<jit_emitter>& decorator_emitter, const EmissionLocation& loc)
         : jit_emitter(target_emitter->h, target_emitter->host_isa_, target_emitter->exec_prc_, target_emitter->in_out_type_),
-        m_target_emitter(target_emitter), m_decorator_emitter(decorator_emitter), m_emit_debug_loc(loc) {
+        m_target_emitter(target_emitter), m_decorator_emitter(decorator_emitter), m_decorator_emit_loc(loc) {
             prepare_table();
         }
 
@@ -46,11 +46,12 @@ protected:
 
 private:
     void validate_arguments(const std::vector<size_t>& arg0, const std::vector<size_t>& arg1) const override;
-
+    // wrapper emitter for product function
     const std::shared_ptr<jit_emitter> m_target_emitter;
+    // debug capability emitter
     const std::shared_ptr<jit_emitter> m_decorator_emitter;
 
-    emit_debug_loc m_emit_debug_loc;
+    EmissionLocation m_decorator_emit_loc;
 };
 
 }   // namespace intel_cpu

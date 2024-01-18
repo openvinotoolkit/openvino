@@ -37,6 +37,7 @@
 #include <vector>
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #include <signal.h>
 std::mutex err_print_lock;
 #endif
@@ -399,12 +400,8 @@ void Snippet::prepareParams() {
     SnippetKey key = {snippetAttrs};
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
-        bool is_segfault_detector_on = false;
-#ifdef SNIPPETS_DEBUG_CAPS
-        is_segfault_detector_on = !context->getConfig().debugCaps.snippets_segfault_detector.empty();
-#endif
         std::shared_ptr<SnippetExecutor> executor =
-                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, is_segfault_detector_on);
+                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic);
         return executor;
     };
 
@@ -425,7 +422,7 @@ void Snippet::prepareParams() {
         getOrCreateExecutor();
     } else {
         // in case perf count is enabled, disable executor cache by default to not mix up perf counters for different subgraphs.
-        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
+        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic);
     }
 #endif
 }
@@ -521,7 +518,8 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
 
 #ifdef SNIPPETS_DEBUG_CAPS
 void Snippet::SnippetJitExecutor::segfault_detector() {
-    if (enable_segfault_detector) {
+    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippetAttrs.snippet->get_generator()->get_target_machine());
+    if (target && !target->debug_config.segfault_detector.empty()) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
             if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
@@ -580,11 +578,8 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
 Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic)
     : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {}
 
-Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector) :
+Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic) :
     SnippetExecutor(std::move(attrs), is_dynamic) {
-#ifdef SNIPPETS_DEBUG_CAPS
-    enable_segfault_detector = segfault_detector;
-#endif
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);

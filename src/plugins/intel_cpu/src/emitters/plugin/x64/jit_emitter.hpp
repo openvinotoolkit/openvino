@@ -13,7 +13,7 @@
 #include <set>
 
 #ifdef SNIPPETS_DEBUG_CAPS
-#include "emitters/verbose.hpp"
+#include "emitters/snippets/x64/verbose.hpp"
 #endif
 
 namespace ov {

@@ -39,7 +39,6 @@ private:
     void save_target_emitter() const;
     static void set_local_handler(jit_uni_segfault_detector_emitter* emitter_address);
     void memory_track(size_t gpr_idx_for_mem_address) const;
-    std::string get_target_emitter_type_name(const jit_emitter* emitter);
 
     mutable size_t start_address = 0;
     mutable size_t current_address = 0;

@@ -63,11 +63,6 @@ void DebugCapsConfig::readProperties() {
 
     if ((envVarValue = readEnv("OV_CPU_DUMP_IR")))
         dumpIR.parseAndSet(envVarValue);
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    if ((envVarValue = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR")))
-        snippets_segfault_detector = envVarValue;
-#endif
 }
 
 }   // namespace intel_cpu

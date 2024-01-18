@@ -9,6 +9,10 @@
 #include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "emitters/snippets/utils/debug_caps_config.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -30,7 +34,7 @@ public:
     size_t get_lanes() const override;
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
 #ifdef SNIPPETS_DEBUG_CAPS
-    bool custom_segfault_detector = false;
+    SnippetsDebugCapsConfig debug_config;
 #endif
 
 private:

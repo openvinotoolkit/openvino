@@ -5,12 +5,12 @@
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #include "verbose.hpp"
-#include "snippets/x64/jit_segfault_detector_emitter.hpp"
-#include "snippets/x64/jit_memory_emitters.hpp"
-#include "snippets/x64/jit_brgemm_emitter.hpp"
-#include "snippets/x64/jit_brgemm_copy_b_emitter.hpp"
-#include "snippets/x64/jit_kernel_emitter.hpp"
-#include "snippets/x64/jit_snippets_emitters.hpp"
+#include "jit_segfault_detector_emitter.hpp"
+#include "jit_memory_emitters.hpp"
+#include "jit_brgemm_emitter.hpp"
+#include "jit_brgemm_copy_b_emitter.hpp"
+#include "jit_kernel_emitter.hpp"
+#include "jit_snippets_emitters.hpp"
 
 #ifndef _WIN32
 #include <cxxabi.h>
@@ -177,42 +177,41 @@ std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_d
            << " current_address:" << emitter->current_address
            << " iteration:" << emitter->iteration << " ";
     }
+    // traget emitter info
     if (auto target_e = emitter->get_target_emitter()) {
         ss << target_e->info();
     }
     return ss.str();
 }
 
-static std::string init_info_jit_emitter_general(std::string emitter_name) {
+static std::string init_info_jit_emitter_general(const jit_emitter *emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:emitter_name";
+    ss << "Emitter_type_name:" << get_emitter_type_name(emitter);
     return ss.str();
 }
 
 void jit_emitter_info_t::init(const jit_emitter *emitter) {
     if (is_initialized_) return;
-
-    std::string emitter_name = get_emitter_type_name(emitter);
-    if (emitter_name.find("jit_load_memory_emitter") != std::string::npos) {
-        str_ = init_info_jit_load_memory_emitter(dynamic_cast<const jit_load_memory_emitter*>(emitter));
-    } else if (emitter_name.find("jit_load_broadcast_emitter") != std::string::npos) {
-        str_ = init_info_jit_load_broadcast_emitter(dynamic_cast<const jit_load_broadcast_emitter*>(emitter));
-    }  else if (emitter_name.find("jit_load_convert_emitter") != std::string::npos) {
-        str_ = init_info_jit_load_convert_emitter(dynamic_cast<const jit_load_convert_emitter*>(emitter));
-    } else if (emitter_name.find("jit_store_memory_emitter") != std::string::npos) {
-        str_ = init_info_jit_store_memory_emitter(dynamic_cast<const jit_store_memory_emitter*>(emitter));
-    }  else if (emitter_name.find("jit_store_convert_emitter") != std::string::npos) {
-        str_ = init_info_jit_store_convert_emitter(dynamic_cast<const jit_store_convert_emitter*>(emitter));
-    } else if (emitter_name.find("jit_brgemm_emitter") != std::string::npos) {
-        str_ = init_info_jit_brgemm_emitter(dynamic_cast<const jit_brgemm_emitter*>(emitter));
-    } else if (emitter_name.find("jit_brgemm_copy_b_emitter") != std::string::npos) {
-        str_ = init_info_jit_brgemm_copy_b_emitter(dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter));
-    } else if (emitter_name.find("jit_kernel_emitter") != std::string::npos) {
-        str_ = init_info_jit_kernel_emitter(dynamic_cast<const jit_kernel_emitter*>(emitter));
-    } else if (emitter_name.find("jit_uni_segfault_detector_emitter") != std::string::npos) {
-        str_ = init_info_jit_uni_segfault_detector_emitter(dynamic_cast<const jit_uni_segfault_detector_emitter*>(emitter));
+    if (auto e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
+        str_ = init_info_jit_load_memory_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
+        str_ = init_info_jit_load_broadcast_emitter(e_type);
+    }  else if (auto e_type = dynamic_cast<const jit_load_convert_emitter*>(emitter)) {
+        str_ = init_info_jit_load_convert_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
+        str_ = init_info_jit_store_memory_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_store_convert_emitter*>(emitter)) {
+        str_ = init_info_jit_store_convert_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_brgemm_emitter*>(emitter)) {
+        str_ = init_info_jit_brgemm_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter)) {
+        str_ = init_info_jit_brgemm_copy_b_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_kernel_emitter*>(emitter)) {
+        str_ = init_info_jit_kernel_emitter(e_type);
+    } else if (auto e_type = dynamic_cast<const jit_uni_segfault_detector_emitter*>(emitter)) {
+        str_ = init_info_jit_uni_segfault_detector_emitter(e_type);
     } else {
-        str_ = init_info_jit_emitter_general(emitter_name);
+        str_ = init_info_jit_emitter_general(emitter);
     }
     is_initialized_ = true;
 }

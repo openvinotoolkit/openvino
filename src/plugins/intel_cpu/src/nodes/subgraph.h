@@ -11,10 +11,6 @@
 
 #include <array>
 
-#ifdef SNIPPETS_DEBUG_CAPS
-#include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
-#endif
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -91,7 +87,7 @@ private:
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector);
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
@@ -132,7 +128,6 @@ private:
 
 #ifdef SNIPPETS_DEBUG_CAPS
             inline void segfault_detector();
-            bool enable_segfault_detector = false;
 #endif
     };
 };
