@@ -57,6 +57,8 @@ class InferRequest(_InferRequestWrapper):
         inputs: Any = None,
         share_inputs: bool = False,
         share_outputs: bool = False,
+        *,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -111,9 +113,18 @@ class InferRequest(_InferRequestWrapper):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
@@ -122,7 +133,7 @@ class InferRequest(_InferRequestWrapper):
             self,
             inputs,
             is_shared=share_inputs,
-        ), share_outputs=share_outputs))
+        ), share_outputs=share_outputs, decode_strings=decode_strings))
 
     def start_async(
         self,
@@ -268,6 +279,8 @@ class CompiledModel(CompiledModelBase):
         inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
+        *,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -330,9 +343,18 @@ class CompiledModel(CompiledModelBase):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
@@ -344,6 +366,7 @@ class CompiledModel(CompiledModelBase):
             inputs,
             share_inputs=share_inputs,
             share_outputs=share_outputs,
+            decode_strings=decode_strings,
         )
 
 
