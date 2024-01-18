@@ -261,7 +261,7 @@ Additional Resources
 - :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
 - :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-- :doc:`OpenVINO Runtime C API <api/c_cpp_api/group__ov__c__api>`
+- `OpenVINO Runtime C API <api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
 - `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__
