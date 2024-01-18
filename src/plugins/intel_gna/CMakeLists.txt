@@ -53,12 +53,9 @@ ov_mark_target_as_cc(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy Threads::Threads libGNA)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE libGNA)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:libGNA,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-        _NO_MKL_
-    )
+target_compile_definitions(${TARGET_NAME} PRIVATE _NO_MKL_)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
