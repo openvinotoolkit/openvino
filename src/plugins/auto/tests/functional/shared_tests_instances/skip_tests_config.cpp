@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "openvino/core/visibility.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
