@@ -147,7 +147,7 @@ protected:
         const auto execFunction = compiledModel.get_runtime_model();
         ASSERT_NE(nullptr, execFunction);
         for (const auto& fcNode : execFunction->get_ops()) {
-            if (getExecValue(fcNode->get_rt_info(), ExecGraphInfoSerialization::LAYER_TYPE) == "FullyConnected") {
+            if (getExecValue(fcNode->get_rt_info(), ov::exec_model_info::LAYER_TYPE) == "FullyConnected") {
                 const auto& constNode = fcNode->get_input_node_shared_ptr(1);
                 ov::element::Type expectedType(
                     getExecValue(constNode->get_rt_info(), ov::exec_model_info::OUTPUT_PRECISIONS));
