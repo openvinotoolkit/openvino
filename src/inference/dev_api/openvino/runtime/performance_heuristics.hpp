@@ -10,7 +10,7 @@
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
-struct MemBandwidthPressure {
+struct mem_bandwidth_pressure {
     float max_mem_tolerance = UNKNOWN;
     float ratio_compute_convs = 0;
     float ratio_mem_limited_convs = 0;
@@ -24,10 +24,10 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-static MemBandwidthPressure MemBandwidthPressureTolerance(
+static mem_bandwidth_pressure mem_bandwidth_pressure_tolerance(
     const std::shared_ptr<ov::Model> model,
     const float cache_size,
-    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
+    const float memThresholdAssumeLimited = mem_bandwidth_pressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
@@ -40,15 +40,15 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
         return (type == ov::element::bf16) || (type == ov::element::f16);
     };
 
-    float worst_case = MemBandwidthPressure::UNKNOWN;
+    float worst_case = mem_bandwidth_pressure::UNKNOWN;
     // Traverse OpenVINO Model in topological order
     for (auto& node : model->get_ordered_ops()) {
         const auto node_name = node->get_type_info().name;
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
             std::strcmp("ConvolutionBackpropData", node_name)) {
             if (!std::strcmp("GRUSequence", node_name) || !std::strcmp("TensorIterator", node_name)) {
-                MemBandwidthPressure res;
-                res.max_mem_tolerance = MemBandwidthPressure::UNKNOWN;
+                mem_bandwidth_pressure res;
+                res.max_mem_tolerance = mem_bandwidth_pressure::UNKNOWN;
                 return res;
             }
             continue;
@@ -134,7 +134,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
             }
         }
     }
-    MemBandwidthPressure res;
+    mem_bandwidth_pressure res;
     res.max_mem_tolerance = worst_case;
     res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs) / total_convs : 0;
     res.ratio_mem_limited_deconvs = total_deconvs ? static_cast<float>(mem_limited_deconvs) / total_deconvs : 0;
