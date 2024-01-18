@@ -17,7 +17,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/op/reshape.hpp"
 
 namespace ngraph {
