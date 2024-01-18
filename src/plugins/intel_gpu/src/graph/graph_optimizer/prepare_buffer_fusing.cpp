@@ -15,6 +15,7 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "lstm_elt_inst.h"
 #include "strided_slice_inst.h"
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"

@@ -76,7 +76,7 @@ protected:
             tensor_iterator->set_sliced_input(body_params[1], params[1], -1, -1, 1, 0, sequence_axis);
             tensor_iterator->get_concatenated_slices(add, -1, -1, 1, 0, sequence_axis);
         } else {
-            NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+            OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
         }
 
         function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0)}, params);
