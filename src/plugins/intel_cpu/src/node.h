@@ -12,8 +12,6 @@
 #include "dnnl_postops_composer.h"
 #include "dnnl_scratch_pad.h"
 #include "edge.h"
-#include "extension_mngr.h"
-#include "graph_context.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/mvn_list.hpp"
@@ -410,9 +408,6 @@ public:
                                   const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
-    virtual bool created(const ExtensionManager::Ptr& extMgr) {
-        return created();
-    }
 
     /**
      * @brief Performs Node initialization based on graph context.
@@ -614,8 +609,6 @@ protected:
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
-    bool permanent = false;
-    bool temporary = false;
 
     enum class InPlaceType {
         Unknown,

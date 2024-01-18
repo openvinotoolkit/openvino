@@ -60,7 +60,6 @@ mobilenet_v2_quantized_qat,None
 #nanogpt,None,skip,No install.py is found
 nvidia_deeprecommender,None
 opacus_cifar10,None,skip,Modules that have backward hooks assigned can't be compiled
-phi_1_5,None
 phlippe_densenet,None
 phlippe_resnet,None
 pyhpc_equation_of_state,None,xfail,Accuracy validation failed
