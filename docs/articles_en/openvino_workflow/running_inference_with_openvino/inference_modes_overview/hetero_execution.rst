@@ -5,7 +5,7 @@ Heterogeneous execution
 
 
 .. meta::
-   :description: Heterogeneous execution mode in OpenVINO Runtime enables 
+   :description: Heterogeneous execution mode in OpenVINO Runtime enables
                  the inference of one model on several computing devices.
 
 
@@ -68,7 +68,7 @@ Randomly selecting operations and setting affinities may lead to decrease in mod
 The Automatic Mode
 --------------------
 
-It decides automatically which operation is assigned to which device according to the support from dedicated devices (``GPU``, ``CPU``, ``GNA``, etc.) and query model step is called implicitly by Hetero device during model compilation.
+It decides automatically which operation is assigned to which device according to the support from dedicated devices (``GPU``, ``CPU``, etc.) and query model step is called implicitly by Hetero device during model compilation.
 
 The automatic mode causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, ``ov::device::priorities("GPU,CPU")``).
 It does not take into account device peculiarities such as the inability to infer certain operations without other special operations placed before or after that layer. If the device plugin does not support the subgraph topology constructed by the HETERO device, then you should set affinity manually.
@@ -199,7 +199,7 @@ where:
 * ``HETERO`` stands for the Heterogeneous execution
 * ``GPU,CPU`` points to a fallback policy with the priority on GPU and fallback to CPU
 
-You can also point to more than two devices: ``-d HETERO:GNA,GPU,CPU``
+You can also point to more than two devices: ``-d HETERO:GPU,CPU``
 
 Additional Resources
 ####################

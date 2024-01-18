@@ -21,17 +21,17 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
    .. dropdown:: Inference Options
 
-      ===================  =====  =====  =====  =====
-       Operating System     CPU    GPU    GNA    NPU
-      ===================  =====  =====  =====  =====
-       Debian9 armhf         V     n/a    n/a    n/a
-       Ubuntu18 arm64        V     n/a    n/a    n/a
-       CentOS7 x86_64        V      V     n/a    n/a
-       Ubuntu18 x86_64       V      V      V     n/a
-       Ubuntu20 x86_64       V      V      V      V
-       Ubuntu22 x86_64       V      V      V      V
-       RHEL8 x86_64          V      V      V     n/a
-      ===================  =====  =====  =====  =====
+      ===================  =====  =====  =====
+       Operating System     CPU    GPU    NPU
+      ===================  =====  =====  =====
+       Debian9 armhf         V     n/a    n/a
+       Ubuntu18 arm64        V     n/a    n/a
+       CentOS7 x86_64        V      V     n/a
+       Ubuntu18 x86_64       V      V     n/a
+       Ubuntu20 x86_64       V      V      V
+       Ubuntu22 x86_64       V      V      V
+       RHEL8 x86_64          V      V     n/a
+      ===================  =====  =====  =====
 
 
 .. tab-set::

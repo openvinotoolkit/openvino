@@ -14,7 +14,7 @@ Install OpenVINO™ Runtime from Conda Forge
    Note that the Conda Forge distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for GNA and NPU inference
+   * does not offer support for NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 

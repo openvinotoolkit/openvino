@@ -12,7 +12,7 @@ The choice of data types is essential to the inference runtime, which can have a
 Inference precision no longer depends on the precision of IR, which means that users
 have several options to find the balance between model performance and accuracy.
 
-Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different. 
+Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different.
 
 This guide will focus on how to control inference precision. And using lower precision is important for performance because compute bandwidth tends to be higher for smaller data types, and hardware often has special blocks for efficient multiply-accumulate operations with smaller data types only (e.g. Intel Xᵉ Matrix Extensions (XMX) on GPU and Intel Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O operations requires less memory due to the smaller tensor byte size. This guide will focus on how to control inference precision.
 
@@ -33,14 +33,14 @@ Code examples:
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
          :language: python
          :fragment: [ov:execution_mode:part0]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
          :language: cpp
          :fragment: [ov:execution_mode:part0]
@@ -49,11 +49,11 @@ Code examples:
 Inference Precision
 ###################
 
-``ov::hint::inference_precision`` precision is a lower-level property that allows you to specify the exact precision the user wants, but is less portable. For example, CPU supports ``f32`` inference precision and ``bf16`` on some platforms, GPU supports ``f32`` and ``f16`` while GNA supports ``i8`` and ``i16``, so if a user wants to an application that uses multiple devices, they have to handle all these combinations manually or let OV do it automatically by using higher level ``execution_mode`` property. Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed to be used by Runtime (mainly in cases where the current device does not have the required hardware capabilities).
+``ov::hint::inference_precision`` precision is a lower-level property that allows you to specify the exact precision the user wants, but is less portable. For example, CPU supports ``f32`` inference precision and ``bf16`` on some platforms, GPU supports ``f32`` and ``f16``, so if a user wants to an application that uses multiple devices, they have to handle all these combinations manually or let OV do it automatically by using higher level ``execution_mode`` property. Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed to be used by Runtime (mainly in cases where the current device does not have the required hardware capabilities).
 
 .. note::
 
-   All devices (except GNA) only support floating-point data types (``f32``, ``f16``, ``bf16``) as a value for ``inference_precision`` attribute, because quantization cannot be done in Runtime. The GNA plugin has the ability to perform model quantization on ``core.compile_model()`` call, so it supports integer data types in addition to ``f32``.
+   All devices only support floating-point data types (``f32``, ``f16``, ``bf16``) as a value for ``inference_precision`` attribute, because quantization cannot be done in Runtime.
 
 
 Additional Resources
