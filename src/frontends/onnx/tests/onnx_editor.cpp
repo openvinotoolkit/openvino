@@ -693,7 +693,7 @@ OPENVINO_TEST(onnx_editor, subgraph__inputs_getter) {
     auto inputs_ref = std::vector<std::string>{"data_0", "conv1/7x7_s2_w_0", "conv1/7x7_s2_b_0"};
 
     EXPECT_EQ(inputs.size(), inputs_ref.size());
-    for (int idx = 0; idx < inputs_ref.size(); ++idx) {
+    for (size_t idx = 0; idx < inputs_ref.size(); ++idx) {
         EXPECT_EQ(inputs[idx]->get_names()[0], inputs_ref[idx]);
     }
 
@@ -896,7 +896,7 @@ OPENVINO_TEST(onnx_editor, model_inputs) {
     auto inputs_ref = std::vector<std::string>{"in1", "in2", "in3"};
 
     EXPECT_EQ(inputs.size(), inputs_ref.size());
-    for (int idx = 0; idx < inputs_ref.size(); ++idx) {
+    for (size_t idx = 0; idx < inputs_ref.size(); ++idx) {
         EXPECT_EQ(inputs[idx]->get_names()[0], inputs_ref[idx]);
     }
 }
@@ -907,7 +907,7 @@ OPENVINO_TEST(onnx_editor, model_inputs_with_non_input_initializers) {
     auto inputs_ref = std::vector<std::string>{"input"};
 
     EXPECT_EQ(inputs.size(), inputs_ref.size());
-    for (int idx = 0; idx < inputs_ref.size(); ++idx) {
+    for (size_t idx = 0; idx < inputs_ref.size(); ++idx) {
         EXPECT_EQ(inputs[idx]->get_names()[0], inputs_ref[idx]);
     }
 }
@@ -918,7 +918,7 @@ OPENVINO_TEST(onnx_editor, model_output) {
     auto outputs_ref = std::vector<std::string>{"mul1", "split2", "mul2"};
 
     EXPECT_EQ(outputs.size(), outputs_ref.size());
-    for (int idx = 0; idx < outputs_ref.size(); ++idx) {
+    for (size_t idx = 0; idx < outputs_ref.size(); ++idx) {
         EXPECT_EQ(outputs[idx]->get_names()[0], outputs_ref[idx]);
     }
 }
