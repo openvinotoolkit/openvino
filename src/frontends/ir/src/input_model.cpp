@@ -16,7 +16,10 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "utils.hpp"
+
+using namespace ov::util;
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,

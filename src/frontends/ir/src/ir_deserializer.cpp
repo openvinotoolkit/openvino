@@ -21,9 +21,12 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
+
+using namespace ov::util;
 
 ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_node& node,
                                                                const pugi::xml_node& body_node) {
