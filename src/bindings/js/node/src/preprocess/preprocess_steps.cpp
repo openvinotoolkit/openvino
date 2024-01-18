@@ -3,9 +3,6 @@
 
 #include "preprocess/preprocess_steps.hpp"
 
-#include "errors.hpp"
-#include "helper.hpp"
-
 PreProcessSteps::PreProcessSteps(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PreProcessSteps>(info){};
 
 Napi::Function PreProcessSteps::get_class_constructor(Napi::Env env) {
