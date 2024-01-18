@@ -2097,6 +2097,13 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
         Reorder* reorder = dynamic_cast<Reorder*>(node.get());
         if (reorder == nullptr)
             OPENVINO_THROW("Cannot get reorder layer ", node->getName());
+
+        // inplace children cannot be safely shared with each other
+        auto reorderConsumers = reorder->getChildEdgesAtPort(0);
+        if (std::any_of(reorderConsumers.begin(), reorderConsumers.end(), [](EdgePtr e) {
+                return e->inPlace(Edge::LOOK_DOWN);
+            }))
+            return nullptr;
         return reorder;
     };
 
