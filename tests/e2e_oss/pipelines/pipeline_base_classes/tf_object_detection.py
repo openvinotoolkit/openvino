@@ -1,9 +1,9 @@
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss.common_utils.openvino_resources import OpenVINOResources
-from e2e_oss.common_utils.pytest_utils import mark
-from e2e_oss.common_utils.tf_helper import TFVersionHelper
+from e2e_oss.common.openvino_resources import OpenVINOResources
+from e2e_oss.common.pytest_utils import mark
+from e2e_oss.common.tf_helper import TFVersionHelper
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input

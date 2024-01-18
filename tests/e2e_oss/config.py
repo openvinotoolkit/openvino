@@ -20,7 +20,7 @@
 #
 import os
 
-from common_utils import config
+from common import config
 
 """ TT_PRODUCT_VERSION_SUFFIX - Environment version suffix provided by user"""
 product_version_suffix = os.environ.get("TT_PRODUCT_VERSION_SUFFIX", "e2e_oss")

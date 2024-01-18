@@ -8,7 +8,7 @@ from inspect import getsourcefile
 
 from _pytest.mark import MarkDecorator
 
-from e2e_oss.common_utils.pytest_utils import mark as Mark
+from e2e_oss.common.pytest_utils import mark as Mark
 
 from e2e_oss.test_utils.test_utils import BrokenTestException
 

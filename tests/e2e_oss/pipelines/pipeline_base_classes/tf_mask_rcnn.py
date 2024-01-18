@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss.common_utils.openvino_resources import OpenVINOResources
-from e2e_oss.common_utils.tf_helper import TFVersionHelper
+from e2e_oss.common.openvino_resources import OpenVINOResources
+from e2e_oss.common.tf_helper import TFVersionHelper
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators
 from e2e_oss.pipelines.pipeline_templates.comparators_template import segmentation_comparators
@@ -11,7 +11,7 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_gene
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
 from e2e_oss.test_utils.path_utils import prepend_with_env_path
 from e2e_oss.test_utils.path_utils import ref_from_model, resolve_file_path
-from e2e_oss.common_utils.pytest_utils import mark, timeout
+from e2e_oss.common.pytest_utils import mark, timeout
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/cars_road.npz")
 

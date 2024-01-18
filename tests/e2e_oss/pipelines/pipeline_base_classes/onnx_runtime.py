@@ -12,7 +12,7 @@ from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_classif
     parse_image_modification
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
 from e2e_oss.test_utils.path_utils import prepend_with_env_path, resolve_file_path
-from e2e_oss.common_utils.pytest_utils import mark
+from e2e_oss.common.pytest_utils import mark
 
 
 class ONNXRuntimeEltwiseBaseClass(CommonConfig):

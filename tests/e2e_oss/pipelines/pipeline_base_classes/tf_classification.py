@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from e2e_oss.common_utils.tf_helper import TFVersionHelper
+from e2e_oss.common.tf_helper import TFVersionHelper
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import collect_tf_refs_pipeline
 from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline
@@ -11,7 +11,7 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_gene
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
 from e2e_oss.test_utils.path_utils import prepend_with_env_path, resolve_file_path
 from e2e_oss.test_utils.path_utils import ref_from_model
-from e2e_oss.common_utils.pytest_utils import mark
+from e2e_oss.common.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/tf/classification_imagenet.npz")
 

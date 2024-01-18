@@ -361,7 +361,7 @@ def pytest_collection_finish(session):
     :return: None
     """
     if session.config.getoption('collect_output'):
-        with import_from(getsourcefile(lambda: 0) + '/../../../../common_utils'):
+        with import_from(getsourcefile(lambda: 0) + '/../../../../common'):
             from metrics_utils import write_csv
 
         collect_output = session.config.getoption('collect_output') or \

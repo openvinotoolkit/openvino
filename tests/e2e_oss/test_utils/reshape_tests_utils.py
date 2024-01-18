@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from e2e_oss.common_utils.test_utils import name_aligner
+from e2e_oss.common.test_utils import name_aligner
 from e2e_oss.pipelines.pipeline_templates.comparators_template import dummy_comparators, eltwise_comparators
 from utils.e2e.comparator.container import ComparatorsContainer
 

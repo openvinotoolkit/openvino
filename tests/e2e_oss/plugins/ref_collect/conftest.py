@@ -5,8 +5,8 @@ import yaml
 
 import e2e_oss.plugins.common.base_conftest as base
 
-from e2e_oss.common_utils.env_utils import fix_env_conf
-from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
+from e2e_oss.common.env_utils import fix_env_conf
+from e2e_oss.common.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
 from utils.e2e.env_tools import Environment
 
 

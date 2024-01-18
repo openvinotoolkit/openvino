@@ -19,10 +19,10 @@ import e2e_oss.plugins.common.base_conftest as base
 
 from e2e_oss.test_utils.path_utils import DirLockingHandler
 from e2e_oss.test_utils.test_utils import class_factory, BrokenTest, BrokenTestException
-from e2e_oss.common_utils import hook_utils
-from e2e_oss.common_utils.env_utils import fix_env_conf
-from e2e_oss.common_utils.logger import get_logger
-from e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
+from e2e_oss.common import hook_utils
+from e2e_oss.common.env_utils import fix_env_conf
+from e2e_oss.common.logger import get_logger
+from e2e_oss.common.marks import MarkRunType, MarkGeneral
 from utils.e2e.env_tools import Environment
 
 logger = get_logger(__name__)

@@ -90,7 +90,7 @@ product_version_suffix = os.environ.get("TT_PRODUCT_VERSION_SUFFIX", "")
 """ TT_INFO_MODULE - indicates module that should be used for getting information about tested environment.
                      Default value: e2e.base_info.BaseInfo.
                      Allowed value class module that inherits from default class"""
-info_module = os.environ.get("TT_INFO_MODULE", "e2e_oss.common_utils.environment_info.BaseInfo")
+info_module = os.environ.get("TT_INFO_MODULE", "e2e_oss.common.environment_info.BaseInfo")
 
 """ TT_REPOSITORY_NAME - repository name provided by user """
 repository_name = os.environ.get("TT_REPOSITORY_NAME", "")

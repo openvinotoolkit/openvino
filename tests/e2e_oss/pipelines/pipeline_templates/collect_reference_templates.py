@@ -2,7 +2,7 @@
 """
 from collections import OrderedDict
 
-from e2e_oss.common_utils.decorators import wrap_ord_dict
+from e2e_oss.common.decorators import wrap_ord_dict
 from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_tf
 from e2e_oss.test_utils.path_utils import ref_from_model
 

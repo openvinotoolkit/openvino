@@ -26,10 +26,7 @@ following actions:
         ```bash
         pip3 install -r requirements.txt 
         ```
-        * Mount VDP shared drives following [the instruction](https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders)
-        <br>After share is mounted update paths to the models in [env_config_local.yml](env_config_local.yml)
-        to point to correct path where share was mounted.
-            
+
     * Running:
     ~~~bash
     pytest test.py
@@ -51,15 +48,9 @@ The following is the list of the main components of the E2E OSS tests.
 
     e2e_oss/
     |__ test.py                 Main entry-point to run pytest tests
-    |__ collect_refs.py         Main entry-point to run pytest ref collection
-    |__ test_reshape.py                            Main entry-point to run reshape pipelines
-    |__ test_dynamism.py                           Main entry-point to run dynamism pipelines
-    |__ test_compare_onnx_ir.py                    Runner for comparing IR inference results to ONNX model inference results (through ONNX importer) 
-                                                   using eltwise comparison
-
     |__ env_config_local.yml    Default environment configuration file
     |__ test_config_local.yml   Default tests configuration file
-    |__ test_rules.yml          Test rules configuration file
+    |__ base_test_rules.yml     Test rules configuration file for base e2e tests
 
     |__ pipelines/              Test pipelines definitions
     |__ plugins/                Local plugins for pytest
@@ -74,6 +65,13 @@ The following is the list of the main components of the E2E OSS tests.
     |__ preprocessor/           Inference *input* processors
     |__ readers/                File readers (i.e. .npy, .npz readers)
     |__ ref_collector/          Reference collectors (TensorFlow, PyTorch ...)
+
+
+# Add model from TF Hub repo:
+This is the instruction how to make a new E2E for TF Hub model, follow the next instructions to add new E2E from ticket
+1. To add new test for model from TF Hub repo just add new line into tests/e2e_oss/pipelines/production/tf_hub/nightly.yml
+This line should contain at least two params: model name and it's link to download
+
 
 ## Add new model
 
@@ -297,7 +295,7 @@ rules: [
     - `--modules=MODULES [MODULES ...]` - Paths to tests.  
     - `-k TESTNAME [TESTNAME ...]`- Test names.  
     - `--env_conf=ENV_CONF` - Path to environment config.  
-    - `--test_conf=TEST_CONF` - Path to test config.  
+    - `--base_test_conf=TEST_CONF` - Path to test config.  
     - `--tf_models_version=VERSION` - Specify TensorFlow models version.  
     - `-s` - Step-by-step logging.
     
@@ -308,27 +306,7 @@ rules: [
     pytest test.py -s --modules=pipelines/production/tf/topaz
     ```  
     > See also Pytest Usage and Invocations https://docs.pytest.org/en/documentation-restructure/how-to/usage.html
-
-* Advanced entry-points
-    * `test_compare_ir_ref.py` is runner for comparing IR inference results to reference using eltwise comparison (the most strict one).
-    * `test_compare_onnx_eps.py`
-    * `test_multi_request.py` is entry-point to run tests with multi request.
-
-#### *Reshape tests [Optional]* 
-
-You can test model with different input shape with [reshape_mo_vs_ie_test.py](https://github.com/intel-innersource/frameworks.ai.openvino.tests/blob/master/e2e_oss/test_reshape.py) entry point.
-Config file [reshape_utils.py](https://github.com/intel-innersource/frameworks.ai.openvino.tests/blob/master/e2e_oss/_utils/reshape_tests_utils.py) contains map with different shapes.  
-
-* Reshape map record templates:
-    ```python
-    'model_name': [{'model_input_layer_name': (batch_changing_shape)},
-                     {'model_input_layer_name': (spatial_changing_shape)}]
-    ```
-* For cases when IR and original model have different input names use following template:
-    ```python
-    'model_name': [{('model_input_layer_name', 'ir_input_layer_name'): (batch_changing_shape)},
-                     {('model_input_layer_name', 'ir_input_layer_name'): (spatial_changing_shape)}]
-    ```
+  
   
 ## FAQ
 
@@ -340,7 +318,7 @@ Config file [reshape_utils.py](https://github.com/intel-innersource/frameworks.a
           references, etc.
     2. If test you want to add is test for model from tf hub repo:
         * just add new line in tests/e2e_oss/pipelines/production/tf_hub/nightly.yml file.
-        * It have to contain at least two params: model name and model link
+        * It should contain at least two params: model name and model link
     3. Otherwise:
         * Create separate top-level folder: i.e. `e2e_oss/custom_pipelines`
         * Create new tests there (similarly to `pipelines/` tests)

@@ -8,7 +8,7 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ir_pregenerate
 from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_object_detection
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe
 from e2e_oss.test_utils.path_utils import search_model_path_recursively, ref_from_model, resolve_file_path
-from e2e_oss.common_utils.pytest_utils import mark
+from e2e_oss.common.pytest_utils import mark
 
 people_input_file = resolve_file_path("test_data/inputs/caffe/object_detection_voc_people.npz")
 
