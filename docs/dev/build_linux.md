@@ -6,6 +6,7 @@ The software was validated on:
 - Red Hat Enterprise Linux 8.2 (64-bit) with default GCC 8.5.0
 
 > **NOTE**: To build on CentOS 7 (64-bit), refer to [Building OpenVINO on CentOS 7 Guide](https://github.com/openvinotoolkit/openvino/wiki/Building-OpenVINO-on-CentOS-7-Guide)
+
 > **NOTE**: To build on openSUSE 15.5 (64-bit) and newer, refer to [Building and Install OpenVINO on openSUSE Guide](https://en.opensuse.org/SDB:Install_OpenVINO)
 
 ## Software requirements 
