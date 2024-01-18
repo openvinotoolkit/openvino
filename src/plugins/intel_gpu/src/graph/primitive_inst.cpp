@@ -1099,6 +1099,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     bool need_args_update = false;
+    _mem_changed = false;
+    const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
@@ -1193,15 +1195,25 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
     bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
         [](const std::pair<primitive_inst*, int32_t>& dep) {
-            return dep.first->is_dynamic();
+            return dep.first->mem_changed();
     });
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || (!is_dynamic() && has_dynamic_dependencies_insts)) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         set_arguments();
     }
     on_execute();
 
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
+            _mem_changed = true;
+            break;
+        }
+        if (!_network.get_engine().is_the_same_buffer(*orig_outputs[i], *_outputs[i])) {
+            _mem_changed = true;
+            break;
+        }
+    }
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic() << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
