@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -21,29 +20,32 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
-        (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) <<
+           (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
         (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
         (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
     return result.str();
 }
 
 void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1;
+    abs_threshold = 16.1;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
         inputShape,
@@ -54,7 +56,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
 }
 
 TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

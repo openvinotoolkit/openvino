@@ -5,18 +5,18 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and
                  macOS operating systems, using a PyPi package.
 
 
 .. note::
-   
+
    Note that the PyPi distribution:
-   
+
    * offers the Python API only
-   * is dedicated to users of all major OSes: Windows, Linux, and macOS 
+   * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
-   * Windows and Linux do not offer support for GNA and NPU inference
+   * Windows and Linux do not offer support for NPU inference
    * macOS offers support only for CPU inference
 
 .. tab-set::
@@ -27,11 +27,11 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
       | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
-   
-   
+
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
@@ -120,8 +120,8 @@ Run the command below:
 If installation was successful, you will see the list of available devices.
 
 
-Congratulations! You've just Installed OpenVINO! For some use cases you may still 
-need to install additional components. Check the 
+Congratulations! You've just Installed OpenVINO! For some use cases you may still
+need to install additional components. Check the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
