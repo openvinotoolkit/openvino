@@ -30,8 +30,8 @@ public:
 };
 
 typedef std::tuple <
-    ngraph::element::Type,
-    std::vector<ngraph::PartialShape>,
+    ov::element::Type,
+    std::vector<ov::PartialShape>,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     bool,
@@ -47,7 +47,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

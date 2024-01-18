@@ -11,10 +11,9 @@ using namespace LayerTestsDefinitions;
 using namespace ov::pass::low_precision;
 
 namespace {
-    const std::vector<ngraph::element::Type> precisions = {
-        ngraph::element::f32
+    const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
     };
-
 
     const std::vector<LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),

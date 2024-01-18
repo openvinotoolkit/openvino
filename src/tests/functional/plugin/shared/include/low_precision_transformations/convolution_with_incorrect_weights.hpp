@@ -21,8 +21,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionWIthIncorrectWeightsParam

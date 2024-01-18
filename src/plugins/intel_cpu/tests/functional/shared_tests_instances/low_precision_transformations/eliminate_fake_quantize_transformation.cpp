@@ -8,7 +8,6 @@
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 

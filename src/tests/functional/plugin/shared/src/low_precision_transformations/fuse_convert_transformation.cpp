@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -23,25 +22,28 @@ namespace LayerTestsDefinitions {
 
 std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, shape, targetDevice, params) <<
            "_" << deqOperations << "_" << constInput;
     return result.str();
 }
 
 void FuseConvertTransformation::SetUp() {
-    ngraph::PartialShape shape;
-    ngraph::element::Type precision;
+    abs_threshold = 0.01;
+    ov::PartialShape shape;
+    ov::element::Type precision;
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();
+
+    init_input_shapes(constInput ? std::vector<ov::PartialShape>{ shape } : std::vector<ov::PartialShape>{ shape, shape });
 
     function = ngraph::builder::subgraph::FuseConvertFunction::getWithFQ(
         shape,
@@ -51,7 +53,7 @@ void FuseConvertTransformation::SetUp() {
 }
 
 TEST_P(FuseConvertTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

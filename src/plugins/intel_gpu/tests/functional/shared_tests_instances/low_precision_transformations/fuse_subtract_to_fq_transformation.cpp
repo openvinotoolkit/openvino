@@ -7,8 +7,6 @@
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
-using namespace ngraph;
 
 namespace {
     const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {

@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 class ReshapeTransformationParam {
 public:
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
@@ -22,7 +22,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ReshapeTransformationParam
@@ -36,7 +36,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

@@ -19,13 +19,13 @@ public:
     bool broadcast2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
-    ngraph::element::Type expectedPrecisions;
+    ov::element::Type expectedPrecisions;
     bool secondInputIsConstant;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     MultiplyTestValues
 > MultiplyTransformationParams;
@@ -38,7 +38,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

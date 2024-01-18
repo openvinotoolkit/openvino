@@ -26,7 +26,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 
 class FakeQuantizePrecisionSelectionTransformationExpectedValues {
 public:
-    ngraph::element::Type fakeQuantizeOnDataOutPrecision;
+    ov::element::Type fakeQuantizeOnDataOutPrecision;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
@@ -37,8 +37,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {
 public:
-    std::vector<ngraph::element::Type> precisionsOnActivations;
-    std::vector<ngraph::element::Type> precisionsOnActivationForLimitedOperation;
+    std::vector<ov::element::Type> precisionsOnActivations;
+    std::vector<ov::element::Type> precisionsOnActivationForLimitedOperation;
     bool operationBeforeLimitedOperationIsPrecisionTransparent;
     FakeQuantizePrecisionSelectionTransformationActualValues actual;
     FakeQuantizePrecisionSelectionTransformationExpectedValues expected;
@@ -49,8 +49,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;

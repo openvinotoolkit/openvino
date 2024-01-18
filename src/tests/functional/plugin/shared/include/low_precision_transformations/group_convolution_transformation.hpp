@@ -41,10 +41,10 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
-    std::pair<ngraph::PartialShape, ngraph::Shape>,
+    std::pair<ov::PartialShape, ov::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation
 > GroupConvolutionTransformationParams;
@@ -58,7 +58,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

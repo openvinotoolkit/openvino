@@ -5,7 +5,6 @@
 #include "low_precision_transformations/multiply_to_group_convolution_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<element::Type> precisions = {
@@ -13,14 +12,14 @@ const std::vector<element::Type> precisions = {
 };
 
 namespace shape4d {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1ul, 3ul, 16ul, 16ul },
     { 4ul, 3ul, 16ul, 16ul }
 };
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
         "U8",
@@ -28,7 +27,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     },
     // zero point
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
         "I8",
@@ -36,7 +35,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     },
     // zero point
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
         "U8",
@@ -45,14 +44,14 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
 
     // Multiply => GroupConvolution optimizations
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         {{3.f}, element::f32, Shape{1, 1, 1, 1}},
         "output/GroupConvolution",
         "",
         false
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         {{3.f}, element::f32, Shape{1, 1, 1, 1}},
         "output/GroupConvolution",
         "",

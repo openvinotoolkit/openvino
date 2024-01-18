@@ -5,7 +5,6 @@
 #include "low_precision_transformations/mvn_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
     const std::vector<element::Type> precisions = {
@@ -13,7 +12,7 @@ namespace {
         element::f16
     };
 
-    const std::vector<ngraph::PartialShape> inputAndQuantizationShapes = {
+    const std::vector<ov::PartialShape> inputAndQuantizationShapes = {
         { 1ul, 4ul, 16ul, 16ul },
     };
 
