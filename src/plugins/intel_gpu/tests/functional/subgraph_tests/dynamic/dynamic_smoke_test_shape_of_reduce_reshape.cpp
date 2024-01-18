@@ -80,7 +80,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        auto addOp = ov::test::utils::makeEltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
+        auto addOp = ov::test::utils::make_eltwise(params[1], params[1], ov::test::utils::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(params[0], ov::element::i64);

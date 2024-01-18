@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Iterable
@@ -294,28 +294,6 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
     for i in range(jobs):
         assert np.array_equal(
             infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
-
-
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_shared_memory_deprecation(device, shared_flag):
-    compiled, request, _, input_data = abs_model_with_data(
-        device, Type.f32, np.float32)
-
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = compiled(input_data, shared_memory=shared_flag)
-
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        _ = request.infer(input_data, shared_memory=shared_flag)
-
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        request.start_async(input_data, shared_memory=shared_flag)
-    request.wait()
-
-    queue = AsyncInferQueue(compiled, jobs=1)
-
-    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
-        queue.start_async(input_data, shared_memory=shared_flag)
-    queue.wait_all()
 
 
 @pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")

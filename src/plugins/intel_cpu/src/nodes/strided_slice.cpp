@@ -7,16 +7,14 @@
 #include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "input.h"
-#include <openvino/opsets/opset1.hpp>
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/shape_inference_ngraph.hpp"
 #include "slice_shape_inference_utils.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 
 #include <string>
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -95,16 +93,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.endMask = createMask(ss->get_end_mask(), 1, true);
         attrs.newAxisMask = createMask(ss->get_new_axis_mask());
         attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
-
-        auto origEllipsisMask = ss->get_ellipsis_mask();
-        bool isEllipsis = false;
-        for (const auto &o : origEllipsisMask) {
-            isEllipsis = isEllipsis || o != 0;
-            attrs.ellipsisMask.push_back(o);
-        }
-        if (attrs.ellipsisMask.size() == 0 || !isEllipsis) {
-            for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
-        }
+        attrs.ellipsisMask = createMask(ss->get_ellipsis_mask());
     } else {
         const size_t length = outputShapes[0].getRank();
         if (inputShapes.size() > AXES_ID) {

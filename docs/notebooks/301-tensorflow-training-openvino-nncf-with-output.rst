@@ -410,11 +410,11 @@ Download Intermediate Representation (IR) model.
     ir_model = core.read_model(model_xml)
 
 Use `Basic Quantization
-Flow <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Flow <https://docs.openvino.ai/2023.3/basic_quantization_flow.html#doxid-basic-qauntization-flow>`__.
 To use the most advanced quantization flow that allows to apply 8-bit
 quantization to the model with accuracy control see `Quantizing with
 accuracy
-control <https://docs.openvino.ai/2023.0/quantization_w_accuracy_control.html#>`__.
+control <https://docs.openvino.ai/2023.3/quantization_w_accuracy_control.html#>`__.
 
 .. code:: ipython3
 
@@ -630,7 +630,7 @@ Compare Inference Speed
 
 
 Measure inference speed with the `OpenVINO Benchmark
-App <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+App <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 
 Benchmark App is a command line tool that measures raw inference
 performance for a specified OpenVINO IR model. Run
@@ -640,7 +640,7 @@ the ``-m`` parameter with asynchronous inference on CPU, for one minute.
 Use the ``-d`` parameter to test performance on a different device, for
 example an Intel integrated Graphics (iGPU), and ``-t`` to set the
 number of seconds to run inference. See the
-`documentation <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+`documentation <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 for more information.
 
 This tutorial uses a wrapper function from `Notebook
@@ -922,7 +922,7 @@ cached to the ``model_cache`` directory.
 With a recent Intel CPU, the best performance can often be achieved by
 doing inference on both the CPU and the iGPU, with OpenVINO’s `Multi
 Device
-Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__.
+Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__.
 It takes a bit longer to load a model on GPU than on CPU, so this
 benchmark will take a bit longer to complete than the CPU benchmark.
 

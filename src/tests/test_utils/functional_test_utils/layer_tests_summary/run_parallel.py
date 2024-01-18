@@ -829,7 +829,7 @@ class TestParallelRunner:
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
-                                if dir != "passed":
+                                if dir != "passed" and dir != "skipped":
                                     fix_priority.append((ref_k or 0, test_name))
                                 ref_k = None
                                 test_cnt_real_saved_now += 1

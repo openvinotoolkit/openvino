@@ -4,10 +4,12 @@
 
 #include "ngraph/op/detection_output.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/detection_output.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -20,7 +22,7 @@ OutputVector detection_output(const Node& node) {
     auto class_preds = inputs[1];
     auto proposals = inputs[2];
 
-    ov::op::v8::DetectionOutput::Attributes attrs;
+    v8::DetectionOutput::Attributes attrs;
     attrs.background_label_id = static_cast<int>(node.get_attribute_value<int64_t>("background_label_id", 0));
     attrs.top_k = static_cast<int>(node.get_attribute_value<int64_t>("top_k", -1));
     attrs.variance_encoded_in_target = node.get_attribute_value<int64_t>("variance_encoded_in_target", 0);
@@ -50,18 +52,18 @@ OutputVector detection_output(const Node& node) {
     attrs.objectness_score = node.get_attribute_value<float>("objectness_score", 0);
 
     if (inputs.size() == 3) {
-        return {std::make_shared<ov::op::v8::DetectionOutput>(box_logits, class_preds, proposals, attrs)};
+        return {std::make_shared<v8::DetectionOutput>(box_logits, class_preds, proposals, attrs)};
     } else if (inputs.size() == 5) {
         auto aux_class_preds = inputs[3];
         auto aux_box_preds = inputs[4];
-        return {std::make_shared<ov::op::v8::DetectionOutput>(box_logits,
-                                                              class_preds,
-                                                              proposals,
-                                                              aux_class_preds,
-                                                              aux_box_preds,
-                                                              attrs)};
+        return {std::make_shared<v8::DetectionOutput>(box_logits,
+                                                      class_preds,
+                                                      proposals,
+                                                      aux_class_preds,
+                                                      aux_box_preds,
+                                                      attrs)};
     } else {
-        NGRAPH_CHECK(false, "Invalid number of inputs");
+        FRONT_END_GENERAL_CHECK(false, "Invalid number of inputs");
     }
 }
 

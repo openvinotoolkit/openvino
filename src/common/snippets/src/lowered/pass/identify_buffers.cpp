@@ -43,8 +43,8 @@ bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrPara
 
 bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                                    const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
-    const auto lhs_ids = lhs.first->get_loop_ids();
-    const auto rhs_ids = rhs.first->get_loop_ids();
+    const auto& lhs_ids = lhs.first->get_loop_ids();
+    const auto& rhs_ids = rhs.first->get_loop_ids();
     const auto equal_loop_ids = lhs_ids == rhs_ids;
     if (equal_loop_ids) {  // Buffers are connected to the same Loop and have the same outer Loops
         return !can_reuse_id(lhs.second, rhs.second);

@@ -7,7 +7,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
 
@@ -24,7 +23,7 @@ OutputVector random_uniform_like(const Node& node) {
     ngraph::element::Type target_type;
     if (node.has_attribute("dtype")) {
         const auto dtype = node.get_attribute_value<int64_t>("dtype");
-        target_type = common::get_ngraph_element_type(dtype);
+        target_type = common::get_ov_element_type(dtype);
     } else {
         target_type = input.get_element_type();
     }
@@ -38,12 +37,12 @@ OutputVector random_uniform_like(const Node& node) {
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape,
-                                                            low_const,
-                                                            high_const,
-                                                            target_type,
-                                                            global_seed,
-                                                            seed_uint64)};
+    return {std::make_shared<ov::op::v8::RandomUniform>(target_shape,
+                                                        low_const,
+                                                        high_const,
+                                                        target_type,
+                                                        global_seed,
+                                                        seed_uint64)};
 }
 
 }  // namespace set_1

@@ -3,7 +3,7 @@
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -93,7 +93,7 @@ class TestClip(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net
@@ -160,14 +160,14 @@ class TestClip(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version, opset=6), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version, opset=11), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

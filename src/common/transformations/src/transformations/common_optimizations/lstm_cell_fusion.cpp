@@ -23,6 +23,91 @@
 #include "transformations/utils/utils.hpp"
 #include "validation_util.hpp"
 
+/*
+    The following graph is fused to LSTMCell
+
+               +-----+    +-----+
+               |  X  |    |  H  |
+               +--+--+    +--+--+
+                  |          |
+                  +---+  +---+
+                      |  |
+                      v  v
+                   +--+--+--+   +------+
+                   | Concat |   |  WR  |
+                   +----+---+   +---+--+
+                        |           |
+                        |  +--------+
+                        |  |
+                        v  v
+                     +--+--+--+   +------+
+                     | MatMul |   | Bias |
+                     +----+---+   +--+---+
+                          |          |
+                          |   +------+
+                          |   |
+                          v   v
+                       +--+---+--+
+                       |   Add   |
+                       +----+----+
+                            |
+                            |
+                            v
+                     +------+-------+
+                     |    Split     |
+                     +--+--+--+--+--+
+                        |  |  |  |
+         +--------------+  |  |  +------------------------------+
+         |                 |  |                                 |
+         v                 |  +------+   +-------+              v
+  +------+-----+     +-----+         |   | const |       +------+-----+
+  | Activation |     |               |   +---+---+       | Activation |
+  |   (i_t)    |     |               |       |           |   (o_t)    |
+  +------+-----+     |               |   +---+           +------+-----+
+         |           v               |   |                      |
+         |    +------+-----+         v   v                      |
+         |    | Activation |       +-+---+-+                    |
+         |    |   (c_t)    |       |  Add  |                    |
+         |    +------+-----+       +---+---+                    |
+         |           |                 |                        |
+         |           |                 v                        |
+         +---+   +---+          +------+-----+                  |
+             |   |              | Activation |   +-----+        |
+             v   v              |   (f_t)    |   |  C  |        |
+          +--+---+---+          +------------+   +-----+        |
+          | Multiply |                 |            |           |
+          +----+-----+                 |   +--------+           |
+               |                       |   |                    |
+               |                       v   v                    |
+               |                   +---+---+--+                 |
+               |                   | Multiply |                 |
+               |                   +----+-----+                 |
+               |                        |                       |
+               |                        |                       |
+               +---------+     +--------+                       |
+                         |     |                                |
+                         v     v                                |
+                       +-+-----+-+                              |
+                       |   Add   |                              |
+                       | (C out) |                              |
+                       +----+----+                              |
+                            |                                   |
+                            v                                   |
+                      +-----+------+                            |
+                      | Activation |                            |
+                      +-----+------+                            |
+                            |                                   |
+                            |                                   |
+                            +----------+    +-------------------+
+                                       |    |
+                                       v    v
+                                    +--+----+--+
+                                    | Multiply |
+                                    | (H out)  |
+                                    +----------+
+
+ */
+
 static std::string get_activation_name(const std::shared_ptr<ov::Node>& node) {
     std::string name = node->get_type_name();
     name[0] = std::tolower(name[0]);
@@ -67,12 +152,13 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         const auto& ft_additional_bias = pattern_map.at(ft_additional_bias_label);
         auto Ho = pattern_map.at(Ho_label);
         auto Co = pattern_map.at(Co_label);
-
-        auto matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
+        const auto matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
             return false;
-        bool weights_transposed = matmul->get_transpose_b();
+        if (matmul->get_transpose_a())
+            return false;
 
+        bool weights_transposed = matmul->get_transpose_b();
         const auto& WR_shape = WR.get_shape();
         const auto& B_shape = B.get_shape();
         const auto& ft_additional_bias_shape = ft_additional_bias.get_shape();
@@ -106,9 +192,9 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         const auto& H_shape = H.get_partial_shape();
         const auto& C_shape = C.get_partial_shape();
 
-        if (!H_shape[0].compatible(X_shape[0]))
+        if (!H_shape[0].compatible(X_shape[0]))  // batch size
             return false;
-        if (!C_shape[0].compatible(X_shape[0]))
+        if (!C_shape[0].compatible(X_shape[0]))  // batch size
             return false;
         if (!X_shape[1].compatible(input_size))
             return false;
@@ -118,8 +204,8 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
             return false;
 
         const auto split_axis = ov::as_type_ptr<op::v0::Constant>(pattern_map.at(axis_label).get_node_shared_ptr());
-        float split_axis_value = -1;
-        if (!op::util::get_single_value(split_axis, split_axis_value) || split_axis_value != 1.0f)
+        int64_t split_axis_value = split_axis->cast_vector<int64_t>()[0];
+        if (split_axis_value != 1 && split_axis_value != -1)
             return false;
 
         NodeVector split_consumers{pattern_map.at(it_label).get_node_shared_ptr(),
@@ -160,6 +246,35 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         if (!weights_transposed) {
             WR = std::make_shared<op::v1::Transpose>(WR, op::v0::Constant::create(element::i32, Shape{0}, {}));
         }
+        // Split WR to W, R and convert to the layout that OpenVino supports
+        //
+        // WR layout (icfo):
+        //
+        //        W     R
+        //    +-------+---+
+        //  i |       |   |
+        //    +-------+---+
+        //  c |       |   |
+        //    +-------+---+
+        //  f |       |   |
+        //    +-------+---+
+        //  o |       |   |
+        //    +-------+---+
+        //
+        //
+        // W and R layouts that are supported by OpenVino (fico):
+        //
+        //        W           R
+        //    +-------+     +---+
+        //  f |       |   f |   |
+        //    +-------+     +---+
+        //  i |       |   i |   |
+        //    +-------+     +---+
+        //  c |       |   c |   |
+        //    +-------+     +---+
+        //  o |       |   o |   |
+        //    +-------+     +---+
+        //
         auto zero_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
         auto WR_split = std::make_shared<op::v1::Split>(WR, zero_axis, 4);
         auto WR_fico = std::make_shared<op::v0::Concat>(
@@ -178,6 +293,7 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
         if (B_shape.size() > 1)
             B = std::make_shared<op::v0::Squeeze>(B, zero_axis);
 
+        // Convert B layout from icfo to fico
         auto B_split = std::make_shared<op::v1::Split>(B, zero_axis, 4);
         auto B_f =
             std::make_shared<op::v1::Add>(B_split->output(2), std::make_shared<op::v0::Squeeze>(ft_additional_bias));

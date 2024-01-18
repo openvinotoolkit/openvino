@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -213,7 +213,7 @@ def test_direct_infer(device, shared_flag):
     compiled_model, img = generate_model_and_image(device)
 
     tensor = Tensor(img)
-    res = compiled_model({"data": tensor}, shared_memory=shared_flag)
+    res = compiled_model({"data": tensor}, share_inputs=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])

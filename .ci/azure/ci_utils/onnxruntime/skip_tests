@@ -1,6 +1,0 @@
-TransposeOpTest.NHWC2NCHW
-TransposeOpTest.NCHW2NHWC
-TransposeOpTest.TwoDim_int16
-GatherOpTest.Gather_axis1_indices2d_int16
-SoftmaxOperator.ThreeDimsAxis1
-SoftmaxOperator.ThreeDimsAxis0
