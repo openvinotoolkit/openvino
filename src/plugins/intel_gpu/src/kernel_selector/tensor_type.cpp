@@ -109,7 +109,6 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::winograd_6x3_s1_fused_weights,               {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb,      {  1,  0, -1,   3,   2, -1 } },
     { WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {  3,  0, -1,   2,   1, -1 } },
-    { WeightsLayout::dlstm_dir_io,                                {  1,  0, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4,                     {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv16_isv4,                    {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4,       {  0,  1, -1,   2,   3, -1 } },

@@ -172,12 +172,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     }
                 }
                 break;
-            case args_t::RECURRENT:
-                status = set_kernel_arg(kernel, i, data.recurrent);
-                break;
-            case args_t::HIDDEN:
-                status = set_kernel_arg(kernel, i, data.hidden);
-                break;
             case args_t::CELL:
                 status = set_kernel_arg(kernel, i, data.cell);
                 break;

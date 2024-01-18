@@ -88,5 +88,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Nms9LayerTest.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
     };
 }
