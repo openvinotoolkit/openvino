@@ -95,22 +95,6 @@ BroadcastKernelBase::DispatchData BroadcastKernelOpt::SetDefault(const broadcast
     dispatchData.gws = { output.X().v / vec_size, output.Y().v / y_block_size,  output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    // if (dispatchData.gws[2] != 0) {
-    //     std::cout << "* use vec function : " << (use_vec != 0? "True" : "False") << std::endl;
-    //     std::cout << "* y_block_size : " << y_block_size << std::endl;
-    //     std::cout << "* vec_size     : " << vec_size << std::endl;
-    //     std::cout << "* dispatchData.gws={";
-    //     for (auto& v : dispatchData.gws) {
-    //         std::cout << v << ",";
-    //     }
-    //     std::cout << "}" << std::endl;
-    //     std::cout << "* dispatchData.lws={";
-    //     for (auto& v : dispatchData.lws) {
-    //         std::cout << v << ",";
-    //     }
-    //     std::cout << "}" << std::endl;
-    // }
-
     return dispatchData;
 }
 
