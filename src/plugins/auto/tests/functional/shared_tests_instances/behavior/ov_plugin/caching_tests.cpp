@@ -4,9 +4,9 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
-#include <ov_ops/multiclass_nms_ie_internal.hpp>
-#include <ov_ops/nms_ie_internal.hpp>
-#include <ov_ops/nms_static_shape_ie.hpp>
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 using namespace ov::test::behavior;
 
