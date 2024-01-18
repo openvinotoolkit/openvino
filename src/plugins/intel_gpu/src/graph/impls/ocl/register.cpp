@@ -54,7 +54,6 @@ void register_implementations() {
     REGISTER_OCL(permute);
     REGISTER_OCL(pooling);
     REGISTER_OCL(prior_box);
-    REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
     REGISTER_OCL(range);

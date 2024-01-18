@@ -44,7 +44,6 @@
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/pooling.hpp"
-#include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/random_uniform.hpp"
 #include "intel_gpu/primitives/range.hpp"
@@ -133,7 +132,6 @@ REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
 REGISTER_OCL(prior_box);
-REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
 REGISTER_OCL(range);
