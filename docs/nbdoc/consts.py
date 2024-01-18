@@ -14,13 +14,13 @@ file_with_binder_notebooks = Path('../../docs/notebooks/notebooks_with_binder_bu
 file_with_colab_notebooks = Path('../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
 openvino_notebooks_ipynb_list = Path('../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
 binder_image_source = "https://mybinder.org/badge_logo.svg"
-colab_image_source = "https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667"
+colab_image_source = "https://colab.research.google.com/assets/colab-badge.svg"
 github_image_source = "https://badgen.net/badge/icon/github?icon=github&label"
 
 # Templates
 
 binder_colab_template = """
-This Jupyter notebook can be launched on-line, opening an interactive environment in a browser window. 
+This Jupyter notebook can be launched on-line, opening an interactive environment in a browser window.
 You can also make a |installation_link|. Choose one of the following options:
 
 {{ link_binder }}{{ link_colab }}{{ link_git }}
@@ -30,7 +30,7 @@ You can also make a |installation_link|. Choose one of the following options:
 \n
 """
 no_binder_template = """
-This Jupyter notebook can be launched after a |installation_link| only. 
+This Jupyter notebook can be launched after a |installation_link| only.
 
 {{ link_git }}
 
