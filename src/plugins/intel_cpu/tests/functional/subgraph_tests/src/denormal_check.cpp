@@ -56,7 +56,7 @@ void SetUp() override {
 
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
     using indexInterval = std::pair<size_t, size_t>;
-    size_t elemsCount = pConstStorage->size();
+    size_t elemsCount = pConstStorage->size() / sizeof(float);
     const indexInterval intervals[] = {
         {0, elemsCount/2},
         {elemsCount/2, elemsCount},
