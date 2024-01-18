@@ -8,6 +8,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"

@@ -9,6 +9,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
 
 using namespace std;

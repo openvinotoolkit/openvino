@@ -5,6 +5,7 @@
 #include "openvino/op/matmul.hpp"
 
 #include "common_op_table.hpp"
+#include "openvino/op/convert.hpp"
 
 using namespace std;
 using namespace ov::op;

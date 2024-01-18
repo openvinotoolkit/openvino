@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -10,6 +11,8 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 

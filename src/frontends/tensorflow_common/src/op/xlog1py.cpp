@@ -10,7 +10,8 @@
 #include "openvino/op/select.hpp"
 
 using namespace std;
-using namespace ov::opset10;
+using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -26,13 +27,13 @@ OutputVector translate_xlog1py_op(const NodeContext& node) {
     auto one = create_same_type_const_scalar<int32_t>(y, 1);
 
     // compute a mask to identify where x is equal to 0
-    auto is_zero = make_shared<Equal>(x, zero);
+    auto is_zero = make_shared<v1::Equal>(x, zero);
 
     // compute x * log(y + 1) elementwise
-    auto xlog1py = make_shared<Multiply>(x, make_shared<Log>(make_shared<Add>(y, one)));
+    auto xlog1py = make_shared<v1::Multiply>(x, make_shared<v0::Log>(make_shared<v1::Add>(y, one)));
 
     // create the output tensor using Select to handle the x == 0 condition
-    auto result = make_shared<Select>(is_zero, zero, xlog1py);
+    auto result = make_shared<v1::Select>(is_zero, zero, xlog1py);
 
     set_node_name(node.get_name(), result);
     return result->outputs();

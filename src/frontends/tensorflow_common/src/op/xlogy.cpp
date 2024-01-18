@@ -11,7 +11,8 @@
 #include "openvino/op/select.hpp"
 
 using namespace std;
-using namespace ov::opset10;
+using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -26,13 +27,13 @@ OutputVector translate_xlogy_op(const NodeContext& node) {
     auto zero = create_same_type_const_scalar<int32_t>(x, 0);
 
     // compute a mask to identify where x is equal to 0
-    auto is_zero = make_shared<Equal>(x, zero);
+    auto is_zero = make_shared<v1::Equal>(x, zero);
 
     // compute x * log(y) elementwise
-    auto xlog_y = make_shared<Multiply>(x, make_shared<Log>(y));
+    auto xlog_y = make_shared<v1::Multiply>(x, make_shared<v0::Log>(y));
 
     // create the output tensor using Select to handle the x == 0 condition
-    auto result = make_shared<Select>(is_zero, zero, xlog_y);
+    auto result = make_shared<v1::Select>(is_zero, zero, xlog_y);
 
     set_node_name(node.get_name(), result);
     return result->outputs();
