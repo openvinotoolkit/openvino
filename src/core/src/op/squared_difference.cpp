@@ -3,9 +3,9 @@
 //
 
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/reference/squared_difference.hpp"
 
 #include "itt.hpp"
+#include "openvino/reference/squared_difference.hpp"
 #include "utils.hpp"
 
 namespace squared_difference {
@@ -20,11 +20,16 @@ struct Evaluate : ov::element::NoAction<bool> {
                              const ov::Shape& shape1,
                              const ov::op::AutoBroadcastSpec& broadcast_spec) {
         using T = typename ov::element_type_traits<ET>::value_type;
-        ov::reference::squared_difference(in0.data<const T>(), in1.data<const T>(), out.data<T>(), shape0, shape1, broadcast_spec);
+        ov::reference::squared_difference(in0.data<const T>(),
+                                          in1.data<const T>(),
+                                          out.data<T>(),
+                                          shape0,
+                                          shape1,
+                                          broadcast_spec);
         return true;
     }
 };
-} // namespace squared_difference
+}  // namespace squared_difference
 
 // ------------------------------ v0 -------------------------------------------
 
