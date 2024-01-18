@@ -30,7 +30,7 @@ The easiest way to obtain a model is to download it from an online database,
 such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__,
 and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and `run inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__ directly from the **TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle** source format. Conversion
+* Skip model conversion and :doc:`run inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>` directly from the **TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle** source format. Conversion
   will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as
   fewer optimization options.
@@ -45,7 +45,7 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
   Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>` (a set of ``.xml`` and ``.bin`` files),
   the model may be deployed with maximum performance. Because it is already optimized
-  for `OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`__, it can be read, compiled, and inferred with no additional delay.
+  for :doc:`OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`, it can be read, compiled, and inferred with no additional delay.
 
 .. note::
 
