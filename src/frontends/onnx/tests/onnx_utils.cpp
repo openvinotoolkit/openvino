@@ -23,7 +23,7 @@ namespace tests {
 
 const std::string ONNX_FE = ::ONNX_FE;
 
-FrontEnd::Ptr get_onnx_frontend(bool default_front_end = true) {
+static FrontEnd::Ptr get_onnx_frontend(bool default_front_end = true) {
     static FrontEnd::Ptr _front_end = nullptr;
 
     FrontEnd::Ptr front_end = nullptr;
