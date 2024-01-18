@@ -99,13 +99,15 @@ def get_value_from_getattr(getattr_node, self_module):
             break
         getattr_node = inputs[0].node()
     module = self_module
+    path_name = "self"
     while len(stack) > 0:
         node = stack.pop()
         attr_name = node.s("name")
         assert hasattr(
             module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+        path_name = ".".join([path_name, attr_name])
         module = getattr(module, attr_name)
-    return module
+    return module, path_name
 
 def graph_has_ops(graph, op_types:list) -> bool:
     res = False
