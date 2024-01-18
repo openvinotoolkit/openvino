@@ -8,6 +8,7 @@ Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. Th
   * [Triggers and schedules](#workflows-triggers-and-schedule)
   * [Required workflows](#required-workflows)
   * [Workflow structure](#structure-of-the-workflows)
+  * [Workflow and job organisation](#workflows-and-jobs-organisation)
 * [Finding results, artefacts and logs](#finding-results-artefacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -44,7 +45,8 @@ Additionally, several supporting workflows build and test OpenVINO for other ope
 
 The OpenVINO workflows make use of the rich official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
 
-Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
+Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. 
+Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
 
 You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 

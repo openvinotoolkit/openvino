@@ -20,15 +20,15 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
 {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "specialize_function");
 
-    NGRAPH_CHECK(f->get_parameters().size() == parameter_shapes.size());
-    NGRAPH_CHECK(f->get_parameters().size() == parameter_element_types.size());
-    NGRAPH_CHECK(f->get_parameters().size() == parameter_values.size());
+    OPENVINO_ASSERT(f->get_parameters().size() == parameter_shapes.size());
+    OPENVINO_ASSERT(f->get_parameters().size() == parameter_element_types.size());
+    OPENVINO_ASSERT(f->get_parameters().size() == parameter_values.size());
 
     NodeMap m;
 
     for (size_t i = 0; i < parameter_shapes.size(); i++) {
-        NGRAPH_CHECK(f->get_parameters()[i]->get_element_type().is_dynamic() ||
-                     parameter_element_types[i] == f->get_parameters()[i]->get_element_type());
+        OPENVINO_ASSERT(f->get_parameters()[i]->get_element_type().is_dynamic() ||
+                        parameter_element_types[i] == f->get_parameters()[i]->get_element_type());
 
         if (parameter_values[i] != nullptr && parameter_shapes[i].is_static() &&
             parameter_element_types[i].is_static()) {

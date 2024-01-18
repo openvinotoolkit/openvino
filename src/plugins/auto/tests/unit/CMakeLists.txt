@@ -22,7 +22,7 @@ ov_add_test_target(
             unit_test_utils
         ADD_CPPLINT
         DEPENDENCIES
-            template_extension
+            openvino_template_extension
             mock_engine
             ov_models
         LABELS

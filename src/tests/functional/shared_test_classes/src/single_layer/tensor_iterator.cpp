@@ -120,7 +120,7 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[1]);
@@ -169,7 +169,7 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
@@ -214,7 +214,7 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);

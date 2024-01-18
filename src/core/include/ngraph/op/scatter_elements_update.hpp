@@ -18,7 +18,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 
 namespace ngraph {

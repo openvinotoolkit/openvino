@@ -18,7 +18,7 @@ anugunj/omnivore-swinL-in21k,omnivore,skip,Load problem
 apple/mobilevitv2-1.0-imagenet1k-256,mobilevitv2,xfail,Unsupported op aten::col2im
 ArthurZ/jukebox_prior_0,jukebox_prior,skip,Load problem
 ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
-ArthurZ/persimmon-8b-base,persimmon,skip,Load problem
+ArthurZ/persimmon-8b-base,persimmon
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
 BAAI/AltCLIP,altclip
@@ -140,7 +140,7 @@ hf-internal-testing/tiny-random-mbart,mbart,xfail,Compile error: CPU plug-in doe
 hf-internal-testing/tiny-random-MobileNetV2Model,mobilenet_v2
 hf-internal-testing/tiny-random-mobilevit,mobilevit
 hf-internal-testing/tiny-random-MPNetModel,mpnet
-hf-internal-testing/tiny-random-MptForCausalLM,mpt,skip,Load problem
+hf-internal-testing/tiny-random-MptForCausalLM,mpt
 hf-internal-testing/tiny-random-NllbMoeForConditionalGeneration,nllb_moe,skip,Load problem
 hf-internal-testing/tiny-random-NystromformerModel,nystromformer
 hf-internal-testing/tiny-random-PegasusModel,pegasus,skip,Load problem
@@ -178,7 +178,7 @@ ibm/MoLM-350M-4B,moduleformer,skip,Load problem
 IDEA-CCNL/Randeng-Deltalm-362M-En-Zh,Deltalm,skip,Load problem
 Inderpreet01/seaformer-semantic-segmentation-large,seaformer,skip,Load problem
 Intel/dpt-hybrid-midas,dpt
-Intel/tvp-base,tvp,skip,Load problem
+# Intel/tvp-base,tvp,skip,Load problem # takes too long
 isemmanuelolowe/code-embedder,instruct-codebert,skip,Load problem
 isemmanuelolowe/instruct-codet5-5,instruct-codet5,skip,Load problem
 jaketae/fastspeech2-ljspeech,fastspeech2,skip,Load problem
@@ -412,6 +412,6 @@ youzanai/clip-product-title-chinese,clip_chinese_model,skip,Load problem
 Yova/SmallCapOPT7M,smallcap,skip,Load problem
 yusufani/trclip-vitl14-e10,trclip,skip,Load problem
 yysung53/dpr,text_similarity,skip,Load problem
-Zetatech/pvt-tiny-224,pvt,skip,Load problem
+Zetatech/pvt-tiny-224,pvt
 ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem
