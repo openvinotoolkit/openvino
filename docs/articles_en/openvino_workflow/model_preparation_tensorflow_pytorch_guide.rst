@@ -1,9 +1,9 @@
-.. {#openvino_docs_model_processing_introduction_draft}
+.. {#openvino_docs_model_processing_introduction_guide}
 
 Import TensorFlow and PyTorch Models
 ==============================================
 
-In OpenVINO you can load a model in different formats. 
+In OpenVINO you can load a model in different formats.
 The examples below show how TensorFlow and PyTorch models. The models are loaded, converted to OpenVINO format, and compiled for inferencing in just several lines of code.
 To learn more about how models can be imported in OpenVINO, refer to the :doc:`Model Preparation <openvino_docs_model_processing_introduction>` page.
 
@@ -36,14 +36,14 @@ To learn more about how models can be imported in OpenVINO, refer to the :doc:`M
             core = ov.Core()
             compiled_model = core.compile_model(ov_model)
 
-While the above examples provide a simple and straightforward option to import models into OpenVINO, there are other options to provide more customization and flexibility. 
+While the above examples provide a simple and straightforward option to import models into OpenVINO, there are other options to provide more customization and flexibility.
 
 
 TensorFlow Import Options
 ##############################################
 
-OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case. 
-      
+OpenVINO direct support of TensorFlow allows developers to use their models in an OpenVINO inference pipeline without changes. However, as multiple ways of doing this exist, it may not be clear which is the best approach for a given situation. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case.
+
 .. image:: _static/images/import_tensorflow.svg
 
 
@@ -130,7 +130,7 @@ PyTorch Import Options
 OpenVINO direct support of PyTorch allows developers to use their models in an OpenVINO inference pipeline without changes. OpenVINO provides multiple ways of using PyTorch. The following diagram aims to simplify this decision given a certain context, although some additional considerations should be taken into account depending on the use case.
 
 .. image:: _static/images/import_pytorch.svg
-   
+
 PyTorch models can be imported into OpenVINO directly from a Python object. Saved PyTorch files can be used as well. To use a saved PyTorch file, it needs to be loaded in PyTorch first to convert it to a Python object.
 Once the model is loaded as a PyTorch Python object, you can decide whether to start using the OpenVINO framework and its features directly or to remain within the PyTorch framework while leveraging optimizations.
 
@@ -186,7 +186,7 @@ In case PyTorch syntax is preferred, since PyTorch 2.0 and OpenVINO 2023.1, a Py
 Method 3. Export model to ONNX and use one of OpenVINO methods
 ---------------------------------------------------------------------
 
-If none of these two methods convert the model successfully, there is a third method that once was the main way of using PyTorch in OpenVINO, but now is mainly considered a backup plan. 
+If none of these two methods convert the model successfully, there is a third method that once was the main way of using PyTorch in OpenVINO, but now is mainly considered a backup plan.
 This method consists of exporting a PyTorch model to ONNX and then loading it with the different methods available in OpenVINO. See ONNX, PaddlePaddle and TensorFlow Lite Import Options for more details.
 
 .. code-block:: py
@@ -222,7 +222,7 @@ As PyTorch does not have a save format that contains everything needed to reprod
 Jupyter Notebook Tutorials
 ################################################
 
-OpenVINO also provides example notebooks for both frameworks showing how to load a model and make inference: 
+OpenVINO also provides example notebooks for both frameworks showing how to load a model and make inference:
 
 * `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-classification-to-openvino-with-output.html>`__
 * `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
