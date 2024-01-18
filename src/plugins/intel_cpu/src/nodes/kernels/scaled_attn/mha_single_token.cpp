@@ -19,7 +19,7 @@
 #include "common.hpp"
 #include "softmax_kernel.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -139,7 +139,11 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     auto q_len = query.size(2);
     auto S = query.size(3);
     auto kv_len = present_key.size(2);
-
+    auto h_group_num = present_key.size(1);
+    size_t h_each_group_len = 1;
+    if (h_group_num != H) {
+        h_each_group_len = H / h_group_num;
+    }
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
 
@@ -149,20 +153,21 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 
     bool is_abcd = present_key.stride(1) >= present_key.stride(2);
     size_t dim0 = is_abcd ? B : kv_len;
-    size_t dim1 = is_abcd ? H : B;
-    size_t dim2 = is_abcd ? kv_len : H;
+    size_t dim1 = is_abcd ? h_group_num : B;
+    size_t dim2 = is_abcd ? kv_len : h_group_num;
 
     parallel_for3d(dim0, dim1, dim2, [&](size_t d0, size_t d1, size_t d2) {
         size_t b = is_abcd ? d0 : d1;
-        size_t h = is_abcd ? d1 : d2;
+        size_t h_group = is_abcd ? d1 : d2;
         size_t pk = is_abcd ? d2 : d0;
 
         // which batch item should be used at postion pk?
         auto b_kv = beams ? beams.at<int32_t>({b, pk}) : b;
         for (size_t pq = 0; pq < q_len; pq++) {
-            buf_attn_w.at<float>({b, h, pq, pk}) = dot_product(&query.at<T>({b, h, pq, 0}),
-                                                               &present_key.at<T2>({b_kv, h, pk, 0}, true),
-                                                               S);
+            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                buf_attn_w.at<float>({b, h, pq, pk}) =
+                    dot_product(&query.at<T>({b, h, pq, 0}), &present_key.at<T2>({b_kv, h_group, pk, 0}, true), S);
+            }
         }
     });
 
@@ -190,29 +195,31 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     // buf_attn_w {B, H, q_len, kv_len}
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
-        splitter(B * H * kv_len, nthr, ithr, start, end);
+        splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
         memset(&buf_attn_score.at<float>({ithr, 0, 0, 0, 0}), 0, buf_attn_score.stride(0) * sizeof(float));
 
-        size_t b, h, pv;
+        size_t b, h_group, pv;
         if (start < end) {
             if (is_abcd)
-                parallel_it_init(start, b, B, h, H, pv, kv_len);
+                parallel_it_init(start, b, B, h_group, h_group_num, pv, kv_len);
             else
-                parallel_it_init(start, pv, kv_len, b, B, h, H);
+                parallel_it_init(start, pv, kv_len, b, B, h_group, h_group_num);
             for (size_t iwork = start; iwork < end; ++iwork) {
                 auto b_kv = beams ? beams.at<int32_t>({b, pv}) : b;
-                auto* v = &present_value.at<T2>({b_kv, h, pv, 0}, true);
+                auto* v = &present_value.at<T2>({b_kv, h_group, pv, 0}, true);
                 for (size_t pq = 0; pq < q_len; pq++) {
-                    attn_acc_value(&buf_attn_score.at<float>({ithr, b, pq, h, 0}),
-                                   buf_attn_w.at<float>({b, h, pq, pv}),
-                                   v,
-                                   S);
+                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                        attn_acc_value(&buf_attn_score.at<float>({ithr, b, pq, h, 0}),
+                                    buf_attn_w.at<float>({b, h, pq, pv}),
+                                    v,
+                                    S);
+                    }
                 }
                 if (is_abcd)
-                    parallel_it_step(b, B, h, H, pv, kv_len);
+                    parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
                 else
-                    parallel_it_step(pv, kv_len, b, B, h, H);
+                    parallel_it_step(pv, kv_len, b, B, h_group, h_group_num);
             }
         }
     });
@@ -285,4 +292,4 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

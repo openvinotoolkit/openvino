@@ -2,30 +2,59 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/select.hpp"
+#include "openvino/op/select.hpp"
 
 #include <memory>
 
 #include "bound_evaluate.hpp"
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/reference/select.hpp"
 #include "select_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace select {
+struct Evaluate : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-op::v1::Select::Select(const Output<Node>& arg0,
-                       const Output<Node>& arg1,
-                       const Output<Node>& arg2,
-                       const AutoBroadcastSpec& auto_broadcast)
+    template <element::Type_t DATA_ET,
+              class DT = fundamental_type_for<DATA_ET>,
+              class BT = fundamental_type_for<element::Type_t::boolean>>
+    static result_type visit(const Tensor& cond_input,
+                             const Tensor& then_input,
+                             const Tensor& else_input,
+                             Tensor& output,
+                             const Shape& cond_shape,
+                             const Shape& then_shape,
+                             const Shape& else_shape,
+                             const AutoBroadcastSpec& auto_broadcast) {
+        using namespace ov::element;
+        reference::select(cond_input.data<const BT>(),
+                          then_input.data<const DT>(),
+                          else_input.data<const DT>(),
+                          output.data<DT>(),
+                          cond_shape,
+                          then_shape,
+                          else_shape,
+                          auto_broadcast);
+        return true;
+    }
+};
+}  // namespace select
+
+namespace v1 {
+Select::Select(const Output<Node>& arg0,
+               const Output<Node>& arg1,
+               const Output<Node>& arg2,
+               const AutoBroadcastSpec& auto_broadcast)
     : Op({arg0, arg1, arg2}),
       m_auto_broadcast(auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Select::validate_and_infer_types() {
+void Select::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Select_validate_and_infer_types);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
@@ -45,120 +74,74 @@ void op::v1::Select::validate_and_infer_types() {
     set_output_type(0, result_et, output_shapes[0]);
 }
 
-shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Select::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Select_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::Select>(new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
+    return std::make_shared<v1::Select>(new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
 }
 
-bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
+bool Select::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_Select_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace detail {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorVector& output_values,
-              const HostTensorVector& input_values,
-              const op::AutoBroadcastSpec& autob) {
-    using T = typename element_type_traits<ET>::value_type;
-
-    const auto& in_cond = input_values[0];
-    const auto& in_then = input_values[1];
-    const auto& in_else = input_values[2];
-
-    const auto& out = output_values[0];
-
-    ov::reference::select<T>(in_cond->get_data_ptr<char>(),
-                             in_then->get_data_ptr<T>(),
-                             in_else->get_data_ptr<T>(),
-                             out->get_data_ptr<T>(),
-                             in_cond->get_shape(),
-                             in_then->get_shape(),
-                             in_else->get_shape(),
-                             autob);
-    return true;
-}
-
-bool evaluate_select(const HostTensorVector& output_values,
-                     const HostTensorVector& input_values,
-                     const op::AutoBroadcastSpec& autob,
-                     const element::Type_t& et) {
-    bool rc = false;
-
-    switch (et) {
-        OPENVINO_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
-    default:
-        rc = false;
-        break;
-    }
-
-    return rc;
-}
-}  // namespace
-}  // namespace detail
-
-bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
+bool Select::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Select_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 3));
-    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    const auto autob = get_auto_broadcast();
+    OPENVINO_ASSERT(outputs.size() == 1);
 
-    auto out_shape = shape_infer(this,
-                                 std::vector<PartialShape>{input_values[0]->get_partial_shape(),
-                                                           input_values[1]->get_partial_shape(),
-                                                           input_values[2]->get_partial_shape()})[0]
-                         .to_shape();
+    const auto output_shape = shape_infer(this, ov::util::get_tensors_partial_shapes(inputs)).front().to_shape();
+    auto& output = outputs[0];
+    output.set_shape(output_shape);
 
-    output_values[0]->set_shape(out_shape);
+    const auto& cond_input = inputs[0];
+    const auto& then_input = inputs[1];
+    const auto& else_input = inputs[2];
 
-    return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+    using namespace ov::element;
+    return IF_TYPE_OF(v1_Select_evaluate,
+                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
+                      select::Evaluate,
+                      then_input.get_element_type(),
+                      cond_input,
+                      then_input,
+                      else_input,
+                      output,
+                      cond_input.get_shape(),
+                      then_input.get_shape(),
+                      else_input.get_shape(),
+                      m_auto_broadcast);
 }
 
-bool op::v1::Select::evaluate_lower(ov::TensorVector& output_values) const {
+bool Select::evaluate_lower(TensorVector& output_values) const {
     return get_input_tensor(0).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Select::evaluate_upper(ov::TensorVector& output_values) const {
+bool Select::evaluate_upper(TensorVector& output_values) const {
     return get_input_tensor(0).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Select::has_evaluate() const {
+bool Select::has_evaluate() const {
     OV_OP_SCOPE(v1_Select_has_evaluate);
     switch (get_output_element_type(0)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::f64:
-    case ngraph::element::boolean:
+    case element::boolean:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::f64:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

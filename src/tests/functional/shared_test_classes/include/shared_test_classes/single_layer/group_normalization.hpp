@@ -68,7 +68,7 @@ protected:
             params.at(2),
             num_groups,
             epsilon);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(groupNormalization)};
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(groupNormalization)};
 
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation
         if (ngPrc == element::Type_t::f16) {

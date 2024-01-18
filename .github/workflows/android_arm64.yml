@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -30,6 +31,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -169,3 +171,17 @@ jobs:
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
+
+  Overall_Status:
+    name: ci/gha_overall_status_android
+    needs: [Smart_CI, Build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

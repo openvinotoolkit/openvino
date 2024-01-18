@@ -1,0 +1,12 @@
+build
+include
+lib
+src
+tests
+
+.eslintrc.js
+CMakeLists.txt
+tsconfig.json
+
+**/*.tsbuildinfo
+*.tgz

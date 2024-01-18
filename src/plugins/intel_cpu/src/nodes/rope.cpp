@@ -4,18 +4,15 @@
 
 #include "rope.h"
 
-#include <chrono>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-#include <string>
-#include <vector>
-
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
-using namespace InferenceEngine;
+#include <chrono>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -173,6 +170,50 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     }
 };
 
+template <typename T>
+struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
+    void execute(dnnl::stream strm,
+                 const RoPENode::Config& config,
+                 const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr>& outputs) override {
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
+        ov::intel_cpu::PlainTensor t_cos(inputs[1]);    // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_sin(inputs[2]);    // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);   // [batch, length, head_cnt, head_size]>
+
+        if (config.slice_stop - config.slice_start > 0) {
+            t_src = t_src.slice(2, config.slice_start, config.slice_stop);
+        }
+
+        auto batch_size = t_src.size(0);
+        auto seq_len = t_src.size(1);
+        auto head_cnt = config.head_cnt;
+        auto head_size = config.head_size;
+        auto present_kv_len = t_cos.size(1);
+
+        auto rotary_dims = t_cos.size(3);
+        auto half_rotary_dims = rotary_dims / 2;
+
+        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+            auto* src = &t_src.at<T>({b, p, h * head_size});
+            auto* cos = &t_cos.at<float>({b, present_kv_len - seq_len + p, h, 0}, true);
+            auto* sin = &t_sin.at<float>({b, present_kv_len - seq_len + p, h, 0}, true);
+            auto* dst = &t_dst.at<T>({b, p, h, 0});
+
+            size_t i = 0;
+            for (; i < half_rotary_dims; i++) {
+                dst[i] = cos[i] * src[i] + sin[i] * (-src[i + half_rotary_dims]);
+            }
+            for (; i < rotary_dims; i++) {
+                dst[i] = cos[i] * src[i] + sin[i] * (src[i - half_rotary_dims]);
+            }
+            for (; i < head_size; i++) {
+                dst[i] = src[i];
+            }
+        });
+    }
+};
+
 void RoPE::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -181,7 +222,14 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = srcPrecision;
     auto CosSinPrecision = ov::element::f32;
 
-    if (m_config.is_chatglm) {
+    if (m_config.is_qwen) {
+        if (rtPrecision == ov::element::bf16) {
+            m_executor = std::make_shared<RoPEExecutorQwen<ov::bfloat16>>();
+        } else {
+            m_executor = std::make_shared<RoPEExecutorQwen<float>>();
+            rtPrecision = ov::element::f32;
+        }
+    } else if (m_config.is_chatglm) {
         if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>();
         } else {

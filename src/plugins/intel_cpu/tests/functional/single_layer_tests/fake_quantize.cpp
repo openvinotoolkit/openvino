@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -110,10 +110,10 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrec, shape));
 
-        auto il = ngraph::builder::makeConstant(inPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
-        auto ih = ngraph::builder::makeConstant(inPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
-        auto ol = ngraph::builder::makeConstant(inPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
-        auto oh = ngraph::builder::makeConstant(inPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
+        auto il = ov::test::utils::deprecated::make_constant(inPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
+        auto ih = ov::test::utils::deprecated::make_constant(inPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
+        auto ol = ov::test::utils::deprecated::make_constant(inPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
+        auto oh = ov::test::utils::deprecated::make_constant(inPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(params[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
@@ -131,10 +131,10 @@ protected:
         ASSERT_EQ(funcInputs.size(), 1);
         const auto& funcInput = funcInputs[0];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                         targetInputStaticShapes[0],
-                                                         inDataHighBounds - inDataLowBounds,
-                                                         inDataLowBounds);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = inDataLowBounds;
+        in_data.range = inDataHighBounds - inDataLowBounds;
+        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 

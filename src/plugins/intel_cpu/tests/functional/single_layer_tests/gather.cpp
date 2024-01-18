@@ -129,23 +129,21 @@ protected:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
+            ov::test::utils::InputGenerateData in_data;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
                 const auto dataTypeSize = funcInput.get_element_type().size();
-                const uint32_t range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[0],
-                                                                 range,
-                                                                 0,
-                                                                 1);
+                in_data.start_from = 0;
+                in_data.range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "indices") {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[1],
-                                                                 axisDim * 2,
-                                                                 -axisDim,
-                                                                 1);
+                in_data.start_from = -axisDim;
+                in_data.range = axisDim * 2;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "axis") {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, 1, axis, 1);
+                in_data.start_from = axis;
+                in_data.range = 1;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -276,6 +274,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_1D,
                                             ::testing::Values(additionalConfig[0])),
                          GatherLayerTestCPU::getTestCaseName);
 
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes1DI32 = {{{{}, {{1}}}, {{}, {{1}}}},
+                                                                               {{{}, {{15}}}, {{}, {{15}}}},
+                                                                               {{{}, {{64}}}, {{}, {{64}}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D_I32,
+                         GatherLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(staticInputShapes1DI32),
+                                            ::testing::Values(std::tuple<int, int>{0, 0}),
+                                            ::testing::Values(ElementType::i32),
+                                            ::testing::Values(true),
+                                            ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
+                                            ::testing::Values(additionalConfig[0])),
+                         GatherLayerTestCPU::getTestCaseName);
+
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1D = {
     {{{ov::Dimension{1, 70}},  // Dynamic shape 0
       {{1},  {2},  {3},  {4},  {5},  {6},  {7},  {8},  {9},  {11}, {13},
@@ -292,6 +304,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(true, false),
                                             ::testing::ValuesIn(getCPUInfo()),
+                                            ::testing::Values(additionalConfig[0])),
+                         GatherLayerTestCPU::getTestCaseName);
+
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1DI32 = {
+    {{{ov::Dimension{1, 70}},  // Dynamic shape 0
+      {{1}, {15}, {64}}},      // Target shapes
+     {{-1},                    // Dynamic shape 1
+      {{1}, {15}, {64}}}}      // Target shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D_I32,
+                         GatherLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(dynamicInputShapes1DI32),
+                                            ::testing::Values(std::tuple<int, int>{0, 0}),
+                                            ::testing::Values(ElementType::i32),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
                                             ::testing::Values(additionalConfig[0])),
                          GatherLayerTestCPU::getTestCaseName);
 

@@ -17,7 +17,7 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::Tes
     InferenceEngine::SizeVector outputShapes;
     std::string targetDevice;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outputShapes, targetDevice) = obj.param;
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
@@ -49,23 +49,23 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     std::vector<size_t> outputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
-    ngraph::op::PadType padType;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
+    auto convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels, false, outPadding));
     if (!outputShape.empty()) {
-        auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
-        convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
+        auto outShape = ov::op::v0::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+        convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
         ngraph::builder::makeConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels));
     }
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
 }
 }  // namespace LayerTestsDefinitions

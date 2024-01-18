@@ -4,11 +4,12 @@
 
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -24,7 +25,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getOriginal(
     input->set_friendly_name("input");
     std::shared_ptr<ov::Node> parent = input;
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         input, precision,
         values.fakeQuantizeOnData.quantizationLevel,
         values.fakeQuantizeOnData.constantShape,
@@ -60,7 +61,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getOriginal(
             branch1Operation,
             values.fakeQuantizeOnWeights.empty() ?
                 weights->output(0) :
-                ngraph::builder::makeFakeQuantize(
+                ov::test::utils::make_fake_quantize(
                     weights,
                     precision,
                     values.fakeQuantizeOnWeights.quantizationLevel,
@@ -128,7 +129,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
 
     std::shared_ptr<ov::Node> onWeights = values.fakeQuantizeOnWeights.empty() ?
         weights :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights,
             precision,
             values.fakeQuantizeOnWeights.quantizationLevel,

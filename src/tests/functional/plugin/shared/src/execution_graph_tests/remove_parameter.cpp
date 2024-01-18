@@ -5,8 +5,11 @@
 #include "execution_graph_tests/remove_parameter.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <inference_engine.hpp>
-#include <ngraph/ngraph.hpp>
+#include "openvino/runtime/core.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -24,13 +27,10 @@ TEST_P(ExecGraphRemoveParameterNode, RemoveParameterNode) {
   SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
   auto device_name = this->GetParam();
-  ngraph::Shape shape = {3, 2};
+  ov::Shape shape = {3, 2};
   float in_data_2[6] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   float in_data[6] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
-  ngraph::element::Type type = ngraph::element::f32;
-
-  using std::make_shared;
-  using namespace ngraph::op;
+  ov::element::Type type = ov::element::f32;
 
   // Some simple graph with 2 Parameters
   //    in2 in1    //
@@ -40,45 +40,36 @@ TEST_P(ExecGraphRemoveParameterNode, RemoveParameterNode) {
   //         sum   //
   //          |    //
   //         out   //
-  auto input = make_shared<Parameter>(type, shape);
-  auto input2 = make_shared<Parameter>(type, shape);
-  auto mul = make_shared<ngraph::op::v1::Multiply>(input2, input);
-  auto sum = make_shared<ngraph::op::v1::Add>(mul, input);
+  auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+  auto input2 = std::make_shared<ov::op::v0::Parameter>(type, shape);
+  auto mul = std::make_shared<ov::op::v1::Multiply>(input2, input);
+  auto sum = std::make_shared<ov::op::v1::Add>(mul, input);
 
-  auto function = std::make_shared<ngraph::Function>(
-      ngraph::NodeVector{sum}, ngraph::ParameterVector{input2, input},
+  auto function = std::make_shared<ov::Model>(
+      ov::NodeVector{sum}, ov::ParameterVector{input2, input},
       "SimpleNet");
 
   // Load into plugin and get exec graph
-  auto ie = InferenceEngine::Core();
-  auto net = InferenceEngine::CNNNetwork(function);
-  auto exec_net = ie.LoadNetwork(net, device_name);
-  auto exec_graph = exec_net.GetExecGraphInfo();
-  auto infer_req = exec_net.CreateInferRequest();
-  InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::FP32, shape,
-                                    InferenceEngine::Layout::NC);
-  InferenceEngine::Blob::Ptr inBlob2 =
-      InferenceEngine::make_shared_blob<float>(tDesc, in_data_2);
-  infer_req.SetBlob(input2->get_name(), inBlob2);
+  auto core = ov::Core();
+  auto compiled_model = core.compile_model(function, device_name);
+  auto infer_req = compiled_model.create_infer_request();
 
-  InferenceEngine::Blob::Ptr inBlob =
-      InferenceEngine::make_shared_blob<float>(tDesc, in_data);
-  infer_req.SetBlob(input->get_name(), inBlob);
+  ov::Tensor tensor2 {ov::element::f32, shape, in_data_2};
+  infer_req.set_tensor(input2, tensor2);
+  ov::Tensor tensor {ov::element::f32, shape, in_data};
+  infer_req.set_tensor(input, tensor);
 
-  infer_req.Infer();
+  infer_req.infer();
 
-  auto outBlob = infer_req.GetBlob(sum->get_name());
-  InferenceEngine::MemoryBlob::CPtr output =
-      InferenceEngine::as<InferenceEngine::MemoryBlob>(outBlob);
-  auto outputHolder = output->rmap();
-  const auto ref_result = outputHolder.as<float *>();
+  auto out_tensor = infer_req.get_tensor(function->output(0));
+  auto ref_result = out_tensor.data<float>();
 
   ASSERT_EQ(function->get_parameter_index(input2), 0);
   ASSERT_EQ(function->get_parameter_index(input), 1);
 
   // Replace input2 by constant
   auto const_in =
-      make_shared<Constant>(type, shape, std::vector<float>(6, 1.0));
+      std::make_shared<ov::op::v0::Constant>(type, shape, std::vector<float>(6, 1.0));
   mul->input(0).replace_source_output(const_in->output(0));
   function->remove_parameter(input2);
 
@@ -86,21 +77,16 @@ TEST_P(ExecGraphRemoveParameterNode, RemoveParameterNode) {
   ASSERT_EQ(function->get_parameter_index(input), 0);
 
   // Load new function into plugin and get exec graph
-  auto new_net = InferenceEngine::CNNNetwork(function);
-  auto new_exec_net = ie.LoadNetwork(new_net, device_name);
-  auto new_exec_graph = new_exec_net.GetExecGraphInfo();
+  auto new_compiled_model = core.compile_model(function, device_name);
 
   // infer new graph
-  auto new_infer_req = new_exec_net.CreateInferRequest();
-  new_infer_req.SetBlob(input->get_name(), inBlob);
+  auto new_infer_req = new_compiled_model.create_infer_request();
+  new_infer_req.set_tensor(input, tensor);
 
-  new_infer_req.Infer();
+  new_infer_req.infer();
 
-  auto new_outBlob = new_infer_req.GetBlob(sum->get_name());
-  InferenceEngine::MemoryBlob::CPtr new_output =
-      InferenceEngine::as<InferenceEngine::MemoryBlob>(new_outBlob);
-  auto new_outputHolder = new_output->rmap();
-  const auto result = new_outputHolder.as<float *>();
+  auto new_out_tensor = new_infer_req.get_tensor(function->output(0));
+  auto result = new_out_tensor.data<float>();
 
   for (int i = 0; i < 6; i++) {
     ASSERT_NEAR(result[i], ref_result[i], 1e-5);

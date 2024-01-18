@@ -54,11 +54,11 @@ private:
 
         MemoryPtr srcMemPtr;
         std::deque<MemoryPtr> dstMemPtrs;
+        std::deque<MemoryDescPtr> originalDstMemDescs;
 
         ptrdiff_t size;
     };
 
-    ExtensionManager::Ptr ext_mng;
     Graph subGraphThen;
     Graph subGraphElse;
     std::vector<std::deque<MemoryPtr>> inputMemThen, inputMemElse;

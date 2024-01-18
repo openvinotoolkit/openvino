@@ -76,11 +76,11 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 10,
-                                                                 1,
-                                                                 1);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 1;
+                in_data.range = 10;
+                in_data.resolution = 1;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};
             }
@@ -224,7 +224,8 @@ const std::vector<StridedSliceParams> testCasesCommon4D = {
     StridedSliceParams{{0, 1, 0, 10}, {1, 5, 32, 30}, {1, 1, 1, 1}, {0, 1, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
     StridedSliceParams{{0, 0, 2, 10}, {1, 8, 32, 18}, {1, 2, 1, 2}, {0, 0, 1, 0}, {0, 0, 0, 1}, {}, {}, {}},
     StridedSliceParams{{0, 0, 10}, {0, 32, 18}, {1, 1, 1}, {1, 1, 0}, {1, 1, 0}, {}, {}, {1, 0, 0}},
-    StridedSliceParams{{0, 4, 10}, {1, 8, 0}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}, {}, {}, {0, 0, 1}}};
+    StridedSliceParams{{0, 4, 10}, {1, 8, 0}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}, {}, {}, {0, 0, 1}},
+    StridedSliceParams{{0, 4}, {0, 5}, {1, 1}, {0}, {0}, {0}, {0}, {1}}};
 
 const std::vector<Shape> inputShapesStatic4D = {{1, 5, 32, 32}, {2, 5, 32, 48}};
 

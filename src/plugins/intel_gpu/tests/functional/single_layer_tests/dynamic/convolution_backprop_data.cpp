@@ -101,7 +101,11 @@ public:
             if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], outShapeData[inferRequestNum].data());
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 2560;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -114,7 +118,7 @@ public:
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ov::test::utils::InputLayerType::PARAMETER) {
-                IE_ASSERT(inputDynamicShapes.size() == 2);
+                OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
                 outShapeNode = outShapeParam;
@@ -129,7 +133,7 @@ public:
 
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
-            IE_ASSERT(outShapeNode != nullptr);
+            OPENVINO_ASSERT(outShapeNode != nullptr);
             deconv = ov::test::utils::make_convolution_backprop_data(params[0], outShapeNode, model_type, kernel, stride, padBegin,
                                                                      padEnd, dilation, padType, convOutChannels);
         } else {

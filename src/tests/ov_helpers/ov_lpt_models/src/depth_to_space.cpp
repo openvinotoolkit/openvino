@@ -6,6 +6,7 @@
 
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -23,7 +24,7 @@ std::shared_ptr<ov::Model> DepthToSpaceFunction::getOriginal(
 
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         input, precision, 256, { 1, 1, 1, 1 },
         { low / inputScale }, { high / inputScale }, { low / outputScale }, { high / outputScale });
 
