@@ -38,7 +38,8 @@ public:
         cpu._org_proc_type_table = test_data._proc_type_table;
         cpu._proc_type_table = test_data._proc_type_table;
         cpu._cpu_mapping_table = test_data._cpu_mapping_table;
-        cpu._numa_nodes = 1;
+        cpu._numa_nodes = cpu._proc_type_table.size() > 1 ? static_cast<int>(cpu._proc_type_table.size()) - 1 : 1;
+        cpu._sockets = cpu._numa_nodes;
 
         ov::threading::IStreamsExecutor::Config config{"config test",
                                                        test_data._num_streams,
