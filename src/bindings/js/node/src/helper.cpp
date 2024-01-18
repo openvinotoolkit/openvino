@@ -252,12 +252,12 @@ template <>
 Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info, const ov::Dimension dim) {
     Napi::Array interval = Napi::Array::New(info.Env(), 2);
 
-    // Indexes looks wierd, but clear assignment, 
+    // Indexes looks wierd, but clear assignment,
     // like: interval[0] = value doesn't work here
     size_t indexes[] = {0, 1};
     interval[indexes[0]] = dim.get_min_length();
     interval[indexes[1]] = dim.get_max_length();
- 
+
     return interval;
 }
 
