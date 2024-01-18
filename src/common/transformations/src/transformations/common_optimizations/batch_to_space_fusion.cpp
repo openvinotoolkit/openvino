@@ -16,6 +16,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 

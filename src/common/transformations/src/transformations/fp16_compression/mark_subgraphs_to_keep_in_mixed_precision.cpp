@@ -302,22 +302,28 @@ public:
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
         auto convert_eps_pattern = pattern::wrap_type<ov::op::v0::Convert>({eps_const_pattern});
         auto eps_const_or_convert = pattern::optional<ov::op::v0::Convert>(convert_eps_pattern);
+        // auto eps_const_or_convert = std::make_shared<pattern::op::Or>(OutputVector{eps_const_pattern, convert_eps_pattern});
 
         auto max_or_add =
             pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_or_convert});
 
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
         auto sqrt_or_max_add = pattern::optional<ov::op::v0::Sqrt>(sqrt);
+        // auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{sqrt, max_or_add});
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
         auto divide = std::make_shared<ov::op::v1::Divide>(input_1, sqrt_or_max_add);
 
         auto pow_exp = pattern::wrap_type<ov::op::v0::Constant>();
         auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>({pow_exp});
-        auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
+        // auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
+        auto pow_exp_or_convert = pattern::optional<ov::op::v0::Convert>(convert_pattern);
+        // auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert_pattern, pow_exp});
 
         auto pow_pattern = std::make_shared<ov::op::v1::Power>(max_or_add, pow_exp_or_convert);
         auto mul_pattern = std::make_shared<ov::op::v1::Multiply>(input_1, pow_pattern);
         auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
+        // auto div_or_mul_to_negative_pow = pattern::optional<ov::op::v1::Multiply>(mul_pattern);
+
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_to_output = m.get_pattern_map();
@@ -328,8 +334,8 @@ public:
             // if pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
             // need to check that power is negative
             if (mul) {
-                const auto pow_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_exp));
-                if (pow_const) {
+                if (pattern_to_output.count(pow_exp)) {
+                    const auto pow_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_exp));
                     // continue only if exponent is negative (z < 0)
                     if (pow_const->get_element_type() == element::f16) {
                         for (auto val : pow_const->get_vector<float16>())
@@ -343,9 +349,9 @@ public:
                 }
             }
 
-            const auto eps_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps_const_pattern));
-            if (!eps_const)
+            if (!pattern_to_output.count(eps_const_pattern))
                 return false;
+            const auto eps_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps_const_pattern));
             if (eps_const->get_element_type() == element::f32) {
                 for (const auto& val : eps_const->get_vector<float>())
                     if (val > static_cast<float>(float16_min_normalized))
