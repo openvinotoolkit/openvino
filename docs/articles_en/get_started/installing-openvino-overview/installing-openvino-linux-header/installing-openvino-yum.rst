@@ -13,7 +13,7 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
    Note that the YUM distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for GNA and NPU inference
+   * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
 

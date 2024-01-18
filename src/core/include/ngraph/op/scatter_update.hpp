@@ -16,7 +16,6 @@
 
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/scatter_base.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/op/scatter_update.hpp"
 
 namespace ngraph {

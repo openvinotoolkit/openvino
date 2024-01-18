@@ -6,9 +6,6 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
-#include "split_inst.h"
-#include "lstm_inst.h"
-#include "lstm_dynamic_inst.h"
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
@@ -82,9 +79,6 @@ public:
 
 private:
     void run(program& p) override;
-    void handle_split_node(program& p, split_node& node);
-    void handle_lstm_node(program& p, lstm_node& node);
-    void handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node);
     void set_outputs(program& p);
 };
 
@@ -313,18 +307,6 @@ public:
     trim_to_outputs() : base_pass("trimmed") {}
 
 private:
-    void run(program& p) override;
-};
-
-class strided_slice_optimize : public base_pass {
-public:
-    strided_slice_optimize() : base_pass("strided_slice_optimize") {}
-    void run(program& p) override;
-};
-
-class reverse_optional_nodes_outputs : public base_pass {
-public:
-    reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
     void run(program& p) override;
 };
 

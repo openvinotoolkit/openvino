@@ -134,7 +134,6 @@ enum WeightsLayout {
                                              // 3x3 with stride 1
     image_2d_weights_winograd_6x3_s1_xfbyb,  // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter
                                              // 3x3 with stride 1
-    dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
     os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
     os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
@@ -316,7 +315,6 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
         case WeightsLayout::iozyx:
-        case WeightsLayout::dlstm_dir_io:
             return true;
         default:
             return false;
@@ -387,15 +385,6 @@ inline bool IsImageType(WeightsLayout l) {
             return true;
         default:
             return false;
-    }
-}
-
-inline bool IsDynamicLSTMType(WeightsLayout l) {
-    switch (l) {
-    case WeightsLayout::dlstm_dir_io:
-        return true;
-    default:
-        return false;
     }
 }
 

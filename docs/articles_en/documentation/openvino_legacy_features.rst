@@ -93,21 +93,21 @@ offering.
 |   Compile tool is now deprecated. If you need to compile a model for inference on
     a specific device, use the following script:
 
-       .. tab-set::
+    .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
+       .. tab-item:: Python
+          :sync: py
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.py
-               :language: python
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.py
+             :language: python
+             :fragment: [export_compiled_model]
 
-         .. tab-item:: C++
-            :sync: cpp
+       .. tab-item:: C++
+          :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-               :language: cpp
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+             :language: cpp
+             :fragment: [export_compiled_model]
 
 |   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
 |   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`
