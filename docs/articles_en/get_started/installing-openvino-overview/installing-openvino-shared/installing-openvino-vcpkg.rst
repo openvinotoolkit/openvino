@@ -5,16 +5,16 @@ Install OpenVINO™ Runtime via vcpkg
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and macOS 
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and macOS
                  operating systems, using vcpkg.
 
 .. note::
-   
+
    Note that the vcpkg distribution:
 
    * offers C/C++ API only
-   * does not offer support for GNA and NPU inference
-   * is dedicated to users of all major OSes: Windows, Linux, and macOS 
+   * does not offer support for NPU inference
+   * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 
 .. tab-set::
@@ -24,10 +24,10 @@ Install OpenVINO™ Runtime via vcpkg
 
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
-   
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
@@ -41,7 +41,7 @@ Install OpenVINO™ Runtime via vcpkg
 Installing OpenVINO Runtime
 ###########################
 
-1. Make sure that you have installed vcpkg on your system. If not, follow the 
+1. Make sure that you have installed vcpkg on your system. If not, follow the
    `vcpkg installation instructions <https://vcpkg.io/en/getting-started>`__.
 
 
@@ -52,7 +52,7 @@ Installing OpenVINO Runtime
       vcpkg install openvino
 
    vcpkg also enables you to install only selected components, by specifying them in the command.
-   See the list of `available features <https://vcpkg.link/ports/openvino>`__, for example: 
+   See the list of `available features <https://vcpkg.link/ports/openvino>`__, for example:
 
    .. code-block:: sh
 
@@ -64,8 +64,8 @@ Installing OpenVINO Runtime
 
       vcpkg install 'openvino:x64-windows-static'
 
-Note that the vcpkg installation means building all packages and dependencies from source, 
-which means the compiler stage will require additional time to complete the process. 
+Note that the vcpkg installation means building all packages and dependencies from source,
+which means the compiler stage will require additional time to complete the process.
 
 After installation, you can use OpenVINO in your product's cmake scripts:
 
@@ -80,7 +80,7 @@ And running from terminal:
    cmake -B <build dir> -S <source dir> -DCMAKE_TOOLCHAIN_FILE=<VCPKG_ROOT>/scripts/buildsystems/vcpkg.cmake
 
 Congratulations! You've just Installed and used OpenVINO in your project! For some use cases you may still
-need to install additional components. Check the 
+need to install additional components. Check the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
