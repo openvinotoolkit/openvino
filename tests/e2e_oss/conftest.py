@@ -35,7 +35,7 @@ try:
 except ImportError:
     pass
 
-from .plugins.common.conftest import *
+from e2e_oss.common.plugins.common.conftest import *
 
 NODEID_TOKENS_RE = r"(?P<file>.+?)::(?P<func_name>.+?)\[(?P<args>.+?)\]"
 VR_FRIENDLY_NODEID = "{class_definition_path}::{class_name}::{func_name}[{args}]"

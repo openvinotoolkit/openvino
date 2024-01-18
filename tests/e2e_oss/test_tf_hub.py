@@ -25,7 +25,7 @@ from e2e_oss.test_utils.test_utils import log_timestamp, read_irs_mapping_file, 
 from utils.e2e.common.pipeline import Pipeline
 from utils.e2e.comparator.container import ComparatorsContainer
 
-pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
+pytest_plugins = ('e2e_oss.common.plugins.e2e_test.conftest',)
 
 log = get_logger(__name__)
 
