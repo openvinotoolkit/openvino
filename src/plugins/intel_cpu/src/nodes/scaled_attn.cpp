@@ -255,16 +255,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
           wv_scratch_a(true),
           wv_scratch_b(true) {}
 
+    dnnl::memory::dims make_dnnl_dims(const std::vector<size_t>& dims) {
+        dnnl::memory::dims dnnl_dims(dims.size());
+        for (size_t i = 0; i < dims.size(); i++)
+            dnnl_dims[i] = static_cast<dnnl::memory::dim>(dims[i]);
+        return dnnl_dims;
+    }
+
     void prepare_multiquery_prim(dnnl::stream strm,
                                  PlainTensor& query,
                                  PlainTensor& present_key,
                                  bool has_out_transpose) {
-        auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
-            dnnl::memory::dims dnnl_dims(dims.size());
-            for (size_t i = 0; i < dims.size(); i++)
-                dnnl_dims[i] = static_cast<dnnl::memory::dim>(dims[i]);
-            return dnnl_dims;
-        };
+        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
+        if (qkv_dt != dt::bf16)
+            OPENVINO_THROW("Brgemm multi-query kernel only supports BF16");
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -283,7 +287,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
 
         qk_gemm_ptr = qk_result.first;
-        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
         dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
         weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
         out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, head_size}), qkv_dt, tag::abcd);
@@ -345,12 +348,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                       size_t kv_len,
                       size_t S,
                       bool has_out_transpose) {
-        auto make_dnnl_dims = [](const std::vector<size_t>& dims) {
-            dnnl::memory::dims dnnl_dims(dims.size());
-            for (size_t i = 0; i < dims.size(); i++)
-                dnnl_dims[i] = static_cast<dnnl::memory::dim>(dims[i]);
-            return dnnl_dims;
-        };
         auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
         dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, query.get_strides<dnnl::memory::dim>());
         dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_key.get_strides<dnnl::memory::dim>());
