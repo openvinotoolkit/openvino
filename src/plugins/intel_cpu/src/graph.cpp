@@ -233,12 +233,12 @@ void Graph::InitGraph() {
 
     InitOptimalPrimitiveDescriptors(graphNodes);
 
-    ResolveLayoutConflicts();
+    ResolveEdgeConflicts();
 
     optimizer.ShareReorders(*this);
     RemoveDroppedNodes();
 
-    ResolveInplaceConflicts();
+    ResolveDeepInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
@@ -427,8 +427,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     return dnnl_success == status;
 }
 
-void Graph::ResolveLayoutConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveLayoutConflicts");
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
@@ -498,8 +498,8 @@ void Graph::ResolveLayoutConflicts() {
     }
 }
 
-void Graph::ResolveInplaceConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveInplaceConflicts");
+void Graph::ResolveDeepInplaceConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveDeepInplaceConflicts");
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 

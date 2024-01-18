@@ -228,8 +228,8 @@ protected:
     void InitDescriptors(const std::vector<NodePtr>& nodes);
     void ResolveInplaceDirections(const std::vector<NodePtr>& nodes);
     void InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes);
-    void ResolveLayoutConflicts();
-    void ResolveInplaceConflicts();
+    void ResolveEdgeConflicts();
+    void ResolveDeepInplaceConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
