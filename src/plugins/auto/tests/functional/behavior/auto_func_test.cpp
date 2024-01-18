@@ -560,7 +560,7 @@ public:
             return decltype(ov::optimal_batch_size)::value_type(4);
         } else if (name == ov::device::capabilities.name()) {
             return decltype(ov::device::capabilities)::value_type(
-                {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
+                {"FP32", "FP16", "BIN", "INT8", ov::device::capability::EXPORT_IMPORT});
         } else if (name == ov::device::type.name()) {
             return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
         } else if (name == ov::loaded_from_cache.name()) {

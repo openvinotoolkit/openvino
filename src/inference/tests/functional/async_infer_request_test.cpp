@@ -23,11 +23,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
     ASSERT_THROW(req.GetBlob({}), InferenceEngine::NotAllocated);
 }
 
-TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
-    InferRequest req;
-    ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::NotAllocated);
-}
-
 TEST(InferRequestCPPTests, throwsOnUninitializedInfer) {
     InferRequest req;
     ASSERT_THROW(req.Infer(), InferenceEngine::NotAllocated);

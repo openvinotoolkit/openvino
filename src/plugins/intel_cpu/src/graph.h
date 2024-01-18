@@ -196,8 +196,6 @@ public:
     }
 
 protected:
-    void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
-
     void ForgetGraphData() {
         status = Status::NotReady;
 

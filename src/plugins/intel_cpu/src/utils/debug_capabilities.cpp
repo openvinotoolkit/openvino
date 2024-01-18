@@ -10,6 +10,7 @@
 #include <memory>
 #ifdef CPU_DEBUG_CAPS
 
+#include "cpu_memory.h"
 #include "debug_capabilities.h"
 #include "node.h"
 #include "edge.h"
@@ -618,6 +619,43 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag format_tag) {
     const auto c_format_tag = dnnl::memory::convert_to_c(format_tag);
     os << dnnl_fmt_tag2str(c_format_tag);
+    return os;
+}
+
+template <typename T>
+std::string to_string(const T* values, size_t N, size_t maxsize) {
+    std::stringstream ss;
+    for (size_t i = 0; i < N; i++) {
+        if (i > 0)
+            ss << ",";
+        if (ss.tellp() > static_cast<std::stringstream::pos_type>(maxsize)) {
+            ss << "..." << N << "in total";
+            break;
+        }
+        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+            ss << static_cast<int>(values[i]);
+        else
+            ss << values[i];
+    }
+    return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
+    const auto& desc = mem.getDesc();
+    os << desc;
+    if (mem.isAllocated()) {
+        os << " [";
+        if (desc.getPrecision() == ov::element::i32) {
+            os << to_string(reinterpret_cast<int32_t*>(mem.getData()), mem.getSize() / sizeof(int32_t), 256);
+        } else if (desc.getPrecision() == ov::element::f32) {
+            os << to_string(reinterpret_cast<float*>(mem.getData()), mem.getSize() / sizeof(float), 256);
+        } else if (desc.getPrecision() == ov::element::i64) {
+            os << to_string(reinterpret_cast<int64_t*>(mem.getData()), mem.getSize() / sizeof(int64_t), 256);
+        } else {
+            os << " ? ";
+        }
+        os << "]";
+    }
     return os;
 }
 
