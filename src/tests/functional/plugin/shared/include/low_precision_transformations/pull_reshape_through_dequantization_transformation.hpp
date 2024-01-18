@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 
 class PullReshapeThroughDequantizationTestValues {
 public:
-    ngraph::element::Type precisionBeforeDequantization;
+    ov::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     ngraph::builder::subgraph::Constant weights;
@@ -28,18 +28,18 @@ public:
     ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
     ngraph::builder::subgraph::Transpose transpose;
     ngraph::builder::subgraph::Reshape reshape2;
-    ngraph::element::Type precisionAfterOperation;
+    ov::element::Type precisionAfterOperation;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string operationName;
     std::string expectedKernelType;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
-    ngraph::Shape,
+    ov::Shape,
     PullReshapeThroughDequantizationTestValues> PullReshapeThroughDequantizationParams;
 
 class PullReshapeThroughDequantizationTransformation :
@@ -50,7 +50,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

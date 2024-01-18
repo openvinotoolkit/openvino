@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -21,26 +20,29 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << param;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << param;
     return result.str();
 }
 
 void ConvolutionQDqTransformation::SetUp() {
-    // threshold = 0.1f;
+    rel_threshold = 0.1;
+    abs_threshold = 12.8;
 
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
@@ -57,17 +59,17 @@ void ConvolutionQDqTransformation::SetUp() {
     this->configuration[ov::hint::inference_precision.name()] = "f32";
 }
 
-void ConvolutionQDqTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionQDqTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecisionByType(params.layerName);
+    const auto actualType = get_runtime_precision_by_type(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(ConvolutionQDqTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

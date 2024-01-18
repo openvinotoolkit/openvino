@@ -42,9 +42,9 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type, // netPrecision
-    std::pair<ngraph::PartialShape, bool>, // input shape and shape support flag
-    ngraph::Shape,         // outputShape
+    ov::element::Type, // netPrecision
+    std::pair<ov::PartialShape, bool>, // input shape and shape support flag
+    ov::Shape,         // outputShape
     std::string,           // targetDevice
     ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionBackpropDataTransformationParam
@@ -59,7 +59,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

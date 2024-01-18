@@ -205,6 +205,20 @@ void inline fill_data_random(T* pointer,
 }
 
 template <class T>
+void inline fill_data_ptr_real_random_float(T* pointer,
+                                            std::size_t size,
+                                            const float min,
+                                            const float max,
+                                            const int seed) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(min, max);
+
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<T>(dist(gen));
+    }
+}
+
+template <class T>
 void inline fill_data_random_act_dft(T* pointer,
                                      std::size_t size,
                                      const uint32_t range = 10,

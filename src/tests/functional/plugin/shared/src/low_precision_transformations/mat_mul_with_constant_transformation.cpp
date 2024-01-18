@@ -6,10 +6,12 @@
 #include <memory>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
 #include <tuple>
 #include <vector>
+#include <string>
+#include <queue>
 
+#include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
@@ -18,7 +20,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
@@ -35,30 +37,15 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected layer name " << info.name();
-    }
-
-    size_t low;
-    size_t high;
-    if (info.name() == "input1") {
-        low = 1ul;
-        high = 5ul;
-    } else if (info.name() == "input2") {
-        low = 5ul;
-        high = 10ul;
-    } else {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
-}
 
 void MatMulWithConstantTransformation::SetUp() {
-    ngraph::element::Type precision;
+    abs_threshold = 1.0e-3;
+
+    ov::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes(testValues.inputShape);
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
@@ -71,13 +58,13 @@ void MatMulWithConstantTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulWithConstantTransformation::Run() {
-    LayerTestsCommon::Run();
+void MatMulWithConstantTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<2>(GetParam());
-    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
@@ -85,7 +72,7 @@ void MatMulWithConstantTransformation::Run() {
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
