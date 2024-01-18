@@ -10,7 +10,6 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "remote_utils.hpp"
 
 namespace {
 std::shared_ptr<ov::IRemoteTensor> cast_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
@@ -67,15 +66,6 @@ ov::SoPtr<ov::ITensor> ov::proxy::RemoteTensor::get_hardware_tensor(const ov::So
     ov::SoPtr<ov::ITensor> hw_tensor = tensor;
     if (auto remote_tensor = std::dynamic_pointer_cast<ov::proxy::RemoteTensor>(tensor._ptr))
         hw_tensor = remote_tensor->m_tensor;
-
-    if (unwrap) {
-        if (auto wrapper = std::dynamic_pointer_cast<ov::RemoteBlobTensor>(hw_tensor._ptr)) {
-            auto blob = ov::get_hardware_blob(wrapper->blob.get());
-            if (auto tensor_holder = dynamic_cast<ov::legacy_convert::TensorHolder*>(blob)) {
-                hw_tensor = tensor_holder->get_tensor();
-            }
-        }
-    }
 
     return hw_tensor;
 }

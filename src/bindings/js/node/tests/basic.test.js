@@ -14,6 +14,12 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
+it('Core.getAvailableDevices()', () => {    
+    const devices = core.getAvailableDevices();
+    
+    assert.ok(devices.includes('CPU'));
+});
+
 it('CompiledModel type', () => {
   assert.ok(compiledModel instanceof ov.CompiledModel);
 });

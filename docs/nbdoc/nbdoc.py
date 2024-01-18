@@ -8,8 +8,6 @@ from utils import (
 )
 from consts import (
     artifacts_link,
-    binder_template,
-    colab_template,
     binder_colab_template,
     blacklisted_extensions,
     notebooks_path,
@@ -23,8 +21,11 @@ from consts import (
     notebooks_repo,
     notebooks_binder,
     notebooks_colab,
-
+    binder_image_source,
+    colab_image_source,
+    github_image_source,
 )
+
 from notebook import Notebook
 from section import Section
 from glob import glob
@@ -150,37 +151,53 @@ class NbProcessor:
                 for n in matching_notebooks:
                     matching_notebooks_paths.append(n)
 
-    def add_binder(self, buttons_list: list, cbuttons_list: list, template_with_colab_and_binder: str = binder_colab_template, template_with_binder: str = binder_template, template_with_colab: str = colab_template, template_without_binder: str = no_binder_template):
-        """Function working as an example how to add binder button to existing rst files
+    def add_binder(self, buttons_list: list, cbuttons_list: list, template_with_colab_and_binder: str = binder_colab_template, template_without_binder: str = no_binder_template):
+        """A function working as an example of how to add Binder or Google Colab buttons to existing RST files.
 
-        :param buttons_list: List of notebooks that work on Binder.
+        :param buttons_list: A list of notebooks that work on Binder.
         :type buttons_list: list
-        :param template_with_binder: Template of button added to rst file if Binder is available. Defaults to binder_template.
-        :type template_with_binder: str
-        :param template_without_binder: Template of button added to rst file if Binder isn't available. Defaults to no_binder_template.
+        :param cbuttons_list: A list of notebooks that work on Google Colab.
+        :type cbuttons_list: list
+        :param template_with_colab_and_binder: A template with buttons added to an RST file if Binder and/or Google Colab are available. Defaults to template_with_colab_and_binder.
+        :type template_with_colab_and_binder: str
+        :param template_without_binder: A template with buttons added to an RST file if neither Binder nor Google Colab are available. Defaults to no_binder_template.
         :type template_without_binder: str
-        :raises FileNotFoundError: In case of failure of adding content, error will appear
+        :raises FileNotFoundError: In case of a failure in adding the content, an error will appear.
 
         """
+
         for notebook_file, nb_path in zip([
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
         ], matching_notebooks_paths):
 
             notebook_item = '-'.join(notebook_file.split('-')[:-2])
+            local_install = ".. |installation_link| raw:: html\n\n   <a href='https://github.com/" + \
+                repo_owner + "/" + repo_name + "#-installation-guide' target='_blank' title='Install " + \
+                notebook_item + " locally'>local installation</a> \n\n"
+            binder_badge = ".. raw:: html\n\n   <a href='" + notebooks_binder + \
+                nb_path + "' target='_blank' title='Run " + notebook_item + \
+                " on Binder'><img src='" + binder_image_source + "' class='notebook_badge' alt='Binder'></a>\n\n"
+            colab_badge = ".. raw:: html\n\n   <a href='" + notebooks_colab + \
+                nb_path + "' target='_blank' title='Run " + notebook_item + \
+                " on Google Colab'><img src='" + colab_image_source + "' class='notebook_badge'alt='Google Colab'></a>\n\n"
+            github_badge = ".. raw:: html\n\n   <a href='" + notebooks_repo + \
+                nb_path + "' target='_blank' title='View " + notebook_item + \
+                " on Github'><img src='" + github_image_source + "' class='notebook_badge' alt='Github'></a><br><br>\n\n"
 
             binder_data = {
                 "owner": repo_owner,
                 "repo": repo_name,
                 "folder": repo_directory,
-                "link_git": notebooks_repo + nb_path,
-                "link_binder": notebooks_binder + nb_path,
-                "link_colab": notebooks_colab + nb_path,
+                "link_git": github_badge,
+                "link_binder": binder_badge if notebook_item in buttons_list else "",
+                "link_colab": colab_badge if notebook_item in cbuttons_list else "",
+                "installation_link": local_install
             }
 
-            if notebook_item in buttons_list:
-                template = template_with_colab_and_binder if notebook_item in cbuttons_list else template_with_binder
+            if notebook_item in buttons_list or notebook_item in cbuttons_list:
+                template = template_with_colab_and_binder
             else:
-                template = template_with_colab if notebook_item in cbuttons_list else template_without_binder
+                template = template_without_binder
 
             button_text = create_content(template, binder_data, notebook_file)
             if not add_content_below(button_text, f"{self.nb_path}/{notebook_file}"):

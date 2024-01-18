@@ -80,7 +80,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
 CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config)
+                             const ExecutionConfig& config,
+                             const bool loaded_from_cache)
     : ov::ICompiledModel(nullptr,
                          plugin,
                          context,
@@ -90,7 +91,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
-    , m_loaded_from_cache(true) {
+    , m_loaded_from_cache(loaded_from_cache) {
     {
         size_t num_params;
         ib >> num_params;

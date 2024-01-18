@@ -12,7 +12,7 @@ Models with only 1 input and output are supported.
 | Validated Layout            | NCHW                                                                                                     |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                |
 | Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)      |
-| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_hello_reshape_ssd_README.html)   |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_sample_hello_reshape_ssd.html)                            |
 
 The following Python API is used in the application:
 
@@ -23,4 +23,4 @@ The following Python API is used in the application:
 |                  | [openvino.runtime.Output.get_any_name](https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name),  |                      |
 |                  | [openvino.runtime.PartialShape](https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html)                                         |                      |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html).

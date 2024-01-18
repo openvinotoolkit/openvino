@@ -60,10 +60,10 @@ class TestWhile(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
+                         use_new_frontend):
         self._test(*self.create_while_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestWhileShapeVariant(CommonTFLayerTest):
@@ -120,10 +120,10 @@ class TestWhileShapeVariant(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
+                         use_new_frontend):
         self._test(*self.create_while_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestWhileWithNestedIf(CommonTFLayerTest):
@@ -194,7 +194,7 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_with_nested_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_new_frontend, use_old_api):
+                                        use_new_frontend):
         self._test(*self.create_while_with_nested_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

@@ -229,8 +229,11 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+
+    void update_paddings();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
+    void do_runtime_skip_permute();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
     void configure_shape_of_dependencies();
@@ -367,7 +370,7 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t max_output_layout_size = 0;
+    size_t _max_output_layout_count = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);

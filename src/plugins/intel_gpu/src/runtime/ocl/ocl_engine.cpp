@@ -208,7 +208,7 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
                                     memory.get_mem_tracker());
         }
     } catch (cl::Error const& err) {
-        throw ocl::ocl_error(err);
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
 

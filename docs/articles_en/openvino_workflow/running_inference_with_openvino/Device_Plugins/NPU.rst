@@ -4,7 +4,7 @@ NPU Device
 ==========
 
 .. meta::
-   :description: OpenVINO™ supports the Neural Processing Unit,  
+   :description: OpenVINO™ supports the Neural Processing Unit,
                  a low-power processing device dedicated to running AI inference.
 
 
@@ -13,17 +13,19 @@ Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It ena
 you to offload certain neural network computation tasks from other devices,
 for more streamlined resource management.
 
-For an in-depth description of the NPU plugin, see:
+Note that the NPU plugin is currently available only with the Archive distribution of OpenVINO™
+and you need to :doc:`install a proper NPU driver <openvino_docs_install_guides_configurations_for_intel_npu>`
+to use it successfully. For an in-depth description of the NPU plugin, see:
 
-•	`NPU plugin developer documentation <https://github.com/openvinotoolkit/npu_plugin/blob/develop/docs/VPUX_DG/index.md>`__
-•	`OpenVINO Runtime NPU plugin source files <https://github.com/openvinotoolkit/npu_plugin>`__
+* `NPU plugin developer documentation <https://github.com/openvinotoolkit/npu_plugin/blob/develop/docs/VPUX_DG/index.md>`__
+* `OpenVINO Runtime NPU plugin source files <https://github.com/openvinotoolkit/npu_plugin>`__
 
 
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
 |   NPU device: NPU 3720
 |   OS: Ubuntu* 20, MS Windows* 11 (both 64-bit)
-		
+
 
 | **Supported Inference Data Types**
 | The NPU plugin supports the following data types as inference precision of internal primitives:
@@ -32,7 +34,7 @@ For an in-depth description of the NPU plugin, see:
 |    Computation precision for the HW is fp16.
 |
 | For more details on how to get a quantized model, refer to the
-  :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>`, and 
+  :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>`, and
   :doc:`NNCF tool quantization guide <basic_quantization_flow>`.
 
 
@@ -56,13 +58,13 @@ UMD Dynamic Model Caching
 +++++++++++++++++++++++++++++
 
 UMD model caching is a solution enabled by default in the current NPU driver.
-It improves time to first inference (FIL) by storing the model in the cache 
+It improves time to first inference (FIL) by storing the model in the cache
 after the compilation (included in FEIL), based on a hash key. The process
 may be summarized in three stages:
 
 1. UMD generates the key from the input IR model and build arguments
 2. UMD requests the DirectX Shader cache session to store the model
-   with the computed key. 
+   with the computed key.
 3. All subsequent requests to compile the same IR model with the same arguments
    use the pre-compiled model, reading it from the cache instead of recompiling.
 
@@ -73,7 +75,7 @@ OpenVINO Model Caching
 OpenVINO Model Caching is a common mechanism for all OpenVINO device plugins and
 can be enabled by setting the ``ov::cache_dir`` property. This way, the UMD model
 caching is automatically bypassed by the NPU plugin, which means the model
-will only be stored in the OpenVINO cache after compilation. When a cache hit 
+will only be stored in the OpenVINO cache after compilation. When a cache hit
 occurs for subsequent compilation requests, the plugin will import the model
 instead of recompiling it.
 
@@ -86,8 +88,8 @@ Supported Features and properties
 
 The NPU device is currently supported by AUTO and MULTI inference modes.
 
-The NPU support in OpenVINO is still under active development and may 
-offer a limited set of supported OpenVINO features. 
+The NPU support in OpenVINO is still under active development and may
+offer a limited set of supported OpenVINO features.
 
 **Supported Properties:**
 
@@ -110,11 +112,11 @@ offer a limited set of supported OpenVINO features.
          ov::intel_vpux::dpu_groups
          ov::intel_vpux::dma_engines
          ov::intel_vpux::compilation_mode
-         ov::intel_vpux::compilation_mode_params 
-         ov::intel_vpux::print_profiling 
-         ov::intel_vpux::profiling_output_file 
-         ov::intel_vpux::vpux_platform 
-         ov::intel_vpux::use_elf_compiler_backend 
+         ov::intel_vpux::compilation_mode_params
+         ov::intel_vpux::print_profiling
+         ov::intel_vpux::profiling_output_file
+         ov::intel_vpux::vpux_platform
+         ov::intel_vpux::use_elf_compiler_backend
 
    .. tab-item:: Read-only properties
 
@@ -132,7 +134,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_vpux::device_total_mem_size
          ov::intel_vpux::driver_version
 
-.. note:: 
+.. note::
 
    The optimum number of inference requests returned by the plugin
    based on the performance mode is **4 for THROUGHPUT** and **1 for LATENCY**.
@@ -142,10 +144,10 @@ offer a limited set of supported OpenVINO features.
 Limitations
 #############################
 
-* Currently, only the models with static shapes are supported on NPU. 
+* Currently, only the models with static shapes are supported on NPU.
 * If the path to the model file includes non-Unicode symbols, such as in Chinese,
-  the model cannot be used for inference on NPU. It will return an error. 
-* Running the Alexnet model with NPU may result in a drop in accuracy. 
+  the model cannot be used for inference on NPU. It will return an error.
+* Running the Alexnet model with NPU may result in a drop in accuracy.
   At this moment, the googlenet-v4 model is recommended for classification tasks.
 
 

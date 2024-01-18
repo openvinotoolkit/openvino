@@ -5,7 +5,6 @@
 #include "common_test_utils/data_utils.hpp"
 
 #include "blob_factory.hpp"
-#include "debug.h"  // to allow putting vector into exception string stream
 #include "ie_blob.h"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type_traits.hpp"

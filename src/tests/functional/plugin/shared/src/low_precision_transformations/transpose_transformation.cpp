@@ -8,15 +8,14 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/transpose.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
@@ -31,9 +30,11 @@ std::string TransposeTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void TransposeTransformation::SetUp() {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes(testValues.inputShape);
 
     function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,
@@ -43,7 +44,7 @@ void TransposeTransformation::SetUp() {
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
