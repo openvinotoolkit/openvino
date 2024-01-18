@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/aligned_buffer.hpp"
+
 #include <algorithm>
 #include <memory>
-
-// #include "ngraph/util.hpp"
-#include "openvino/runtime/aligned_buffer.hpp"
-// #include "openvino/util/log.hpp"
 
 namespace ov {
 AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}

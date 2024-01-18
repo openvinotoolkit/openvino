@@ -13,7 +13,7 @@ namespace test {
 
 class DenormalNullifyCheck : public SubgraphBaseTest {
 protected:
-std::shared_ptr<ov::AlignedBuffer> pConstStorage;
+std::unique_ptr<ov::AlignedBuffer> pConstStorage;
 
 void validate() override {
     const auto& actualOutputs = get_plugin_outputs();
@@ -41,7 +41,7 @@ void SetUp() override {
     const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
-    pConstStorage = std::make_shared<ov::AlignedBuffer>(elemsCount, alignment);
+    pConstStorage.reset(new ov::AlignedBuffer(elemsCount, alignment));
 
     auto constTensor = ov::Tensor(rtPrc, inpShape, pConstStorage->get_ptr());
     auto constNode = std::make_shared<ov::op::v0::Constant>(constTensor);
