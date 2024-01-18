@@ -16,7 +16,6 @@
 
 #include <utility>
 
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/op/util/variable_value.hpp"
 
 namespace ngraph {

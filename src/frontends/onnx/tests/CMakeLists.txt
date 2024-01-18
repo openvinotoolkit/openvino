@@ -122,7 +122,7 @@ add_executable(ov_onnx_frontend_tests ${SRC})
 add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*)
 set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
-add_dependencies(ov_onnx_frontend_tests template_extension)
+add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
 target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 

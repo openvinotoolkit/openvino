@@ -122,27 +122,33 @@ public:
         }
 
         // pre SDPA transpose
-        auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
+        auto preOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(
+            pastk,
+            beam_idx,
+            ov::op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(
+            pastv,
+            beam_idx,
+            ov::op::v0::Constant::create(ElementType::i32, {1}, {transposeOrder[0]}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
 
-        auto unsquezeAxis = op::v0::Constant::create(ov::element::i32, {}, {-2});
+        auto unsquezeAxis = ov::op::v0::Constant::create(ov::element::i32, {}, {-2});
         auto unsqueezeK = std::make_shared<ov::op::v0::Unsqueeze>(concatK, unsquezeAxis);
         auto unsqueezeV = std::make_shared<ov::op::v0::Unsqueeze>(concatV, unsquezeAxis);
 
-        auto targetShape = op::v0::Constant::create(qkvType, {1, 1, 1, 4, 1}, {1});
+        auto targetShape = ov::op::v0::Constant::create(qkvType, {1, 1, 1, 4, 1}, {1});
         auto broadcastK = std::make_shared<ov::op::v1::Multiply>(unsqueezeK, targetShape);
         auto broadcastV = std::make_shared<ov::op::v1::Multiply>(unsqueezeV, targetShape);
 
-        auto target4D = op::v0::Constant::create(ov::element::i32, {4}, {0, 0, 8, 64});
+        auto target4D = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 0, 8, 64});
 
         auto reshapeK = std::make_shared<ov::op::v1::Reshape>(broadcastK, target4D, true);
         auto reshapeV = std::make_shared<ov::op::v1::Reshape>(broadcastV, target4D, true);
@@ -170,7 +176,7 @@ public:
         auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
         auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true);  // BLHS -> B,L,HxS
 
-        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, op::v0::Constant::create(qkvType, {1}, {1.0f}));
+        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, ov::op::v0::Constant::create(qkvType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");

@@ -19,7 +19,7 @@ namespace subgraph {
 class SplitFunction {
 public:
     static std::shared_ptr<ov::Model> getOriginal(
-        const element::Type& precision,
+        const ov::element::Type& precision,
         const ov::PartialShape& inputShape,
         const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
@@ -34,7 +34,7 @@ public:
         const size_t numSplit);
 
     static std::shared_ptr<ov::Model> getReference(
-        const element::Type& precision,
+        const ov::element::Type& precision,
         const ov::PartialShape& inputShape,
         const ov::element::Type inputPrecision,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

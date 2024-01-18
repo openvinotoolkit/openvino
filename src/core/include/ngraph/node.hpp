@@ -57,17 +57,7 @@ namespace ngraph {
 
 using ov::Node;
 
-namespace runtime {
-class HostTensor;
-}
-NGRAPH_SUPPRESS_DEPRECATED_START
-using HostTensor = runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 namespace op {
-
 namespace v0 {
 using ov::op::v0::Result;
 }

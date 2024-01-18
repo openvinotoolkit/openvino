@@ -3,146 +3,65 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_core.hpp>
-#include <ngraph/ngraph.hpp>
-#include <file_utils.h>
-#include <common_test_utils/test_assertions.hpp>
+
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "file_utils.h"
+#include "openvino/frontend/extension.hpp"
+#include "openvino/runtime/core.hpp"
 
-class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
+using testing::ElementsAreArray;
+
+class CustomAbs : public ov::op::Op {
 public:
-    explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
-
-    InferenceEngine::StatusCode
-    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-        return InferenceEngine::StatusCode::OK;
-    }
-
-    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-        InferenceEngine::LayerConfig layerConfig;
-
-        if (node->outputs().size() != 1 && node->inputs().size() != 1)
-            return InferenceEngine::GENERAL_ERROR;
-
-        InferenceEngine::DataConfig cfg;
-        cfg.constant = false;
-        cfg.inPlace = 0;
-
-        InferenceEngine::SizeVector order;
-        auto partialShape = node->get_output_partial_shape(0);
-        if (partialShape.is_dynamic())
-            return InferenceEngine::GENERAL_ERROR;
-
-        auto shape = node->get_output_shape(0);
-        for (size_t i = 0; i < shape.size(); i++) {
-            order.push_back(i);
-        }
-        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                shape, {shape, order});
-        layerConfig.outConfs.push_back(cfg);
-        layerConfig.inConfs.push_back(cfg);
-        conf.push_back(layerConfig);
-        return InferenceEngine::OK;
-    }
-
-    InferenceEngine::StatusCode
-    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-        for (size_t i = 0; i < inputs.size(); i++) {
-            InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
-            InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
-            if (!moutput || !minput) {
-                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
-            }
-            // locked memory holder should be alive all time while access to its buffer happens
-            auto minputHolder = minput->rmap();
-            auto moutputHolder = moutput->wmap();
-
-            auto inputData = minputHolder.as<const float *>();
-            auto outputData = moutputHolder.as<float  *>();
-            for (size_t j = 0; j < minput->size(); j++) {
-                outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
-            }
-        }
-        return InferenceEngine::StatusCode::OK;
-    }
-
-private:
-    const std::shared_ptr<ngraph::Node> node;
-};
-
-class CustomAbs : public ngraph::op::Op {
-public:
-    OPENVINO_RTTI("CustomAbs", "custom_opset");
+    OPENVINO_OP("CustomAbs", "custom_opset")
 
     CustomAbs() = default;
-    CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
+    CustomAbs(const ov::Output<ov::Node>& arg) : ov::op::Op({arg}) {
         constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override {
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     }
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         return std::make_shared<CustomAbs>(new_args.at(0));
     }
-    bool visit_attributes(ngraph::AttributeVisitor&) override {
+    bool visit_attributes(ov::AttributeVisitor&) override {
         return true;
     }
-};
 
-class CustomAbsExtension : public InferenceEngine::IExtension {
-public:
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
-
-    void Unload() noexcept override {}
-
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        std::map<std::string, ngraph::OpSet> opsets;
-        ngraph::OpSet opset;
-        opset.insert<CustomAbs>();
-        opsets["custom_opset"] = opset;
-        return opsets;
+    bool has_evaluate() const override {
+        return get_input_element_type(0) == ov::element::f32;
     }
 
-    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (node->description() != CustomAbs::get_type_info_static().name)
-            return {};
-        return {"CPU"};
-    }
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
+        if (inputs[0].get_element_type() == ov::element::f32) {
+            outputs[0].set_shape(inputs[0].get_shape());
 
-    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-        return std::make_shared<CustomAbsKernel>(node);
+            auto first = inputs[0].data<const float>();
+
+            std::transform(first, first + inputs[0].get_size(), outputs[0].data<float>(), [](float v) {
+                return v < 0 ? -v * 2.0f : v;
+            });
+            return true;
+        } else {
+            return false;
+        }
     }
 };
 
-static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& network,
-                 const std::vector<float>& input_values, const std::vector<float>& expected) {
-    auto function = network.getFunction();
+static void infer_model(ov::Core& core,
+                        ov::CompiledModel& model,
+                        std::vector<float>& input_values,
+                        const std::vector<float>& expected) {
+    auto input_tensor = ov::Tensor(ov::element::f32, model.input(0).get_shape(), input_values.data());
 
-    auto network_inputs = network.getInputsInfo();
-    auto network_outputs = network.getOutputsInfo();
-    auto exe_network = ie.LoadNetwork(network, "CPU");
-    auto inference_req = exe_network.CreateInferRequest();
-    const auto& input = network_inputs.begin();
-    const auto& input_info = input->second;
+    auto infer_req = model.create_infer_request();
+    infer_req.set_input_tensor(input_tensor);
+    infer_req.infer();
 
-    auto blob = std::make_shared<InferenceEngine::TBlob<float>>(input_info->getTensorDesc());
-    blob->allocate();
-    ASSERT_EQ(input_values.size(), blob->size());
-    float* blob_buffer = blob->wmap().template as<float*>();
-    std::copy(input_values.begin(), input_values.end(), blob_buffer);
-    inference_req.SetBlob(input->first, blob);
-
-    inference_req.Infer();
-
-    auto output = network_outputs.begin();
-    InferenceEngine::MemoryBlob::CPtr computed = InferenceEngine::as<InferenceEngine::MemoryBlob>(inference_req.GetBlob(output->first));
-    const auto computed_data = computed->rmap();
-    const auto* computed_data_buffer = computed_data.template as<const float*>();
-    std::vector<float> computed_values(computed_data_buffer,
-                                   computed_data_buffer + computed->size());
-    ASSERT_EQ(expected, computed_values);
+    auto computed = infer_req.get_output_tensor(0);
+    EXPECT_THAT(expected, ElementsAreArray(computed.data<const float>(), computed.get_size()));
 }
 
 static std::string model_full_path(const char* path) {
@@ -191,19 +110,21 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
-    InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<CustomAbsExtension>());
-    InferenceEngine::Blob::CPtr weights;
-    auto network = ie.ReadNetwork(model, weights);
-    infer_model(ie, network, input_values, expected);
+
+    ov::Core core;
+    core.add_extension(std::make_shared<ov::OpExtension<CustomAbs>>());
+    auto weights = ov::Tensor();
+    auto ov_model = core.read_model(model, weights);
+    auto compiled_model = core.compile_model(ov_model);
+
+    infer_model(core, compiled_model, input_values, expected);
 }
 
 
 static std::string get_extension_path() {
     return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
-        std::string("template_extension") + OV_BUILD_POSTFIX);
+                                                  std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
-
 
 TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
@@ -220,7 +141,7 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
                 </port>
             </output>
         </layer>
-        <layer name="operation" id="1" type="Template" version="custom_opset">
+        <layer name="operation" id="1" type="Identity" version="extension">
             <data  add="11"/>
             <input>
                 <port id="1" precision="FP32">
@@ -258,21 +179,26 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
 )V0G0N";
 
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
-    std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
-    InferenceEngine::Core ie;
-    ie.SetConfig({ { ov::hint::inference_precision.name(), ov::element::f32.get_type_name() } }, "CPU");
-    ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    InferenceEngine::Blob::CPtr weights;
-    auto network = ie.ReadNetwork(model, weights);
-    infer_model(ie, network, input_values, expected);
-}
+    std::vector<float> expected{1, 2, 3, 4, 5, 6, 7, 8};
 
+    ov::Core core;
+    core.set_property("CPU", {{ov::hint::inference_precision.name(), ov::element::f32.get_type_name()}});
+    core.add_extension(get_extension_path());
+    auto weights = ov::Tensor();
+    auto ov_model = core.read_model(model, weights);
+    auto compiled_model = core.compile_model(ov_model);
+
+    infer_model(core, compiled_model, input_values, expected);
+}
 
 TEST(Extension, OnnxModelWithExtensionFromDSO) {
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
-    std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
-    InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_template_op.onnx"));
-    infer_model(ie, network, input_values, expected);
+    std::vector<float> expected{1, 2, 3, 4, 5, 6, 7, 8};
+
+    ov::Core core;
+    core.add_extension(get_extension_path());
+    auto ov_model = core.read_model(model_full_path("func_tests/models/custom_template_op.onnx"));
+    auto compiled_model = core.compile_model(ov_model);
+
+    infer_model(core, compiled_model, input_values, expected);
 }

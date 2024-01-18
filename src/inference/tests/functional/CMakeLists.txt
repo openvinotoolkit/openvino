@@ -10,7 +10,6 @@ endif()
 
 set(DEPENDENCIES
     mock_engine
-    template_extension
     openvino_template_extension
 )
 

@@ -58,10 +58,10 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         if_node->set_else_body(else_branch);
 
         const auto then_branch_inputs_from_parent = conditional_block->get_inputs_from_parent();
-        NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size(),
-                     "Number of inputs to 'then_branch' is invalid. Expected " +
-                         std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
-                         std::to_string(then_params.size()));
+        OPENVINO_ASSERT(then_branch_inputs_from_parent.size() == then_params.size(),
+                        "Number of inputs to 'then_branch' is invalid. Expected " +
+                            std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
+                            std::to_string(then_params.size()));
         auto then_param = then_params.cbegin();
         for (const auto& from_parent : then_branch_inputs_from_parent) {
             if_node->set_input(from_parent, *then_param, nullptr);

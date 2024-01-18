@@ -32,7 +32,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -277,70 +276,6 @@ NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ngraph::element_typ
         result[i] = static_cast<T>(data[i]);
     }
     return result;
-}
-template <typename T>
-NGRAPH_API_DEPRECATED std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor) {
-    NGRAPH_CHECK(tensor != nullptr, "Invalid Tensor received, can't read the data from a null pointer.");
-
-    switch (tensor->get_element_type()) {
-    case ngraph::element::Type_t::boolean: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::boolean>();
-        return array_2_vector<T, ngraph::element::Type_t::boolean>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::bf16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::bf16>();
-        return array_2_vector<T, ngraph::element::Type_t::bf16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f16>();
-        return array_2_vector<T, ngraph::element::Type_t::f16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f32>();
-        return array_2_vector<T, ngraph::element::Type_t::f32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f64>();
-        return array_2_vector<T, ngraph::element::Type_t::f64>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i8: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i8>();
-        return array_2_vector<T, ngraph::element::Type_t::i8>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i16>();
-        return array_2_vector<T, ngraph::element::Type_t::i16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i32>();
-        return array_2_vector<T, ngraph::element::Type_t::i32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i64>();
-        return array_2_vector<T, ngraph::element::Type_t::i64>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u1:
-        NGRAPH_CHECK(false, "u1 element type is unsupported");
-        break;
-    case ngraph::element::Type_t::u8: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u8>();
-        return array_2_vector<T, ngraph::element::Type_t::u8>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u16>();
-        return array_2_vector<T, ngraph::element::Type_t::u16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u32>();
-        return array_2_vector<T, ngraph::element::Type_t::u32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u64>();
-        return array_2_vector<T, ngraph::element::Type_t::u64>(p, tensor->get_element_count());
-    }
-    default:
-        NGRAPH_UNREACHABLE("unsupported element type");
-    }
 }
 
 NGRAPH_API_DEPRECATED

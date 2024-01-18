@@ -65,7 +65,7 @@ void SetUp() override {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
     pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
 
-    auto constTensor = std::make_shared<ngraph::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());
+    auto constTensor = ov::Tensor(rtPrc, inpShape, pConstStorage->get_ptr());
     auto constNode = std::make_shared<ov::op::v0::Constant>(constTensor);
     ov::NodeVector input = {params[0], constNode};
     auto concat = std::make_shared<ov::op::v0::Concat>(input, 1);

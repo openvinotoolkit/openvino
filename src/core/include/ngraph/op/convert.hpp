@@ -15,7 +15,6 @@
 #endif
 
 #include "ngraph/op/op.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/op/convert.hpp"
 
 namespace ngraph {

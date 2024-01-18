@@ -17,9 +17,8 @@ class TransformationsAfterSplitFunction {
 public:
     static std::shared_ptr<ov::Model> get(const std::string transformationName);
 
-    static std::shared_ptr<Node> getLayerByTransformationName(
-        const std::string transformationName,
-        const Output<Node> parent);
+    static std::shared_ptr<ov::Node> getLayerByTransformationName(const std::string transformationName,
+                                                                  const ov::Output<ov::Node> parent);
 };
 
 }  // namespace subgraph

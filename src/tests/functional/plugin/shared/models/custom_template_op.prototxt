@@ -5,13 +5,8 @@ graph {
     input: "A"
     output: "Y"
     name: "operation"
-    op_type: "Template"
-    domain: "custom_domain"
-    attribute {
-        name: "add"
-        type: INT
-        i: 11
-    }
+    op_type: "Identity"
+    domain: ""
   }
   name: "test_graph"
   input {

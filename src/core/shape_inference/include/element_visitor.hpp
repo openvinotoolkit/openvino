@@ -8,6 +8,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/itt.hpp"
 
 namespace ov {
