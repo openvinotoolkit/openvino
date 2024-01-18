@@ -119,7 +119,8 @@ InputModel::Ptr load_model(const string& model_path, FrontEnd::Ptr* return_front
 InputModel::Ptr load_model(const wstring& model_path, FrontEnd::Ptr* return_front_end) {
     auto front_end = get_onnx_frontend();
 
-    auto full_path = FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + ov::util::wstring_to_string(model_path));
+    auto full_path =
+        FrontEndTestUtils::make_model_path(string(TEST_ONNX_MODELS_DIRNAME) + ov::util::wstring_to_string(model_path));
     InputModel::Ptr input_model = front_end->load(ov::util::string_to_wstring(full_path));
     if (!input_model) {
         throw "Input Model is not loaded";
