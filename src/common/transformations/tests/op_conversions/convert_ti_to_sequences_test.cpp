@@ -802,3 +802,173 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+class LoopToLSTMSequenceTestSuite : public testing::WithParamInterface<bool>, public TransformationTestsF {};
+
+TEST_P(LoopToLSTMSequenceTestSuite, ConvertLoopToLSTMSequence) {
+    bool with_reshape = GetParam();
+    size_t input_size = 3;
+    size_t hidden_size = 2;
+    size_t num_sequences = 5;
+    size_t batch_size = 1;
+
+    {
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {-1});
+        auto condition = op::v0::Constant::create(element::boolean, Shape{}, {true});
+        auto iteration_counter = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto sequence_index = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_sequences, batch_size, input_size});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_sequences, batch_size, hidden_size});
+        auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, condition);
+
+        auto X_body = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_sequences, batch_size, input_size});
+        auto Y_body = std::make_shared<op::v0::Parameter>(
+            element::f32,
+            PartialShape{static_cast<int64_t>(num_sequences), static_cast<int64_t>(batch_size), -1});
+        auto C_body = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto sequence_index_body = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
+        auto H_body = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto iteration_counter_body = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
+        auto iteration_counter_step = op::v0::Constant::create(element::i32, Shape{}, {1});
+        auto iteration_counter_incremented =
+            std::make_shared<op::v1::Add>(iteration_counter_body, iteration_counter_step);
+        auto iteration_counter_limit = op::v0::Constant::create(element::i32, Shape{}, {num_sequences});
+        auto iteration_counter_less_than_limit =
+            std::make_shared<op::v1::Less>(iteration_counter_incremented, iteration_counter_limit);
+        auto sequence_index_step = op::v0::Constant::create(element::i32, Shape{}, {1});
+        auto sequence_index_incremented = std::make_shared<op::v1::Add>(sequence_index_body, sequence_index_step);
+        auto sequence_index_limit = op::v0::Constant::create(element::i32, Shape{}, {num_sequences});
+        auto sequence_index_less_than_limit =
+            std::make_shared<op::v1::Less>(sequence_index_incremented, sequence_index_limit);
+        auto output_condition =
+            std::make_shared<op::v1::LogicalAnd>(iteration_counter_less_than_limit, sequence_index_less_than_limit);
+        auto condition_result = std::make_shared<op::v0::Result>(output_condition);
+        auto Y_shape = std::make_shared<op::v3::ShapeOf>(Y_body);
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto max_sequence_length = std::make_shared<op::v8::Gather>(Y_shape, zero, zero);
+        auto sequence_index_new_shape = op::v0::Constant::create(element::i32, Shape{0}, {});
+        std::shared_ptr<Node> gather_index;
+        if (with_reshape) {
+            gather_index = std::make_shared<op::v1::Reshape>(sequence_index_body, sequence_index_new_shape, false);
+        } else {
+            gather_index = sequence_index_body;
+        }
+        auto gather_axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto X_slice = std::make_shared<op::v8::Gather>(X_body, gather_index, gather_axis);
+        std::vector<float> W_values(4 * hidden_size * input_size);
+        std::iota(W_values.begin(), W_values.end(), 0);
+        auto W = op::v0::Constant::create(element::f32, Shape{4 * hidden_size, input_size}, W_values);
+        std::vector<float> R_values(4 * hidden_size * hidden_size);
+        std::iota(R_values.begin(), R_values.end(), 0);
+        auto R = op::v0::Constant::create(element::f32, Shape{4 * hidden_size, hidden_size}, R_values);
+        std::vector<float> B_values(4 * hidden_size);
+        std::iota(B_values.begin(), B_values.end(), 0);
+        auto B = op::v0::Constant::create(element::f32, Shape{4 * hidden_size}, B_values);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X_slice,
+                                                            H_body,
+                                                            C_body,
+                                                            W,
+                                                            R,
+                                                            B,
+                                                            hidden_size,
+                                                            std::vector<std::string>{"sigmoid", "tanh", "tanh"});
+        auto Y_new_shape2 = std::make_shared<op::v3::ShapeOf>(lstm_cell->output(0));
+        auto Y_new_shape = std::make_shared<op::v0::Concat>(OutputVector{max_sequence_length, Y_new_shape2}, 0);
+        auto Y_broadcasted = std::make_shared<op::v3::Broadcast>(Y_body, Y_new_shape);
+        auto sequence_index_new_shape2 = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto scatter_update_index =
+            std::make_shared<op::v1::Reshape>(sequence_index_body, sequence_index_new_shape2, false);
+        auto H_unsqueezed = std::make_shared<op::v0::Unsqueeze>(lstm_cell->output(0), zero);
+        auto scatter_update =
+            std::make_shared<op::v3::ScatterUpdate>(Y_broadcasted, scatter_update_index, H_unsqueezed, zero);
+        auto Y_result = std::make_shared<op::v0::Result>(scatter_update);
+        auto Co_result = std::make_shared<op::v0::Result>(lstm_cell->output(1));
+        auto sequence_index_result = std::make_shared<op::v0::Result>(sequence_index_incremented);
+        auto Ho_result = std::make_shared<op::v0::Result>(lstm_cell->output(0));
+        auto iteration_counter_result = std::make_shared<op::v0::Result>(iteration_counter_incremented);
+
+        ParameterVector params{X_body, H_body, C_body, Y_body, sequence_index_body, iteration_counter_body};
+        ResultVector results{Y_result,
+                             Ho_result,
+                             Co_result,
+                             sequence_index_result,
+                             iteration_counter_result,
+                             condition_result};
+        auto body = std::make_shared<Model>(results, params);
+        loop->set_function(body);
+
+        loop->set_invariant_input(X_body, X);
+        loop->set_invariant_input(Y_body, Y);
+        loop->set_merged_input(iteration_counter_body, iteration_counter, iteration_counter_result);
+        loop->set_merged_input(sequence_index_body, sequence_index, sequence_index_result);
+        loop->set_merged_input(H_body, H, Ho_result);
+        loop->set_merged_input(C_body, C, Co_result);
+        loop->get_iter_value(Y_result, -1);
+        loop->set_special_body_ports({-1, 5});
+        auto transpose = std::make_shared<op::v1::Transpose>(loop->output(0), op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
+
+        model = std::make_shared<Model>(transpose, ParameterVector{X, Y, H, C});
+
+        manager.register_pass<pass::ConvertLoopToLSTMSequence>();
+    }
+
+    {
+        auto perm = op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_sequences, batch_size, input_size});
+        auto X_t = std::make_shared<op::v1::Transpose>(X, perm);
+        auto one = op::v0::Constant::create(element::i32, Shape{1}, {1});
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto shapeof_X = std::make_shared<op::v3::ShapeOf>(X_t);
+        auto batch_size_node = std::make_shared<op::v8::Gather>(shapeof_X, zero, zero);
+        auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto new_H_shape =
+            std::make_shared<op::v0::Concat>(OutputVector{batch_size_node, std::make_shared<op::v3::ShapeOf>(H)}, 0);
+        auto H_broadcasted = std::make_shared<op::v3::Broadcast>(H, new_H_shape);
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto new_C_shape =
+            std::make_shared<op::v0::Concat>(OutputVector{batch_size_node, std::make_shared<op::v3::ShapeOf>(C)}, 0);
+        auto C_broadcasted = std::make_shared<op::v3::Broadcast>(C, new_C_shape);
+
+        std::vector<float> W_values(4 * hidden_size * input_size);
+        std::iota(W_values.begin(), W_values.end(), 0);
+        std::vector<float> R_values(4 * hidden_size * hidden_size);
+        std::iota(R_values.begin(), R_values.end(), 0);
+        std::vector<float> B_values(4 * hidden_size);
+        std::iota(B_values.begin(), B_values.end(), 0);
+        auto W = std::make_shared<op::v0::Unsqueeze>(
+            op::v0::Constant::create(element::f32, Shape{4 * hidden_size, input_size}, W_values),
+            zero);
+        auto R = std::make_shared<op::v0::Unsqueeze>(
+            op::v0::Constant::create(element::f32, Shape{4 * hidden_size, hidden_size}, R_values),
+            zero);
+        auto B = std::make_shared<op::v0::Unsqueeze>(
+            op::v0::Constant::create(element::f32, Shape{4 * hidden_size}, B_values),
+            zero);
+
+        auto sequence_lengths = op::v0::Constant::create(element::i32, Shape{1}, {num_sequences});
+        auto lstm = std::make_shared<op::v5::LSTMSequence>(X_t,
+                                                           H_broadcasted,
+                                                           C_broadcasted,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size,
+                                                           op::v5::LSTMSequence::direction::FORWARD,
+                                                           std::vector<float>{},
+                                                           std::vector<float>{},
+                                                           std::vector<std::string>{"sigmoid", "tanh", "tanh"});
+        auto Ho_squeezed = std::make_shared<op::v0::Squeeze>(lstm->output(0), one);
+
+        model_ref = std::make_shared<Model>(Ho_squeezed, ParameterVector{X, H, C});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(ConvertLoopToLSTMSequence, LoopToLSTMSequenceTestSuite, testing::Values(false, true));
