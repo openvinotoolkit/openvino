@@ -22,11 +22,11 @@ const std::vector<ov::test::ThresholdParams> thresholdParams = {
 const std::vector<int> backgroudClass = {-1, 1};
 const std::vector<bool> normalized = {true, false};
 const std::vector<ov::op::v8::MatrixNms::DecayFunction> decayFunction = {ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN,
-                                                                     ov::op::v8::MatrixNms::DecayFunction::LINEAR};
+                                                                         ov::op::v8::MatrixNms::DecayFunction::LINEAR};
 
 const auto nmsParamsStatic =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
-                       ::testing::ValuesIn(outType),
+                       ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(sortResultType),
                        ::testing::ValuesIn(outType),
                        ::testing::ValuesIn(topKParams),
