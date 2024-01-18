@@ -48,8 +48,8 @@ public:
     void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
     void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
     void set_reg(Reg reg) { m_reg = std::move(reg); }
-    void set_reg_type(RegType type) { m_reg.first = type; }
-    void set_reg_num(size_t num) { m_reg.second = num; }
+    void set_reg_type(RegType type) { m_reg.type = type; }
+    void set_reg_idx(size_t idx) { m_reg.idx = idx; }
 
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
@@ -67,7 +67,7 @@ private:
     /// \brief Minimal tensor size that could be processed in one call
     VectorDims m_subtensor_shape{};
     /// \brief The corresponding abstract/physical register
-    Reg m_reg;
+    Reg m_reg { RegType::gpr, 0 };
 
     /// Notes:
     ///   - `m_tensor_shape` is dense shape which is controlled by expression outputs.

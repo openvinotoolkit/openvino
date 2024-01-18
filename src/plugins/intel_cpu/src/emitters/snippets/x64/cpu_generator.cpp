@@ -216,11 +216,11 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
     const auto op = out.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<intel_cpu::BrgemmCPU>(op) ||
         std::dynamic_pointer_cast<intel_cpu::BrgemmCopyB>(op))
-        return ov::snippets::gpr;
+        return ov::snippets::RegType::gpr;
     else if (
         std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op) ||
         std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
-        return ov::snippets::vec;
+        return ov::snippets::RegType::vec;
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }

@@ -136,11 +136,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (const auto& expr : exprs) {
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out = expr->get_output_port(i);
-            switch (out.get_descriptor_ptr()->get_reg().first) {
-                case vec:
+            switch (out.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
                     enumerate_out_tensor(out.get_port_connector_ptr(), regs_vec, manually_assigned_vecs, counter_vec);
                     break;
-                case gpr:
+                case RegType::gpr:
                     enumerate_out_tensor(out.get_port_connector_ptr(), regs_gpr, manually_assigned_gprs, counter_gpr);
                     break;
                 default:
@@ -172,11 +172,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         std::vector<tensor> used_gpr_tensors, used_vec_tensors, defined_gpr_tensors, defined_vec_tensors;
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
             const auto& in = expr->get_input_port(i);
-            switch (in.get_descriptor_ptr()->get_reg().first) {
-                case vec:
+            switch (in.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
                     used_vec_tensors.push_back(in.get_port_connector_ptr());
                     break;
-                case gpr:
+                case RegType::gpr:
                     used_gpr_tensors.push_back(in.get_port_connector_ptr());
                     break;
                 default:
@@ -185,11 +185,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out = expr->get_output_port(i);
-            switch (out.get_descriptor_ptr()->get_reg().first) {
-                case vec:
+            switch (out.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
                     defined_vec_tensors.push_back(out.get_port_connector_ptr());
                     break;
-                case gpr:
+                case RegType::gpr:
                     defined_gpr_tensors.push_back(out.get_port_connector_ptr());
                     break;
                 default:
@@ -345,14 +345,12 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     register_assigned_regs(regs_gpr, unique2reused_map_gpr);
 
     for (const auto& expr : exprs) {
-        RegInfo rinfo = expr->get_reg_info();
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
-            rinfo.first[i].second = assigned_regs[expr->get_input_port_connector(i)];
+            expr->get_input_port_descriptor(i)->set_reg_idx(assigned_regs[expr->get_input_port_connector(i)]);
         }
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
-            rinfo.second[i].second = assigned_regs[expr->get_output_port_connector(i)];
+            expr->get_output_port_descriptor(i)->set_reg_idx(assigned_regs[expr->get_output_port_connector(i)]);
         }
-        expr->set_reg_info(rinfo);
     }
     return false;
 }

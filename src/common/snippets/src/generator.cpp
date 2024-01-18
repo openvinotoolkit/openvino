@@ -87,7 +87,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
         || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
 #endif
         )
-        return gpr;
+        return RegType::gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op) ||
              ov::op::util::is_unary_elementwise_arithmetic(op) ||
@@ -104,7 +104,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
              std::dynamic_pointer_cast<op::HorizonMax>(op) ||
              std::dynamic_pointer_cast<op::HorizonSum>(op) ||
              std::dynamic_pointer_cast<op::Fill>(op))
-        return vec;
+        return RegType::vec;
     else
         return get_specific_op_out_reg_type(op);
 }

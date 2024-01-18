@@ -48,16 +48,16 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         const auto &shape = desc->get_shape();
         if (!shape.empty())
             shapes.emplace_back("in_shape_" + std::to_string(i), shape);
-        in_reg_types.emplace_back(regTypeToStr(desc->get_reg().first));
-        in_regs.emplace_back(desc->get_reg().second);
+        in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
+        in_regs.emplace_back(desc->get_reg().idx);
     }
     for (size_t i = 0; i < m_expr->get_output_count(); i++) {
         const auto& desc = m_expr->get_output_port_descriptor(i);
         const auto &shape = desc->get_shape();
         if (!shape.empty())
             shapes.emplace_back("out_shape_" + std::to_string(i), shape);
-        out_reg_types.emplace_back(regTypeToStr(desc->get_reg().first));
-        out_regs.emplace_back(desc->get_reg().second);
+        out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
+        out_regs.emplace_back(desc->get_reg().idx);
     }
 
     if (!in_regs.empty()) {

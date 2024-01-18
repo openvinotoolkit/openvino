@@ -16,8 +16,20 @@ namespace snippets {
  * @interface RegType
  * @brief Register type of input and output operations
  */
-enum RegType { gpr, vec };
-using Reg = std::pair<RegType, size_t>;
+enum class RegType { gpr, vec };
+/**
+ * @interface Reg
+ * @brief Register representation: type of register and index
+ */
+struct Reg {
+    Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
+
+    RegType type = RegType::gpr;
+    size_t idx = 0;
+
+    friend bool operator==(const Reg& lhs, const Reg& rhs);
+    friend bool operator!=(const Reg& lhs, const Reg& rhs);
+};
 using RegInfo = std::pair<std::vector<Reg>, std::vector<Reg>>;
 
 std::string regTypeToStr(const RegType& type);

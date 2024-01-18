@@ -25,8 +25,8 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, m
         std::vector<snippets::Reg> physical_regs = abstract_regs;
         for (size_t i = 0; i < abstract_regs.size(); ++i) {
             const auto& abstract_reg = abstract_regs[i];
-            const auto& type = abstract_reg.first;
-            const auto& abstract = abstract_reg.second;
+            const auto& type = abstract_reg.type;
+            const auto& abstract = abstract_reg.idx;
             OPENVINO_ASSERT(one_of(type, snippets::RegType::gpr, snippets::RegType::vec), "Incorrect reg type detected!");
             auto& mapping = type == snippets::RegType::gpr ? gpr_map_pool : vec_map_pool;
             auto& abstract_to_physical = mapping.first;
@@ -35,11 +35,11 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, m
             if (abstract_to_physical.count(abstract) == 0) {
                 if (regs_pool.empty())
                     OPENVINO_THROW("Cannot map registers for jit_container_emitter: not enough regs in the pool");
-                physical.second = regs_pool.back();
+                physical.idx = regs_pool.back();
                 regs_pool.pop_back();
-                abstract_to_physical[abstract] = physical.second;
+                abstract_to_physical[abstract] = physical.idx;
             } else {
-                physical.second = abstract_to_physical[abstract];
+                physical.idx = abstract_to_physical[abstract];
             }
         }
         return physical_regs;
