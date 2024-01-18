@@ -315,6 +315,33 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedFP16)
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedBF16) {
+    {
+        auto data = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
+        auto input_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.60, 1.45, 1.30});
+        auto input_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.60, -1.45, -1.30});
+        auto output_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.30, 0.75, 0.65});
+        auto output_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.30, -0.75, -0.65});
+        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
+        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-42, -105, -118});
+        auto convert = std::make_shared<opset8::Convert>(data, element::bf16);
+        auto scale = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.002325, -0.00592, -0.00509});
+        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+
+    m_abs_threshold = 4e-2f;
+    m_rel_threshold = 7e-2f;
+}
+
 #ifdef OPENVINO_ARCH_ARM64
 // Ticket: 122666
 TEST_F(TransformationTestsF, DISABLED_NegativeCompressQuantizeWeights) {

@@ -38,6 +38,8 @@ using NodePair = std::pair<NodePtr, NodePtr>;
 TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
+    // We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
+    // and handle only 0th input of these ops.
     create_pattern<UnaryElementwiseArithmetic,
                    ov::op::v0::Clamp,
                    ov::op::v0::Elu,
@@ -51,7 +53,7 @@ TSUnaryForward::TSUnaryForward() {
                    ov::op::v4::Swish,
                    ov::op::v0::HardSigmoid,
                    ov::op::v5::LogSoftmax,
-                   ov::op::v1::ConvertLike>(true);
+                   ov::op::v1::ConvertLike>(true, {0});
     auto ts_unary_sinking_function = [this](const std::shared_ptr<Node>& main_node,
                                             const utils::TransposeInputsInfo& transpose_info) -> bool {
         bool res = utils::sink_forward::UpdateInputTransposes(main_node, transpose_info, {0});
@@ -64,7 +66,7 @@ TSUnaryForward::TSUnaryForward() {
 }
 
 TSUnaryBackward::TSUnaryBackward() {
-    MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
+    MATCHER_SCOPE(TSUnaryBackward);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
         return CheckTransposeConsumers(output);

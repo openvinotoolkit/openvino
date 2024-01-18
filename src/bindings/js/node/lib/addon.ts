@@ -81,6 +81,7 @@ interface InferRequest {
   inferAsync(inputData: { [inputName: string]: Tensor}
     | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
+  getAvailableDevices(): string[];
 }
 
 type Dimension = number | [number, number];

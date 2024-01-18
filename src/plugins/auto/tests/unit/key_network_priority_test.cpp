@@ -44,7 +44,7 @@ public:
     void SetUp() override {
         std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = GetParam();
         sizeOfConfigs = static_cast<int>(PriorityConfigs.size());
-        std::vector<std::string> gpuCability = {"FP32", "FP16", "BATCHED_BLOB", "BIN"};
+        std::vector<std::string> gpuCability = {"FP32", "FP16", "BIN"};
         ON_CALL(*core, get_property(HasSubstr("GPU"), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(gpuCability));
 

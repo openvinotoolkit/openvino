@@ -230,8 +230,8 @@ void ActivationDynamicLayerTest::Run() {
     // make each parameter dimension dynamic with range {1 .. prev_dim * 2}
     for (const auto& parameter : params) {
         auto& dynamic_pshape = parameter->get_partial_shape();
-        NGRAPH_CHECK(dynamic_pshape.rank().is_static(),
-                     "tests are not prepared to work with dynamically ranked inputs");
+        OPENVINO_ASSERT(dynamic_pshape.rank().is_static(),
+                        "tests are not prepared to work with dynamically ranked inputs");
         for (size_t i = 0; i < dynamic_pshape.rank().get_length(); ++i) {
             if (static_dims.count(i))
                 continue;
@@ -244,7 +244,7 @@ void ActivationDynamicLayerTest::Run() {
     function->validate_nodes_and_infer_types();
 
     const auto& results = function->get_results();
-    NGRAPH_CHECK(results.size() == 1);
+    OPENVINO_ASSERT(results.size() == 1);
     ASSERT_EQ(results[0]->get_output_partial_shape(0), output_shape);
     // no inference and checks are done here -- just shape check because we miss CNNNetwork functionality
     // to handle dynamic inputs-outputs and test functionality to generate blob of a certain shape

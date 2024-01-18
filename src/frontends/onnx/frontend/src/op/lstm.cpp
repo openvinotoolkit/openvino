@@ -18,7 +18,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"

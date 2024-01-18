@@ -8,7 +8,6 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -18,13 +17,12 @@
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_models/builders.hpp"
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <ngraph/op/depth_to_space.hpp>
+#include "transformations/utils/utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 #include "ov_lpt_models/depth_to_space.hpp"
 
@@ -36,8 +34,8 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
         {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
@@ -45,17 +43,19 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShape, targetDevice, params) <<
-        "_" << names[mode] << "_" << blockSize;
+    result << get_test_case_name_by_params(precision, inputShape, targetDevice, params) <<
+           "_" << names[mode] << "_" << blockSize;
     return result.str();
 }
 
 void DepthToSpaceTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     if (inputShape.rank().is_dynamic() || inputShape.rank().get_length() != 4) {
         IE_THROW() << "not supported input shape size " << inputShape.rank();
@@ -65,7 +65,7 @@ void DepthToSpaceTransformation::SetUp() {
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

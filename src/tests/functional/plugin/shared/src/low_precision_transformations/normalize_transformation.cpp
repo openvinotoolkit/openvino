@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,8 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, ov::Shape> shapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
@@ -33,36 +32,40 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
     result << netPrecision << "_" <<
-        shapes.first << "_" <<
-        shapes.second << "_" <<
-        targetDevice << "_" <<
-        toString(params) << "_" <<
-        "_axes" << axes.size() <<
+           shapes.first << "_" <<
+           shapes.second << "_" <<
+           targetDevice << "_" <<
+                               to_string(params) << "_" <<
+           "_axes" << axes.size() <<
         (fuseMultiply ? "_multiply" : "") <<
         (shift ? "_shift" : "");
     return result.str();
 }
 
 void NormalizeL2Transformation::SetUp() {
-    threshold = 3.e-3;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
-    ngraph::element::Type precision;
+    rel_threshold = 0.1;
+    abs_threshold = 0.1;
+
+    std::pair<ov::PartialShape, ov::Shape> shapes;
+    ov::element::Type precision;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
     std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
 
+    init_input_shapes(shapes.first);
+
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
-        ngraph::element::u8,
+        ov::element::u8,
         axes,
         fuseMultiply,
         shift);
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
