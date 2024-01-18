@@ -14,7 +14,6 @@
 #include "ie_network_reader.hpp"
 #include "iplugin_wrapper.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/device_id_parser.hpp"

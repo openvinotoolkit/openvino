@@ -10,10 +10,10 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
-#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
@@ -22,6 +22,12 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
 using ov::Dimension;
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
+using ov::op::v0::Negative;
+}  // namespace v0
+}  // namespace op
 
 Strides conv_default_strides(const Node* /* node */,
                              const PartialShape& data_batch_shape,
@@ -921,10 +927,6 @@ std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t)
     default:
         return nullptr;
     }
-}
-
-std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
-    return std::make_shared<op::Negative>(arg0);
 }
 }  // namespace ngraph
 

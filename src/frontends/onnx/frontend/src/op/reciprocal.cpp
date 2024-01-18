@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

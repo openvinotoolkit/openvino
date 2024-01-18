@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/memory.hpp"
-
 #include <signal.h>
 
 #include <functional_test_utils/core_config.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include "ngraph/pass/low_latency.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
 using ov::op::v1::Add;
@@ -51,7 +52,7 @@ void MemoryTest::SetUp() {
 
     auto tensor = ov::Tensor(ngPrc, inputShape);
     auto variable_context = ov::op::util::VariableContext();
-    auto variable_value = std::make_shared<VariableValue>(tensor);
+    auto variable_value = std::make_shared<ov::op::util::VariableValue>(tensor);
     variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
     eval_context["VariableContext"] = variable_context;
 }
@@ -180,14 +181,14 @@ void MemoryTest::CreateTIFunc() {
 void MemoryTest::CreateCommonFunc() {
     ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU
-                                   ? VariableInfo{Shape{inputShape}, ngPrc, "v0"}
-                                   : VariableInfo{inputShape, ngPrc, "v0"};
-    auto variable = std::make_shared<Variable>(variable_info);
+                                   ? ov::op::util::VariableInfo{Shape{inputShape}, ngPrc, "v0"}
+                                   : ov::op::util::VariableInfo{inputShape, ngPrc, "v0"};
+    auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
     auto read_value = CreateReadValueOp(param.at(0), variable);
     auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
     auto res = std::make_shared<ov::op::v0::Result>(add);
-    function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
+    function = std::make_shared<Function>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {

@@ -5,11 +5,10 @@
 #pragma once
 
 #include <cstddef>
-#include <vector>
 #include <string>
 #include <tuple>
+#include <vector>
 
-#include "ngraph/op/detection_output.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {

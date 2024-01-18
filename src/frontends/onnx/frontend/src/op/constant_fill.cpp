@@ -8,9 +8,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
 #include "onnx_common/utils.hpp"
 
 using namespace ov::frontend::onnx::common;
