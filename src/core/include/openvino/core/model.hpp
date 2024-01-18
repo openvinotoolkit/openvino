@@ -221,26 +221,6 @@ public:
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluate the model on inputs, putting results in outputs.
-    /// \param output_tensors Tensors for the outputs to compute. One for each result
-    /// \param input_tensors Tensors for the inputs. One for each inputs.
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the model. This additional information can be shared across nodes.
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    bool evaluate(const ov::HostTensorVector& output_tensors,
-                  const ov::HostTensorVector& input_tensors,
-                  ov::EvaluationContext& evaluation_context) const;
-
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluate the model on inputs, putting results in outputs.
-    /// \param output_tensors Tensors for the outputs to compute. One for each result
-    /// \param input_tensors Tensors for the inputs. One for each inputs.
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    bool evaluate(const ov::HostTensorVector& output_tensors, const ov::HostTensorVector& input_tensors) const;
-
     /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.

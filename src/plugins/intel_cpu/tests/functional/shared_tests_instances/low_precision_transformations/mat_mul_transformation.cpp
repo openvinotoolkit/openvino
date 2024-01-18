@@ -7,12 +7,10 @@
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
 };
 
 std::vector<MatMulTransformationTestValues> testValues = {

@@ -444,6 +444,68 @@ TEST_P(CompileModelCacheRuntimePropertiesTestBase, CanLoadFromFileWithoutExcepti
     run();
 }
 
+std::string CompileModelLoadFromCacheTest::getTestCaseName(
+    testing::TestParamInfo<CompileModelLoadFromCacheParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelLoadFromCacheTest::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+}
+
+void CompileModelLoadFromCacheTest::TearDown() {
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
+}
+
+void CompileModelLoadFromCacheTest::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+    EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+    std::stringstream strm;
+    compiledModel.export_model(strm);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
+    EXPECT_EQ(false, importedCompiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+    compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+    EXPECT_EQ(true, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+}
+
+TEST_P(CompileModelLoadFromCacheTest, CanGetCorrectLoadedFromCacheProperty) {
+    run();
+}
+
 std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
     testing::TestParamInfo<compileModelLoadFromMemoryParams> obj) {
     auto param = obj.param;

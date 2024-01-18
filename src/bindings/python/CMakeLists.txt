@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -62,8 +62,6 @@ endif()
 # Check python requirements
 #
 
-set(ie_build_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
-
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
     if(ENABLE_PYTHON)
@@ -94,26 +92,6 @@ function(ov_check_python_build_conditions)
         message(${message_mode} "Python 3.x Interpreter and Development.Module components are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
-    # check for Cython requirement for build IE API 1.0
-    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_build_python_req}
-                          RESULT_VAR ie_build_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_build_python_req} for IE API 1.0 requirements"
-                          MESSAGE_MODE TRACE)
-
-    # cython can be installed as a debian package, so pip requirements can be unsatisfied
-    # so, let's check to find cython anyway
-    if(NOT ie_build_python_req_FOUND)
-        find_package(Cython QUIET
-                     PATHS "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/cmake"
-                     NO_CMAKE_FIND_ROOT_PATH
-                     NO_DEFAULT_PATH)
-        if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
-            set(ie_build_python_req_FOUND ON)
-        else()
-            message(${message_mode} "Python requirements '${ie_build_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
-        endif()
-    endif()
-
     if(NOT OV_GENERATOR_MULTI_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
         set(python_debug ON)
         message(${message_mode} "Building python bindings in debug configuration is not supported on your platform (ENABLE_PYTHON is OFF)")
@@ -121,15 +99,12 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND
-        ie_build_python_req_FOUND AND NOT python_debug)
+    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
     endif()
 
-    # to disable API 1.0
-    set(ie_build_python_req_FOUND ${ie_build_python_req_FOUND} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
@@ -155,7 +130,6 @@ function(ov_check_init_files_alignment init_files)
 endfunction()
 
 set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-                       "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
 
@@ -209,7 +183,7 @@ ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
-        message(FATAL_ERROR "Python OpenVINO API build requirements are not satisfied. Please, install ${ie_build_python_req}")
+        message(FATAL_ERROR "Python OpenVINO API build requirements are not satisfied.")
     else()
         return()
     endif()
@@ -236,14 +210,7 @@ if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 endif()
 
-add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
-
-if(ie_build_python_req_FOUND)
-    add_subdirectory(src/compatibility/openvino)
-else()
-    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
-endif()
 
 #
 # Packaging
@@ -300,9 +267,7 @@ endmacro()
 macro(ov_define_setup_py_dependencies)
     foreach(_target
             # Python API dependencies
-            _pyngraph pyopenvino py_ov_frontends
-            # legacy Python API 1.0 dependencies (remove before 2024.0 release)
-            ie_api constants
+            _pyopenvino py_ov_frontends
             # plugins
             ov_plugins
             # frontends
@@ -312,12 +277,10 @@ macro(ov_define_setup_py_dependencies)
         endif()
     endforeach()
 
-    file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
     file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        ${compat_ngraph_py_files}
         "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"

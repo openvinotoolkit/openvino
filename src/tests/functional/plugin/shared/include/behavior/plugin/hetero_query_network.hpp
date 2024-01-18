@@ -6,7 +6,6 @@
 #include "common_test_utils/test_common.hpp"
 
 
-#include <ngraph/opsets/opset8.hpp>
 #include <ie/ie_core.hpp>
 
 using namespace InferenceEngine;

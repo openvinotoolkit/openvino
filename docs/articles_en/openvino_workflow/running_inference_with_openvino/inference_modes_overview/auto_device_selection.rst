@@ -4,8 +4,8 @@ Automatic Device Selection
 ==========================
 
 .. meta::
-   :description: The Automatic Device Selection mode in OpenVINO™ Runtime 
-                 detects available devices and selects the optimal processing 
+   :description: The Automatic Device Selection mode in OpenVINO™ Runtime
+                 detects available devices and selects the optimal processing
                  unit for inference automatically.
 
 
@@ -53,11 +53,11 @@ The logic behind the choice is as follows:
 |          | (e.g. Intel® Core™ Ultra)                           |                                    |
 +----------+-----------------------------------------------------+------------------------------------+
 
-.. note:: 
+.. note::
 
    Note that NPU is currently excluded from the default priority list. To use it for inference, you
    need to specify it explicitly
-   
+
 
 How AUTO Works
 ##############
@@ -71,14 +71,14 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
 unable to support the initial model compilation stage. The models with dynamic
-input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` 
-operations will be loaded to the CPU if it is in the candidate list. Otherwise, 
+input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>`
+operations will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: _static/images/autoplugin_accelerate.svg
 
 
-This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` 
+This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>`
 section, showing how the first-inference latency (the time it takes to compile the
 model and perform the first inference) is reduced when using AUTO. For example:
 
@@ -102,7 +102,7 @@ model and perform the first inference) is reduced when using AUTO. For example:
 Using AUTO
 ##########
 
-Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". 
+Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO".
 It may be defined with no additional parameters, resulting in defaults being used, or configured further with
 the following setup options:
 
@@ -197,7 +197,7 @@ the following setup options:
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
-The code samples on this page assume following import(Python)/using (C++) are included at the beginning of code snippets. 
+The code samples on this page assume following import(Python)/using (C++) are included at the beginning of code snippets.
 
 .. tab-set::
 
@@ -244,7 +244,7 @@ See the following code for using AUTO and specifying devices:
         .. doxygensnippet:: docs/snippets/AUTO0.cpp
             :language: cpp
             :fragment: [part0]
-    
+
 
 
 Note that OpenVINO Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. More details on enumerating devices can be found in :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
@@ -258,20 +258,20 @@ To check what devices are present in the system, you can use Device API, as list
 
     .. tab-item:: Python
         :sync: py
-         
+
         .. code-block:: sh
-        
+
            openvino.runtime.Core.available_devices
-        
+
         See the Hello Query Device Python Sample for reference.
 
     .. tab-item:: C++
         :sync: cpp
-        
+
         .. code-block:: sh
-           
+
            ov::runtime::Core::get_available_devices()
-        
+
         See the Hello Query Device C++ Sample for reference.
 
 
@@ -284,16 +284,16 @@ You can also exclude hardware devices from AUTO, for example, to reserve CPU for
 
     .. tab-item:: Python
         :sync: py
-        
+
         .. code-block:: sh
-           
+
            compiled_model = core.compile_model(model=model, device_name="AUTO:-CPU")
 
     .. tab-item:: C++
         :sync: cpp
-        
+
         .. code-block:: sh
-           
+
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU");
 
 
@@ -309,7 +309,7 @@ The ``ov::hint::performance_mode`` property enables you to specify a performance
 
 The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :doc:`Async API documentation <openvino_docs_OV_UG_Infer_request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
 
-* :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* :doc:`Image Classification Async Sample <openvino_sample_image_classification_async>`
 * `Notebook - Asynchronous Inference with OpenVINO™ <notebooks/115-async-api-with-output.html>`__
 * `Notebook - Automatic Device Selection with OpenVINO <notebooks/106-auto-device-with-output.html>`__
 
@@ -342,38 +342,38 @@ CUMULATIVE_THROUGHPUT has similar behavior as :doc:`the Multi-Device execution m
 If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
 
 .. tab-set::
-   
+
     .. tab-item:: Python
         :sync: py
 
         .. code-block:: sh
-         
+
            compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
 
     .. tab-item:: C++
         :sync: cpp
 
         .. code-block:: sh
-   
+
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
-   
+
 
 If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
 
 .. tab-set::
-   
+
     .. tab-item:: Python
         :sync: py
 
         .. code-block:: sh
-         
+
            compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
 
     .. tab-item:: C++
         :sync: cpp
 
         .. code-block:: sh
-   
+
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
 
 
@@ -490,9 +490,9 @@ For limited device choice:
 
 .. code-block:: sh
 
-   benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO:CPU,GPU –m <model> -i <input> -niter 1000
 
-For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
+For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
 
 .. note::
 

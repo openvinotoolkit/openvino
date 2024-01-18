@@ -21,7 +21,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
     }
 }
 
-Napi::Function PartialShapeWrap::get_class_constructor(Napi::Env env) {
+Napi::Function PartialShapeWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "PartialShapeWrap",
                        {
@@ -32,24 +32,12 @@ Napi::Function PartialShapeWrap::get_class_constructor(Napi::Env env) {
                        });
 }
 
-Napi::Object PartialShapeWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->partial_shape_prototype = ref;
-
-    exports.Set("PartialShape", prototype);
-    return exports;
-}
-
 Napi::Object PartialShapeWrap::wrap(Napi::Env env, ov::PartialShape partial_shape) {
-    const auto prototype = env.GetInstanceData<AddonData>()->partial_shape_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to PartialShape prototype.");
     }
-    auto obj = prototype->New({});
+    auto obj = prototype.New({});
     const auto t = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(obj);
     t->_partial_shape = partial_shape;
 

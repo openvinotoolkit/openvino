@@ -14,9 +14,9 @@ namespace subgraph {
 class MVNFunction {
 public:
     static std::shared_ptr<ov::Model> getOriginal(
-        const element::Type precision,
+        const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const AxisSet& reductionAxes,
+        const ov::AxisSet& reductionAxes,
         const bool& normalizeVariance,
         const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
@@ -25,13 +25,13 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const AxisSet& reductionAxes,
+        const ov::AxisSet& reductionAxes,
         const bool& normalizeVariance);
 
     static std::shared_ptr<ov::Model> getReference(
-        const element::Type precision,
+        const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const AxisSet& reductionAxes,
+        const ov::AxisSet& reductionAxes,
         const bool& normalizeVariance,
         const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
