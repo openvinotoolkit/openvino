@@ -29,6 +29,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/bitwise_and.hpp"
+#include "op/bitwise_not.hpp"
 #include "op/bitwise_or.hpp"
 #include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
@@ -356,6 +357,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
     REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
     REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);

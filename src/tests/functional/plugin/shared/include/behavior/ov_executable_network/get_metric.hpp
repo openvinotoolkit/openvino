@@ -59,7 +59,6 @@ using OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = O
 using OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetConfigTest = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkSetConfigTest = OVCompiledModelClassBaseTestP;
-using OVClassExecutableNetworkGetConfigTest = OVCompiledModelClassBaseTestP;
 
 class OVClassExecutableNetworkGetMetricTestForSpecificConfig :
         public OVClassNetworkTest,

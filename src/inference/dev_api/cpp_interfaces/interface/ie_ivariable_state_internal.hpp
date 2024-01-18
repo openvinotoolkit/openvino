@@ -8,7 +8,7 @@
 #include <string>
 
 #include "ie_blob.h"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace InferenceEngine {
 

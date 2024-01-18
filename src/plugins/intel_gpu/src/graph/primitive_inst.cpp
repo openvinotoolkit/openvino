@@ -683,10 +683,10 @@ bool primitive_inst::use_async_compilation() {
     GPU_DEBUG_IF(debug_config->disable_async_compilation) {
         return false;
     }
-    return (_node->is_type<convolution>() ||
-            _node->is_type<fully_connected>() ||
-            _node->is_type<gemm>() ||
-            _node->is_type<softmax>());
+
+    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() || _node->is_type<gemm>() ||
+            (_node->is_type<softmax>() && _node->get_selected_impl() &&
+             _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
 
 bool primitive_inst::update_impl() {
