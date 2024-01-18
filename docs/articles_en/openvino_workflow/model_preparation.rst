@@ -16,8 +16,6 @@ Model Preparation
    Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>
    Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>
 
-Supported Model Formats
-##############################################
 
 OpenVINO supports the following model formats:
 
