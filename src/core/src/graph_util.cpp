@@ -626,7 +626,7 @@ std::shared_ptr<ov::Node> make_zero(const element::Type& element_type, const Sha
     if (shape.size() > 0) {
         return std::make_shared<ov::op::v1::Broadcast>(
             zero,
-            op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
+            ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }
@@ -635,7 +635,7 @@ std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
                                                     const element::Type& element_type,
                                                     const Shape& shape) {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
-    return std::make_shared<op::v0::Constant>(element_type, shape, cvals);
+    return std::make_shared<ov::op::v0::Constant>(element_type, shape, cvals);
 }
 
 bool is_zero(const Output<Node>& reduce_constant) {

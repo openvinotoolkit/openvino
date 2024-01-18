@@ -166,20 +166,6 @@ PartialShape infer_slice_shape(const Node* node,
 NGRAPH_API_DEPRECATED
 NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
-/// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
-/// updated.
-/// \param value_map Key is RawNodeOutput in graph, value is the computed value. Updated by the
-/// function.
-/// \param output_tensor_map Tensors to use for particular outputs
-/// \param outputs Root set of values to try to compute
-/// \param evaluation_context Storage of additional settings and attributes that can be used
-/// when evaluating the function. This additional information can be shared across nodes.
-NGRAPH_API_DEPRECATED
-NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                               std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                               const OutputVector& outputs,
-                               const EvaluationContext& evaluation_context = EvaluationContext());
-
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<Constant> get_constant_max_of_type(element::Type_t t);
@@ -191,11 +177,6 @@ NGRAPH_API std::shared_ptr<Constant> get_constant_min_of_type(element::Type_t t)
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
 NGRAPH_API_DEPRECATED
 NGRAPH_API std::shared_ptr<Constant> get_constant_lowest_of_type(element::Type_t t);
-
-/// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
-/// that all the HostTensorPtrs are not equal to nullptr
-NGRAPH_API_DEPRECATED
-NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
 namespace opset1 {
 ///

@@ -9,6 +9,10 @@
 
 namespace ov {
 namespace op {
+namespace v0 {
+class Constant;
+}
+
 namespace util {
 class OPENVINO_API TopKBase : public Op {
 public:
