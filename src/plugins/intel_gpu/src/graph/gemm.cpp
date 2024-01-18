@@ -8,7 +8,7 @@
 #include <utility>
 #include <algorithm>
 
-#include "matmul_shape_inference.hpp"
+#include "intel_gpu/op/gemm.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
@@ -97,16 +97,17 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_a(prim->transpose_input0);
-    op.set_transpose_b(prim->transpose_input1);
+    ov::intel_gpu::op::Gemm op;
+    op.set_transpose_a(false);
+    op.set_transpose_b(false);
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op, input_shapes,
+                                    prim->input0_order, prim->input1_order, prim->output_order);
 
     cldnn::format output_format = input0_layout.format;
     if (node.get_preferred_output_fmt() != format::any)

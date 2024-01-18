@@ -17,11 +17,14 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_b,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
-    : ov::op::v0::MatMul(A, B, false, false)
+    : ov::op::v0::MatMul()
     , m_order_a(order_a)
     , m_order_b(order_b)
     , m_order_c(order_c)
     , m_output_type(output_type) {
+    set_arguments({A, B});
+    set_transpose_a(false);
+    set_transpose_b(false);
     validate_and_infer_types();
 }
 
@@ -73,7 +76,11 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     auto shape_b_t = transpose_shape(shape_b, order_b);
     auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
-    return { transpose_shape(out_shapes[0], order_c) };
+    if (order_c.size() > 0) {
+        return { transpose_shape(out_shapes[0], order_c) };
+    } else {
+        return { out_shapes[0] };
+    }
 }
 
 }  // namespace op

@@ -32,6 +32,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
+    std::vector<int64_t> get_input0_order() const { return m_order_a; }
+    std::vector<int64_t> get_input1_order() const { return m_order_b; }
+    std::vector<int64_t> get_output_order() const { return m_order_c; }
     ov::element::Type get_output_type() const { return m_output_type; }
 
 protected:
