@@ -6,6 +6,7 @@
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/rdft.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
