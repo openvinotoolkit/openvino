@@ -21,6 +21,8 @@ namespace {
 // As a result, the names are different during each tests execution.
 // It requires custom way of input/output names comparison.
 // https://github.com/onnx/onnx/blob/767f752829f83dbc9bd0a364d6138890f667fc38/onnx/defs/function.cc#L23
+/*
+// Could be used later
 bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
     // it is equivalent (simplified) to (0x)?[0-9A-Fa-f]{8,} regex, but GCC 4.8 has limited support
     auto cut_hex_address = [](std::string& name) {
@@ -59,6 +61,7 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
     };
     return cut_hex_address(lhs) == cut_hex_address(rhs);
 }
+*/
 }  // namespace
 
 OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
