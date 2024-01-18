@@ -45,9 +45,6 @@
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
 #include "dft_inst.h"
-#include "lstm_inst.h"
-#include "lstm_elt_inst.h"
-#include "lstm_gemm_inst.h"
 #include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
@@ -531,8 +528,6 @@ void program::pre_optimize_graph(bool is_internal) {
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
-
-    apply_opt_pass<reverse_optional_nodes_outputs>();
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {

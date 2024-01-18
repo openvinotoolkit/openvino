@@ -42,7 +42,6 @@ void register_implementations() {
     REGISTER_OCL(group_normalization);
     REGISTER_OCL(kv_cache);
     REGISTER_OCL(lrn);
-    REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
@@ -82,8 +81,6 @@ void register_implementations() {
     REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(tile);
-    REGISTER_OCL(lstm_dynamic_input);
-    REGISTER_OCL(lstm_dynamic_timeloop);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);

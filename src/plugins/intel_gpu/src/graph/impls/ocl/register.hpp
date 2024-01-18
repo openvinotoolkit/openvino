@@ -36,10 +36,6 @@
 #include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
-#include "intel_gpu/primitives/lstm.hpp"
-#include "intel_gpu/primitives/lstm_dynamic.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
@@ -125,7 +121,6 @@ REGISTER_OCL(grid_sample);
 REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
 REGISTER_OCL(lrn);
-REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(multinomial);
@@ -165,8 +160,6 @@ REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
-REGISTER_OCL(lstm_dynamic_input);
-REGISTER_OCL(lstm_dynamic_timeloop);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
