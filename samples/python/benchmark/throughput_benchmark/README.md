@@ -2,9 +2,9 @@
 
 This sample demonstrates how to estimate performance of a model using Asynchronous Inference Request API in throughput mode. Unlike [demos](https://docs.openvino.ai/2023.3/omz_demos.html) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
-The reported results may deviate from what [benchmark_app](https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
+The reported results may deviate from what [benchmark_app](https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_sample_sync_benchmark.html)
 
 ## Requirements
 
@@ -17,7 +17,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                        |
 |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                                    |
 | Supported devices              | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)  |
-| Other language realization     | [C++](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_sync_benchmark_README.html)  |
+| Other language realization     | [C++](https://docs.openvino.ai/2023.3/openvino_sample_sync_benchmark.html)                           |
 
 The following Python API is used in the application:
 
