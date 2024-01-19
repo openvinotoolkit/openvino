@@ -275,7 +275,6 @@ class CustomBuild(build):
                     self.spawn(["cmake", "--build", binary_dir,
                                          "--config", CONFIG,
                                          "--parallel", str(self.jobs)])
-                print("JJJ0")
 
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake", "--install", binary_dir,
@@ -285,21 +284,17 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
-        print("OKAOKA0")
         # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
             self.cmake_build_and_install(LIB_INSTALL_CFG)
 
-        print("OKAOKA1")
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
-        print("OKAOKA2")
 
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
 
-        print("OKAOKA3")
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
         src, dst = Path(PACKAGE_DIR), Path(self.build_lib)
@@ -309,7 +304,6 @@ class CustomBuild(build):
             path_rel = path.relative_to(src)
             (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
             copyfile(path, dst / path_rel)
-        print("OKAOKA4")
 
 
 class PrepareLibs(build_clib):
@@ -470,11 +464,8 @@ class CustomInstall(install):
     """Enable build_clib during the installation."""
 
     def run(self):
-        print("OKKK0")
         self.run_command("build")
-        print("OKKK1")
         install.run(self)
-        print("OKKK2")
 
 
 class CustomClean(Command):
@@ -607,10 +598,8 @@ def get_description(desc_file_path):
 
 def get_install_requires(requirements_file_path):
     """Read dependencies from requirements.txt."""
-    print("ZZZ0")
     with open(requirements_file_path, "r", encoding="utf-8") as fstream:
         install_requirements = fstream.read()
-    print("ZZZ1", install_requirements)
     return install_requirements
 
 

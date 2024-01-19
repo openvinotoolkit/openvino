@@ -281,7 +281,6 @@ macro(ov_define_setup_py_dependencies)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        ${compat_ngraph_py_files}
         "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
@@ -301,10 +300,6 @@ ov_define_setup_py_packaging_vars()
 ov_define_setup_py_dependencies()
 
 if(ENABLE_WHEEL)
-    # Copyright (C) 2018-2023 Intel Corporation
-    # SPDX-License-Identifier: Apache-2.0
-    #
-
     #
     # Define proper package name
     #
@@ -478,7 +473,7 @@ if(ENABLE_PYTHON_PACKAGING)
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
-            "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+            "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
                 --no-user-cfg
                 --quiet
                 build
