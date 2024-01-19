@@ -7,19 +7,9 @@
 #include <cmath>
 #include <cstring>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
-
 #include "openvino/core/axis_vector.hpp"
-#include "openvino/core/graph_util.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
