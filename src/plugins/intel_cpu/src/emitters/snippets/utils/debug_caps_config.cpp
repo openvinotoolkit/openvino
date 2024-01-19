@@ -17,10 +17,7 @@ void SnippetsDebugCapsConfig::readProperties() {
         return (const char*)nullptr;
     };
 
-    const char* envVarValue = nullptr;
-
-    if ((envVarValue = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR")))
-        segfault_detector = envVarValue;
+    enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
 }
 
 }   // namespace intel_cpu

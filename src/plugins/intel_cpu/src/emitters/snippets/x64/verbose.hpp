@@ -32,9 +32,6 @@ private:
 };
 
 std::string get_emitter_type_name(const jit_emitter* emitter);
-bool is_load_emitter(const jit_emitter *emitter);
-bool is_store_emitter(const jit_emitter *emitter);
-bool is_segfault_detector_emitter(const jit_emitter *emitter);
 
 }   // namespace intel_cpu
 }   // namespace ov

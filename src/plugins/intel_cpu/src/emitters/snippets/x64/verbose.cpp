@@ -216,38 +216,6 @@ void jit_emitter_info_t::init(const jit_emitter *emitter) {
     is_initialized_ = true;
 }
 
-bool is_load_emitter(const jit_emitter *emitter) {
-    bool ret = false;
-    if (dynamic_cast<const jit_load_memory_emitter*>(emitter) ||
-        dynamic_cast<const jit_load_broadcast_emitter*>(emitter) ||
-        dynamic_cast<const jit_load_convert_emitter*>(emitter)) {
-        return true;
-    }
-    return ret;
-}
-
-bool is_store_emitter(const jit_emitter *emitter) {
-    bool ret = false;
-    if (dynamic_cast<const jit_store_memory_emitter*>(emitter) ||
-        dynamic_cast<const jit_store_convert_emitter*>(emitter)) {
-        return true;
-    }
-    return ret;
-}
-
-bool is_segfault_detector_emitter(const jit_emitter *emitter) {
-    // default active for typical tensor memory access emitters
-    bool ret = false;
-    ret = is_load_emitter(emitter) ||
-        is_store_emitter(emitter) ||
-        dynamic_cast<const jit_brgemm_emitter*>(emitter) ||
-        dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter) ||
-        dynamic_cast<const jit_kernel_emitter*>(emitter);
-    return ret;
-    // use below code to active all emitters for extend usage
-    // return !dynamic_cast<const jit_nop_emitter*>(emitter);
-}
-
 }   // namespace intel_cpu
 }   // namespace ov
 

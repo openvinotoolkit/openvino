@@ -17,7 +17,7 @@ public:
         readProperties();
     }
 
-    std::string segfault_detector;
+    bool enable_segfault_detector;
 
 private:
     void readProperties();
