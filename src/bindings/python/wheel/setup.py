@@ -9,19 +9,18 @@ import subprocess  # nosec
 import typing
 import platform
 import re
+import shutil
 import multiprocessing
 import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
-from setuptools import setup, find_namespace_packages, Extension
+from setuptools import setup, find_namespace_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
 from setuptools.command.build import build
-from setuptools._distutils.command.clean import clean  # todo: get rif of it
 from setuptools.errors import SetupError
-from setuptools._distutils.file_util import copy_file  # todo: get rif of it
 
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
@@ -420,6 +419,18 @@ class PrepareLibs(build_clib):
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
 
+def copy_file(src, dst, verbose=False, dry_run=False):
+    """Custom file copy."""
+    if dry_run:
+        log.info(f"DRY RUN: Would copy '{src}' to '{dst}'")
+        return
+
+    shutil.copyfile(src, dst)
+
+    if verbose:
+        log.info(f"Copied '{src}' to '{dst}'")
+
+
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
     def run(self):
@@ -449,8 +460,16 @@ class CustomInstall(install):
         install.run(self)
 
 
-class CustomClean(clean):
+class CustomClean(Command):
     """Clean up staging directories."""
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
 
     def clean_install_prefix(self, install_cfg):
         for comp, comp_data in install_cfg.items():
@@ -462,7 +481,6 @@ class CustomClean(clean):
     def run(self):
         self.clean_install_prefix(LIB_INSTALL_CFG)
         self.clean_install_prefix(PY_INSTALL_CFG)
-        clean.run(self)
 
 
 def ignore_patterns(*patterns):
