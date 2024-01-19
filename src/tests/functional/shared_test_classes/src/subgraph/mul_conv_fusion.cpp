@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
-
 #include "common_test_utils/graph_comparator.hpp"
-#include "openvino/core/validation_util.hpp"
-#include "openvino/pass/manager.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/pass/manager.hpp"
+#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace test {
@@ -82,7 +81,7 @@ void MulConvFusion::SetUp() {
         std::shared_ptr<ov::Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             weights = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ov::op::v1::GroupConvolution::get_type_info_static()) {

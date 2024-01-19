@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
-
+#include <ie_core.hpp>
 #include <memory>
+#include <queue>
+#include <string>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -12,8 +13,9 @@
 
 #include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
-#include "ov_models/subgraph_builders.hpp"
+#include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
