@@ -66,7 +66,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node) {
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         auto x = complex_type_mark->input_value(0);
-        auto conj_tensor = translate_conj_op(node);
+        auto conj_tensor = get_conj_ptr(x);
 
         OutputVector concat_inputs;
         concat_inputs.push_back(perm);
