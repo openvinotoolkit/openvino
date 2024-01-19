@@ -589,10 +589,6 @@ void program::pre_optimize_graph(bool is_internal) {
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
-    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
-    // Currently, 'gemm-softmax' case is applied for clamping
-    apply_opt_pass<clamp_fp16_output>();
-
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
 
