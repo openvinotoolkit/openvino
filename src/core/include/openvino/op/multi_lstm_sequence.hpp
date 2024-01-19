@@ -39,6 +39,7 @@ public:
     explicit MultiLSTMSequence(const Output<Node>& X,
                                const Output<Node>& initial_hidden_state,
                                const Output<Node>& initial_cell_state,
+                               const Output<Node>& sequence_lengths,
                                const Output<Node>& W,
                                const Output<Node>& R,
                                const Output<Node>& B,
@@ -51,7 +52,7 @@ public:
                                const std::vector<std::string>& activations = {"sigmoid", "tanh", "tanh"},
                                const float clip_threshold = 0.f,
                                const bool input_forget = false)
-        : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
+        : RNNMultiCellBase({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B},
                            lstm_count,
                            hidden_size,
                            clip_threshold,

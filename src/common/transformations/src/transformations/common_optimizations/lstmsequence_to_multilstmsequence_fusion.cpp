@@ -41,8 +41,12 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
         cp_from.add(current);
 
         // go to the Squeeze node
-        auto prev_squeeze = current->input_value(1).get_node_shared_ptr();
+        auto prev_squeeze = current->input_value(0).get_node_shared_ptr();
         auto prev_squeeze_ptr = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(prev_squeeze);
+
+        if (!prev_squeeze_ptr) {
+            break;
+        }
 
         // go to actual LSTM
         auto prev_lstm = prev_squeeze_ptr->input_value(0).get_node_shared_ptr();
@@ -83,11 +87,19 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      const std::shared_ptr<ov::Node>& axis_0,
                      const std::shared_ptr<ov::Node>& axis_1) {
     const auto X_in = cp_to.make<ov::op::v0::Concat>(x_to_concat, 1);
-    const auto Ht_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(1), axis_1);
-    const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
-    const auto W_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(3), axis_0);
-    const auto R_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(4), axis_0);
-    const auto B_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(5), axis_0);
+    const auto X_in_squeezed = cp_to.make<ov::op::v0::Squeeze>(X_in->output(0), axis_1);
+    //const auto Ht_in = cp_to.add(std::make_shared<ov::Node>(first_cell->input(1).get_node()));
+    const auto Ht_in = cp_to.add(first_cell->input_value(1).get_node_shared_ptr());
+    const auto Ct_in = cp_to.add(first_cell->input_value(2).get_node_shared_ptr());
+    const auto seq_len = cp_to.add(first_cell->input_value(3).get_node_shared_ptr());
+    const auto W_in = cp_to.add(first_cell->input_value(4).get_node_shared_ptr());
+    const auto R_in = cp_to.add(first_cell->input_value(5).get_node_shared_ptr());
+    const auto B_in = cp_to.add(first_cell->input_value(6).get_node_shared_ptr());
+    //const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
+    //const auto seq_len = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(3), axis_1);
+    //const auto W_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(4), axis_0);
+    //const auto R_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(5), axis_0);
+    //const auto B_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(6), axis_0);
 
     const auto& shape_node = cp_to.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(first_cell->input_value(0)));
     const auto& zero = cp_to.make<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
@@ -95,9 +107,10 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     std::shared_ptr<ov::Node> multi_lstm;
     ov::OutputVector outputs(1);
     if (std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(first_cell)) {
-        multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
+        multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in_squeezed,
                                                                 Ht_in,
                                                                 Ct_in,
+                                                                seq_len,
                                                                 W_in,
                                                                 R_in,
                                                                 B_in,
@@ -186,7 +199,6 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         if (lstm_count < optimal_cnt_of_lstms) {
             return false;
         }
-
         auto res = create_sequence(copy_to,
                                    first_cell,
                                    current_lstm,
