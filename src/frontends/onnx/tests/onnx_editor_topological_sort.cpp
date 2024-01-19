@@ -7,9 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;

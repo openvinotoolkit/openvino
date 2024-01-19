@@ -6,7 +6,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "exceptions.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 
@@ -34,10 +33,10 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure) {
         convert_model("instance_norm_bad_scale_type.onnx");
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
-    } catch (const ::ov::frontend::onnx_error::OnnxNodeValidationFailure& e) {
+    } catch (const ::ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));
     }
-    // On MacOS after we re-throw OnnxNodeValidationFailure exception, we couldn't catch it as is,
+    // On MacOS after we re-throw ov::Exception exception, we couldn't catch it as is,
     // thus below workaround.
     catch (const std::exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));

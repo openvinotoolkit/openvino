@@ -9,9 +9,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
 

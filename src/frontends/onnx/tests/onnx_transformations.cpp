@@ -5,13 +5,10 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;
-using namespace ov::onnx_editor;
 using namespace ov::frontend::onnx::tests;
 
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
