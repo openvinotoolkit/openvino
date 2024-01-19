@@ -866,20 +866,20 @@ public:
         using namespace ov::pass;
         MATCHER_SCOPE("EliminateGatherWithRange");
         auto data_label = pattern::any_input(pattern::rank_equals(3));
-        auto shapeof_label = pattern::wrap_type<op::util::ShapeOfBase>({data_label});
-        auto shapeof_gather_label = pattern::wrap_type<op::util::GatherBase>(
-            {shapeof_label, pattern::wrap_type<op::v0::Constant>(), pattern::wrap_type<op::v0::Constant>()});
-        auto shapeof_gather2_label = pattern::wrap_type<op::util::GatherBase>(
-            {shapeof_gather_label, pattern::wrap_type<op::v0::Constant>(), pattern::wrap_type<op::v0::Constant>()});
+        auto shapeof_label = pattern::wrap_type<ov::op::util::ShapeOfBase>({data_label});
+        auto shapeof_gather_label = pattern::wrap_type<ov::op::util::GatherBase>(
+            {shapeof_label, pattern::wrap_type<ov::op::v0::Constant>(), pattern::wrap_type<ov::op::v0::Constant>()});
+        auto shapeof_gather2_label = pattern::wrap_type<ov::op::util::GatherBase>(
+            {shapeof_gather_label, pattern::wrap_type<ov::op::v0::Constant>(), pattern::wrap_type<ov::op::v0::Constant>()});
         auto reshape_label =
-            pattern::wrap_type<op::v1::Reshape>({shapeof_gather2_label, pattern::wrap_type<op::v0::Constant>()});
-        auto range_label = pattern::wrap_type<op::v4::Range>(
-            {pattern::wrap_type<op::v0::Constant>(), reshape_label, pattern::wrap_type<op::v0::Constant>()});
+            pattern::wrap_type<ov::op::v1::Reshape>({shapeof_gather2_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        auto range_label = pattern::wrap_type<ov::op::v4::Range>(
+            {pattern::wrap_type<ov::op::v0::Constant>(), reshape_label, pattern::wrap_type<ov::op::v0::Constant>()});
         auto match_node = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>(
-            {data_label, range_label, pattern::wrap_type<op::v0::Constant>()});
+            {data_label, range_label, pattern::wrap_type<ov::op::v0::Constant>()});
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto gather = ov::as_type_ptr<op::util::GatherBase>(m.get_match_root());
+            auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(m.get_match_root());
             if (!gather)
                 return false;
             auto axis = gather->get_axis();
@@ -889,7 +889,7 @@ public:
 
             const auto shapeof_gather = pattern_map.at(shapeof_gather_label).get_node_shared_ptr();
             const auto shapeof_gather_indexes_node =
-                ov::as_type_ptr<op::v0::Constant>(shapeof_gather->get_input_node_shared_ptr(1));
+                ov::as_type_ptr<ov::op::v0::Constant>(shapeof_gather->get_input_node_shared_ptr(1));
             auto shapeof_gather_indexes = shapeof_gather_indexes_node->cast_vector<int64_t>();
             if (shapeof_gather_indexes.size() != 3)
                 return false;
