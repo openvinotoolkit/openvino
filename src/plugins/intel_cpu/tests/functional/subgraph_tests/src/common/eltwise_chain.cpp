@@ -165,7 +165,7 @@ std::vector<std::vector<ElementType>> inputPrecisions = {
 
 std::vector<std::vector<EltwiseTypes>> eltwiseOps = {
         { EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::SUBTRACT },
-        { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD },
+        { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
@@ -177,6 +177,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                                 ::testing::Values(false),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
+
+
+    std::vector<std::vector<ov::Shape>> inputShapesConvert = {
+            {{1, 1, 2, 3}, {1, 1, 2, 3}, {1, 1, 2, 3}}
+    };
+
+    std::vector<std::vector<ElementType>> inputPrecisionsConvert = {
+            { ElementType::i8, ElementType::f32, ElementType::f32 },
+            { ElementType::u8, ElementType::f32, ElementType::f32 },
+            { ElementType::i16, ElementType::f32, ElementType::f32 },
+            { ElementType::u16, ElementType::f32, ElementType::f32 },
+            { ElementType::i32, ElementType::f32, ElementType::f32 },
+            // { ElementType::u32, ElementType::f32, ElementType::f32 }, // plugin doesn't support
+            { ElementType::f16, ElementType::f32, ElementType::f32 },
+            { ElementType::f32, ElementType::f32, ElementType::f32 },
+    };
+
+    std::vector<std::vector<EltwiseTypes>> eltwiseOpsConvert = {
+            { EltwiseTypes::CONVERT_OP, EltwiseTypes::MULTIPLY },
+            { EltwiseTypes::CONVERT_OP, EltwiseTypes::ADD },
+            { EltwiseTypes::CONVERT_OP, EltwiseTypes::DIVIDE },
+            { EltwiseTypes::CONVERT_OP, EltwiseTypes::SUBTRACT },
+            { EltwiseTypes::CONVERT_OP, EltwiseTypes::POWER },
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_MergeConvert, EltwiseChainTest,
+                             ::testing::Combine(
+                                     ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesConvert)),
+                                     ::testing::Values(InputLayerType::CONSTANT),
+                                     ::testing::ValuesIn(inputPrecisionsConvert),
+                                     ::testing::ValuesIn(eltwiseOpsConvert),
+                                     ::testing::Values(false),
+                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ov::Shape>> inputShapesFQ = {
     {{1, 2, 2, 3}, {1, 2, 2, 3}, {1, 2, 2, 3}, {1, 2, 2, 3}},
