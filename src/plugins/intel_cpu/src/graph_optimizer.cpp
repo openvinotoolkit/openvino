@@ -943,36 +943,35 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
 void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableParentNode = [](NodePtr parentNode) {
-        return parentNode->getType() == Type::Convert && parentNode->getChildEdges().size() == 1 &&
-               (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
-                parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) &&
-               parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
-    };
-
-    auto isSuitableChildNode = [](NodePtr childNode) {
-        return childNode->getType() == Type::Eltwise && childNode->getParentEdges().size() != 2;
-    };
-
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
         auto parentNode = *parent;
-        if (!isSuitableParentNode(parentNode)) {
+        if (parentNode->getType() != Type::Convert) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ParentNode);
-
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(childNode)) {
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
 
-        auto parents = parentNode->parentEdges;
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(childNode.get());
+        if (!eltwise->canFuseParent(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        const auto parents = parentNode->parentEdges;
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
             if (!p_edge) continue;
