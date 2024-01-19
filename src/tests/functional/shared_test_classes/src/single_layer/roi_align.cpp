@@ -6,6 +6,9 @@
 
 #include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/roi_align.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/prior_box.hpp"
+#include "op/org.openvinotoolkit/prior_box.hpp"
 
 #include "exceptions.hpp"
 #include "onnx_import/core/node.hpp"
-#include "op/org.openvinotoolkit/prior_box.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"

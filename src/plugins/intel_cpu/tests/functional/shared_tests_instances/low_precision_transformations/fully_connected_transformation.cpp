@@ -16,20 +16,20 @@ const std::vector<ov::element::Type> netPrecisions = {
 
 const std::vector<MatMulShapes> shapes = {
     {
-        ngraph::PartialShape{ 1, 16 },
-        ngraph::PartialShape{ 16, 8 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 16, 8 },
         false,
         false
     },
     {
-        ngraph::PartialShape{ 1, 16 },
-        ngraph::PartialShape{ 8, 16 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 8, 16 },
         false,
         true
     },
     {
-        ngraph::PartialShape{ 16, 1 },
-        ngraph::PartialShape{ 16, 8 },
+        ov::PartialShape{ 16, 1 },
+        ov::PartialShape{ 16, 8 },
         true,
         false
     },

@@ -14,7 +14,7 @@ const std::vector<ov::element::Type> precisions = {
         ov::element::f32
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape> > inputAndQuantizationShapes = {
+const std::vector<std::pair<ov::PartialShape, ov::Shape> > inputAndQuantizationShapes = {
     { { 1ul, 4ul, 16ul, 16ul }, { 1ul } },
     { { 1ul, 4ul, 16ul, 16ul }, { 1ul, 4ul, 1ul, 1ul } },
 };

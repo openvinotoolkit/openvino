@@ -49,5 +49,28 @@ std::string Shape::toString() const  {
     return output.str();
 }
 
+Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
+    OPENVINO_ASSERT(lhs.getRank() == rhs.getRank(),
+        "Couldn't merge shapes of different ranks: shape 1:",
+        lhs.toString(),
+        " shape 2: ",
+        rhs.toString());
+
+    const auto& lhsMinDims = lhs.getMinDims();
+    const auto& lhsMaxDims = lhs.getMaxDims();
+    const auto& rhsMinDims = rhs.getMinDims();
+    const auto& rhsMaxDims = rhs.getMaxDims();
+
+    VectorDims resultMinDims(lhsMinDims.size());
+    VectorDims resultMaxDims(lhsMaxDims.size());
+
+    for (size_t i = 0; i < resultMinDims.size(); ++i) {
+        resultMinDims[i] = std::max(lhsMinDims[i], rhsMinDims[i]);
+        resultMaxDims[i] = std::min(lhsMaxDims[i], rhsMaxDims[i]);
+        OPENVINO_ASSERT(resultMinDims[i] <= resultMaxDims[i], "Couldn't merge shapes as the dims intervals are not overlapping.");
+    }
+    return Shape{resultMinDims, resultMaxDims};
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

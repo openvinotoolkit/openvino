@@ -6,6 +6,7 @@
 
 #include "ov_behavior_test_utils.hpp"
 
+#include "ie_core.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"

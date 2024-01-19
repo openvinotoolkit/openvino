@@ -17,11 +17,9 @@
 #include <tuple>
 
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/variable_context.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
 using ov::evaluate_as_partial_shape;
@@ -31,6 +29,7 @@ using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
 using ov::normalize_axes;
 using ov::normalize_axis;
+using ov::op::v0::Constant;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -169,15 +168,15 @@ NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
+NGRAPH_API std::shared_ptr<Constant> get_constant_max_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
+NGRAPH_API std::shared_ptr<Constant> get_constant_min_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Type_t t);
+NGRAPH_API std::shared_ptr<Constant> get_constant_lowest_of_type(element::Type_t t);
 
 namespace opset1 {
 ///
