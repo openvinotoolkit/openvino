@@ -384,6 +384,9 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
+
+    void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
