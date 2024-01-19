@@ -41,8 +41,6 @@ public:
 
     const ov::Version get_version() const;
 
-    void add_extension(const InferenceEngine::IExtensionPtr& extension);
-
     void set_property(const ov::AnyMap& config);
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,

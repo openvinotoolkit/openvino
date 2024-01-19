@@ -249,10 +249,6 @@ public:
             m_plugin._so);
     }
 
-    void AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override {
-        m_plugin->add_extension(extension);
-    }
-
     void SetConfig(const std::map<std::string, std::string>& config) override {
         m_plugin->set_property(ov::any_copy(config));
     }
