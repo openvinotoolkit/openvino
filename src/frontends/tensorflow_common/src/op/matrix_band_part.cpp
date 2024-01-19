@@ -1,10 +1,12 @@
-#include "common_op_table.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/less_equal.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "Eigen/Dense"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reshape.hpp"
+#include "utils.hpp"
 
 using namespace std;
-using namespace ov;
 using namespace ov::op;
 
 namespace ov {
@@ -13,32 +15,61 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_matrix_band_part_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"MatrixBandPart"});
-    auto input_matrix = node.get_input(0);
-    auto num_lower = node.get_input(1);
-    auto num_upper = node.get_input(2);
-    auto node_name = node.get_name();
+    default_op_checks(node, 1, {"MatrixBandPart", "MATRIX_BAND_PART"});
 
-    // Convert num_lower and num_upper to integers (assuming they are scalar constants)
-    int num_lower_value = as_scalar<int>(num_lower);
-    int num_upper_value = as_scalar<int>(num_upper);
+    auto input = node.get_input(0);
+    auto input_shape = make_shared<v3::ShapeOf>(input);
+    auto last_dim = make_shared<v1::StridedSlice>(
+        input_shape,
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-2}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
+        std::vector<int64_t>({0}),
+        std::vector<int64_t>({0}));
 
-    // Create a mask to zero out elements outside the band
-    MatrixXd mask = MatrixXd::Ones(input_matrix.get_shape());
-    for (int i = 0; i < input_matrix.get_shape().at(0); ++i) {
-        for (int j = 0; j < input_matrix.get_shape().at(1); ++j) {
-            if (j < i - num_lower_value || j > i + num_upper_value) {
-                mask(i, j) = 0.0;
-            }
-        }
-    }
+    auto m = make_shared<v1::StridedSlice>(
+        last_dim,
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
+        std::vector<int64_t>({0}),
+        std::vector<int64_t>({0}));
 
-    // Apply the mask to the input matrix
-    auto masked_matrix = make_shared<op::v1::Multiply>(input_matrix, make_constant(mask));
+    auto n = make_shared<v1::StridedSlice>(
+        last_dim,
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{2}),
+        make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
+        std::vector<int64_t>({0}),
+        std::vector<int64_t>({0}));
 
-    set_node_name(node_name, masked_matrix.get_node_shared_ptr());
+    auto range_m = make_shared<v0::Range>(make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0}),
+                                          m,
+                                          make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}));
 
-    return {masked_matrix};
+    auto range_n = make_shared<v0::Range>(make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0}),
+                                          n,
+                                          make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}));
+
+    auto unsqueeze_range_m = make_shared<v0::Unsqueeze>(range_m, make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}));
+    auto unsqueeze_range_n = make_shared<v0::Unsqueeze>(range_n, make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0}));
+
+    auto in_band_indicator = make_shared<v1::LessEqual>(unsqueeze_range_m, unsqueeze_range_n);
+
+    auto unsqueeze_in_band_indicator = make_shared<v0::Unsqueeze>(in_band_indicator, last_dim);
+
+    auto zero_padding = make_shared<v0::Concat>(
+        OutputVector({make_shared<v0::Constant>(input.get_element_type(), Shape{1}, std::vector<int64_t>{0})}),
+        0);
+
+    auto band_part = make_shared<v1::Select>(unsqueeze_in_band_indicator, input, zero_padding);
+
+    auto new_shape = make_shared<v0::Concat>(OutputVector({input_shape, last_dim}), 0);
+
+    auto reshaped_band_part = make_shared<v1::Reshape>(band_part, new_shape, false);
+
+    set_node_name(node.get_name(), reshaped_band_part);
+    return {reshaped_band_part};
 }
 
 }  // namespace op
