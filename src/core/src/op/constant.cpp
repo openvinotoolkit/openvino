@@ -12,7 +12,6 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
