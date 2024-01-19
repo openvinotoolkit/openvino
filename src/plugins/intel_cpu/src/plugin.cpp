@@ -857,7 +857,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     } else if (name == ov::execution_devices) {
-        return decltype(ov::execution_devices)::value_type{ov::IPlugin::get_device_name()};
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
