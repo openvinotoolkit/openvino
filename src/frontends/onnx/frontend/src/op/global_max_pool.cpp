@@ -37,8 +37,7 @@ OutputVector global_max_pool(const Node& node) {
     const auto data_rank = std::make_shared<v3::ShapeOf>(data_shape);
     const auto data_rank_as_scalar = std::make_shared<v0::Squeeze>(data_rank);
 
-    const auto reduce_axes =
-        std::make_shared<v4::Range>(two_node, data_rank_as_scalar, one_node, element::i64);
+    const auto reduce_axes = std::make_shared<v4::Range>(two_node, data_rank_as_scalar, one_node, element::i64);
 
     return {std::make_shared<v1::ReduceMax>(data, reduce_axes, true)};
 }
