@@ -81,8 +81,8 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -121,8 +121,8 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino>=2023.2.0" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git" 
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino>=2023.2.0" "nncf>=2.6.0" onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git"
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,16 +135,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='CPU',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -193,16 +193,16 @@ compatible with Optimum models.
     from pathlib import Path
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
-    
+
     model_id = "databricks/dolly-v2-3b"
     model_path = Path("dolly-v2-3b")
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     current_device = device.value
-    
+
     ov_config = {'PERFORMANCE_HINT': 'LATENCY', 'NUM_STREAMS': '1', "CACHE_DIR": ""}
-    
+
     if model_path.exists():
         ov_model = OVModelForCausalLM.from_pretrained(model_path, device=current_device, ov_config=ov_config)
     else:
@@ -271,23 +271,23 @@ accuracy drop.
 
     import gc
     from optimum.intel import OVQuantizer
-    
+
     compressed_model_path = Path(f'{model_path}_compressed')
-    
+
     def calculate_compression_rate(model_path_ov, model_path_ov_compressed):
         model_size_original = model_path_ov.with_suffix(".bin").stat().st_size / 2 ** 20
         model_size_compressed = model_path_ov_compressed.with_suffix(".bin").stat().st_size / 2 ** 20
         print(f"* Original IR model size: {model_size_original:.2f} MB")
         print(f"* Compressed IR model size: {model_size_compressed:.2f} MB")
         print(f"* Model compression rate: {model_size_original / model_size_compressed:.3f}")
-    
+
     if to_compress.value:
         if not compressed_model_path.exists():
             quantizer = OVQuantizer.from_pretrained(ov_model)
             quantizer.quantize(save_directory=compressed_model_path, weights_only=True)
             del quantizer
             gc.collect()
-        
+
         calculate_compression_rate(model_path / 'openvino_model.xml', compressed_model_path / 'openvino_model.xml')
         ov_model = OVModelForCausalLM.from_pretrained(compressed_model_path, device=current_device, ov_config=ov_config)
 
@@ -441,14 +441,14 @@ into model with providing additional context.
     INTRO_BLURB = (
         "Below is an instruction that describes a task. Write a response that appropriately completes the request."
     )
-    
+
     # This is the prompt that is used for generating responses using an already trained model.  It ends with the response
     # key, where the job of the model is to provide the completion that follows it (i.e. the response itself).
     PROMPT_FOR_GENERATION_FORMAT = """{intro}
-    
+
     {instruction_key}
     {instruction}
-    
+
     {response_key}
     """.format(
         intro=INTRO_BLURB,
@@ -470,17 +470,17 @@ the code below find its id for using it as generation stop-criteria.
     def get_special_token_id(tokenizer: AutoTokenizer, key: str) -> int:
         """
         Gets the token ID for a given string that has been added to the tokenizer as a special token.
-    
+
         When training, we configure the tokenizer so that the sequences like "### Instruction:" and "### End" are
         treated specially and converted to a single, new token.  This retrieves the token ID each of these keys map to.
-    
+
         Args:
             tokenizer (PreTrainedTokenizer): the tokenizer
             key (str): the key to convert to a single token
-    
+
         Raises:
             RuntimeError: if more than one ID was generated
-    
+
         Returns:
             int: the token ID for the given key
         """
@@ -488,9 +488,9 @@ the code below find its id for using it as generation stop-criteria.
         if len(token_ids) > 1:
             raise ValueError(f"Expected only a single token for '{key}' but found {token_ids}")
         return token_ids[0]
-    
+
     tokenizer_response_key = next((token for token in tokenizer.additional_special_tokens if token.startswith(RESPONSE_KEY)), None)
-    
+
     end_key_token_id = None
     if tokenizer_response_key:
         try:
@@ -513,7 +513,7 @@ parameter and returns model response.
     def run_generation(user_text:str, top_p:float, temperature:float, top_k:int, max_new_tokens:int, perf_text:str):
         """
         Text generation function
-        
+
         Parameters:
           user_text (str): User-provided instruction for a generation.
           top_p (float):  Nucleus sampling. If set to < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for a generation.
@@ -525,13 +525,13 @@ parameter and returns model response.
           model_output (str) - model-generated text
           perf_text (str) - updated perf text filed content
         """
-        
+
         # Prepare input prompt according to model expected template
         prompt_text = PROMPT_FOR_GENERATION_FORMAT.format(instruction=user_text)
-        
+
         # Tokenize the user text.
         model_inputs = tokenizer(prompt_text, return_tensors="pt")
-    
+
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
         # in the main thread. Adds timeout to the streamer to handle exceptions in the generation thread.
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -547,7 +547,7 @@ parameter and returns model response.
         )
         t = Thread(target=ov_model.generate, kwargs=generate_kwargs)
         t.start()
-    
+
         # Pull the generated text from the streamer, and update the model output.
         model_output = ""
         per_token_time = []
@@ -575,14 +575,14 @@ elements.
     def estimate_latency(current_time:float, current_perf_text:str, new_gen_text:str, per_token_time:List[float], num_tokens:int):
         """
         Helper function for performance estimation
-        
+
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
           new_gen_text (str): New generated text.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
-          
+
         Returns:
           update for performance text field
           update for a total number of tokens
@@ -594,26 +594,26 @@ elements.
             current_bucket = per_token_time[:-10]
             return f"Average generation speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
         return current_perf_text, num_tokens
-    
+
     def reset_textbox(instruction:str, response:str, perf:str):
         """
         Helper function for resetting content of all text fields
-        
+
         Parameters:
           instruction (str): Content of user instruction field.
           response (str): Content of model response field.
           perf (str): Content of performance info filed
-        
+
         Returns:
           empty string for each placeholder
         """
         return "", "", ""
-    
-    
+
+
     def select_device(device_str:str, current_text:str = "", progress:gr.Progress = gr.Progress()):
         """
         Helper function for uploading model on the device.
-        
+
         Parameters:
           device_str (str): Device name.
           current_text (str): Current content of user instruction field (used only for backup purposes, temporally replacing it on the progress bar during model loading).
@@ -624,7 +624,7 @@ elements.
         if device_str != ov_model._device:
             ov_model.request = None
             ov_model._device = device_str
-            
+
             for i in progress.tqdm(range(1), desc=f"Model loading on {device_str}"):
                 ov_model.compile()
         return current_text
@@ -655,7 +655,7 @@ generation parameters:
 .. code:: ipython3
 
     available_devices = ov.Core().available_devices + ["AUTO"]
-    
+
     examples = [
         "Give me recipe for pizza with pineapple",
         "Write me a tweet about new OpenVINO release",
@@ -668,13 +668,13 @@ generation parameters:
         "Write instructions on how to become a good AI engineer",
         "Write a love letter to my best friend",
     ]
-    
+
     with gr.Blocks() as demo:
         gr.Markdown(
             "# Instruction following using Databricks Dolly 2.0 and OpenVINO.\n"
             "Provide insturction which describes a task below or select among predefined examples and model writes response that performs requested task."
         )
-    
+
         with gr.Row():
             with gr.Column(scale=4):
                 user_text = gr.Textbox(
@@ -701,19 +701,19 @@ generation parameters:
                 temperature = gr.Slider(
                     minimum=0.1, maximum=5.0, value=0.8, step=0.1, interactive=True, label="Temperature",
                 )
-    
+
         user_text.submit(run_generation, [user_text, top_p, temperature, top_k, max_new_tokens, performance], [model_output, performance])
         button_submit.click(select_device, [device, user_text], [user_text])
         button_submit.click(run_generation, [user_text, top_p, temperature, top_k, max_new_tokens, performance], [model_output, performance])
         button_clear.click(reset_textbox, [user_text, model_output, performance], [user_text, model_output, performance])
         device.change(select_device, [device, user_text], [user_text])
-    
+
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False, height=800)
         except Exception:
             demo.queue().launch(debug=False, share=True, height=800)
-    
+
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

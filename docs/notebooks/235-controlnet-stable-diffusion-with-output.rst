@@ -139,8 +139,8 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -207,7 +207,7 @@ controlnet model and ``stable-diffusion-v1-5``:
 
     import torch
     from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
-    
+
     controlnet = ControlNetModel.from_pretrained("lllyasviel/control_v11p_sd15_openpose", torch_dtype=torch.float32)
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5", controlnet=controlnet
@@ -252,7 +252,7 @@ The code below demonstrates how to instantiate the OpenPose model.
 .. code:: ipython3
 
     from controlnet_aux import OpenposeDetector
-    
+
     pose_estimator = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 
 
@@ -270,17 +270,17 @@ Now, let us check its result on example image:
     from PIL import Image
     import matplotlib.pyplot as plt
     import numpy as np
-    
-    
+
+
     example_url = "https://user-images.githubusercontent.com/29454499/224540208-c172c92a-9714-4a7b-857a-b1e54b4d4791.jpg"
     img = Image.open(requests.get(example_url, stream=True).raw)
     pose = pose_estimator(img)
-    
-    
+
+
     def visualize_pose_results(orig_img:Image.Image, skeleton_img:Image.Image):
         """
         Helper function for pose estimationresults visualization
-        
+
         Parameters:
            orig_img (Image.Image): original image
            skeleton_img (Image.Image): processed image with body keypoints
@@ -305,12 +305,12 @@ Now, let us check its result on example image:
         list_axes[0].imshow(np.array(orig_img))
         list_axes[1].imshow(np.array(skeleton_img))
         list_axes[0].set_title(orig_title, fontsize=15)
-        list_axes[1].set_title(skeleton_title, fontsize=15) 
+        list_axes[1].set_title(skeleton_title, fontsize=15)
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00 , hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         return fig
-    
-    
+
+
     fig = visualize_pose_results(img, pose)
 
 
@@ -356,9 +356,9 @@ estimation part, which is located inside the wrapper
     from pathlib import Path
     import torch
     import openvino as ov
-    
+
     OPENPOSE_OV_PATH = Path("openpose.xml")
-    
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -366,8 +366,8 @@ estimation part, which is located inside the wrapper
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
-    
+
+
     if not OPENPOSE_OV_PATH.exists():
         with torch.no_grad():
             ov_model = ov.convert_model(pose_estimator.body_estimation.model, example_input=torch.zeros([1, 3, 184, 136]), input=[[1,3,184,136]])
@@ -390,18 +390,18 @@ model with the OpenVINO model, using the following code:
 .. code:: ipython3
 
     from collections import namedtuple
-    
+
     class OpenPoseOVModel:
         """ Helper wrapper for OpenPose model inference"""
         def __init__(self, core, model_path, device="AUTO"):
             self.core = core
             self. model = core.read_model(model_path)
             self.compiled_model = core.compile_model(self.model, device)
-    
+
         def __call__(self, input_tensor:torch.Tensor):
             """
             inference step
-            
+
             Parameters:
               input_tensor (torch.Tensor): tensor with prerpcessed input image
             Returns:
@@ -413,11 +413,11 @@ model with the OpenVINO model, using the following code:
                 self.reshape_model(h, w)
             results = self.compiled_model(input_tensor)
             return torch.from_numpy(results[self.compiled_model.output(0)]), torch.from_numpy(results[self.compiled_model.output(1)])
-    
+
         def reshape_model(self, height:int, width:int):
             """
             helper method for reshaping model to fit input data
-            
+
             Parameters:
               height (int): input tensor height
               width (int): input tensor width
@@ -426,13 +426,13 @@ model with the OpenVINO model, using the following code:
             """
             self.model.reshape({0: [1, 3, height, width]})
             self.compiled_model = self.core.compile_model(self.model)
-            
+
         def parameters(self):
             Device = namedtuple("Device", ["device"])
             return [Device(torch.device("cpu"))]
-        
-    
-     
+
+
+
     core = ov.Core()
 
 Select inference device
@@ -445,14 +445,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -503,21 +503,21 @@ blocks, which serves additional context for the UNet model.
 
     import gc
     from functools import partial
-    
+
     inputs = {
         "sample": torch.randn((2, 4, 64, 64)),
         "timestep": torch.tensor(1),
         "encoder_hidden_states": torch.randn((2,77,768)),
         "controlnet_cond": torch.randn((2,3,512,512))
     }
-    
-    input_info = [(name, ov.PartialShape(inp.shape)) for name, inp in inputs.items()] 
-    
+
+    input_info = [(name, ov.PartialShape(inp.shape)) for name, inp in inputs.items()]
+
     CONTROLNET_OV_PATH = Path('controlnet-pose.xml')
     controlnet.eval()
     with torch.no_grad():
         down_block_res_samples, mid_block_res_sample = controlnet(**inputs, return_dict=False)
-        
+
     if not CONTROLNET_OV_PATH.exists():
         with torch.no_grad():
             controlnet.forward = partial(controlnet.forward, return_dict=False)
@@ -528,7 +528,7 @@ blocks, which serves additional context for the UNet model.
         print('ControlNet successfully converted to IR')
     else:
         print(f"ControlNet will be loaded from {CONTROLNET_OV_PATH}")
-    
+
     del controlnet
     gc.collect()
 
@@ -558,24 +558,24 @@ ControlNet.
 .. code:: ipython3
 
     from typing import Tuple
-    
+
     UNET_OV_PATH = Path('unet_controlnet.xml')
-    
+
     dtype_mapping = {
         torch.float32: ov.Type.f32,
         torch.float64: ov.Type.f64,
         torch.int32: ov.Type.i32,
         torch.int64: ov.Type.i64
     }
-    
+
     class UnetWrapper(torch.nn.Module):
         def __init__(
-            self, 
-            unet, 
-            sample_dtype=torch.float32, 
-            timestep_dtype=torch.int64, 
-            encoder_hidden_states=torch.float32, 
-            down_block_additional_residuals=torch.float32, 
+            self,
+            unet,
+            sample_dtype=torch.float32,
+            timestep_dtype=torch.int64,
+            encoder_hidden_states=torch.float32,
+            down_block_additional_residuals=torch.float32,
             mid_block_additional_residual=torch.float32
         ):
             super().__init__()
@@ -585,13 +585,13 @@ ControlNet.
             self.encoder_hidden_states_dtype = encoder_hidden_states
             self.down_block_additional_residuals_dtype = down_block_additional_residuals
             self.mid_block_additional_residual_dtype = mid_block_additional_residual
-    
+
         def forward(
-            self, 
-            sample:torch.Tensor, 
-            timestep:torch.Tensor, 
-            encoder_hidden_states:torch.Tensor, 
-            down_block_additional_residuals:Tuple[torch.Tensor],  
+            self,
+            sample:torch.Tensor,
+            timestep:torch.Tensor,
+            encoder_hidden_states:torch.Tensor,
+            down_block_additional_residuals:Tuple[torch.Tensor],
             mid_block_additional_residual:torch.Tensor
         ):
             sample.to(self.sample_dtype)
@@ -600,15 +600,15 @@ ControlNet.
             down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
             mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
             return self.unet(
-                sample, 
-                timestep, 
-                encoder_hidden_states, 
-                down_block_additional_residuals=down_block_additional_residuals, 
+                sample,
+                timestep,
+                encoder_hidden_states,
+                down_block_additional_residuals=down_block_additional_residuals,
                 mid_block_additional_residual=mid_block_additional_residual
             )
-    
-    
-    
+
+
+
     def flattenize_inputs(inputs):
         flatten_inputs = []
         for input_data in inputs:
@@ -619,18 +619,18 @@ ControlNet.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-    
+
     if not UNET_OV_PATH.exists():
         inputs.pop("controlnet_cond", None)
         inputs["down_block_additional_residuals"] = down_block_res_samples
         inputs["mid_block_additional_residual"] = mid_block_res_sample
-    
+
         unet = UnetWrapper(pipe.unet)
         unet.eval()
-    
+
         with torch.no_grad():
             ov_model = ov.convert_model(unet, example_input=inputs)
-            
+
         flatten_inputs = flattenize_inputs(inputs.values())
         for input_data, input_tensor in zip(flatten_inputs, ov_model.inputs):
             input_tensor.get_node().set_partial_shape(ov.PartialShape(input_data.shape))
@@ -683,13 +683,13 @@ hidden states.
 .. code:: ipython3
 
     TEXT_ENCODER_OV_PATH = Path('text_encoder.xml')
-    
-    
+
+
     def convert_encoder(text_encoder:torch.nn.Module, ir_path:Path):
         """
-        Convert Text Encoder model to OpenVINO IR. 
+        Convert Text Encoder model to OpenVINO IR.
         Function accepts text encoder model, prepares example inputs for conversion, and convert it to OpenVINO Model
-        Parameters: 
+        Parameters:
             text_encoder (torch.nn.Module): text_encoder model
             ir_path (Path): File for storing model
         Returns:
@@ -699,7 +699,7 @@ hidden states.
             input_ids = torch.ones((1, 77), dtype=torch.long)
             # switch model to inference mode
             text_encoder.eval()
-    
+
             # disable gradients calculation for reducing memory consumption
             with torch.no_grad():
                 ov_model = ov.convert_model(
@@ -711,8 +711,8 @@ hidden states.
                 del ov_model
             cleanup_torchscript_cache()
             print('Text Encoder successfully converted to IR')
-        
-    
+
+
     if not TEXT_ENCODER_OV_PATH.exists():
         convert_encoder(pipe.text_encoder, TEXT_ENCODER_OV_PATH)
     else:
@@ -757,14 +757,14 @@ diffusion
 .. code:: ipython3
 
     VAE_DECODER_OV_PATH = Path('vae_decoder.xml')
-    
-    
+
+
     def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for convert, 
-        Parameters: 
+        Convert VAE model to IR format.
+        Function accepts pipeline, creates wrapper class for export only necessary for inference part,
+        prepares example inputs for convert,
+        Parameters:
             vae (torch.nn.Module): VAE model
             ir_path (Path): File for storing model
         Returns:
@@ -774,14 +774,14 @@ diffusion
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, latents):
                 return self.vae.decode(latents)
-    
+
         if not ir_path.exists():
             vae_decoder = VAEDecoderWrapper(vae)
             latents = torch.zeros((1, 4, 64, 64))
-    
+
             vae_decoder.eval()
             with torch.no_grad():
                 ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[(1,4,64,64),])
@@ -789,8 +789,8 @@ diffusion
             del ov_model
             cleanup_torchscript_cache()
             print('VAE decoder successfully converted to IR')
-    
-    
+
+
     if not VAE_DECODER_OV_PATH.exists():
         convert_vae_decoder(pipe.vae, VAE_DECODER_OV_PATH)
     else:
@@ -870,13 +870,13 @@ on OpenVINO.
     from transformers import CLIPTokenizer
     from typing import Union, List, Optional, Tuple
     import cv2
-    
-    
+
+
     def scale_fit_to_window(dst_width:int, dst_height:int, image_width:int, image_height:int):
         """
-        Preprocessing helper function for calculating image size for resize with peserving original aspect ratio 
+        Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-        
+
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -888,15 +888,15 @@ on OpenVINO.
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-    
-    
+
+
     def preprocess(image: Image.Image):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1], finally, converts data layout from planar NHWC to NCHW.
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-        
+
         Parameters:
           image (Image.Image): input image
         Returns:
@@ -913,15 +913,15 @@ on OpenVINO.
         image = image.astype(np.float32) / 255.0
         image = image.transpose(0, 3, 1, 2)
         return image, pad
-    
-    
+
+
     def randn_tensor(
         shape: Union[Tuple, List],
         dtype: Optional[np.dtype] = np.float32,
     ):
         """
         Helper function for generation random values tensor with given shape and data type
-        
+
         Parameters:
           shape (Union[Tuple, List]): shape for filling random values
           dtype (np.dtype, *optiona*, np.float32): data type for result
@@ -929,10 +929,10 @@ on OpenVINO.
           latents (np.ndarray): tensor with random values with given data type and shape (usually represents noise in latent space)
         """
         latents = np.random.randn(*shape).astype(dtype)
-    
+
         return latents
-    
-    
+
+
     class OVContrlNetStableDiffusionPipeline(DiffusionPipeline):
         """
         OpenVINO inference pipeline for Stable Diffusion with ControlNet guidence
@@ -954,11 +954,11 @@ on OpenVINO.
             self.scheduler = scheduler
             self.load_models(core, device, controlnet, text_encoder, unet, vae_decoder)
             self.set_progress_bar_config(disable=True)
-    
+
         def load_models(self, core: ov.Core, device: str, controlnet:ov.Model, text_encoder: ov.Model, unet: ov.Model, vae_decoder: ov.Model):
             """
             Function for loading models on device using OpenVINO
-            
+
             Parameters:
               core (Core): OpenVINO runtime Core class instance
               device (str): inference device
@@ -976,7 +976,7 @@ on OpenVINO.
             self.unet_out = self.unet.output(0)
             self.vae_decoder = core.compile_model(vae_decoder)
             self.vae_decoder_out = self.vae_decoder.output(0)
-    
+
         def __call__(
             self,
             prompt: Union[str, List[str]],
@@ -991,7 +991,7 @@ on OpenVINO.
         ):
             """
             Function invoked when calling the pipeline for generation.
-    
+
             Parameters:
                 prompt (`str` or `List[str]`):
                     The prompt or prompts to guide the image generation.
@@ -1017,9 +1017,9 @@ on OpenVINO.
                     [PIL](https://pillow.readthedocs.io/en/stable/): `Image.Image` or `np.array`.
             Returns:
                 image ([List[Union[np.ndarray, Image.Image]]): generaited images
-                
+
             """
-    
+
             # 1. Define call parameters
             batch_size = 1 if isinstance(prompt, str) else len(prompt)
             # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
@@ -1028,18 +1028,18 @@ on OpenVINO.
             do_classifier_free_guidance = guidance_scale > 1.0
             # 2. Encode input prompt
             text_embeddings = self._encode_prompt(prompt, negative_prompt=negative_prompt)
-    
+
             # 3. Preprocess image
             orig_width, orig_height = image.size
             image, pad = preprocess(image)
             height, width = image.shape[-2:]
             if do_classifier_free_guidance:
                 image = np.concatenate(([image] * 2))
-    
+
             # 4. set timesteps
             self.scheduler.set_timesteps(num_inference_steps)
             timesteps = self.scheduler.timesteps
-    
+
             # 6. Prepare latent variables
             num_channels_latents = 4
             latents = self.prepare_latents(
@@ -1050,7 +1050,7 @@ on OpenVINO.
                 text_embeddings.dtype,
                 latents,
             )
-    
+
             # 7. Denoising loop
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -1061,28 +1061,28 @@ on OpenVINO.
                     latent_model_input = np.concatenate(
                         [latents] * 2) if do_classifier_free_guidance else latents
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-    
+
                     result = self.controlnet([latent_model_input, t, text_embeddings, image])
                     down_and_mid_blok_samples = [sample * controlnet_conditioning_scale for _, sample in result.items()]
-    
+
                     # predict the noise residual
                     noise_pred = self.unet([latent_model_input, t, text_embeddings, *down_and_mid_blok_samples])[self.unet_out]
-    
+
                     # perform guidance
                     if do_classifier_free_guidance:
                         noise_pred_uncond, noise_pred_text = noise_pred[0], noise_pred[1]
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-    
+
                     # compute the previous noisy sample x_t -> x_t-1
                     latents = self.scheduler.step(torch.from_numpy(noise_pred), t, torch.from_numpy(latents)).prev_sample.numpy()
-    
+
                     # update progress
                     if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                         progress_bar.update()
-    
+
             # 8. Post-processing
             image = self.decode_latents(latents, pad)
-    
+
             # 9. Convert to PIL
             if output_type == "pil":
                 image = self.numpy_to_pil(image)
@@ -1090,13 +1090,13 @@ on OpenVINO.
             else:
                 image = [cv2.resize(img, (orig_width, orig_width))
                          for img in image]
-    
+
             return image
-    
+
         def _encode_prompt(self, prompt:Union[str, List[str]], num_images_per_prompt:int = 1, do_classifier_free_guidance:bool = True, negative_prompt:Union[str, List[str]] = None):
             """
             Encodes the prompt into text encoder hidden states.
-    
+
             Parameters:
                 prompt (str or list(str)): prompt to be encoded
                 num_images_per_prompt (int): number of images that should be generated per prompt
@@ -1106,7 +1106,7 @@ on OpenVINO.
                 text_embeddings (np.ndarray): text encoder hidden states
             """
             batch_size = len(prompt) if isinstance(prompt, list) else 1
-    
+
             # tokenize input prompts
             text_inputs = self.tokenizer(
                 prompt,
@@ -1116,10 +1116,10 @@ on OpenVINO.
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-    
+
             text_embeddings = self.text_encoder(
                 text_input_ids)[self.text_encoder_out]
-    
+
             # duplicate text embeddings for each generation per prompt
             if num_images_per_prompt != 1:
                 bs_embed, seq_len, _ = text_embeddings.shape
@@ -1127,7 +1127,7 @@ on OpenVINO.
                     text_embeddings, (1, num_images_per_prompt, 1))
                 text_embeddings = np.reshape(
                     text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
-    
+
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance:
                 uncond_tokens: List[str]
@@ -1145,26 +1145,26 @@ on OpenVINO.
                     truncation=True,
                     return_tensors="np",
                 )
-    
+
                 uncond_embeddings = self.text_encoder(uncond_input.input_ids)[self.text_encoder_out]
-    
+
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = uncond_embeddings.shape[1]
                 uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
                 uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
-    
+
                 # For classifier free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
-    
+
             return text_embeddings
-    
+
         def prepare_latents(self, batch_size:int, num_channels_latents:int, height:int, width:int, dtype:np.dtype = np.float32, latents:np.ndarray = None):
             """
-            Preparing noise to image generation. If initial latents are not provided, they will be generated randomly, 
+            Preparing noise to image generation. If initial latents are not provided, they will be generated randomly,
             then prepared latents scaled by the standard deviation required by the scheduler
-            
+
             Parameters:
                batch_size (int): input batch size
                num_channels_latents (int): number of channels for noise generation
@@ -1180,15 +1180,15 @@ on OpenVINO.
                 latents = randn_tensor(shape, dtype=dtype)
             else:
                 latents = latents
-    
+
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma
             return latents
-    
+
         def decode_latents(self, latents:np.array, pad:Tuple[int]):
             """
             Decode predicted image from latent space using VAE Decoder and unpad image result
-            
+
             Parameters:
                latents (np.ndarray): image encoded in diffusion latent space
                pad (Tuple[int]): each side padding sizes obtained on preprocessing step
@@ -1210,15 +1210,15 @@ on OpenVINO.
 
     from transformers import CLIPTokenizer
     from diffusers import UniPCMultistepScheduler
-    
+
     tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
     scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-    
-    
+
+
     def visualize_results(orig_img:Image.Image, skeleton_img:Image.Image, result_img:Image.Image):
         """
         Helper function for results visualization
-        
+
         Parameters:
            orig_img (Image.Image): original image
            skeleton_img (Image.Image): image with body pose keypoints
@@ -1245,7 +1245,7 @@ on OpenVINO.
         list_axes[1].imshow(np.array(skeleton_img))
         list_axes[2].imshow(np.array(result_img))
         list_axes[0].set_title(orig_title, fontsize=15)
-        list_axes[1].set_title(skeleton_title, fontsize=15) 
+        list_axes[1].set_title(skeleton_title, fontsize=15)
         list_axes[2].set_title("Result", fontsize=15)
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00 , hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
@@ -1277,16 +1277,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='CPU',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -1305,13 +1305,13 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     np.random.seed(42)
-    
+
     pose = pose_estimator(img)
-    
+
     prompt = "Dancing Darth Vader, best quality, extremely detailed"
     negative_prompt = "monochrome, lowres, bad anatomy, worst quality, low quality"
     result = ov_pipe(prompt, pose, 20, negative_prompt=negative_prompt)
-    
+
     result[0]
 
 
@@ -1325,7 +1325,7 @@ select device from dropdown list for running inference using OpenVINO
 
     import gradio as gr
     from urllib.request import urlretrieve
-    
+
     urlretrieve(example_url, "example.jpg")
     gr.close_all()
     with gr.Blocks() as demo:
@@ -1348,21 +1348,21 @@ select device from dropdown list for running inference using OpenVINO
                 btn = gr.Button()
             with gr.Column(visible=False) as step2:
                 out_result = gr.Image(label="Result")
-    
+
         def extract_pose(img):
             if img is None:
                 raise gr.Error("Please upload the image or use one from the examples list")
             return {step1: gr.update(visible=True), step2: gr.update(visible=True), out_pose: pose_estimator(img)}
-    
+
         def generate(pose, prompt, negative_prompt, seed, num_steps, progress=gr.Progress(track_tqdm=True)):
             np.random.seed(seed)
             result = ov_pipe(prompt, pose, num_steps, negative_prompt)[0]
             return result
-    
+
         pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])
         btn.click(generate, [out_pose, inp_prompt, inp_neg_prompt, inp_seed, inp_steps], out_result)
-    
-    
+
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

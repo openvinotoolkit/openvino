@@ -3,11 +3,10 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 
 |image0|
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Showing Info Available
-   Devices <#showing-info-available-devices>`__
+-  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Download Pre-Converted Stable Diffusion 2.1
    IR <#download-pre-converted-stable-diffusion--ir>`__
 -  `Save the pre-trained models, Select the inference device and compile
@@ -27,7 +26,7 @@ this
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets" "transformers >= 4.31"
+    %pip install -q "optimum-intel[openvino,diffusers]@git+https://github.com/huggingface/optimum-intel.git" "ipywidgets" "transformers>=4.33" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
@@ -56,8 +55,10 @@ Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
 (IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 
-Showing Info Available Devices 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Showing Info Available Devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -76,10 +77,10 @@ this
 .. code:: ipython3
 
     from openvino.runtime import Core
-    
+
     ie = Core()
     devices = ie.available_devices
-    
+
     for device in devices:
         device_name = ie.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -92,15 +93,17 @@ this
     GPU.1: Intel(R) Arc(TM) A770 Graphics (dGPU)
 
 
-Download Pre-Converted Stable Diffusion 2.1 IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download Pre-Converted Stable Diffusion 2.1 IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
     # download the pre-converted SD v2.1 model from Hugging Face Hub
     name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
-    
+
     pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
     pipe.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
 
@@ -183,8 +186,10 @@ Download Pre-Converted Stable Diffusion 2.1 IR
 
 
 
-Save the pre-trained models, Select the inference device and compile it 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Save the pre-trained models, Select the inference device and compile it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 You can save the model locally in order to avoid downloading process
 later. The model will also saved in the cache.
@@ -203,19 +208,21 @@ later. The model will also saved in the cache.
     Compiling the unet...
 
 
-Be creative, add the prompt and enjoy the result 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Be creative, add the prompt and enjoy the result
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     import gc
-    
-    # Generate an image. 
+
+    # Generate an image.
     prompt = "red car in snowy forest, epic vista, beautiful landscape, 4k, 8k"
     output = pipe(prompt, num_inference_steps=17, output_type="pil").images[0]
     output.save("image.png")
     output
-    
+
     del pipe
     gc.collect()
 

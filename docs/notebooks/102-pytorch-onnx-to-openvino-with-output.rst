@@ -33,8 +33,8 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Preparation <#preparation>`__
 
@@ -240,7 +240,7 @@ Convert ONNX Model to OpenVINO IR Format
 To convert the ONNX model to OpenVINO IR with ``FP16`` precision, use
 model conversion API. The models are saved inside the current directory.
 For more information on how to convert models, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -509,7 +509,7 @@ Performance Comparison
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
 Keep in mind that many optimizations are possible to improve the
 performance.
 
@@ -576,9 +576,17 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.93
-    ONNX model in OpenVINO Runtime/CPU: 0.018 seconds per image, FPS: 56.39
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.018 seconds per image, FPS: 54.58
+    PyTorch model on CPU: 0.044 seconds per image, FPS: 22.60
+
+
+.. parsed-literal::
+
+    ONNX model in OpenVINO Runtime/CPU: 0.029 seconds per image, FPS: 34.95
+
+
+.. parsed-literal::
+
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.029 seconds per image, FPS: 34.86
 
 
 **Show Device Information**
@@ -608,6 +616,6 @@ References
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion API
-   documentation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+   documentation <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 -  `Converting Pytorch
-   model <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+   model <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__

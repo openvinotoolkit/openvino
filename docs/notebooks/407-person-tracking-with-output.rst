@@ -93,8 +93,8 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
 -  `Download the Model <#download-the-model>`__
@@ -114,8 +114,6 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
    -  `Initialize tracker <#initialize-tracker>`__
    -  `Run Live Person Tracking <#run-live-person-tracking>`__
-   -  `Run Person Tracking on a Video
-      File <#run-person-tracking-on-a-video-file>`__
 
 .. code:: ipython3
 
@@ -126,13 +124,27 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -167,8 +179,10 @@ Imports
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
 
-Download the Model 
-------------------------------------------------------------
+Download the Model
+------------------
+
+
 
 We will use pre-trained models from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
@@ -185,18 +199,18 @@ Representation (OpenVINO IR).
    and post-processing.
 
 In this case, `person detection
-model <https://docs.openvino.ai/2023.3/omz_models_model_person_detection_0202.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
 `reidentification
-model <https://docs.openvino.ai/2023.3/omz_models_model_person_reidentification_retail_0287.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
 `Object Detection Models
-list <https://docs.openvino.ai/2023.3/omz_models_group_intel.html#object-detection-models>`__,
+list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
 ``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/2023.3/omz_models_group_intel.html#reidentification-models>`__),
+list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3
@@ -234,26 +248,498 @@ replace the name of the model in the code below.
     ################|| Downloading person-detection-0202 ||################
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
-    
+
+
+.. parsed-literal::
+
+    ... 12%, 32 KB, 1348 KB/s, 0 seconds passed
+... 25%, 64 KB, 1353 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 38%, 96 KB, 1600 KB/s, 0 seconds passed
+... 51%, 128 KB, 1500 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 64%, 160 KB, 1319 KB/s, 0 seconds passed
+... 77%, 192 KB, 1575 KB/s, 0 seconds passed
+... 89%, 224 KB, 1684 KB/s, 0 seconds passed
+... 100%, 248 KB, 1865 KB/s, 0 seconds passed
+
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
+
+
+.. parsed-literal::
+
+    ... 0%, 32 KB, 1532 KB/s, 0 seconds passed
+... 1%, 64 KB, 1424 KB/s, 0 seconds passed
+... 2%, 96 KB, 2094 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 3%, 128 KB, 1853 KB/s, 0 seconds passed
+... 4%, 160 KB, 2245 KB/s, 0 seconds passed
+... 5%, 192 KB, 2341 KB/s, 0 seconds passed
+... 6%, 224 KB, 2712 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 7%, 256 KB, 2395 KB/s, 0 seconds passed
+... 8%, 288 KB, 2402 KB/s, 0 seconds passed
+... 9%, 320 KB, 2655 KB/s, 0 seconds passed
+... 9%, 352 KB, 2912 KB/s, 0 seconds passed
+... 10%, 384 KB, 2678 KB/s, 0 seconds passed
+... 11%, 416 KB, 2880 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 12%, 448 KB, 2855 KB/s, 0 seconds passed
+... 13%, 480 KB, 3045 KB/s, 0 seconds passed
+... 14%, 512 KB, 2844 KB/s, 0 seconds passed
+... 15%, 544 KB, 2820 KB/s, 0 seconds passed
+... 16%, 576 KB, 2979 KB/s, 0 seconds passed
+... 17%, 608 KB, 3137 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 18%, 640 KB, 2954 KB/s, 0 seconds passed
+... 18%, 672 KB, 3080 KB/s, 0 seconds passed
+... 19%, 704 KB, 3051 KB/s, 0 seconds passed
+... 20%, 736 KB, 3184 KB/s, 0 seconds passed
+... 21%, 768 KB, 3032 KB/s, 0 seconds passed
+... 22%, 800 KB, 3138 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 23%, 832 KB, 3111 KB/s, 0 seconds passed
+... 24%, 864 KB, 3224 KB/s, 0 seconds passed
+... 25%, 896 KB, 3084 KB/s, 0 seconds passed
+... 26%, 928 KB, 3041 KB/s, 0 seconds passed
+... 27%, 960 KB, 3142 KB/s, 0 seconds passed
+... 27%, 992 KB, 3243 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 28%, 1024 KB, 3129 KB/s, 0 seconds passed
+... 29%, 1056 KB, 3090 KB/s, 0 seconds passed
+... 30%, 1088 KB, 3179 KB/s, 0 seconds passed
+... 31%, 1120 KB, 3270 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 32%, 1152 KB, 3167 KB/s, 0 seconds passed
+... 33%, 1184 KB, 3245 KB/s, 0 seconds passed
+... 34%, 1216 KB, 3210 KB/s, 0 seconds passed
+... 35%, 1248 KB, 3291 KB/s, 0 seconds passed
+... 36%, 1280 KB, 3194 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 36%, 1312 KB, 3161 KB/s, 0 seconds passed
+... 37%, 1344 KB, 3233 KB/s, 0 seconds passed
+... 38%, 1376 KB, 3307 KB/s, 0 seconds passed
+... 39%, 1408 KB, 3219 KB/s, 0 seconds passed
+... 40%, 1440 KB, 3187 KB/s, 0 seconds passed
+... 41%, 1472 KB, 3253 KB/s, 0 seconds passed
+... 42%, 1504 KB, 3321 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 43%, 1536 KB, 3243 KB/s, 0 seconds passed
+... 44%, 1568 KB, 3300 KB/s, 0 seconds passed
+... 45%, 1600 KB, 3271 KB/s, 0 seconds passed
+... 45%, 1632 KB, 3333 KB/s, 0 seconds passed
+... 46%, 1664 KB, 3262 KB/s, 0 seconds passed
+... 47%, 1696 KB, 3315 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 48%, 1728 KB, 3287 KB/s, 0 seconds passed
+... 49%, 1760 KB, 3344 KB/s, 0 seconds passed
+... 50%, 1792 KB, 3275 KB/s, 0 seconds passed
+... 51%, 1824 KB, 3242 KB/s, 0 seconds passed
+... 52%, 1856 KB, 3296 KB/s, 0 seconds passed
+... 53%, 1888 KB, 3350 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 54%, 1920 KB, 3285 KB/s, 0 seconds passed
+... 54%, 1952 KB, 3255 KB/s, 0 seconds passed
+... 55%, 1984 KB, 3305 KB/s, 0 seconds passed
+... 56%, 2016 KB, 3357 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 57%, 2048 KB, 3293 KB/s, 0 seconds passed
+... 58%, 2080 KB, 3269 KB/s, 0 seconds passed
+... 59%, 2112 KB, 3317 KB/s, 0 seconds passed
+... 60%, 2144 KB, 3364 KB/s, 0 seconds passed
+... 61%, 2176 KB, 3305 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 62%, 2208 KB, 3281 KB/s, 0 seconds passed
+... 63%, 2240 KB, 3325 KB/s, 0 seconds passed
+... 64%, 2272 KB, 3371 KB/s, 0 seconds passed
+... 64%, 2304 KB, 3314 KB/s, 0 seconds passed
+... 65%, 2336 KB, 3291 KB/s, 0 seconds passed
+... 66%, 2368 KB, 3332 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 67%, 2400 KB, 3289 KB/s, 0 seconds passed
+... 68%, 2432 KB, 3319 KB/s, 0 seconds passed
+... 69%, 2464 KB, 3291 KB/s, 0 seconds passed
+... 70%, 2496 KB, 3331 KB/s, 0 seconds passed
+... 71%, 2528 KB, 3297 KB/s, 0 seconds passed
+... 72%, 2560 KB, 3328 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 73%, 2592 KB, 3304 KB/s, 0 seconds passed
+... 73%, 2624 KB, 3339 KB/s, 0 seconds passed
+... 74%, 2656 KB, 3378 KB/s, 0 seconds passed
+... 75%, 2688 KB, 3340 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 76%, 2720 KB, 3313 KB/s, 0 seconds passed
+... 77%, 2752 KB, 3346 KB/s, 0 seconds passed
+... 78%, 2784 KB, 3382 KB/s, 0 seconds passed
+... 79%, 2816 KB, 3343 KB/s, 0 seconds passed
+... 80%, 2848 KB, 3317 KB/s, 0 seconds passed
+... 81%, 2880 KB, 3351 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 82%, 2912 KB, 3318 KB/s, 0 seconds passed
+... 82%, 2944 KB, 3345 KB/s, 0 seconds passed
+... 83%, 2976 KB, 3323 KB/s, 0 seconds passed
+... 84%, 3008 KB, 3357 KB/s, 0 seconds passed
+... 85%, 3040 KB, 3322 KB/s, 0 seconds passed
+... 86%, 3072 KB, 3347 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 87%, 3104 KB, 3332 KB/s, 0 seconds passed
+... 88%, 3136 KB, 3361 KB/s, 0 seconds passed
+... 89%, 3168 KB, 3329 KB/s, 0 seconds passed
+... 90%, 3200 KB, 3355 KB/s, 0 seconds passed
+... 91%, 3232 KB, 3336 KB/s, 0 seconds passed
+... 91%, 3264 KB, 3363 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 92%, 3296 KB, 3331 KB/s, 0 seconds passed
+... 93%, 3328 KB, 3356 KB/s, 0 seconds passed
+... 94%, 3360 KB, 3342 KB/s, 1 seconds passed
+... 95%, 3392 KB, 3367 KB/s, 1 seconds passed
+
+.. parsed-literal::
+
+    ... 96%, 3424 KB, 3334 KB/s, 1 seconds passed
+... 97%, 3456 KB, 3361 KB/s, 1 seconds passed
+... 98%, 3488 KB, 3346 KB/s, 1 seconds passed
+... 99%, 3520 KB, 3371 KB/s, 1 seconds passed
+... 100%, 3549 KB, 3397 KB/s, 1 seconds passed
+
     
-    
+
+
+.. parsed-literal::
+
     ################|| Downloading person-reidentification-retail-0287 ||################
     
     ========== Downloading model/intel/person-reidentification-retail-0287/person-reidentification-retail-0267.onnx
-    
+
+
+.. parsed-literal::
+
+    ... 0%, 32 KB, 1215 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 1%, 64 KB, 1020 KB/s, 0 seconds passed
+... 2%, 96 KB, 1323 KB/s, 0 seconds passed
+... 3%, 128 KB, 1276 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 4%, 160 KB, 1289 KB/s, 0 seconds passed
+... 5%, 192 KB, 1412 KB/s, 0 seconds passed
+... 6%, 224 KB, 1517 KB/s, 0 seconds passed
+... 7%, 256 KB, 1729 KB/s, 0 seconds passed
+... 8%, 288 KB, 1941 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 9%, 320 KB, 1856 KB/s, 0 seconds passed
+... 10%, 352 KB, 1911 KB/s, 0 seconds passed
+... 11%, 384 KB, 2080 KB/s, 0 seconds passed
+... 11%, 416 KB, 2249 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 12%, 448 KB, 2139 KB/s, 0 seconds passed
+... 13%, 480 KB, 2172 KB/s, 0 seconds passed
+... 14%, 512 KB, 2312 KB/s, 0 seconds passed
+... 15%, 544 KB, 2322 KB/s, 0 seconds passed
+... 16%, 576 KB, 2342 KB/s, 0 seconds passed
+... 17%, 608 KB, 2362 KB/s, 0 seconds passed
+... 18%, 640 KB, 2478 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 19%, 672 KB, 2474 KB/s, 0 seconds passed
+... 20%, 704 KB, 2482 KB/s, 0 seconds passed
+... 21%, 736 KB, 2501 KB/s, 0 seconds passed
+... 22%, 768 KB, 2604 KB/s, 0 seconds passed
+... 22%, 800 KB, 2597 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 23%, 832 KB, 2601 KB/s, 0 seconds passed
+... 24%, 864 KB, 2607 KB/s, 0 seconds passed
+... 25%, 896 KB, 2697 KB/s, 0 seconds passed
+... 26%, 928 KB, 2672 KB/s, 0 seconds passed
+... 27%, 960 KB, 2693 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 28%, 992 KB, 2692 KB/s, 0 seconds passed
+... 29%, 1024 KB, 2774 KB/s, 0 seconds passed
+... 30%, 1056 KB, 2750 KB/s, 0 seconds passed
+... 31%, 1088 KB, 2762 KB/s, 0 seconds passed
+... 32%, 1120 KB, 2764 KB/s, 0 seconds passed
+... 33%, 1152 KB, 2840 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 33%, 1184 KB, 2816 KB/s, 0 seconds passed
+... 34%, 1216 KB, 2829 KB/s, 0 seconds passed
+... 35%, 1248 KB, 2822 KB/s, 0 seconds passed
+... 36%, 1280 KB, 2891 KB/s, 0 seconds passed
+... 37%, 1312 KB, 2867 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 38%, 1344 KB, 2879 KB/s, 0 seconds passed
+... 39%, 1376 KB, 2872 KB/s, 0 seconds passed
+... 40%, 1408 KB, 2935 KB/s, 0 seconds passed
+... 41%, 1440 KB, 2914 KB/s, 0 seconds passed
+... 42%, 1472 KB, 2924 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 43%, 1504 KB, 2916 KB/s, 0 seconds passed
+... 44%, 1536 KB, 2975 KB/s, 0 seconds passed
+... 44%, 1568 KB, 2949 KB/s, 0 seconds passed
+... 45%, 1600 KB, 2956 KB/s, 0 seconds passed
+... 46%, 1632 KB, 2952 KB/s, 0 seconds passed
+... 47%, 1664 KB, 3006 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 48%, 1696 KB, 2985 KB/s, 0 seconds passed
+... 49%, 1728 KB, 2991 KB/s, 0 seconds passed
+... 50%, 1760 KB, 2986 KB/s, 0 seconds passed
+... 51%, 1792 KB, 3037 KB/s, 0 seconds passed
+... 52%, 1824 KB, 3016 KB/s, 0 seconds passed
+... 53%, 1856 KB, 3019 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 54%, 1888 KB, 3014 KB/s, 0 seconds passed
+... 55%, 1920 KB, 3063 KB/s, 0 seconds passed
+... 55%, 1952 KB, 3042 KB/s, 0 seconds passed
+... 56%, 1984 KB, 3044 KB/s, 0 seconds passed
+... 57%, 2016 KB, 3041 KB/s, 0 seconds passed
+... 58%, 2048 KB, 3085 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 59%, 2080 KB, 3067 KB/s, 0 seconds passed
+... 60%, 2112 KB, 3068 KB/s, 0 seconds passed
+... 61%, 2144 KB, 3062 KB/s, 0 seconds passed
+... 62%, 2176 KB, 3104 KB/s, 0 seconds passed
+... 63%, 2208 KB, 3087 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 64%, 2240 KB, 3045 KB/s, 0 seconds passed
+... 65%, 2272 KB, 3084 KB/s, 0 seconds passed
+... 66%, 2304 KB, 3124 KB/s, 0 seconds passed
+... 66%, 2336 KB, 3105 KB/s, 0 seconds passed
+... 67%, 2368 KB, 3066 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 68%, 2400 KB, 3104 KB/s, 0 seconds passed
+... 69%, 2432 KB, 3139 KB/s, 0 seconds passed
+... 70%, 2464 KB, 3123 KB/s, 0 seconds passed
+... 71%, 2496 KB, 3084 KB/s, 0 seconds passed
+... 72%, 2528 KB, 3119 KB/s, 0 seconds passed
+... 73%, 2560 KB, 3153 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 74%, 2592 KB, 3138 KB/s, 0 seconds passed
+... 75%, 2624 KB, 3099 KB/s, 0 seconds passed
+... 76%, 2656 KB, 3135 KB/s, 0 seconds passed
+... 77%, 2688 KB, 3169 KB/s, 0 seconds passed
+... 77%, 2720 KB, 3155 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 78%, 2752 KB, 3115 KB/s, 0 seconds passed
+... 79%, 2784 KB, 3149 KB/s, 0 seconds passed
+... 80%, 2816 KB, 3182 KB/s, 0 seconds passed
+... 81%, 2848 KB, 3170 KB/s, 0 seconds passed
+... 82%, 2880 KB, 3129 KB/s, 0 seconds passed
+... 83%, 2912 KB, 3161 KB/s, 0 seconds passed
+... 84%, 2944 KB, 3192 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 85%, 2976 KB, 3179 KB/s, 0 seconds passed
+... 86%, 3008 KB, 3141 KB/s, 0 seconds passed
+... 87%, 3040 KB, 3173 KB/s, 0 seconds passed
+... 88%, 3072 KB, 3205 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 88%, 3104 KB, 3170 KB/s, 0 seconds passed
+... 89%, 3136 KB, 3154 KB/s, 0 seconds passed
+... 90%, 3168 KB, 3185 KB/s, 0 seconds passed
+... 91%, 3200 KB, 3215 KB/s, 0 seconds passed
+... 92%, 3232 KB, 3202 KB/s, 1 seconds passed
+
+.. parsed-literal::
+
+    ... 93%, 3264 KB, 3167 KB/s, 1 seconds passed
+... 94%, 3296 KB, 3195 KB/s, 1 seconds passed
+... 95%, 3328 KB, 3224 KB/s, 1 seconds passed
+... 96%, 3360 KB, 3217 KB/s, 1 seconds passed
+... 97%, 3392 KB, 3216 KB/s, 1 seconds passed
+... 98%, 3424 KB, 3203 KB/s, 1 seconds passed
+... 99%, 3456 KB, 3231 KB/s, 1 seconds passed
+
+.. parsed-literal::
+
+    ... 100%, 3487 KB, 3226 KB/s, 1 seconds passed
+
     
     ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.xml
-    
+
+
+.. parsed-literal::
+
+    ... 5%, 32 KB, 1208 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 10%, 64 KB, 1236 KB/s, 0 seconds passed
+... 15%, 96 KB, 1653 KB/s, 0 seconds passed
+... 21%, 128 KB, 1696 KB/s, 0 seconds passed
+... 26%, 160 KB, 1983 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 31%, 192 KB, 2123 KB/s, 0 seconds passed
+... 37%, 224 KB, 2308 KB/s, 0 seconds passed
+... 42%, 256 KB, 2274 KB/s, 0 seconds passed
+... 47%, 288 KB, 2475 KB/s, 0 seconds passed
+... 53%, 320 KB, 2543 KB/s, 0 seconds passed
+... 58%, 352 KB, 2654 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 63%, 384 KB, 2601 KB/s, 0 seconds passed
+... 69%, 416 KB, 2691 KB/s, 0 seconds passed
+... 74%, 448 KB, 2727 KB/s, 0 seconds passed
+... 79%, 480 KB, 2816 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 85%, 512 KB, 2755 KB/s, 0 seconds passed
+... 90%, 544 KB, 2838 KB/s, 0 seconds passed
+... 95%, 576 KB, 2888 KB/s, 0 seconds passed
+... 100%, 600 KB, 2937 KB/s, 0 seconds passed
+
     
     ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.bin
-    
+
+
+.. parsed-literal::
+
+    ... 2%, 32 KB, 1326 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 5%, 64 KB, 1384 KB/s, 0 seconds passed
+... 8%, 96 KB, 1945 KB/s, 0 seconds passed
+... 11%, 128 KB, 1848 KB/s, 0 seconds passed
+... 13%, 160 KB, 2230 KB/s, 0 seconds passed
+... 16%, 192 KB, 2307 KB/s, 0 seconds passed
+... 19%, 224 KB, 2608 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 22%, 256 KB, 2412 KB/s, 0 seconds passed
+... 24%, 288 KB, 2675 KB/s, 0 seconds passed
+... 27%, 320 KB, 2675 KB/s, 0 seconds passed
+... 30%, 352 KB, 2875 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 33%, 384 KB, 2698 KB/s, 0 seconds passed
+... 36%, 416 KB, 2883 KB/s, 0 seconds passed
+... 38%, 448 KB, 2857 KB/s, 0 seconds passed
+... 41%, 480 KB, 3018 KB/s, 0 seconds passed
+... 44%, 512 KB, 2810 KB/s, 0 seconds passed
+... 47%, 544 KB, 2977 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 49%, 576 KB, 2963 KB/s, 0 seconds passed
+... 52%, 608 KB, 3068 KB/s, 0 seconds passed
+... 55%, 640 KB, 2924 KB/s, 0 seconds passed
+... 58%, 672 KB, 3062 KB/s, 0 seconds passed
+... 61%, 704 KB, 3037 KB/s, 0 seconds passed
+... 63%, 736 KB, 3130 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 66%, 768 KB, 3000 KB/s, 0 seconds passed
+... 69%, 800 KB, 3120 KB/s, 0 seconds passed
+... 72%, 832 KB, 3097 KB/s, 0 seconds passed
+... 74%, 864 KB, 3180 KB/s, 0 seconds passed
+... 77%, 896 KB, 3062 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 80%, 928 KB, 3166 KB/s, 0 seconds passed
+... 83%, 960 KB, 3146 KB/s, 0 seconds passed
+... 86%, 992 KB, 3222 KB/s, 0 seconds passed
+... 88%, 1024 KB, 3112 KB/s, 0 seconds passed
+... 91%, 1056 KB, 3203 KB/s, 0 seconds passed
+... 94%, 1088 KB, 3182 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 97%, 1120 KB, 3253 KB/s, 0 seconds passed
+... 99%, 1152 KB, 3150 KB/s, 0 seconds passed
+... 100%, 1153 KB, 3150 KB/s, 0 seconds passed
+
     
 
 
-Load model 
-----------------------------------------------------
+Load model
+----------
+
+
 
 Define a common class for model loading and predicting.
 
@@ -313,8 +799,10 @@ performance, but slightly longer startup time).
             result = self.compiled_model(input)[self.output_layer]
             return result
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -346,8 +834,10 @@ select device from dropdown list for running inference using OpenVINO
     # since the number of detection object is uncertain, the input batch size of reid model should be dynamic
     extractor = Model(reidentification_model_path, -1, device.value)
 
-Data Processing 
----------------------------------------------------------
+Data Processing
+---------------
+
+
 
 Data Processing includes data preprocess and postprocess functions. -
 Data preprocess function is used to change the layout and shape of input
@@ -465,15 +955,19 @@ network’s original output and visualize it.
         """
         return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
-Test person reidentification model 
-----------------------------------------------------------------------------
+Test person reidentification model
+----------------------------------
+
+
 
 The reidentification network outputs a blob with the ``(1, 256)`` shape
 named ``reid_embedding``, which can be compared with other descriptors
 using the cosine distance.
 
-Visualize data 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visualize data
+~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -520,8 +1014,10 @@ Visualize data
 .. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_17_3.png
 
 
-Compare two persons 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare two persons
+~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -542,8 +1038,10 @@ Compare two persons
     Different person (confidence: 0.02726624347269535)
 
 
-Main Processing Function 
-------------------------------------------------------------------
+Main Processing Function
+------------------------
+
+
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -697,11 +1195,15 @@ video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run 
----------------------------------------------
+Run
+---
 
-Initialize tracker 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Initialize tracker
+~~~~~~~~~~~~~~~~~~
+
+
 
 Before running a new tracking task, we have to reinitialize a Tracker
 object
@@ -720,8 +1222,10 @@ object
         n_init=3
     )
 
-Run Live Person Tracking 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Person Tracking
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -730,25 +1234,6 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-.. code:: ipython3
-
-    run_person_tracking(source=0, flip=True, use_popup=False)
-
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@10.524] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@10.524] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
-
-
-Run Person Tracking on a Video File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
 OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
@@ -756,12 +1241,17 @@ will work.
 
 .. code:: ipython3
 
+    USE_WEBCAM = False
+    
+    cam_id = 0
     video_file = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4'
-    run_person_tracking(source=video_file, flip=False, use_popup=False)
+    source = cam_id if USE_WEBCAM else video_file
+    
+    run_person_tracking(source=source, flip=USE_WEBCAM, use_popup=False)
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_27_0.png
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_25_0.png
 
 
 .. parsed-literal::

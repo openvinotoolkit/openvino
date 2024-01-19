@@ -12,6 +12,24 @@ Model Demos
 Demos that demonstrate inference on a particular model.
 
 .. showcase::
+   :title: 275-llm-question-answering
+   :img: _static/images/notebook_eye.png
+
+   LLM Instruction-following pipeline with OpenVINO.
+
+.. showcase::
+   :title: 274-efficient-sam
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/274-efficient-sam/274-efficient-sam.png
+
+   Object segmentations with EfficientSAM and OpenVINO.
+
+.. showcase::
+   :title: 273-stable-zephyr-3b-chatbot
+   :img: _static/images/notebook_eye.png
+
+   LLM-powered chatbot using Stable-Zephyr-3b and OpenVINO.
+
+.. showcase::
    :title: 272-paint-by-example
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
 
@@ -106,10 +124,22 @@ Demos that demonstrate inference on a particular model.
    Visual-language assistant with LLaVA and OpenVINO.
 
 .. showcase::
+   :title: 257-videollava-multimodal-chatbot.ipynb
+   :img: _static/images/notebook_eye.png
+
+   Visual-language assistant with Video-LLaVA and OpenVINO.
+
+.. showcase::
    :title: 256-bark-text-to-audio
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/256-bark-text-to-audio/256-bark-text-to-audio.png
 
    Text-to-speech generation using Bark and OpenVINO.
+
+.. showcase::
+   :title: 254-rag-chatbot
+   :img: _static/images/notebook_eye.png
+
+   Create an LLM-powered RAG system using OpenVINO.
 
 .. showcase::
    :title: 254-llm-chatbot
@@ -148,8 +178,14 @@ Demos that demonstrate inference on a particular model.
    Universal segmentation with OneFormer and OpenVINO™.
 
 .. showcase::
+   :title: 248-segmind-vegart
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/248-stable-diffusion-xl/248-stable-diffusion-xl.png
+
+   High-resolution image generation with Segmind-VegaRT and OpenVINO.
+
+.. showcase::
    :title: 248-ssd-b1
-   :img: https://user-images.githubusercontent.com/29454499/258651862-28b63016-c5ff-4263-9da8-73ca31100165.jpeg
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/248-stable-diffusion-xl/248-stable-diffusion-xl.png
 
    Image generation with Stable Diffusion XL and OpenVINO™.
 

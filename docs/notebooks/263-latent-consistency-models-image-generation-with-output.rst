@@ -44,8 +44,8 @@ An additional part demonstrates how to run quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare models for OpenVINO format
@@ -175,6 +175,30 @@ provide which module should be loaded for initialization using
 
 .. parsed-literal::
 
+    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    diffusion_pytorch_model.safetensors:   0%|          | 0.00/3.44G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/1.22G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/492M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
@@ -271,6 +295,20 @@ hidden states.
     del text_encoder
     gc.collect()
 
+
+.. parsed-literal::
+
+    Text encoder will be loaded from model/text_encoder.xml
+
+
+
+
+.. parsed-literal::
+
+    9
+
+
+
 U-Net
 ~~~~~
 
@@ -329,6 +367,20 @@ Model predicts the ``sample`` state for the next step.
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
     gc.collect()
+
+
+.. parsed-literal::
+
+    Unet successfully converted to IR and saved to model/unet.xml
+
+
+
+
+.. parsed-literal::
+
+    0
+
+
 
 VAE
 ~~~
@@ -394,6 +446,20 @@ VAE encoder, can be found in Stable Diffusion notebook.
     
     del vae
     gc.collect()
+
+
+.. parsed-literal::
+
+    VAE decoder will be loaded from model/vae_decoder.xml
+
+
+
+
+.. parsed-literal::
+
+    0
+
+
 
 Prepare inference pipeline
 --------------------------
@@ -844,7 +910,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-`laion/laion2B-en <https://huggingface.co/datasets/laion/laion2B-en>`__
+`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -874,7 +940,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = lcm_pipeline.unet
         lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
     
-        dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).shuffle(seed=42)
+        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
         safety_checker = lcm_pipeline.safety_checker
         lcm_pipeline.safety_checker = None
@@ -883,7 +949,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:
-            prompt = batch["TEXT"]
+            prompt = batch["caption"]
             if len(prompt) > tokenizer.model_max_length:
                 continue
             _ = lcm_pipeline(
@@ -920,12 +986,6 @@ model inputs for calibration we should customize ``CompiledModel``.
     if not UNET_INT8_OV_PATH.exists():
         subset_size = 200
         unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
-
-
-
-.. parsed-literal::
-
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
 
 
 
@@ -969,6 +1029,11 @@ Create a quantized model from the pre-trained converted OpenVINO model.
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
 
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+
+
 
 .. parsed-literal::
 
@@ -1013,7 +1078,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 .. parsed-literal::
 
-    INFO:nncf:96 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:122 ignored nodes were found by name in the NNCFGraph
 
 
 
@@ -1108,16 +1173,18 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 10
-    calibration_dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).take(validation_size)
+    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
     validation_data = []
-    for batch in calibration_dataset:
-        prompt = batch["TEXT"]
+    for idx, batch in enumerate(calibration_dataset):
+        if idx >= validation_size:
+            break
+        prompt = batch["caption"]
         validation_data.append(prompt)
     
     def calculate_inference_time(pipeline, calibration_dataset):
         inference_time = []
         pipeline.set_progress_bar_config(disable=True)
-        for prompt in calibration_dataset:
+        for idx, prompt in enumerate(validation_data):
             start = time.perf_counter()
             _ = pipeline(
                 prompt,
@@ -1131,14 +1198,9 @@ pipelines, we use median inference time on calibration subset.
             end = time.perf_counter()
             delta = end - start
             inference_time.append(delta)
+            if idx >= validation_size:
+                break
         return np.median(inference_time)
-
-
-
-.. parsed-literal::
-
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
-
 
 .. code:: ipython3
 
@@ -1151,7 +1213,7 @@ pipelines, we use median inference time on calibration subset.
 
 .. parsed-literal::
 
-    Performance speed up: 1.349
+    Performance speed up: 1.319
 
 
 Compare UNet file size
@@ -1173,8 +1235,8 @@ Compare UNet file size
 
 .. parsed-literal::
 
-    FP16 model size: 1678912.43 KB
-    INT8 model size: 840741.46 KB
+    FP16 model size: 1678912.37 KB
+    INT8 model size: 840792.93 KB
     Model compression rate: 1.997
 
 

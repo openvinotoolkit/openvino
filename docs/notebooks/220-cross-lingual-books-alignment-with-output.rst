@@ -37,6 +37,7 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
+
 **Table of contents:**
 
 -  `Get Books <#get-books>`__
@@ -57,7 +58,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
 
 Get Books
 ---------
@@ -202,7 +203,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   \*       \*       \*       \*       \*\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
+    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   *       *       *       *       *\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
 
 
 
@@ -404,7 +405,7 @@ translation pairs.
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
 
 .. code:: ipython3
 
@@ -475,7 +476,7 @@ Optimize the Model with OpenVINO
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model conversion Python
-API <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
 execution graph, as PyTorch constructs it dynamically during inference.
@@ -855,8 +856,8 @@ the pipeline - getting embeddings. You might wonder why, when using
 OpenVINO, you need to compile the model after reading it. There are two
 main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
-device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Working_with_devices.html>`__,
-like CPU, GPU. Each device may work with different data types,
+device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Working_with_devices.html>`__,
+like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
 to store multiple copies of the network with optimized for different
@@ -864,13 +865,13 @@ hardware. A universal OpenVINO model representation is enough. 1.
 Optimization for different scenarios. For example, one scenario
 prioritizes minimizing the *time between starting and finishing model
 inference* (`latency-oriented
-optimization <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_latency.html>`__).
+optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_latency.html>`__).
 In our case, it is more important *how many texts per second the model
 can process* (`throughput-oriented
-optimization <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__).
+optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__).
 
 To get a throughput-optimized model, pass a `performance
-hint <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
+hint <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
 as a configuration during compilation. Then OpenVINO selects the optimal
 parameters for execution on the available hardware.
 
@@ -933,8 +934,8 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   Note: To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+   **Note**: To get a more accurate benchmark, use the `Benchmark Python
+   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 
 .. code:: ipython3
 
@@ -1043,8 +1044,8 @@ boost.
 
 Here are useful links with information about the techniques used in this
 notebook: - `OpenVINO performance
-hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html>`__
+hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html>`__
 - `OpenVINO Async
-API <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+API <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
 - `Throughput
-Optimizations <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__
+Optimizations <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__
