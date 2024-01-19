@@ -46,7 +46,6 @@ struct program {
     friend class reorder_inputs;                    // to be removed when possible
     friend class remove_redundant_reorders;         // to be removed when possible
     friend class post_optimize_weights;             // to be removed when possible
-    friend class prepare_primitive_fusing_through;  // to be removed when possible
     friend class reorder_transfer;                  // to be removed when possible
     friend class fuse_constant_transposes;          // to be removed when possible
     friend class program_wrapper;                   // this class is intended to extend the interface of program for
