@@ -12,7 +12,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <ie_plugin_config.hpp>
 
 namespace ov {
 namespace auto_plugin {
@@ -177,10 +176,6 @@ public:
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RO)
                 supported_ro_properties.push_back(iter.first);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        supported_ro_properties.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        supported_ro_properties.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        OPENVINO_SUPPRESS_DEPRECATED_END
         auto multi_supported_ro_properties = supported_ro_properties;
         return plugin_name == "AUTO" ? supported_ro_properties : multi_supported_ro_properties;
     }
