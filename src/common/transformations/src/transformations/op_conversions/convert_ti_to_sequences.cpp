@@ -921,7 +921,7 @@ public:
             return replace_output_update_name(gather->output(0), gather->input_value(0));
         };
 
-        auto m = make_shared<ov::pass::pattern::Matcher>(match_node, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(match_node, matcher_name);
         register_matcher(m, callback);
     }
 };
