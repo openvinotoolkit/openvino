@@ -16,5 +16,5 @@ public:
     MoveEltwiseUpThroughDataMov();
 };
 
-}   // namespace pass
-}   // namespace ov
+}  // namespace pass
+}  // namespace ov

@@ -640,6 +640,8 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_SET_CALLBACK_COMMON(postLPTPassManager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) && node->get_output_element_type(0) != node->get_input_element_type(0))
+                return false;
             if (node->get_input_size() >= 2) {
                 return node->get_input_element_type(1) == ov::element::i8 ||
                        node->get_input_element_type(1) == ov::element::u8 ||

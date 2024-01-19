@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+
 #include <gtest/gtest.h>
 
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include "ov_ops/type_relaxed.hpp"
-#include <transformations/init_node_info.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 
-class MoveEltwiseUpThroughDataMovTest: public TransformationTestsF{};
+class MoveEltwiseUpThroughDataMovTest : public TransformationTestsF {};
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwise) {
     const ov::Shape shape{1, 3, 224, 224};
@@ -24,7 +25,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwise) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(input, transpose_const);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
@@ -40,7 +42,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwise) {
 
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(input);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(sigmoid, transpose_const);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
@@ -74,11 +77,11 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TypeRelaxedEltwise) {
         auto mul_const = ov::opset8::Constant::create(ov::element::f32, {}, {2.f});
         auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset8::Multiply>>(intermediate_op, mul_const);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(multiply, transpose_const);
 
-        model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{transpose}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{transpose}, ov::ParameterVector{input});
     }
 }
 
@@ -92,7 +95,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, EltwiseSequence) {
 
         auto matmul = std::make_shared<ov::opset8::MatMul>(input_left, input_right);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(matmul, transpose_const);
 
         auto relu = std::make_shared<ov::opset8::Relu>(transpose);
@@ -115,13 +119,15 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, EltwiseSequence) {
 
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(relu);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(sigmoid, transpose_const);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(transpose, unsqueeze_const);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{unsqueeze}, ov::ParameterVector{input_left, input_right});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{unsqueeze}, ov::ParameterVector{input_left, input_right});
     }
 }
 
@@ -158,13 +164,16 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleBinaryEltwiseWithScalarOnSecondBra
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(input, transpose_const);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(transpose, unsqueeze_const);
 
-        auto add = std::make_shared<ov::opset8::Add>(unsqueeze, ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
+        auto add =
+            std::make_shared<ov::opset8::Add>(unsqueeze,
+                                              ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
 
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
@@ -172,9 +181,12 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleBinaryEltwiseWithScalarOnSecondBra
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto add = std::make_shared<ov::opset8::Add>(input, ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
+        auto add =
+            std::make_shared<ov::opset8::Add>(input,
+                                              ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(add, transpose_const);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
@@ -195,7 +207,9 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleEltwiseWith5ScalarOnSecondBranch) 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(input, unsqueeze_const);
 
-        auto add = std::make_shared<ov::opset8::Add>(unsqueeze, ov::opset8::Constant::create(ov::element::f32, {1, 1, 1, 1, 1}, {scalar_value}));
+        auto add = std::make_shared<ov::opset8::Add>(
+            unsqueeze,
+            ov::opset8::Constant::create(ov::element::f32, {1, 1, 1, 1, 1}, {scalar_value}));
 
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
@@ -203,7 +217,9 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleEltwiseWith5ScalarOnSecondBranch) 
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto add = std::make_shared<ov::opset8::Add>(input, ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
+        auto add =
+            std::make_shared<ov::opset8::Add>(input,
+                                              ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(add, unsqueeze_const);
@@ -263,7 +279,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwiseDynamicRank) {
     const std::vector<int64_t> input_order = {3, 2, 1, 0};
     const int64_t unsqueeze_axis = 2;
 
-    auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic(ov::Rank::dynamic()));
+    auto input =
+        std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic(ov::Rank::dynamic()));
 
     auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {unsqueeze_axis});
     auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(input, unsqueeze_const);
@@ -278,14 +295,16 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantize) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(input, transpose_const);
-        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(transpose,
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-8.5}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {8.5}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
-                                                          255);
+        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(
+            transpose,
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-8.5}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {8.5}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
+            255);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{fakequantize}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
@@ -293,13 +312,15 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantize) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(input,
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-8.5}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {8.5}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
-                                                          255);
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(
+            input,
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-8.5}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {8.5}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
+            255);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(fakequantize, transpose_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{transpose}, ov::ParameterVector{input});
@@ -312,15 +333,17 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantizePerChannel) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto transpose_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            ov::opset8::Constant::create(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::opset8::Transpose>(input, transpose_const);
 
-        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(transpose,
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 3, 1, 1}, {-8.5, -7.5, -10.}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 3, 1, 1}, {8.5, 7.5, 10.}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
-                                                          ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
-                                                          255);
+        auto fakequantize = std::make_shared<ov::opset8::FakeQuantize>(
+            transpose,
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 3, 1, 1}, {-8.5, -7.5, -10.}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 3, 1, 1}, {8.5, 7.5, 10.}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {-128}),
+            ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {127}),
+            255);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{fakequantize}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
