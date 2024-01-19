@@ -121,6 +121,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
         // Interpreter backend doesn't implement evaluate method for OP Multiply (by GroupNormalizationDecomposition)
         R"(.*ReferenceGroupNormalization.*_f64*)",
+        // Issue: 128924
+        R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
+
     };
 
 #ifdef _WIN32

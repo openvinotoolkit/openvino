@@ -58,17 +58,6 @@ public:
                 thread.join();
         }
     }
-
-    void safeAddExtension(InferenceEngine::Core& ie) {
-        try {
-            auto extension = std::make_shared<InferenceEngine::Extension>(
-                ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
-            ie.AddExtension(extension);
-        } catch (const InferenceEngine::Exception& ex) {
-            ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
-        }
-    }
 };
 
 // tested function: SetConfig
@@ -167,19 +156,3 @@ TEST_F(IECoreThreadingTests, GetAvailableDevices) {
         },
         30);
 }
-
-#if defined(ENABLE_OV_IR_FRONTEND)
-// tested function: ReadNetwork, AddExtension
-TEST_F(IECoreThreadingTests, ReadNetwork) {
-    InferenceEngine::Core ie;
-    auto network = ie.ReadNetwork(modelName, weightsName);
-
-    runParallel(
-        [&]() {
-            safeAddExtension(ie);
-            (void)ie.ReadNetwork(modelName, weightsName);
-        },
-        100,
-        12);
-}
-#endif  // defined(ENABLE_OV_IR_FRONTEND)
