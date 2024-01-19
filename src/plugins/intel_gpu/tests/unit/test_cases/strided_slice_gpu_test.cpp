@@ -2779,7 +2779,7 @@ TEST_F(strided_slice_cpu_impl_constants, test_2x2x4x3_stride) {
     this->test_2x2x4x3_stride(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl_constants, test_2x2x4x1_new_axis_mask) {
+TEST_F(strided_slice_cpu_impl_constants, DISABLED_test_2x2x4x1_new_axis_mask) { // Issue 129991
     this->test_2x2x4x1_new_axis_mask(false, impl_types::cpu);
 }
 

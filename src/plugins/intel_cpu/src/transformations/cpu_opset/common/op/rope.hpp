@@ -5,7 +5,8 @@
 #pragma once
 
 #include <ngraph/node.hpp>
-#include <ngraph/op/op.hpp>
+
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -58,7 +59,7 @@ namespace intel_cpu {
  *     T2 - FP32
  *     T3 - I32
  */
-class RoPENode : public ngraph::op::Op {
+class RoPENode : public ov::op::Op {
 public:
     OPENVINO_OP("RoPE", "cpu_plugin_opset");
 

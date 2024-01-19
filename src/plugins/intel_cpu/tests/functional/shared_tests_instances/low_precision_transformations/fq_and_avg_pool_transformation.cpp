@@ -9,11 +9,10 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
