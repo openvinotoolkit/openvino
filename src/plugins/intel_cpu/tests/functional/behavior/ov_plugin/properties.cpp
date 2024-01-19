@@ -31,6 +31,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::available_devices.name()),
         RO_property(ov::range_for_async_infer_requests.name()),
         RO_property(ov::range_for_streams.name()),
+        RO_property(ov::execution_devices.name()),
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
         // read write
