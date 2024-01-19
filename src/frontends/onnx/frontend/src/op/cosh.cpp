@@ -4,9 +4,9 @@
 
 #include "op/cosh.hpp"
 
-#include <memory>
+#include "openvino/op/cosh.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector cosh(const Node& node) {
-    return {std::make_shared<default_opset::Cosh>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<v0::Cosh>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1
 
