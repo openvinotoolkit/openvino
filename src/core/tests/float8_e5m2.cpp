@@ -38,6 +38,34 @@ TEST(F8E5M2Test, f32_minus_inf) {
     EXPECT_EQ(f8.to_bits(), 0b11111100);
 }
 
+TEST(F8E5M2Test, f8e5m2_min_normalized) {
+    const auto f8 = ov::float8_e5m2(0.00006103515625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000100);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::min().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_max_normalized) {
+    const auto f8 = ov::float8_e5m2(57344.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111011);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::max().to_bits());
+}
+
+TEST(F8E4M3Test, f8e5m2_lowest_normalized) {
+    const auto f8 = ov::float8_e5m2(-57344.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111011);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::lowest().to_bits());
+}
+
+TEST(F8E4M3Test, f8e5m2_denorm_min) {
+    const auto f8 = ov::float8_e5m2(0.0000152587890625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::denorm_min().to_bits());
+}
+
 TEST(F8E5M2Test, f32_ge_f8_max_round_to_inf) {
     const auto f8 = ov::float8_e5m2(65520.0f);
 
