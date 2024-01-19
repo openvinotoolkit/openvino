@@ -156,7 +156,7 @@ std::vector<ov::Tensor> generateInputTensors() {
 }  // namespace
 
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(
-    const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    const std::vector<ov::Shape>& targetInputStaticShapes) {
     const auto netPrecision = std::get<9>(GetParam());
 
     const std::vector<ov::Tensor> inputTensors =

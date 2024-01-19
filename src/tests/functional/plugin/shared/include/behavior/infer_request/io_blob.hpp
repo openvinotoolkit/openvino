@@ -340,10 +340,10 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
 
 TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::shared_ptr<ngraph::Function> ngraph;
+    std::shared_ptr<ov::Model> ngraph;
     {
-        ngraph::PartialShape shape({1, 3, 10, 10});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        ov::PartialShape shape({1, 3, 10, 10});
+        ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
@@ -351,13 +351,13 @@ TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
         auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
 
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
 
-        ngraph = std::make_shared<ngraph::Function>(results, params);
+        ngraph = std::make_shared<ov::Model>(results, params);
     }
 
-    // Create CNNNetwork from ngraph::Function
+    // Create CNNNetwork from ov::Model
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
@@ -468,7 +468,7 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::Layout layout;
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;

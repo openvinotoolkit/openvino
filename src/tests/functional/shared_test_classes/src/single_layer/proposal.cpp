@@ -64,7 +64,7 @@ std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<prop
 }
 
 void ProposalLayerTest::Compare(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     num_selected_boxes = 0;
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
@@ -91,9 +91,9 @@ void ProposalLayerTest::Compare(
 
         switch (precision) {
         case InferenceEngine::Precision::BF16:
-            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size,
-                    ngraph::bfloat16(threshold), outputIndex);
+            Compare(reinterpret_cast<const ov::bfloat16 *>(expectedBuffer),
+                    reinterpret_cast<const ov::bfloat16 *>(actualBuffer), size,
+                    ov::bfloat16(threshold), outputIndex);
             break;
         case InferenceEngine::Precision::FP16:
             Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
@@ -171,10 +171,10 @@ void ProposalLayerTest::SetUp() {
                                            framework));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{
+    ov::ResultVector results{
         std::make_shared<ov::op::v0::Result>(proposal->output(0)),
         std::make_shared<ov::op::v0::Result>(proposal->output(1))};
-    function = std::make_shared<ngraph::Function>(results, params, "proposal");
+    function = std::make_shared<ov::Model>(results, params, "proposal");
 }
 
 InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

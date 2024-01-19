@@ -100,7 +100,7 @@ void EltwiseLayerTest::SetUp() {
         transformInputShapesAccordingEltwise(shape_input_secondary);
     }
 
-    std::shared_ptr<ngraph::Node> secondaryInput;
+    std::shared_ptr<ov::Node> secondaryInput;
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         auto param = std::make_shared<ov::op::v0::Parameter>(netType, shape_input_secondary);
         secondaryInput = param;
@@ -111,7 +111,7 @@ void EltwiseLayerTest::SetUp() {
             case ngraph::helpers::EltwiseTypes::DIVIDE:
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
-                std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
+                std::vector<float> data = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(shape), 10, 2);
                 secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
                 break;
             }
@@ -127,7 +127,7 @@ void EltwiseLayerTest::SetUp() {
     secondaryInput->set_friendly_name("param1");
 
     auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
-    function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
+    function = std::make_shared<ov::Model>(eltwise, parameters, "Eltwise");
 }
 
 } //  namespace subgraph

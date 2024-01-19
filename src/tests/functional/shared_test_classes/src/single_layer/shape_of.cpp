@@ -28,8 +28,8 @@ namespace LayerTestsDefinitions {
         auto outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(param[0], outType);
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(shapeOf)};
-        function = std::make_shared<ngraph::Function>(results, param, "shapeOf");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(shapeOf)};
+        function = std::make_shared<ov::Model>(results, param, "shapeOf");
     }
 
 }  // namespace LayerTestsDefinitions

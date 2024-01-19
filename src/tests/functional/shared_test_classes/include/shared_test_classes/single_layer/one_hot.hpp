@@ -13,9 +13,9 @@
 #include "ov_models/builders.hpp"
 namespace LayerTestsDefinitions {
 typedef std::tuple<
-        ngraph::element::Type,          // depth type (any integer type)
+        ov::element::Type,          // depth type (any integer type)
         int64_t,                        // depth value
-        ngraph::element::Type,          // On & Off values type (any supported type)
+        ov::element::Type,          // On & Off values type (any supported type)
         float,                          // OnValue
         float,                          // OffValue
         int64_t,                        // axis

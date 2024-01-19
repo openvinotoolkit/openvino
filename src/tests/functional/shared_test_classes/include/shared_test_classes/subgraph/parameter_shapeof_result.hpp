@@ -15,7 +15,7 @@
 namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type, // Input type
+    ov::element::Type, // Input type
     std::string            // Device name
 > parameterShapeOfResultParams;
 

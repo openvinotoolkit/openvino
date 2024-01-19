@@ -57,8 +57,8 @@ void BatchNormLayerTest::SetUp() {
     auto variance = ov::test::utils::deprecated::make_constant(ngPrc, ov::Shape{C}, values, !random);
     auto batchNorm = std::make_shared<ov::op::v5::BatchNormInference>(params[0], gamma, beta, mean, variance, epsilon);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(batchNorm)};
-    function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(batchNorm)};
+    function = std::make_shared<ov::Model>(results, params, "BatchNormInference");
 }
 
 }  // namespace LayerTestsDefinitions

@@ -30,7 +30,7 @@ using ThresholdParams = std::tuple<float,   // minimum score to consider box for
 using NmsParams = std::tuple<std::vector<InputShape>,                            // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              ov::op::v8::MatrixNms::SortResultType,          // Order of output elements
-                             ngraph::element::Type,                              // Output type
+                             ov::element::Type,                              // Output type
                              TopKParams,                                         // Maximum number of boxes topk params
                              ThresholdParams,                                    // Thresholds: score_threshold, gaussian_sigma, post_threshold
                              int,                                                // Background class id
@@ -43,7 +43,7 @@ class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,
                            virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
 
 protected:

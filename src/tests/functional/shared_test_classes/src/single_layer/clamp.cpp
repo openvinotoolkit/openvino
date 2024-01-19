@@ -32,9 +32,9 @@ void ClampLayerTest::SetUp() {
     std::tie(inShape, interval, netPrc, targetDevice) = this->GetParam();
 
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
-    auto input = std::make_shared<ov::op::v0::Parameter>(ngNetPrc, ngraph::Shape(inShape));
+    auto input = std::make_shared<ov::op::v0::Parameter>(ngNetPrc, ov::Shape(inShape));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(input, interval.first, interval.second);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(clamp), ngraph::ParameterVector{input});
+    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(clamp), ov::ParameterVector{input});
 }
 
 } // namespace LayerTestsDefinitions

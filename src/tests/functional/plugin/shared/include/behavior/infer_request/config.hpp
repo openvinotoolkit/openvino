@@ -56,7 +56,7 @@ protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     std::map<std::string, std::string> configuration;
     size_t streamExecutorNumber;
 

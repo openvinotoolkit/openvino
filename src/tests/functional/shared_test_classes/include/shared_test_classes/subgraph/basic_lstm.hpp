@@ -33,7 +33,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<basicLstmParams>& obj);
 
     void Run() override;
-    static std::shared_ptr<ngraph::Function> GetNetwork(size_t thirdDimOut,
+    static std::shared_ptr<ov::Model> GetNetwork(size_t thirdDimOut,
         size_t hiddenSize,
         size_t num_cells = 10,
         std::pair<float, float> weights_range = {0.f, 10.f},

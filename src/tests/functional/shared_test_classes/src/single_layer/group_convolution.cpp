@@ -54,7 +54,7 @@ void GroupConvolutionLayerTest::SetUp() {
     auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
             ngraph::builder::makeGroupConvolution(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
-    function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
+    function = std::make_shared<ov::Model>(results, params, "groupConvolution");
 }
 }  // namespace LayerTestsDefinitions

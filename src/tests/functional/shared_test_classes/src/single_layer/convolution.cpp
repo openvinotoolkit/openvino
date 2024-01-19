@@ -56,7 +56,7 @@ void ConvolutionLayerTest::SetUp() {
     auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(
             ngraph::builder::makeConvolution(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
-    function = std::make_shared<ngraph::Function>(results, params, "convolution");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
+    function = std::make_shared<ov::Model>(results, params, "convolution");
 }
 }  // namespace LayerTestsDefinitions

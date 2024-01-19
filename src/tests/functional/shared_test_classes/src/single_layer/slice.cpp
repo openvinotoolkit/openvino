@@ -3,7 +3,6 @@
 //
 
 #include "ov_models/builders.hpp"
-#include "ngraph/ngraph.hpp"
 
 #include "shared_test_classes/single_layer/slice.hpp"
 
@@ -59,7 +58,7 @@ void Slice8LayerTest::SetUp() {
     ov::ResultVector results;
     for (int i = 0; i < sliceOp->get_output_size(); i++)
          results.push_back(std::make_shared<ov::op::v0::Result>(sliceOp->output(i)));
-    function = std::make_shared<ngraph::Function>(results, params, "Slice-8");
+    function = std::make_shared<ov::Model>(results, params, "Slice-8");
 }
 
 }  // namespace LayerTestsDefinitions

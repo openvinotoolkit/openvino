@@ -98,7 +98,7 @@ void ConvertColorNV12AccuracyTest::Validate() {
     NV12TestUtils::ValidateColors(expected_output.data(), actualBuffer, expected_output.size(), 0.02);
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> ConvertColorNV12AccuracyTest::CalculateRefs() {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> ConvertColorNV12AccuracyTest::CalculateRefs() {
     auto refs = ConvertColorNV12LayerTest::CalculateRefs();
     if (!refs.empty()) {
         auto out = refs[0].second;

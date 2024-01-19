@@ -42,8 +42,8 @@ void EinsumLayerTest::SetUp() {
     }
 
     const auto einsum = std::make_shared<ov::op::v7::Einsum>(paramsOuts, equation);
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(einsum)};
-    function = std::make_shared<ngraph::Function>(results, params, "einsum");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(einsum)};
+    function = std::make_shared<ov::Model>(results, params, "einsum");
 }
 
 }  // namespace LayerTestsDefinitions

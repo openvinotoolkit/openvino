@@ -82,7 +82,7 @@ ov::runtime::Tensor generateTensorByShape(const Shape &shape) {
 }
 }
 
-void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<1>(GetParam());
     auto netPrecision = std::get<2>(GetParam());
 

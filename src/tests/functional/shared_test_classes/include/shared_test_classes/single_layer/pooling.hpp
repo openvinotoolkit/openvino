@@ -54,7 +54,7 @@ typedef std::tuple<
         std::vector<size_t>,            // Dilation
         std::vector<size_t>,            // Pad begin
         std::vector<size_t>,            // Pad end
-        ngraph::element::Type_t,        // Index element type
+        ov::element::Type_t,        // Index element type
         int64_t,                        // Axis
         ov::op::RoundingType,       // Rounding type
         ov::op::PadType             // Pad type

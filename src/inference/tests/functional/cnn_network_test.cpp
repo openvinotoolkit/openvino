@@ -36,7 +36,7 @@ TEST_F(CNNNetworkTests, throwsOnConstUninitializedCastToICNNNetwork) {
 IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(CNNNetworkTests, throwsOnInitWithNullNgraph) {
-    std::shared_ptr<ngraph::Function> nlptr = nullptr;
+    std::shared_ptr<ov::Model> nlptr = nullptr;
     ASSERT_THROW(CNNNetwork network(nlptr), InferenceEngine::Exception);
 }
 

@@ -91,8 +91,8 @@ namespace LayerTestsDefinitions {
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params;
-        ngraph::OutputVector inputs;
-        std::shared_ptr<ngraph::Node> defomablePSROIPooling;
+        ov::OutputVector inputs;
+        std::shared_ptr<ov::Node> defomablePSROIPooling;
 
         if (offsetsShape.empty()) { // Test without optional third input (offsets)
             params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
@@ -124,7 +124,7 @@ namespace LayerTestsDefinitions {
                                                                                                 part_size);
         }
 
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(defomablePSROIPooling)};
-        function = std::make_shared<ngraph::Function>(results, params, "deformable_psroi_pooling");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(defomablePSROIPooling)};
+        function = std::make_shared<ov::Model>(results, params, "deformable_psroi_pooling");
     }
 }  // namespace LayerTestsDefinitions

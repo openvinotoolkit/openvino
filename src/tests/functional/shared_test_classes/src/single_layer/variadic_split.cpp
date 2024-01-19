@@ -41,11 +41,11 @@ namespace LayerTestsDefinitions {
         auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
         auto VariadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(params[0], split_axis_op, num_split);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (int i = 0; i < numSplits.size(); i++) {
             results.push_back(std::make_shared<ov::op::v0::Result>(VariadicSplit->output(i)));
         }
-        function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
+        function = std::make_shared<ov::Model>(results, params, "VariadicSplit");
     }
 
 }  // namespace LayerTestsDefinitions

@@ -72,7 +72,7 @@ void NmsLayerTest::GenerateInputs() {
 }
 
 void NmsLayerTest::Compare(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
@@ -111,7 +111,7 @@ public:
  * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
  */
 void NmsLayerTest::CompareBBoxes(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;

@@ -76,16 +76,16 @@ void DeformableConvolutionLayerTest::SetUp() {
     for (auto&& shape : {inputShape, offsets, filter}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto data = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(inputShape));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
     data->set_friendly_name("a_data");
-    auto offset_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(offsets));
+    auto offset_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(offsets));
     offset_vals->set_friendly_name("b_offset_vals");
-    auto filter_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(filter));
+    auto filter_vals = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(filter));
     filter_vals->set_friendly_name("c_filter_vals");
-    ngraph::ParameterVector parameters{data, offset_vals, filter_vals};
-    std::shared_ptr<ngraph::Node> deformable_conv;
+    ov::ParameterVector parameters{data, offset_vals, filter_vals};
+    std::shared_ptr<ov::Node> deformable_conv;
     if (with_modulation) {
-        auto modulation_shape = ngraph::Shape(offsets);
+        auto modulation_shape = ov::Shape(offsets);
         modulation_shape[1] = offsets[1] / 2;
         auto modulation_scalars = std::make_shared<ov::op::v0::Parameter>(ngPrc, modulation_shape);
         modulation_scalars->set_friendly_name("c_modulation_scalars");
@@ -99,7 +99,7 @@ void DeformableConvolutionLayerTest::SetUp() {
                                                                                   padType, groups, deformable_groups, with_bilinear_interpolation_pad);
     }
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(deformable_conv)};
-    function = std::make_shared<ngraph::Function>(results, parameters, "deformable_convolution");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(deformable_conv)};
+    function = std::make_shared<ov::Model>(results, parameters, "deformable_convolution");
 }
 }  // namespace LayerTestsDefinitions

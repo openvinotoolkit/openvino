@@ -51,7 +51,7 @@ void CTCGreedyDecoderLayerTest::SetUp() {
             ngraph::builder::makeCTCGreedyDecoder(paramsIn[0], mergeRepeated));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(ctcGreedyDecoder) };
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoder");
+    ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(ctcGreedyDecoder) };
+    function = std::make_shared<ov::Model>(results, paramsIn, "CTCGreedyDecoder");
 }
 }  // namespace LayerTestsDefinitions
