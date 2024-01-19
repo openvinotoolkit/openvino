@@ -948,14 +948,15 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            var indexes = [];
             if (kpi === 'throughput') {
                 var throughputData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = throughputData.map(tData => tData[prec]);
                 });
-                return removeEmptyLabel(config, indexes);
+                return config;
+                //to fix
+                // return removeEmptyLabel(config);
             }
             else if(kpi === 'latency'){
                 var latencyData = Graph.getDatabyKPI(model, kpi);
@@ -963,7 +964,8 @@ $(document).ready(function () {
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = latencyData.map(tData => tData[prec]); 
                 });
-                return removeEmptyLabel(config, indexes);
+                return config;
+                // return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
@@ -1027,6 +1029,7 @@ $(document).ready(function () {
         adjustHeaderIcons(display.mode);
     }
     function removeEmptyLabel(config, indexes) {
+        var indexes = [];
         config.datasets.forEach((item, index) =>{
             if(item.data[0] == '') {
                 indexes.push(index);
@@ -1037,6 +1040,7 @@ $(document).ready(function () {
         sorted.forEach((index)=>{
             config.datasets.splice(index,1);
         })
+        console.log(config);
         return config;
     }
 
