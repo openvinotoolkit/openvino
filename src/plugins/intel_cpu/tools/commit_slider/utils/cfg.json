@@ -73,9 +73,9 @@
     "winWorkPath" : "%tmp%\\commit_slider",
     "clearCache" : false,
     "checkIfBordersDiffer" : true,
-    "printCSV" : false,
+    "printCSV" : true,
     "usePrevRunCache" : false,
-    "verboseOutput": true,
+    "verboseOutput": false,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     },

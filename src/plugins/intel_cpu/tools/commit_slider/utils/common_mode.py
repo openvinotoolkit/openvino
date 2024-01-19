@@ -34,6 +34,9 @@ class Mode(ABC):
             "commonLogger", logPath, "common_log.log"
         )
 
+    def isPerformanceBased(self):
+        return False
+
     def createCash(self):
         # In common case we use json.
         # Create cash is overrided if we need special algo for caching.
@@ -139,7 +142,9 @@ class Mode(ABC):
 
     def postRun(self, list):
         util.returnToActualVersion(self.cfg)
-        if "printCSV" in self.cfg and self.cfg["printCSV"]:
+        if "printCSV" in self.cfg\
+                and self.cfg["printCSV"]\
+                and self.isPerformanceBased():
             fields = ['linId', 'logId', 'hash', 'value'] 
             rows = []
             linearId = 0

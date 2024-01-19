@@ -85,6 +85,9 @@ class BenchmarkAppPerformanceMode(Mode):
         self.perfRel = 0
         self.createCash()
 
+    def isPerformanceBased(self):
+        return True
+
     def prepareRun(self, list, cfg):
         super().prepareRun(list, cfg)
         sampleCommit = list[0]
