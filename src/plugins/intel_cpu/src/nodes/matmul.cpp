@@ -207,7 +207,11 @@ Node::AttrPtr MatMul::initPrimitiveAttr(const VectorDims &dims) {
 }
 
 Node::AttrPtr MatMul::initPrimitiveAttr() {
-    auto dummyShape = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0));
+    auto outputShape = getOutputShapeAtPort(0);
+    for (auto&& node : fusedWith) {
+        outputShape = mergeShapes(outputShape, node->getOutputShapeAtPort(0));
+    }
+    auto dummyShape = MemoryDescUtils::makeDummyShape(outputShape);
     return initPrimitiveAttr(dummyShape.getStaticDims());
 }
 
@@ -293,7 +297,7 @@ void MatMul::getSupportedDescriptors() {
 
     const auto& inputShape0 = getInputShapeAtPort(0);
     const auto& inputShape1 = getInputShapeAtPort(1);
-    const auto& outputShape = getOutputShapeAtPort(0);
+    auto outputShape = getOutputShapeAtPort(0);
 
     if (inputShape0.getRank() != inputShape1.getRank() || inputShape0.getRank() != outputShape.getRank())
         OPENVINO_THROW(errorPrefix, " has invalid dims count");
@@ -325,9 +329,14 @@ void MatMul::getSupportedDescriptors() {
         }
     }
 
+    for (auto&& node : fusedWith) {
+        outputShape = mergeShapes(outputShape, node->getOutputShapeAtPort(0));
+    }
+
     std::vector<Shape> staticInputShapes{inputShape0, inputShape1};
     if (inputShape0.isDynamic() || inputShape1.isDynamic()) {
-        std::tie(staticInputShapes[0], staticInputShapes[1]) = makeDummyInputShapes(inputShape0, inputShape1);
+        std::tie(staticInputShapes[0], staticInputShapes[1]) =
+            makeDummyInputShapes(inputShape0, inputShape1, outputShape);
     }
 
     auto staticOutputShape = outputShape.isStatic() ? outputShape : Shape(shapeInferGeneric(staticInputShapes).front());
@@ -342,14 +351,13 @@ void MatMul::getSupportedDescriptors() {
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
 }
 
-std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1) const {
+std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const {
     if (in0.getRank() < 2 || in1.getRank() < 2) {
         OPENVINO_THROW("Can't create dummy inputs with rank less 2");
     }
 
-    if (in0.getRank() != in1.getRank()) {
-        OPENVINO_THROW("Can't create dummy inputs if input's rank not equal");
-    }
+    OPENVINO_ASSERT((in0.getRank() == in1.getRank()) && (in1.getRank() == out.getRank()),
+        "Can't create dummy inputs if argument shapes ranks are not equal");
 
     auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
         if (transposeIn[0]) {
@@ -362,6 +370,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 
     auto inDims0 = in0.getDims();
     auto inDims1 = in1.getDims();
+    auto outDims = out.getDims();
 
     auto minDims0 = in0.getMinDims();
     auto maxDims0 = in0.getMaxDims();
@@ -397,18 +406,28 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     fillDummy(inDims0.size() - 1, inDims1.size() - 2);
 
     // fill m, n
-    if (inDims0[inDims0.size() - 2] == Shape::UNDEFINED_DIM) {
+    if (outDims[outDims.size() - 2] != Shape::UNDEFINED_DIM) {
+        inDims0[inDims0.size() - 2] = outDims[outDims.size() - 2];
+    } else if (inDims0[inDims0.size() - 2] == Shape::UNDEFINED_DIM) {
         inDims0[inDims0.size() - 2] = std::min(maxDims0[inDims0.size() - 2],
                                                std::max(minDims0[inDims0.size() - 2], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
     }
-    if (inDims1[inDims1.size() - 1] == Shape::UNDEFINED_DIM) {
+
+    if (outDims[outDims.size() - 1] != Shape::UNDEFINED_DIM) {
+        inDims1[inDims1.size() - 1] = outDims[outDims.size() - 1];
+    } else if (inDims1[inDims1.size() - 1] == Shape::UNDEFINED_DIM) {
         inDims1[inDims1.size() - 1] = std::min(maxDims1[inDims1.size() - 1],
                                                std::max(minDims1[inDims1.size() - 1], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
     }
 
     // fill batches
     for (size_t i = 0; i < inDims0.size() - 2; i++) {
-        fillDummy(i, i);
+        if (outDims[i] != Shape::UNDEFINED_DIM) {
+            inDims0[i] = outDims[i];
+            inDims1[i] = outDims[i];
+        } else {
+            fillDummy(i, i);
+        }
     }
 
     swapTranspDims(inDims0, inDims1);

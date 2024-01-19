@@ -795,6 +795,46 @@ const auto testParams3D_nightly = ::testing::Combine(fullyConnectedParams3D_nigh
                                              ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly, MatMulLayerCPUTest::getTestCaseName);
+
+class MatMulLayerCPUTestUndefShapes : public MatMulLayerCPUTest {
+};
+
+TEST_P(MatMulLayerCPUTestUndefShapes, CompareWithRefs) {
+    auto second_shape = inputDynamicShapes.at(1);
+    PartialShape new_second_shape(std::vector<int64_t>(second_shape.rank().get_length(), -1));
+    std::map<size_t, ov::PartialShape> new_inputs;
+    new_inputs[0] = inputDynamicShapes.at(0);
+    new_inputs[1] = new_second_shape;
+    function->reshape(new_inputs);
+    run();
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
+}
+
+const fusingSpecificParams matmulFullDynInputsFusingParams[] = {
+    fusingMultiplyPerChannel,
+    fusingMultiplyAddPerChannel,
+    fusingAddPerChannel
+};
+
+const auto matMulParamsDynamicFusingFullUndefShapes = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
+                                                           ::testing::Values(ElementType::f32),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                           ::testing::Values(emptyAdditionalConfig()));
+
+const auto testParamsDynamicFusingFullUndefShapes = ::testing::Combine(matMulParamsDynamicFusingFullUndefShapes,
+                                                        ::testing::Values(MatMulNodeType::MatMul),
+                                                        ::testing::ValuesIn(matmulFullDynInputsFusingParams),
+                                                        ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MM_Dynamic_Fusing_Full_Undef_Shapes,
+    MatMulLayerCPUTestUndefShapes,
+    testParamsDynamicFusingFullUndefShapes,
+    MatMulLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace MatMul
 }  // namespace test
