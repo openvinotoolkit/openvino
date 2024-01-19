@@ -18,6 +18,12 @@ This is the advanced quantization flow that allows to apply 8-bit quantization t
 
 The steps for the quantization with accuracy control are described below.
 
+Prepare model
+############################################
+
+When working with an original model in FP32 precision, it is recommended to use the model as-is, without compressing weights, as the input for the quantization method with accuracy control. This ensures optimal performance relative to a given accuracy drop. Utilizing compression techniques, such as compressing the original model weights to FP16, may significantly increase the number of reverted layers and lead to reduced performance for the quantized model.
+If the original model is converted to OpenVINO and saved through ``openvino.save_model()`` before using it in the quantization method with accuracy control, disable the compression of weights to FP16 by setting ``compress_to_fp16=False``. This is necessary because, by default, ``openvino.save_model()`` saves models in FP16.
+
 Prepare calibration and validation datasets
 ############################################
 
@@ -75,7 +81,7 @@ After that the model can be compiled and run with OpenVINO:
          :language: python
          :fragment: [inference]
 
-To save the model in the OpenVINO Intermediate Representation (IR), use ``ov.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``ov.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
+To save the model in the OpenVINO Intermediate Representation (IR), use ``openvino.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``openvino.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
 
 .. tab-set::
 
@@ -99,6 +105,6 @@ Examples of NNCF post-training quantization with control of accuracy metric:
 See also
 ####################
 
-* :doc:`Optimizing Models at Training Time <tmo_introduction>` 
+* :doc:`Optimizing Models at Training Time <tmo_introduction>`
 
 
