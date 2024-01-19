@@ -4,10 +4,9 @@
 
 #include "op/elu.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/elu.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,7 +17,7 @@ OutputVector elu(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1);
 
-    return OutputVector{std::make_shared<default_opset::Elu>(data, alpha)};
+    return OutputVector{std::make_shared<v0::Elu>(data, alpha)};
 }
 
 }  // namespace set_1

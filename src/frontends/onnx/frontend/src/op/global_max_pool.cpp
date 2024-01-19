@@ -4,11 +4,13 @@
 
 #include "op/global_max_pool.hpp"
 
-#include <numeric>
-#include <vector>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -27,18 +29,17 @@ OutputVector global_max_pool(const Node& node) {
     // Expected spatial dims indexes: [2, 3, 4]
     auto data = node.get_ng_inputs()[0];
 
-    const auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
-    const auto one_node = default_opset::Constant::create(element::i64, Shape{}, {1});
-    const auto two_node = default_opset::Constant::create(element::i64, Shape{}, {2});
+    const auto zero_node = v0::Constant::create(element::i64, Shape{}, {0});
+    const auto one_node = v0::Constant::create(element::i64, Shape{}, {1});
+    const auto two_node = v0::Constant::create(element::i64, Shape{}, {2});
 
-    const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-    const auto data_rank = std::make_shared<default_opset::ShapeOf>(data_shape);
-    const auto data_rank_as_scalar = std::make_shared<default_opset::Squeeze>(data_rank);
+    const auto data_shape = std::make_shared<v3::ShapeOf>(data);
+    const auto data_rank = std::make_shared<v3::ShapeOf>(data_shape);
+    const auto data_rank_as_scalar = std::make_shared<v0::Squeeze>(data_rank);
 
-    const auto reduce_axes =
-        std::make_shared<default_opset::Range>(two_node, data_rank_as_scalar, one_node, element::i64);
+    const auto reduce_axes = std::make_shared<v4::Range>(two_node, data_rank_as_scalar, one_node, element::i64);
 
-    return {std::make_shared<default_opset::ReduceMax>(data, reduce_axes, true)};
+    return {std::make_shared<v1::ReduceMax>(data, reduce_axes, true)};
 }
 
 }  // namespace set_1

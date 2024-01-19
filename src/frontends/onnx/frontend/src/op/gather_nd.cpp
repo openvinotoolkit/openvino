@@ -7,8 +7,9 @@
 
 #include "op/gather_nd.hpp"
 
-#include "default_opset.hpp"
-#include "utils/common.hpp"
+#include "openvino/op/gather_nd.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -21,7 +22,7 @@ OutputVector gather_nd(const Node& node) {
     const auto indices = ng_inputs.at(1);
     const auto batch_dims = node.get_attribute_value<int64_t>("batch_dims", 0);
 
-    return {std::make_shared<ov::op::v8::GatherND>(data, indices, batch_dims)};
+    return {std::make_shared<v8::GatherND>(data, indices, batch_dims)};
 }
 
 }  // namespace set_1

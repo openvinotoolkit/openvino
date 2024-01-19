@@ -4,9 +4,10 @@
 
 #include "op/hard_sigmoid.hpp"
 
-#include <memory>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -17,16 +18,15 @@ OutputVector hard_sigmoid(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const auto alpha =
-        default_opset::Constant::create<double>(data.get_element_type(),
-                                                Shape{},
-                                                std::vector<double>{node.get_attribute_value<double>("alpha", 0.2)});
+        v0::Constant::create<double>(data.get_element_type(),
+                                     Shape{},
+                                     std::vector<double>{node.get_attribute_value<double>("alpha", 0.2)});
 
-    const auto beta =
-        default_opset::Constant::create<double>(data.get_element_type(),
-                                                Shape{},
-                                                std::vector<double>{node.get_attribute_value<double>("beta", 0.5)});
+    const auto beta = v0::Constant::create<double>(data.get_element_type(),
+                                                   Shape{},
+                                                   std::vector<double>{node.get_attribute_value<double>("beta", 0.5)});
 
-    return {std::make_shared<default_opset::HardSigmoid>(data, alpha, beta)};
+    return {std::make_shared<v0::HardSigmoid>(data, alpha, beta)};
 }
 
 }  // namespace set_1
