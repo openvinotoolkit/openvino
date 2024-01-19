@@ -4,10 +4,10 @@
 
 #include "op/concat.hpp"
 
-#include <cstdint>
-
-#include "default_opset.hpp"
+#include "openvino/op/concat.hpp"
 #include "utils/common.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -21,7 +21,7 @@ OutputVector concat(const Node& node) {
     std::copy_if(inputs.begin(), inputs.end(), std::back_inserter(valid_inputs), [](ov::Output<ov::Node>& in) -> bool {
         return !common::is_failsafe_node(in.get_node_shared_ptr());
     });
-    return {std::make_shared<default_opset::Concat>(valid_inputs, axis)};
+    return {std::make_shared<v0::Concat>(valid_inputs, axis)};
 }
 
 }  // namespace set_1
