@@ -1040,24 +1040,58 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
         memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
-        if (iter == 0) {
-            auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-            if (ev) event_vec = {ev};
-            GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
-        } else {
-            if (is_dynamic()) {
-                // In dynamic model, do not swap memory buffer between input and output in inner body network.
-                // Just copy data from input buffer memory to output buffer memory.
+
+        if (is_dynamic()) {
+            // In dynamic model, do not swap memory buffer between input and output in inner body network.
+            // Check size of input buffer memory and output buffer memory
+            // If size is differnet, allocate new input memory for the required size,
+            // Else just copy data from input buffer memory to output buffer memory.
+            cldnn::event::ptr ev;
+            if (iter == 0) {
+                auto to_id = mapping.to_primitive->id();
+                // Check backedge_to shape needs to be updated by initial_mem
+                if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
+                    to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
+                    body_network->set_input_data(to_id, to_mem);
+                    ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
+                                    << ") because of shape update from initial memory("
+                                    << mapping.initial_mem << "," << mapping.initial_mem->get_layout().to_short_string() << ")" << std::endl;
+                } else {
+                    ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                }
+            } else {
                 auto from_id = mapping.from_primitive->id();
+                auto to_id = mapping.to_primitive->id();
                 if (body_network->has_event(from_id)) {
                     auto ev = body_network->get_primitive_event(from_id);
                     if (ev) ev->wait();
                 }
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
-                if (ev) event_vec = {ev};
+
+                // Check backedge_to shape needs to be updated by backedge_from
+                if (!from_mem->get_layout().identical(to_mem->get_layout())) {
+                    to_mem = body_network->get_engine().allocate_memory(from_mem->get_layout(), false);
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
+                                    << ") because of shape update from backedge_from()" << from_id
+                                    <<")'s memory(" << from_mem << "," << from_mem->get_layout().to_short_string() << ")" << std::endl;
+                    body_network->set_input_data(to_id, to_mem);
+                    ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
+                } else {
+                    ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
+                }
                 GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from [" << mapping.from_primitive->id()
                             << "(" << from_mem << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
+            }
+            if (ev) event_vec = {ev};
+        } else {
+            if (iter == 0) {
+                auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                if (ev) event_vec = {ev};
+                GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             } else {
                 // In static model, swap memory buffer between output and input in inner body network
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
