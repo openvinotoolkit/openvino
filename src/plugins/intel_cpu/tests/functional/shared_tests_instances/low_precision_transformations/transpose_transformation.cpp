@@ -20,7 +20,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 1, 1000, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
     // U8: per-channel quantization
@@ -28,7 +28,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 1, 3, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256,
             {1, 3, 1, 1},
@@ -43,7 +43,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         { 1, 1000, 1, 1, 3, 4},
         { 0, 2, 1, 3, 5, 4},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
 };

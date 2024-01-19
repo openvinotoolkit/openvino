@@ -57,7 +57,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1, 3, 1}, {1, 3, 1}, {1, 3, 1}, {1, 3, 1}}, {0.f, 0.f, 0.f}, {25.f, 24.f, 25.f}, {0.f, 0.f, 0.f}, {25.f, 24.f, 25.f} },
         { std::vector<float>(4 * 2, 2.f), ov::element::i8, ov::Shape{ 2, 4 } },
         {},
-        { ov::element::f32, {}, {{0.1f, 0.01}, ngraph::element::f32, ov::Shape{ 2, 1 }} },
+        { ov::element::f32, {}, {{0.1f, 0.01}, ov::element::f32, ov::Shape{ 2, 1 }} },
         "FullyConnected",
         "U8"
     },
