@@ -47,8 +47,6 @@ KERNEL(broadcast_gpu_opt)(
     input_indices[3] = INPUT0_SIZE_X;
 #endif
 
-    const uint leftovers = INPUT0_SIZE_X % VEC_SIZE;
-
     const uint blockND[] = {INPUT0_BLOCK_ND};
 
 #if OUTPUT_DIMS == 6
@@ -67,14 +65,38 @@ KERNEL(broadcast_gpu_opt)(
     const uint in_sf = input_indices[BROADCAST_ORDER[1]];
     const uint in_sb = input_indices[BROADCAST_ORDER[0]];
 
-    const uint gdim0 = (uint) get_global_id(0);
-    uint offset = leftovers;
-    if (gdim0 < leftovers) {
-        offset = gdim0;
-    }
+    bool use_opt_code = INPUT0_SIZE_X == OUTPUT_SIZE_X && INPUT0_SIZE_X > VEC_SIZE
+                        && INPUT0_SIZE_Y != OUTPUT_SIZE_Y && OUTPUT_SIZE_Y > Y_BLOCKS;
 
-    const uint out_x  = (uint) (get_global_id(0) * VEC_SIZE + offset);
-    const uint out_y  = (uint) (get_global_id(1) * Y_BLOCK_SIZE);
+    const uint gdim0 = (uint) get_global_id(0);
+    const uint gdim1 = (uint) get_global_id(1);
+
+    const uint y_leftovers = OUTPUT_SIZE_Y % Y_BLOCKS;
+    const uint x_leftovers = OUTPUT_SIZE_X % VEC_SIZE;
+
+    uint x_stride = 1;
+    uint x_offset = 0;
+    if (use_opt_code) {
+        if (gdim0 < x_leftovers) {
+            x_offset = gdim0;
+        } else {
+            x_offset = x_leftovers;
+        }
+        x_stride = VEC_SIZE;
+    }
+    const uint out_x  = (uint) (gdim0 * x_stride + x_offset);
+
+    uint y_stride = 1;
+    uint y_offset = 0;
+    if (use_opt_code) {
+        if (gdim1 < y_leftovers) {
+            y_offset = gdim1;
+        } else {
+            y_offset = y_leftovers;
+        }
+        y_stride = Y_BLOCKS;
+    }
+    const uint out_y  = (uint) (gdim1 * y_stride + y_offset);
 #if OUTPUT_DIMS == 6
     const uint out_bfwz = (uint) get_global_id(2);
     const uint out_z  = (out_bfwz % OUTPUT_SIZE_Z);
@@ -136,20 +158,38 @@ KERNEL(broadcast_gpu_opt)(
 
     const uint idx_pos = GET_UPDATES_INDEX(INPUT0, IDX_ORDER);
 #if OUTPUT_DIMS == 6
-        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_w, out_z, out_y, out_x);
+    const uint out_pos_base = OUTPUT_GET_INDEX(out_b, out_f, out_w, out_z, out_y, out_x);
 #elif OUTPUT_DIMS == 5
-        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_z, out_y, out_x);
+    const uint out_pos_base = OUTPUT_GET_INDEX(out_b, out_f, out_z, out_y, out_x);
 #else
-        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
+    const uint out_pos_base = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
 #endif
 
-    INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
-    unroll_for(uint i = 0; i < Y_BLOCKS; i++) {
-        VSTORE(input_vec, 0, &output[out_pos + i * OUTPUT_SIZE_X]);
-    }
+    if (use_opt_code) {
+        uint out_pos = out_pos_base;
+        INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
+        unroll_for(uint i = 0; i < Y_BLOCKS; i++) {
+            VSTORE(input_vec, 0, &output[out_pos]);
+            out_pos += OUTPUT_SIZE_X;
+        }
+        if (gdim1 < y_leftovers) {
+            VSTORE(input_vec, 0, &output[out_pos]);
+        }
 
-    if (gdim0 < leftovers) {
-        output[out_pos + offset] = input[idx_pos + offset];
+        if (gdim0 < x_leftovers) {
+            INPUT0_TYPE input_val = input[idx_pos + VEC_SIZE];
+
+            out_pos = out_pos_base;
+            unroll_for(uint i = 0; i < Y_BLOCKS; i++) {
+                output[out_pos + VEC_SIZE] = input_val;
+                out_pos += OUTPUT_SIZE_X;
+            }
+
+            if (gdim1 < y_leftovers)
+                output[out_pos + VEC_SIZE] = input_val;
+        }
+    } else {
+        output[out_pos_base] = input[idx_pos];
     }
 }
 

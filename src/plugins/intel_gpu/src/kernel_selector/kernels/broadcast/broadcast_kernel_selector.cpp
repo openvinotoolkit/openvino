@@ -1,15 +1,15 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "broadcast_kernel_selector.h"
 #include "broadcast_kernel_ref.h"
-#include "broadcast_kernel_opt.h"
+#include "broadcast_kernel_opt_axis_y.h"
 
 namespace kernel_selector {
 broadcast_kernel_selector::broadcast_kernel_selector() {
-    Attach<BroadcastKernelOpt>();
     Attach<BroadcastKernelRef>();
+    Attach<BroadcastKernelOptAxisY>();
 }
 
 KernelsData broadcast_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
