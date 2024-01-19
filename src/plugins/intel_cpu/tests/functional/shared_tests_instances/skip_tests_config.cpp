@@ -286,6 +286,10 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_ARM)
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
+    // not supported
+    retVector.emplace_back(R"(.*fma.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*int_jit.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*dyn.*EltwiseChainTest.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
