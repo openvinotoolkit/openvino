@@ -45,7 +45,7 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
         auto prev_squeeze_ptr = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(prev_squeeze);
 
         // go to actual LSTM
-        auto prev_lstm = prev_squeeze_ptr->input_value(1).get_node_shared_ptr();
+        auto prev_lstm = prev_squeeze_ptr->input_value(0).get_node_shared_ptr();
         auto prev_lstm_ptr = std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(prev_lstm);
 
         auto in_X = current->input(0);
@@ -98,10 +98,10 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
         multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
                                                                 Ht_in,
                                                                 Ct_in,
-                                                                lstm_count,
                                                                 W_in,
                                                                 R_in,
                                                                 B_in,
+                                                                lstm_count,
                                                                 first_cell->get_hidden_size(),
                                                                 ov::op::RecurrentSequenceDirection::FORWARD,
                                                                 ov::op::LSTMWeightsFormat::IFCO,

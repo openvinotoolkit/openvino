@@ -17,8 +17,8 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 
@@ -47,7 +47,6 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
         auto A = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
 
-        
         auto unH = std::make_shared<op::v0::Unsqueeze>(H, axis_1);
         auto unC = std::make_shared<op::v0::Unsqueeze>(C, axis_1);
         auto unW = std::make_shared<op::v0::Unsqueeze>(W, axis_0);
@@ -64,20 +63,20 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto concat_A = std::make_shared<op::v0::Concat>(in_A, 1);
 
         auto lstm_sequence_1 = std::make_shared<op::v5::LSTMSequence>(concat_X,
-                                        unH,
-                                        unC,
-                                        seq_len,
-                                        unW,
-                                        unR,
-                                        unB,
-                                        hidden_size,
-                                        op::RecurrentSequenceDirection::FORWARD);
+                                                                      unH,
+                                                                      unC,
+                                                                      seq_len,
+                                                                      unW,
+                                                                      unR,
+                                                                      unB,
+                                                                      hidden_size,
+                                                                      op::RecurrentSequenceDirection::FORWARD);
 
-        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(lstm_sequence_1->output(0));
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(lstm_sequence_1->output(0), axis_1);
 
-        //auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
-        //auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
-        //auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
+        // auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        // auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
+        // auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
 
         auto X_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, input_size});
         auto H_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
@@ -87,37 +86,36 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto B_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
         auto A_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
 
-        
         auto unH_2 = std::make_shared<op::v0::Unsqueeze>(H_2, axis_1);
         auto unC_2 = std::make_shared<op::v0::Unsqueeze>(C_2, axis_1);
         auto unW_2 = std::make_shared<op::v0::Unsqueeze>(W_2, axis_0);
         auto unR_2 = std::make_shared<op::v0::Unsqueeze>(R_2, axis_0);
         auto unB_2 = std::make_shared<op::v0::Unsqueeze>(B_2, axis_0);
 
-        OutputVector in_X_2;
-        OutputVector in_A_2;
-        for (size_t i = 0; i < cells_cnt; ++i) {
-            in_X.push_back(std::make_shared<op::v0::Unsqueeze>(X_2, axis_1));
-            in_A.push_back(std::make_shared<op::v0::Unsqueeze>(A_2, axis_1));
-        }
-        auto concat_X_2 = std::make_shared<op::v0::Concat>(in_X_2, 1);
-        auto concat_A_2 = std::make_shared<op::v0::Concat>(in_A_2, 1);
+        // OutputVector in_X_2;
+        // OutputVector in_A_2;
+        // for (size_t i = 0; i < cells_cnt; ++i) {
+        //    in_X_2.push_back(std::make_shared<op::v0::Unsqueeze>(X_2, axis_1));
+        //    in_A_2.push_back(std::make_shared<op::v0::Unsqueeze>(A_2, axis_1));
+        //}
+        // auto concat_X_2 = std::make_shared<op::v0::Concat>(in_X_2, 1);
+        // auto concat_A_2 = std::make_shared<op::v0::Concat>(in_A_2, 1);
 
         auto lstm_sequence_2 = std::make_shared<op::v5::LSTMSequence>(squeeze_1->output(0),
-                                        unH_2,
-                                        unC_2,
-                                        seq_len,
-                                        unW_2,
-                                        unR_2,
-                                        unB_2,
-                                        hidden_size,
-                                        op::RecurrentSequenceDirection::FORWARD);
+                                                                      unH_2,
+                                                                      unC_2,
+                                                                      seq_len,
+                                                                      unW_2,
+                                                                      unR_2,
+                                                                      unB_2,
+                                                                      hidden_size,
+                                                                      op::RecurrentSequenceDirection::FORWARD);
 
         auto squeeze_2 = std::make_shared<op::v0::Squeeze>(lstm_sequence_2->output(0));
 
         auto abs = std::make_shared<op::v0::Abs>(squeeze_2->output(0));
 
-        ParameterVector params = {X, H, W, R, B, C, X_2, H_2, W_2, R_2, B_2, C_2}; 
+        ParameterVector params = {X, H, W, R, B, C, X_2, H_2, W_2, R_2, B_2, C_2};
         model = std::make_shared<Model>(NodeVector{abs}, params);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
     }
@@ -126,7 +124,7 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         size_t sequences_count = 2;
         auto axis_0 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
         auto axis_1 = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 1);
-        auto seq_len = std::make_shared<op::v0::Constant>(element::i64, Shape{batch}, 1);
+        //auto lstm_count = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 2);
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, input_size});
         auto H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, hidden_size});
@@ -136,7 +134,6 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{4 * hidden_size});
         auto A = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch, 1});
 
-        
         auto unH = std::make_shared<op::v0::Unsqueeze>(H, axis_1);
         auto unC = std::make_shared<op::v0::Unsqueeze>(C, axis_1);
         auto unW = std::make_shared<op::v0::Unsqueeze>(W, axis_0);
@@ -145,22 +142,24 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
 
         OutputVector in_X;
         OutputVector in_A;
-        for (int i = 0; i < cells_cnt; ++i) {
+        for (size_t i = 0; i < cells_cnt; ++i) {
             in_X.push_back(std::make_shared<op::v0::Unsqueeze>(X, axis_1));
             in_A.push_back(std::make_shared<op::v0::Unsqueeze>(A, axis_1));
         }
         auto concat_X = std::make_shared<op::v0::Concat>(in_X, 1);
         auto concat_A = std::make_shared<op::v0::Concat>(in_A, 1);
 
-        auto multi_lstm_sequence = std::make_shared<op::v13::MultiLSTMSequence>(concat_X,
-                                        unH,
-                                        unC,
-                                        sequences_count,
-                                        unW,
-                                        unR,
-                                        unB,
-                                        hidden_size,
-                                        op::RecurrentSequenceDirection::FORWARD);
+        auto multi_lstm_sequence =
+            std::make_shared<op::v13::MultiLSTMSequence>(concat_X,
+                                                         unH,
+                                                         unC,
+                                                         unW,
+                                                         unR,
+                                                         unB,
+                                                         sequences_count,
+                                                         hidden_size,
+                                                         op::RecurrentSequenceDirection::FORWARD);
+        std::cout << "MULTI CREATED\n";
         auto abs = std::make_shared<op::v0::Abs>(multi_lstm_sequence->output(0));
         model_ref = std::make_shared<Model>(NodeVector{abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();

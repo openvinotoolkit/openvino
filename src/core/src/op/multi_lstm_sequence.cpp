@@ -20,14 +20,14 @@ bool op::v13::MultiLSTMSequence::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> op::v13::MultiLSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v13_MultiLSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 7) {
+    if (new_args.size() == 6) {
         return std::make_shared<op::v13::MultiLSTMSequence>(new_args.at(0),  // X
                                                             new_args.at(1),  // initial_hidden_state
                                                             new_args.at(2),  // initial_cell_state
+                                                            new_args.at(3),  // W
+                                                            new_args.at(4),  // R
+                                                            new_args.at(5),  // B
                                                             m_lstm_count,
-                                                            new_args.at(4),  // W
-                                                            new_args.at(5),  // R
-                                                            new_args.at(6),  // B
                                                             m_hidden_size,
                                                             m_direction,
                                                             m_weights_format,
@@ -57,7 +57,7 @@ void op::v13::MultiLSTMSequence::validate_and_infer_types() {
                           "not match.");
 
     // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 6; ++i)
+    for (size_t i = 0; i <= 5; ++i)
         set_input_is_relevant_to_shape(i);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
