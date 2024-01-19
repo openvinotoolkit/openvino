@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include <transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp>
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 
 using namespace testing;
 
@@ -33,7 +33,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwise) {
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(unsqueeze);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{input});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
@@ -65,7 +65,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TypeRelaxedEltwise) {
         auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset8::Multiply>>(transpose, mul_const);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{multiply}, ov::ParameterVector{input});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
@@ -103,7 +103,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, EltwiseSequence) {
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(unsqueeze);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{input_left, input_right});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
     {
         auto input_left = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
@@ -147,7 +147,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, DataMovementTwoConsumers) {
     auto relu = std::make_shared<ov::opset8::Relu>(transpose);
 
     model = std::make_shared<ov::Model>(ov::NodeVector{sigmoid, relu}, ov::ParameterVector{input_left, input_right});
-    manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+    manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
 }
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, SingleBinaryEltwiseWithScalarOnSecondBranch) {
@@ -166,7 +166,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleBinaryEltwiseWithScalarOnSecondBra
 
         auto add = std::make_shared<ov::opset8::Add>(unsqueeze, ov::opset8::Constant::create(ov::element::f32, {}, {scalar_value}));
 
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
     }
     {
@@ -197,7 +197,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleEltwiseWith5ScalarOnSecondBranch) 
 
         auto add = std::make_shared<ov::opset8::Add>(unsqueeze, ov::opset8::Constant::create(ov::element::f32, {1, 1, 1, 1, 1}, {scalar_value}));
 
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
     }
     {
@@ -229,7 +229,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleBinaryEltwiseWithNotScalarOnSecond
     auto add = std::make_shared<ov::opset8::Add>(unsqueeze, add_scalar);
 
     model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
-    manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+    manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
 }
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwiseDynamicShape) {
@@ -244,7 +244,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwiseDynamicShape) {
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(unsqueeze);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{input});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
 
     {
@@ -269,7 +269,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwiseDynamicRank) {
     auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(input, unsqueeze_const);
     auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(unsqueeze);
     model = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{input});
-    manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+    manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
 }
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantize) {
@@ -288,7 +288,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantize) {
                                                           255);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{fakequantize}, ov::ParameterVector{input});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
@@ -323,6 +323,6 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TransposeFakeQuantizePerChannel) {
                                                           255);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{fakequantize}, ov::ParameterVector{input});
-        manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     }
 }

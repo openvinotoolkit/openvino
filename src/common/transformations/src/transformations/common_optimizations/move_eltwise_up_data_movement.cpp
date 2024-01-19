@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 
 #include <memory>
 #include <vector>
@@ -14,36 +14,35 @@
 
 #include "itt.hpp"
 
-
 namespace {
-    bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Squeeze>(node) ||
-               ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-               ov::is_type<ov::op::v1::Reshape>(node) ||
-               ov::is_type<ov::op::v1::Transpose>(node) ||
-               ov::is_type<ov::op::v0::ShuffleChannels>(node) ||
-               ov::is_type<ov::op::v7::Roll>(node) ||
-               ov::is_type<ov::op::v0::ReverseSequence>(node) ||
-               ov::is_type<ov::op::v0::DepthToSpace>(node) ||
-               ov::is_type<ov::op::v1::BatchToSpace>(node) ||
-               ov::is_type<ov::op::v1::Broadcast>(node) ||
-               ov::is_type<ov::op::v3::Broadcast>(node) ||
-               ov::is_type<ov::op::v1::Gather>(node) ||
-               ov::is_type<ov::op::v7::Gather>(node) ||
-               ov::is_type<ov::op::v8::Gather>(node);
-    }
+bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v0::Squeeze>(node) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node) ||
+           ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::v0::ShuffleChannels>(node) ||
+           ov::is_type<ov::op::v7::Roll>(node) ||
+           ov::is_type<ov::op::v0::ReverseSequence>(node) ||
+           ov::is_type<ov::op::v0::DepthToSpace>(node) ||
+           ov::is_type<ov::op::v1::BatchToSpace>(node) ||
+           ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<ov::op::v1::Gather>(node) ||
+           ov::is_type<ov::op::v7::Gather>(node) ||
+           ov::is_type<ov::op::v8::Gather>(node);
+}
 
-    bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
-        auto constantNode = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
-        return constantNode != nullptr && shape_size(constantNode->get_shape()) == 1;
-    }
+bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
+    auto constant_op = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
+    return constant_op != nullptr && shape_size(constant_op->get_shape()) == 1;
+}
 } // namespace
 
-ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+ov::pass::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
-                                                      ov::op::util::BinaryElementwiseArithmetic,
-                                                      ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+                                                        ov::op::util::BinaryElementwiseArithmetic,
+                                                        ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -98,21 +97,21 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         }
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
 
-        ov::OutputVector eltwiseInputs = eltwise->input_values();
-        eltwiseInputs[0] = child->input_value(0);
-        auto newEltwise = eltwise->clone_with_new_inputs(eltwiseInputs);
+        ov::OutputVector eltwise_inputs = eltwise->input_values();
+        eltwise_inputs[0] = child->input_value(0);
+        auto new_eltwise = eltwise->clone_with_new_inputs(eltwise_inputs);
         // WA: it's necessary to set empty friendly name here
         // to avoid name duplication in TypeRelaxed cases
-        newEltwise->set_friendly_name("");
-        ov::copy_runtime_info(eltwise, newEltwise);
+        new_eltwise->set_friendly_name("");
+        ov::copy_runtime_info(eltwise, new_eltwise);
 
-        ov::OutputVector childInputs = child->input_values();
-        childInputs[0] = newEltwise;
-        auto newChild = child->clone_with_new_inputs(childInputs);
-        ov::copy_runtime_info(child, newChild);
-        newChild->set_friendly_name(child->get_friendly_name());
+        ov::OutputVector child_inputs = child->input_values();
+        child_inputs[0] = new_eltwise;
+        auto new_child = child->clone_with_new_inputs(child_inputs);
+        ov::copy_runtime_info(child, new_child);
+        new_child->set_friendly_name(child->get_friendly_name());
 
-        ov::replace_node(child, newChild);
+        ov::replace_node(child, new_child);
         return true;
     };
 
