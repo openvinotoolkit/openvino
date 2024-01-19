@@ -154,13 +154,12 @@ class TestAddBool(PytorchLayerTest):
                 super(aten_add, self).__init__()
 
             def forward(self, x1, x2):
-                # x1 = x1.to(torch.bool)
-                # x2 = x2.to(torch.bool)
-                return torch.add(x1, x2)     #Uses + inplace of 'add'  
+                return torch.logical_or(x1, x2)
         ref_net = None
 
         return aten_add(), ref_net, "aten::add"
 
+    
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_add(self, ie_device, precision, ir_version):
