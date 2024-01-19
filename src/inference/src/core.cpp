@@ -150,19 +150,20 @@ void Core::add_extension(const std::string& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error& e) {
-            OPENVINO_THROW(
-                std::string(
-                    "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
-                e.what());
-        }
+        OPENVINO_THROW(
+            std::string(
+                "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
+            e.what());
+    }
 }
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error&) {
-            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
-        }
+        OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
+    }
 }
 #endif
 
