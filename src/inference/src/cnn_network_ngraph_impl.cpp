@@ -16,7 +16,6 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -216,7 +215,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         DataPtr input = std::make_shared<Data>(name, inData->getTensorDesc());
         _data[name] = input;
         info->setInputData(input);
-        info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
@@ -263,7 +261,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
-            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
+            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ov::op::v0::Result>(layer)) {
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
@@ -277,10 +275,10 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 
                 // Check that we don't have a result for the output port
                 for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
-                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                    if (dynamic_cast<ov::op::v0::Result*>(port.get_node()))
                         return OK;
                 }
-                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
+                auto result = make_shared<::ov::op::v0::Result>(layer->output(outputIndex));
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
                 // Check that we cannot add Result to layer with non unique friendly name

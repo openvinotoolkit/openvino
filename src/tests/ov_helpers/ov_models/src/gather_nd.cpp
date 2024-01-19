@@ -34,7 +34,7 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
                 indicesData++;
             }
         }
-        return op::v0::Constant::create(indicesType, indicesShape, indicesValues);
+        return ov::op::v0::Constant::create(indicesType, indicesShape, indicesValues);
     }();
 
     auto gatherNdNode = std::make_shared<ov::op::v5::GatherND>(dataNode, indices, batchDims);
@@ -64,7 +64,7 @@ std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
                 indicesData++;
             }
         }
-        return op::v0::Constant::create(indicesType, indicesShape, indicesValues);
+        return ov::op::v0::Constant::create(indicesType, indicesShape, indicesValues);
     }();
 
     auto gatherNdNode = std::make_shared<ov::op::v8::GatherND>(dataNode, indices, batchDims);

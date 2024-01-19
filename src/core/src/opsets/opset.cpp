@@ -217,85 +217,13 @@ OpSet::OpSet(const OpSet& opset) : ov::OpSet(opset) {}
 const std::map<std::string, std::function<const OpSet&()>>& get_available_opsets() {
 #define _REG_OPSET(OPSET) \
     { #OPSET, get_##OPSET }
-    const static std::map<std::string, std::function<const OpSet&()>> opset_map = {_REG_OPSET(opset1),
-                                                                                   _REG_OPSET(opset2),
-                                                                                   _REG_OPSET(opset3),
-                                                                                   _REG_OPSET(opset4),
-                                                                                   _REG_OPSET(opset5),
-                                                                                   _REG_OPSET(opset6),
-                                                                                   _REG_OPSET(opset7),
-                                                                                   _REG_OPSET(opset8),
-                                                                                   _REG_OPSET(opset9),
-                                                                                   _REG_OPSET(opset10),
-                                                                                   _REG_OPSET(opset11),
-                                                                                   _REG_OPSET(opset12),
-                                                                                   _REG_OPSET(opset13)};
+    const static std::map<std::string, std::function<const OpSet&()>> opset_map = {_REG_OPSET(opset3)};
 #undef _REG_OPSET
     return opset_map;
 }
 
-const OpSet& get_opset1() {
-    static OpSet opset(ov::get_opset1());
-    return opset;
-}
-
-const OpSet& get_opset2() {
-    static OpSet opset(ov::get_opset2());
-    return opset;
-}
-
 const OpSet& get_opset3() {
     static OpSet opset(ov::get_opset3());
-    return opset;
-}
-
-const OpSet& get_opset4() {
-    static OpSet opset(ov::get_opset4());
-    return opset;
-}
-
-const OpSet& get_opset5() {
-    static OpSet opset(ov::get_opset5());
-    return opset;
-}
-
-const OpSet& get_opset6() {
-    static OpSet opset(ov::get_opset6());
-    return opset;
-}
-
-const OpSet& get_opset7() {
-    static OpSet opset(ov::get_opset7());
-    return opset;
-}
-
-const OpSet& get_opset8() {
-    static OpSet opset(ov::get_opset8());
-    return opset;
-}
-
-const OpSet& get_opset9() {
-    static OpSet opset(ov::get_opset9());
-    return opset;
-}
-
-const OpSet& get_opset10() {
-    static OpSet opset(ov::get_opset10());
-    return opset;
-}
-
-const OpSet& get_opset11() {
-    static OpSet opset(ov::get_opset11());
-    return opset;
-}
-
-const OpSet& get_opset12() {
-    static OpSet opset(ov::get_opset12());
-    return opset;
-}
-
-const OpSet& get_opset13() {
-    static OpSet opset(ov::get_opset13());
     return opset;
 }
 

@@ -12,6 +12,7 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 using namespace std;

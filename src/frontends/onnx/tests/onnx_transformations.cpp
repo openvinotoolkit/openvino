@@ -3,14 +3,12 @@
 //
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;
-using namespace ov::onnx_editor;
 using namespace ov::frontend::onnx::tests;
 
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
@@ -20,6 +18,8 @@ namespace {
 // As a result, the names are different during each tests execution.
 // It requires custom way of input/output names comparison.
 // https://github.com/onnx/onnx/blob/767f752829f83dbc9bd0a364d6138890f667fc38/onnx/defs/function.cc#L23
+/*
+// Could be used later
 bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
     // it is equivalent (simplified) to (0x)?[0-9A-Fa-f]{8,} regex, but GCC 4.8 has limited support
     auto cut_hex_address = [](std::string& name) {
@@ -58,37 +58,32 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
     };
     return cut_hex_address(lhs) == cut_hex_address(rhs);
 }
+*/
 }  // namespace
 
 OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
-    ONNXModelEditor editor{util::path_join({ov::test::utils::getExecutableDirectory(),
-                                            TEST_ONNX_MODELS_DIRNAME,
-                                            "transformations/greater_or_equal.onnx"})};
-    editor.decode();  // onnx transformations are applied
+    auto model = convert_model("transformations/greater_or_equal.onnx");
+    auto model_ref = convert_model("transformations/reference/greater_or_equal_expanded.onnx");
 
-    const auto ref_model = util::path_join({ov::test::utils::getExecutableDirectory(),
-                                            TEST_ONNX_MODELS_DIRNAME,
-                                            "transformations/reference/"
-                                            "greater_or_equal_expanded.onnx"});
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.disable(FunctionsComparator::TENSOR_NAMES);
 
-    const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
+    const FunctionsComparator::Result res = func_comparator(model, model_ref);
 
     // After operation translation was implemented - check it doesn't apply
-    EXPECT_FALSE(result.is_ok) << result.error_message;
+    ASSERT_TRUE(!res.valid) << res.message;
 }
 
 // Disabled, ticket: #81976
+/*
 OPENVINO_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
-    ONNXModelEditor editor{util::path_join({ov::test::utils::getExecutableDirectory(),
-                                            TEST_ONNX_MODELS_DIRNAME,
-                                            "transformations/softmax_crossentropy_consumed.onnx"})};
-    editor.decode();  // onnx transformations are applied
+    auto model = convert_model("transformations/softmax_crossentropy_consumed.onnx");
+    auto model_ref = convert_model("transformations/reference/softmax_crossentropy_consumed_expanded.onnx");
 
-    const auto ref_model = util::path_join({ov::test::utils::getExecutableDirectory(),
-                                            TEST_ONNX_MODELS_DIRNAME,
-                                            "transformations/reference/"
-                                            "softmax_crossentropy_consumed_expanded.onnx"});
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.disable(FunctionsComparator::TENSOR_NAMES);
 
-    const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
-    EXPECT_TRUE(result.is_ok) << result.error_message;
+    const FunctionsComparator::Result res = func_comparator(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
+*/

@@ -56,20 +56,6 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
-        auto get_output_paddings = [&]() {
-            std::vector<cldnn::padding> output_paddings;
-            for (size_t i = 0; i < num_outputs; i++)
-                output_paddings.push_back(cldnn::padding());
-            return output_paddings;
-        };
-        auto get_output_data_types = [&]() {
-            std::vector<cldnn::optional_data_type> output_data_types;
-            for (size_t i = 0; i < num_outputs; i++) {
-                auto type = op->get_output_element_type(i);
-                output_data_types.push_back(cldnn::element_type_to_data_type(type));
-            }
-            return output_data_types;
-        };
 
         auto proposalPrim = cldnn::proposal(layerName,
                                             inputs[0],  // cls_score
@@ -98,8 +84,8 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                                             cldnn::padding({0, 0, 0, 0}, 0),
                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                             num_outputs);
-        proposalPrim.output_paddings = get_output_paddings();
-        proposalPrim.output_data_types = get_output_data_types();
+        proposalPrim.output_paddings = get_output_paddings(op);
+        proposalPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, proposalPrim);
     } else {
         if (op->get_output_size() == 2) {

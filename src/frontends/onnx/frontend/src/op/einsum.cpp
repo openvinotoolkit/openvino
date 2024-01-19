@@ -4,7 +4,9 @@
 
 #include "op/einsum.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/einsum.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,7 +16,7 @@ namespace set_1 {
 OutputVector einsum(const Node& node) {
     const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
-    return OutputVector{std::make_shared<default_opset::Einsum>(node.get_ng_inputs(), equation)};
+    return OutputVector{std::make_shared<v7::Einsum>(node.get_ng_inputs(), equation)};
 }
 
 }  // namespace set_1

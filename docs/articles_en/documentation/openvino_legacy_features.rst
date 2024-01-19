@@ -10,12 +10,10 @@ Legacy Features and Components
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
    Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
-   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
-   OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
 
 
-Since OpenVINO has grown very rapidly in recent years, some of its features
+Since OpenVINO has grown very rapidly in recent years, a number of its features
 and components have been replaced by other solutions. Some of them are still
 supported to assure OpenVINO users are given enough time to adjust their projects,
 before the features are fully discontinued.
@@ -47,14 +45,6 @@ offering.
     solution, the OpenVINO Converter (launched with OpenVINO 2023.1).
 |   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
 |   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
-
-| **OpenVINO Deployment Manager**
-|   *New solution:* the tool is no longer needed
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
-|
-|   It is recommended to explore alternative deployment solutions available in OpenVINO.
-|   :doc:`See how to deploy locally <openvino_deployment_guide>`
-
 
 
 | **Open Model ZOO**
@@ -90,14 +80,11 @@ offering.
 |   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
 
-| **Old Inference API 1.0**
+| **Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
+|   *Old solution:* discontinued with OpenVINO 2024.0
 |
-|   API 1.0 (Inference Engine and nGraph) is now deprecated. It can still be
-    used but is not recommended. Its discontinuation is planned for 2024.
-|   :doc:`See how to transition to API 2.0 <openvino_2_0_transition_guide>`
-
+|   `The last version supporting API 1.0 <https://docs.openvino.ai/2023.2/openvino_2_0_transition_guide.html>`__
 
 | **Compile tool**
 |   *New solution:* the tool is no longer needed
@@ -106,21 +93,21 @@ offering.
 |   Compile tool is now deprecated. If you need to compile a model for inference on
     a specific device, use the following script:
 
-       .. tab-set::
+    .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
+       .. tab-item:: Python
+          :sync: py
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.py
-               :language: python
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.py
+             :language: python
+             :fragment: [export_compiled_model]
 
-         .. tab-item:: C++
-            :sync: cpp
+       .. tab-item:: C++
+          :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-               :language: cpp
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+             :language: cpp
+             :fragment: [export_compiled_model]
 
 |   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
 |   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`

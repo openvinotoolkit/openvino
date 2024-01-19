@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_layer/reverse.hpp"
 
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/reverse.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;

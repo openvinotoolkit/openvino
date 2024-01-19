@@ -7,8 +7,7 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
-#include "ngraph/output_vector.hpp"
+#include "openvino/op/gather_elements.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -20,7 +19,7 @@ inline OutputVector gather_elements(const Node& node) {
     auto indices = ng_inputs.at(1);
     auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
-    return {std::make_shared<default_opset::GatherElements>(data, indices, axis)};
+    return {std::make_shared<ov::op::v6::GatherElements>(data, indices, axis)};
 }
 }  // namespace set_1
 }  // namespace op

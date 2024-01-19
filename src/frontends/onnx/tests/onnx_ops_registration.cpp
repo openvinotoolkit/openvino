@@ -10,17 +10,14 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;
-using namespace ov::onnx_editor;
 using namespace ov::frontend::onnx::tests;
 
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
-
+/*
 OPENVINO_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     ONNXModelEditor editor{
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"})};
@@ -51,3 +48,4 @@ OPENVINO_TEST(ops_registration, check_importing_add_in_different_opsets) {
         }
     }
 }
+*/

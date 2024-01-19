@@ -6,6 +6,7 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ie_plugin_config.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
