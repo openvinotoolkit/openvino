@@ -297,7 +297,27 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        OPENVINO_THROW("Shapes cannot be changed for ROI Tensor");
+        const auto tensor_rank = m_shape.size();
+        OPENVINO_ASSERT(new_shape.size() == tensor_rank);
+
+        auto owner_dim = m_owner->get_shape().cbegin();
+        auto stride = get_strides().cbegin();
+        auto new_dim = new_shape.cbegin();
+        auto dim = m_shape.cbegin();
+
+        for (size_t current_offset = m_offset; new_dim != new_shape.cend(); ++dim, ++new_dim, ++owner_dim, ++stride) {
+            const auto roi_coord = (current_offset / *stride);
+            const auto is_dim_compatible = roi_coord + *new_dim <= *owner_dim;
+            OPENVINO_ASSERT(is_dim_compatible,
+                            "Cannot set new shape: ",
+                            new_shape,
+                            " for ROI tensor! Dimension: ",
+                            std::distance(new_shape.cbegin(), new_dim),
+                            " is not compatible.");
+            current_offset -= *stride * roi_coord;
+        }
+
+        m_shape = std::move(new_shape);
     }
 
     void* data(const element::Type& element_type) const override {
