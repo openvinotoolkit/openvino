@@ -18,7 +18,7 @@ This notebook needs a quantized OpenVINO IR model and images from the
 `KiTS-19 <https://github.com/neheller/kits19>`__ dataset, converted to
 2D images. (To learn how the model is quantized, see the `Convert and
 Quantize a UNet Model and Show Live
-Inference <110-ct-segmentation-quantize-nncf-with-output.html>`__ tutorial.)
+Inference <110-ct-segmentation-quantize-nncf.ipynb>`__ tutorial.)
 
 This notebook provides a pre-trained model, trained for 20 epochs with
 the full KiTS-19 frames dataset, which has an F1 score on the validation
@@ -29,23 +29,22 @@ notebook.
 For demonstration purposes, this tutorial will download one converted CT
 scan to use for inference.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Benchmark Model
-   Performance <#benchmark-model-performance>`__
--  `Download and Prepare Data <#download-and-prepare-data>`__
--  `Show Live Inference <#show-live-inference>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Benchmark Model Performance <#Benchmark-Model-Performance>`__
+-  `Download and Prepare Data <#Download-and-Prepare-Data>`__
+-  `Show Live Inference <#Show-Live-Inference>`__
 
    -  `Load Model and List of Image
-      Files <#load-model-and-list-of-image-files>`__
-   -  `Prepare images <#prepare-images>`__
-   -  `Specify device <#specify-device>`__
-   -  `Setting callback function <#setting-callback-function>`__
+      Files <#Load-Model-and-List-of-Image-Files>`__
+   -  `Prepare images <#Prepare-images>`__
+   -  `Specify device <#Specify-device>`__
+   -  `Setting callback function <#Setting-callback-function>`__
    -  `Create asynchronous inference queue and perform
-      it <#create-asynchronous-inference-queue-and-perform-it>`__
+      it <#Create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 
@@ -57,8 +56,10 @@ scan to use for inference.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -79,14 +80,20 @@ Imports
 
 .. parsed-literal::
 
-    2023-10-30 22:42:33.368243: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-30 22:42:33.402770: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-25 22:50:13.572016: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-01-25 22:50:13.606068: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-30 22:42:34.097093: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings 
---------------------------------------------------
+.. parsed-literal::
+
+    2024-01-25 22:50:14.166493: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+Settings
+--------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -123,10 +130,11 @@ trained or optimized yourself, adjust the model paths.
     pretrained_model/quantized_unet_kits19.bin:   0%|          | 0.00/1.90M [00:00<?, ?B/s]
 
 
-Benchmark Model Performance 
----------------------------------------------------------------------
+Benchmark Model Performance
+---------------------------
 
-To measure the inference performance of the IR model, use `Benchmark
+`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 - an inference performance measurement tool in OpenVINO. Benchmark tool
 is a command-line application that can be run in the notebook with
@@ -179,18 +187,18 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 14.42 ms
+    [ INFO ] Read model took 13.17 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
@@ -204,7 +212,11 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Model outputs:
     [ INFO ]     153 (node: 153) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 219.65 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 235.31 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
@@ -225,9 +237,9 @@ is a command-line application that can be run in the notebook with
     [ INFO ]     NETWORK_NAME: pretrained_unet_kits19
     [ INFO ]     NUM_STREAMS: 1
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]     PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]     PERFORMANCE_HINT: LATENCY
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: False
+    [ INFO ]     PERF_COUNT: NO
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
@@ -236,21 +248,31 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Fill input 'input.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 29.06 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] First inference took 24.14 ms
+
+
+.. parsed-literal::
+
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1347 iterations
-    [ INFO ] Duration:         15006.65 ms
+    [ INFO ] Count:            1355 iterations
+    [ INFO ] Duration:         15007.81 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.90 ms
-    [ INFO ]    Average:       10.96 ms
-    [ INFO ]    Min:           10.61 ms
-    [ INFO ]    Max:           14.44 ms
-    [ INFO ] Throughput:   89.76 FPS
+    [ INFO ]    Median:        10.84 ms
+    [ INFO ]    Average:       10.89 ms
+    [ INFO ]    Min:           10.58 ms
+    [ INFO ]    Max:           14.29 ms
+    [ INFO ] Throughput:   90.29 FPS
 
 
-Download and Prepare Data 
--------------------------------------------------------------------
+Download and Prepare Data
+-------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download one validation video for live inference.
 
@@ -296,8 +318,10 @@ downloaded and extracted in the next cell.
     Downloaded and extracted data for case_00117
 
 
-Show Live Inference 
--------------------------------------------------------------
+Show Live Inference
+-------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -311,7 +335,7 @@ Caching, refer to the `OpenVINO API
 tutorial <002-openvino-api-with-output.html>`__.
 
 We will use
-`AsyncInferQueue <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+```AsyncInferQueue`` <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal
@@ -327,8 +351,10 @@ inference queue, there are two jobs to do:
 
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
-Load Model and List of Image Files 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load Model and List of Image Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -354,8 +380,10 @@ to see the implementation.
     case_00117, 69 images
 
 
-Prepare images 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare images
+~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -375,8 +403,10 @@ tutorial.
         framebuf.append(image)
         next_frame_id += 1
 
-Specify device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Specify device
+~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -391,8 +421,10 @@ Specify device
 
 
 
-Setting callback function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Setting callback function
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -425,8 +457,10 @@ The ``callback`` function will show the results of inference.
         display.clear_output(wait=True)
         display.display(i)
 
-Create asynchronous inference queue and perform it 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create asynchronous inference queue and perform it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -469,7 +503,7 @@ Create asynchronous inference queue and perform it
 
 .. parsed-literal::
 
-    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.22 seconds.
-    Total time to infer all frames: 3.558s
-    Time per frame: 0.052326s (19.111 FPS)
+    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.24 seconds.
+    Total time to infer all frames: 2.762s
+    Time per frame: 0.040619s (24.619 FPS)
 

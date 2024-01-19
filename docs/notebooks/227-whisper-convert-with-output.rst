@@ -24,31 +24,31 @@ Download the model. 2. Instantiate the PyTorch model pipeline. 3.
 Convert model to OpenVINO IR, using model conversion API. 4. Run the
 Whisper pipeline with OpenVINO models.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Instantiate model <#instantiate-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Instantiate model <#Instantiate-model>`__
 
    -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
    -  `Convert Whisper Encoder to OpenVINO
-      IR <#convert-whisper-encoder-to-openvino-ir>`__
+      IR <#Convert-Whisper-Encoder-to-OpenVINO-IR>`__
    -  `Convert Whisper decoder to OpenVINO
-      IR <#convert-whisper-decoder-to-openvino-ir>`__
+      IR <#Convert-Whisper-decoder-to-OpenVINO-IR>`__
 
--  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Run video transcription
-   pipeline <#run-video-transcription-pipeline>`__
--  `Interactive demo <#interactive-demo>`__
+   pipeline <#Run-video-transcription-pipeline>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install dependencies.
 
@@ -56,14 +56,14 @@ Install dependencies.
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q -I "git+https://github.com/garywu007/pytube.git"
-    %pip install -q -U gradio
-    %pip install -q -I "git+https://github.com/openai/whisper.git@fcfeaf1b61994c071bba62da47d7846933576ac9" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/garywu007/pytube.git"
+    %pip install -q  gradio
+    %pip install -q "openai-whisper==20231117" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Instantiate model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -120,7 +120,7 @@ Whisper family.
 Convert model to OpenVINO Intermediate Representation (IR) format.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. We need to provide initialized model object and
@@ -133,7 +133,7 @@ making predictions. We can save it on disk for next usage with
 Convert Whisper Encoder to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -156,7 +156,7 @@ Convert Whisper Encoder to OpenVINO IR
 Convert Whisper decoder to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
@@ -305,7 +305,7 @@ input shapes.
 Prepare inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -320,7 +320,7 @@ To run the PyTorch Whisper model, we just need to call the
 original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
-### Select inference device 
+### Select inference device `back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -362,7 +362,7 @@ select device from dropdown list for running inference using OpenVINO
 Run video transcription pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -519,7 +519,7 @@ Now let us see the results.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -562,9 +562,9 @@ Interactive demo
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. parsed-literal::

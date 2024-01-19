@@ -77,34 +77,33 @@ used to build the saliency map. Here is how it can be done:
    ``crop`` is closer to the ``query``, and it should be a red region on
    the saliency map. If negative, it should be blue.
 5. Update the corresponding region on the ``saliency map``.
-6. Repeat steps 2-5 multiple times (``n_iters``). 
-
-**Table of contents:**
----
+6. Repeat steps 2-5 multiple times (``n_iters``). #### Table of
+   contents:
 
 -  `Initial Implementation with Transformers and
-   Pytorch <#initial-implementation-with-transformers-and-pytorch>`__
+   Pytorch <#Initial-Implementation-with-Transformers-and-Pytorch>`__
 -  `Separate Text and Visual
-   Processing <#separate-text-and-visual-processing>`__
+   Processing <#Separate-Text-and-Visual-Processing>`__
 -  `Convert to OpenVINO™ Intermediate Representation (IR)
-   Format <#convert-to-openvino-intermediate-representation-ir-format>`__
--  `Inference with OpenVINO™ <#inference-with-openvino>`__
+   Format <#Convert-to-OpenVINO™-Intermediate-Representation-(IR)-Format>`__
+-  `Inference with OpenVINO™ <#Inference-with-OpenVINO™>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Accelerate Inference with
-   AsyncInferQueue <#accelerate-inference-with-asyncinferqueue>`__
+   ``AsyncInferQueue`` <#Accelerate-Inference-with-AsyncInferQueue>`__
 -  `Pack the Pipeline into a
-   Function <#pack-the-pipeline-into-a-function>`__
--  `Interactive demo with
-   Gradio <#interactive-demo-with-gradio>`__
--  `What To Do Next <#what-to-do-next>`__
+   Function <#Pack-the-Pipeline-into-a-Function>`__
+-  `Interactive demo with Gradio <#Interactive-demo-with-Gradio>`__
+-  `What To Do Next <#What-To-Do-Next>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
 .. |image1| image:: https://openaiassets.blob.core.windows.net/$web/clip/draft/20210104b/overview-a.svg
 
-Initial Implementation with Transformers and Pytorch 
-----------------------------------------------------------------------------------------------
+Initial Implementation with Transformers and Pytorch
+----------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -322,8 +321,10 @@ Let us overlay the saliency map on the image:
 .. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_17_0.png
 
 
-Separate Text and Visual Processing 
------------------------------------------------------------------------------
+Separate Text and Visual Processing
+-----------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code above is functional, but there are some repeated computations
 that can be avoided. The text embedding can be computed once because it
@@ -370,8 +371,10 @@ obtain embeddings for the cropped images.
 The result might be slightly different because you use random crops to
 build a saliency map.
 
-Convert to OpenVINO™ Intermediate Representation (IR) Format 
-------------------------------------------------------------------------------------------------------
+Convert to OpenVINO™ Intermediate Representation (IR) Format
+------------------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The process of building a saliency map can be quite time-consuming. To
 speed it up, you will use OpenVINO. OpenVINO is an inference framework
@@ -467,8 +470,10 @@ details about that can be found in HuggingFace Transformers
 Now, you have two separate models for text and images, stored on disk
 and ready to be loaded and inferred with OpenVINO™.
 
-Inference with OpenVINO™ 
-------------------------------------------------------------------
+Inference with OpenVINO™
+------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 1. Create an instance of the ``Core`` object that will handle any
    interaction with OpenVINO runtime for you.
@@ -484,8 +489,10 @@ Inference with OpenVINO™
     text_model = core.read_model(text_model_path)
     image_model = core.read_model(image_model_path)
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -562,8 +569,10 @@ the inference process is mostly similar.
 .. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_29_1.png
 
 
-Accelerate Inference with ``AsyncInferQueue`` 
----------------------------------------------------------------------------------------
+Accelerate Inference with ``AsyncInferQueue``
+---------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Up until now, the pipeline was synchronous, which means that the data
 preparation, model input population, model inference, and output
@@ -692,8 +701,10 @@ should pass a progress bar object and call ``update`` method after
 .. image:: 232-clip-language-saliency-map-with-output_files/232-clip-language-saliency-map-with-output_35_1.png
 
 
-Pack the Pipeline into a Function 
----------------------------------------------------------------------------
+Pack the Pipeline into a Function
+---------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let us wrap all code in the function and add a user interface to it.
 
@@ -800,8 +811,10 @@ The second version will enable loading the image from your computer.
     interactive(children=(FileUpload(value=(), accept='image/*', description='Image file'), Text(value='', continu…
 
 
-Interactive demo with Gradio 
-----------------------------------------------------------------------
+Interactive demo with Gradio
+----------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -842,13 +855,15 @@ Interactive demo with Gradio
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-What To Do Next 
----------------------------------------------------------
+What To Do Next
+---------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now that you have a convenient interface and accelerated inference, you
 can explore the CLIP capabilities further. For example:
@@ -868,4 +883,4 @@ can explore the CLIP capabilities further. For example:
    `NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
    to get further acceleration. You can find example how to quantize
    CLIP model in `this
-   notebook <228-clip-zero-shot-image-classification-with-output.html>`__
+   notebook <../228-clip-zero-shot-image-classification>`__

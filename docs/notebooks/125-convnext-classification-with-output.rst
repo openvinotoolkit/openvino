@@ -2,7 +2,7 @@ Classification with ConvNeXt and OpenVINO
 =========================================
 
 The
-`torchvision.models <https://pytorch.org/vision/stable/models.html>`__
+```torchvision.models`` <https://pytorch.org/vision/stable/models.html>`__
 subpackage contains definitions of models for addressing different
 tasks, including: image classification, pixelwise semantic segmentation,
 object detection, instance segmentation, person keypoint detection,
@@ -22,23 +22,23 @@ maintaining the simplicity and efficiency of standard ConvNets. The
 several pretrained ConvNeXt model. In this tutorial we will use ConvNeXt
 Tiny model.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Get a test image <#get-a-test-image>`__
--  `Get a pretrained model. <#get-a-pretrained-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Get a test image <#Get-a-test-image>`__
+-  `Get a pretrained model <#Get-a-pretrained-model>`__
 -  `Define a preprocessing and prepare an input
-   data <#define-a-preprocessing-and-prepare-an-input-data>`__
+   data <#Define-a-preprocessing-and-prepare-an-input-data>`__
 -  `Use the original model to run an
-   inference <#use-the-original-model-to-run-an-inference>`__
+   inference <#Use-the-original-model-to-run-an-inference>`__
 -  `Convert the model to OpenVINO Intermediate representation
-   format <#convert-the-model-to-openvino-intermediate-representation-format>`__
+   format <#Convert-the-model-to-OpenVINO-Intermediate-representation-format>`__
 -  `Use the OpenVINO IR model to run an
-   inference <#use-the-openvino-ir-model-to-run-an-inference>`__
+   inference <#Use-the-OpenVINO-IR-model-to-run-an-inference>`__
 
-Prerequisites
--------------
+Prerequisites\ `back to top ⬆️ <#Table-of-contents:>`__
+-------------------------------------------------------
 
 .. code:: ipython3
 
@@ -49,13 +49,18 @@ Prerequisites
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
 Get a test image
 ----------------
 
-First of all lets get a test image from an open dataset.
+`back to top ⬆️ <#Table-of-contents:>`__ First of all lets get a test
+image from an open dataset.
 
 .. code:: ipython3
 
@@ -81,7 +86,8 @@ First of all lets get a test image from an open dataset.
 Get a pretrained model
 ----------------------
 
-Torchvision provides a mechanism of `listing and retrieving available
+`back to top ⬆️ <#Table-of-contents:>`__ Torchvision provides a
+mechanism of `listing and retrieving available
 models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-available-models>`__.
 
 .. code:: ipython3
@@ -120,7 +126,8 @@ initialize pre-trained models
 Define a preprocessing and prepare an input data
 ------------------------------------------------
 
-You can use ``torchvision.transforms`` to make a preprocessing or
+`back to top ⬆️ <#Table-of-contents:>`__ You can use
+``torchvision.transforms`` to make a preprocessing or
 use\ `preprocessing transforms from the model
 wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models>`__.
 
@@ -137,12 +144,12 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
       warnings.warn(
 
 
-Use the original model to run an inference
-------------------------------------------
+Use the original model to run an inference\ `back to top ⬆️ <#Table-of-contents:>`__
+------------------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -181,11 +188,13 @@ And print results
 
     Predicted Class: 281
     Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.554813802242279
+    Predicted Probability: 0.6184040307998657
 
 
 Convert the model to OpenVINO Intermediate representation format
 ----------------------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -251,8 +260,8 @@ Select device from dropdown list for running inference using OpenVINO
     
     compiled_model = core.compile_model(ov_model_xml_path, device_name=device.value)
 
-Use the OpenVINO IR model to run an inference
----------------------------------------------
+Use the OpenVINO IR model to run an inference\ `back to top ⬆️ <#Table-of-contents:>`__
+---------------------------------------------------------------------------------------
 
 .. code:: ipython3
 

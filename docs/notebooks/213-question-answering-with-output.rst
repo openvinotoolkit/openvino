@@ -7,23 +7,16 @@ model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/inte
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs.
-
-**Table of contents:**
----
-
-- `Imports <#imports>`__
-- `The model <#the-model>`__
-- `Download the model <#download-the-model>`__
-- `Load the model <#load-the-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Processing <#processing>`__
-- `Preprocessing <#preprocessing>`__
-- `Postprocessing <#postprocessing>`__
-- `Main Processing Function <#main-processing-function>`__
-- `Run <#run>`__
-- `Run on local paragraphs <#run-on-local-paragraphs>`__
-- `Run on websites <#run-on-websites>`__
+of this notebook provides live inference results from your inputs. ####
+Table of contents: - `Imports <#Imports>`__ - `The model <#The-model>`__
+- `Download the model <#Download-the-model>`__ - `Load the
+model <#Load-the-model>`__ - `Select inference
+device <#Select-inference-device>`__ - `Processing <#Processing>`__ -
+`Preprocessing <#Preprocessing>`__ -
+`Postprocessing <#Postprocessing>`__ - `Main Processing
+Function <#Main-Processing-Function>`__ - `Run <#Run>`__ - `Run on local
+paragraphs <#Run-on-local-paragraphs>`__ - `Run on
+websites <#Run-on-websites>`__
 
 .. code:: ipython3
 
@@ -33,11 +26,17 @@ of this notebook provides live inference results from your inputs.
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -86,11 +85,15 @@ Imports
     tokens_bert.py:   0%|          | 0.00/929 [00:00<?, ?B/s]
 
 
-The model 
----------------------------------------------------
+The model
+---------
 
-Download the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`back to top ⬆️ <#Table-of-contents:>`__
+
+Download the model
+~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download pretrained models from
 https://storage.openvinotoolkit.org/repositories/open_model_zoo. If the
@@ -144,8 +147,10 @@ converted to OpenVINO Intermediate Representation (OpenVINO IR).
 
 
 
-Load the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load the model
+~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -161,8 +166,10 @@ You can choose ``CPU`` or ``GPU`` for this model.
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-Select inference device 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Select inference device
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -219,8 +226,10 @@ for BERT-large-like model.
 
 
 
-Processing 
-----------------------------------------------------
+Processing
+----------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -267,8 +276,10 @@ content from provided URLs.
     data/vocab.txt:   0%|          | 0.00/226k [00:00<?, ?B/s]
 
 
-Preprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing
+~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -350,8 +361,10 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocessing
+~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -443,8 +456,10 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -485,11 +500,15 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run 
----------------------------------------------
+Run
+---
 
-Run on local paragraphs 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`back to top ⬆️ <#Table-of-contents:>`__
+
+Run on local paragraphs
+~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -534,14 +553,20 @@ questions in the box.**
 .. parsed-literal::
 
     Context: ['Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.']
+
+
+.. parsed-literal::
+
     Question: What is the term for a task that generally lends itself to being solved by a computer?
     Answer: A computational problem
-    Score: 0.51
+    Score: 0.53
     Time: 0.04s
 
 
-Run on websites 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run on websites
+~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the
@@ -574,8 +599,12 @@ questions in the box.**
 .. parsed-literal::
 
     Context: ['https://en.wikipedia.org/wiki/OpenVINO']
+
+
+.. parsed-literal::
+
     Question: What does OpenVINO mean?
     Answer: Open Visual Inference and Neural network Optimization
     Score: 0.95
-    Time: 0.05s
+    Time: 0.06s
 

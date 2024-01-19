@@ -34,39 +34,40 @@ deployment:
 
    ovms_diagram
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Serving with OpenVINO Model
-   Server <#serving-with-openvino-model-server>`__
--  `Step 1: Prepare Docker <#step--prepare-docker>`__
+   Server <#Serving-with-OpenVINO-Model-Server>`__
+-  `Step 1: Prepare Docker <#Step-1:-Prepare-Docker>`__
 -  `Step 2: Preparing a Model
-   Repository <#step--preparing-a-model-repository>`__
+   Repository <#Step-2:-Preparing-a-Model-Repository>`__
 -  `Step 3: Start the Model Server
-   Container <#step--start-the-model-server-container>`__
+   Container <#Step-3:-Start-the-Model-Server-Container>`__
 -  `Step 4: Prepare the Example Client
-   Components <#step--prepare-the-example-client-components>`__
+   Components <#Step-4:-Prepare-the-Example-Client-Components>`__
 
-   -  `Prerequisites <#prerequisites>`__
-   -  `Imports <#imports>`__
-   -  `Request Model Status <#request-model-status>`__
-   -  `Request Model Metadata <#request-model-metadata>`__
-   -  `Load input image <#load-input-image>`__
+   -  `Prerequisites <#Prerequisites>`__
+   -  `Imports <#Imports>`__
+   -  `Request Model Status <#Request-Model-Status>`__
+   -  `Request Model Metadata <#Request-Model-Metadata>`__
+   -  `Load input image <#Load-input-image>`__
    -  `Request Prediction on a Numpy
-      Array <#request-prediction-on-a-numpy-array>`__
-   -  `Visualization <#visualization>`__
+      Array <#Request-Prediction-on-a-Numpy-Array>`__
+   -  `Visualization <#Visualization>`__
 
--  `References <#references>`__
+-  `References <#References>`__
 
-Serving with OpenVINO Model Server 
-----------------------------------------------------------------------------
+Serving with OpenVINO Model Server
+----------------------------------
 
-OpenVINO Model Server (OVMS) is a high-performance system for serving
-models. Implemented in C++ for scalability and optimized for deployment
-on Intel architectures, the model server uses the same architecture and
-API as TensorFlow Serving and KServe while applying OpenVINO for
-inference execution. Inference service is provided via gRPC or REST API,
-making deploying new algorithms and AI experiments easy.
+`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO Model Server (OVMS) is
+a high-performance system for serving models. Implemented in C++ for
+scalability and optimized for deployment on Intel architectures, the
+model server uses the same architecture and API as TensorFlow Serving
+and KServe while applying OpenVINO for inference execution. Inference
+service is provided via gRPC or REST API, making deploying new
+algorithms and AI experiments easy.
 
 .. figure:: https://user-images.githubusercontent.com/91237924/215658767-0e0fc221-aed0-4db1-9a82-6be55f244dba.png
    :alt: ovms_high_level
@@ -75,11 +76,11 @@ making deploying new algorithms and AI experiments easy.
 
 To quickly start using OpenVINO™ Model Server, follow these steps:
 
-Step 1: Prepare Docker 
-----------------------------------------------------------------
+Step 1: Prepare Docker
+----------------------
 
-Install `Docker Engine <https://docs.docker.com/engine/install/>`__,
-including its
+`back to top ⬆️ <#Table-of-contents:>`__ Install `Docker
+Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
 using the following command. When it is ready, it will display a test
@@ -116,11 +117,12 @@ image and a message.
     
 
 
-Step 2: Preparing a Model Repository 
-------------------------------------------------------------------------------
+Step 2: Preparing a Model Repository
+------------------------------------
 
-The models need to be placed and mounted in a particular directory
-structure and according to the following rules:
+`back to top ⬆️ <#Table-of-contents:>`__ The models need to be placed
+and mounted in a particular directory structure and according to the
+following rules:
 
 ::
 
@@ -197,24 +199,60 @@ structure and according to the following rules:
     download_file(model_bin_url, BIN_PATH, MODEL_DIR)
 
 
+
 .. parsed-literal::
 
-    Model Copied to "./models/detection/1".
+    models/detection/1/horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
 
 
-Step 3: Start the Model Server Container 
-----------------------------------------------------------------------------------
 
-Pull and start the container:
+.. parsed-literal::
+
+    models/detection/1/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/home/ethan/intel/openvino_notebooks/notebooks/117-model-server/models/detection/1/horizontal-text-detection-0001.bin')
+
+
+
+Step 3: Start the Model Server Container
+----------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__ Pull and start the container:
+
+Searching for an available serving port in local.
 
 .. code:: ipython3
 
-    !docker run -d --rm --name="ovms" -v $(pwd)/models:/models -p 9000:9000 openvino/model_server:latest --model_path /models/detection/ --model_name detection --port 9000
+    import socket
+    
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(('localhost', 0))
+    sock.listen(1)
+    port = sock.getsockname()[1]
+    sock.close()
+    print(f"Port {port} is available")
+    
+    os.environ['port'] = str(port)
 
 
 .. parsed-literal::
 
-    7bf50596c18d5ad93d131eb9e435439dfb3cedf994518c5e89cc7727f5d3530e
+    Port 39801 is available
+
+
+.. code:: ipython3
+
+    !docker run -d --rm --name="ovms" -v $(pwd)/models:/models -p $port:9000 openvino/model_server:latest --model_path /models/detection/ --model_name detection --port 9000
+
+
+.. parsed-literal::
+
+    64aa9391ba019b3ef26ae3010e5605e38d0a12e3f93bf74b3afb938f39b86ad2
 
 
 Check whether the OVMS container is running normally:
@@ -226,12 +264,12 @@ Check whether the OVMS container is running normally:
 
 .. parsed-literal::
 
-    7bf50596c18d   openvino/model_server:latest   "/ovms/bin/ovms --mo…"   Less than a second ago   Up Less than a second   0.0.0.0:9000->9000/tcp, :::9000->9000/tcp   ovms
+    64aa9391ba01   openvino/model_server:latest   "/ovms/bin/ovms --mo…"   29 seconds ago   Up 28 seconds   0.0.0.0:37581->9000/tcp, :::37581->9000/tcp   ovms
 
 
 The required Model Server parameters are listed below. For additional
 configuration options, see the `Model Server Parameters
-section <https://docs.openvino.ai/2023.3/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
+section <https://docs.openvino.ai/2023.2/ovms_docs_parameters.html>`__.
 
 .. raw:: html
 
@@ -648,22 +686,24 @@ openvino/model_server:latest
 
    </table>
 
-If the serving port ``9000`` is already in use, please switch it to
-another available port on your system. For example:\ ``-p 9020:9000``
+If the serving port is already in use, please switch it to another
+available port on your system. For example:\ ``-p 9020:9000``
 
-Step 4: Prepare the Example Client Components 
----------------------------------------------------------------------------------------
+Step 4: Prepare the Example Client Components
+---------------------------------------------
 
-OpenVINO Model Server exposes two sets of APIs: one compatible with
-``TensorFlow Serving`` and another one, with ``KServe API``, for
-inference. Both APIs work on ``gRPC`` and ``REST``\ interfaces.
-Supporting two sets of APIs makes OpenVINO Model Server easier to plug
-into existing systems the already leverage one of these APIs for
-inference. This example will demonstrate how to write a TensorFlow
-Serving API client for object detection.
+`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO Model Server exposes
+two sets of APIs: one compatible with ``TensorFlow Serving`` and another
+one, with ``KServe API``, for inference. Both APIs work on ``gRPC`` and
+``REST``\ interfaces. Supporting two sets of APIs makes OpenVINO Model
+Server easier to plug into existing systems the already leverage one of
+these APIs for inference. This example will demonstrate how to write a
+TensorFlow Serving API client for object detection.
 
-Prerequisites 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prerequisites
+~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install necessary packages.
 
@@ -674,31 +714,13 @@ Install necessary packages.
 
 .. parsed-literal::
 
-    Collecting ovmsclient
-      Downloading ovmsclient-2022.3-py3-none-any.whl (163 kB)
-    [2K     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 164.0/164.0 KB 2.1 MB/s eta 0:00:00a 0:00:01
-    Requirement already satisfied: numpy>=1.16.6 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from ovmsclient) (1.23.4)
-    Requirement already satisfied: requests>=2.27.1 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from ovmsclient) (2.27.1)
-    Collecting grpcio>=1.47.0
-      Downloading grpcio-1.51.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.8 MB)
-    [2K     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 5.6 MB/s eta 0:00:0000:0100:01
-    Requirement already satisfied: protobuf>=3.19.4 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from ovmsclient) (3.19.6)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from requests>=2.27.1->ovmsclient) (1.26.9)
-    Requirement already satisfied: idna<4,>=2.5 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from requests>=2.27.1->ovmsclient) (3.3)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from requests>=2.27.1->ovmsclient) (2021.10.8)
-    Requirement already satisfied: charset-normalizer~=2.0.0 in /home/adrian/repos/openvino_notebooks_adrian/venv/lib/python3.9/site-packages (from requests>=2.27.1->ovmsclient) (2.0.12)
-    Installing collected packages: grpcio, ovmsclient
-      Attempting uninstall: grpcio
-        Found existing installation: grpcio 1.34.1
-        Uninstalling grpcio-1.34.1:
-          Successfully uninstalled grpcio-1.34.1
-    Successfully installed grpcio-1.51.3 ovmsclient-2022.3
-    WARNING: You are using pip version 22.0.4; however, version 23.0.1 is available.
-    You should consider upgrading via the '/home/adrian/repos/openvino_notebooks_adrian/venv/bin/python -m pip install --upgrade pip' command.
-    
+    Note: you may need to restart the kernel to use updated packages.
 
-Imports 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Imports
+~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -707,12 +729,14 @@ Imports
     import matplotlib.pyplot as plt
     from ovmsclient import make_grpc_client
 
-Request Model Status 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Request Model Status
+~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    address = "localhost:9000"
+    address = "localhost:" + str(port)
     
     # Bind the grpc address to the client object
     client = make_grpc_client(address)
@@ -725,8 +749,10 @@ Request Model Status
     {1: {'state': 'AVAILABLE', 'error_code': 0, 'error_message': 'OK'}}
 
 
-Request Model Metadata 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Request Model Metadata
+~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -736,11 +762,13 @@ Request Model Metadata
 
 .. parsed-literal::
 
-    {'model_version': 1, 'inputs': {'image': {'shape': [1, 3, 704, 704], 'dtype': 'DT_FLOAT'}}, 'outputs': {'1469_1470.0': {'shape': [-1], 'dtype': 'DT_FLOAT'}, '1078_1079.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1330_1331.0': {'shape': [36], 'dtype': 'DT_FLOAT'}, 'labels': {'shape': [-1], 'dtype': 'DT_INT32'}, '1267_1268.0': {'shape': [121], 'dtype': 'DT_FLOAT'}, '1141_1142.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1204_1205.0': {'shape': [484], 'dtype': 'DT_FLOAT'}, 'boxes': {'shape': [-1, 5], 'dtype': 'DT_FLOAT'}}}
+    {'model_version': 1, 'inputs': {'image': {'shape': [1, 3, 704, 704], 'dtype': 'DT_FLOAT'}}, 'outputs': {'boxes': {'shape': [-1, 5], 'dtype': 'DT_FLOAT'}, 'labels': {'shape': [-1], 'dtype': 'DT_INT64'}}}
 
 
-Load input image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load input image
+~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -765,19 +793,27 @@ Load input image
 
 
 
+.. parsed-literal::
+
+    data/intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
+
+
+
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fee22d6ecd0>
+    <matplotlib.image.AxesImage at 0x7f254faeec50>
 
 
 
 
-.. image:: 117-model-server-with-output_files/117-model-server-with-output_21_1.png
+.. image:: 117-model-server-with-output_files/117-model-server-with-output_23_2.png
 
 
-Request Prediction on a Numpy Array 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Request Prediction on a Numpy Array
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -793,16 +829,18 @@ Request Prediction on a Numpy Array
 
 .. parsed-literal::
 
-    [[3.9992419e+02 8.1032524e+01 5.6187299e+02 1.3619952e+02 5.3706491e-01]
-     [2.6189725e+02 6.8310547e+01 3.8541251e+02 1.2095630e+02 4.7559953e-01]
-     [6.1644586e+02 2.8008759e+02 6.6627545e+02 3.1178854e+02 4.4982004e-01]
-     [2.0762042e+02 6.2798470e+01 2.3444728e+02 1.0706525e+02 3.7216505e-01]
-     [5.1742780e+02 5.5603595e+02 5.4927539e+02 5.8736023e+02 3.2588077e-01]
-     [2.2261986e+01 4.5406548e+01 1.8868817e+02 1.0225631e+02 3.0407205e-01]]
+    [[4.0075238e+02 8.1240105e+01 5.6262683e+02 1.3609659e+02 5.3646392e-01]
+     [2.6150497e+02 6.8225861e+01 3.8433078e+02 1.2111545e+02 4.7504124e-01]
+     [6.1611401e+02 2.8000638e+02 6.6605963e+02 3.1116574e+02 4.5030469e-01]
+     [2.0762566e+02 6.2619057e+01 2.3446707e+02 1.0711832e+02 3.7426147e-01]
+     [5.1753296e+02 5.5611102e+02 5.4918005e+02 5.8740009e+02 3.2477754e-01]
+     [2.2038467e+01 4.5390991e+01 1.8856328e+02 1.0215196e+02 2.9959568e-01]]
 
 
-Visualization 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visualization
+~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -863,12 +901,12 @@ Visualization
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fee219e4df0>
+    <matplotlib.image.AxesImage at 0x7f25490829b0>
 
 
 
 
-.. image:: 117-model-server-with-output_files/117-model-server-with-output_26_1.png
+.. image:: 117-model-server-with-output_files/117-model-server-with-output_28_1.png
 
 
 To stop and remove the model server container, you can use the following
@@ -884,10 +922,12 @@ command:
     ovms
 
 
-References 
-----------------------------------------------------
+References
+----------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 1. `OpenVINO™ Model Server
-   documentation <https://docs.openvino.ai/2023.3/ovms_what_is_openvino_model_server.html>`__
+   documentation <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__
 2. `OpenVINO™ Model Server GitHub
    repository <https://github.com/openvinotoolkit/model_server/>`__

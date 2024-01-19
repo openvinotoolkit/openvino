@@ -24,128 +24,13 @@ This is the detailed flowchart for the pipeline: |pipeline-flowchart|
 
 .. code:: ipython3
 
-    %pip install -q "gradio == 3.50.2"
-    %pip install -q "diffusers>=-1.14.0" "openvino>=2023.2.0" "transformers >= 4.25.1"
+    %pip install -q "gradio>=4.10.0"
+    %pip install -q torch torchvision --extra-index-url "https://download.pytorch.org/whl/cpu"
+    %pip install -q "diffusers>=0.25.0" "peft<=0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" ipywidgets opencv_python
 
 
 .. parsed-literal::
 
-    Collecting gradio==3.50.2
-      Downloading gradio-3.50.2-py3-none-any.whl (20.3 MB)
-                                                  0.0/20.3 MB ? eta -:--:--
-                                                  0.4/20.3 MB 8.1 MB/s eta 0:00:03
-         -                                        1.0/20.3 MB 10.2 MB/s eta 0:00:02
-         ---                                      1.6/20.3 MB 11.0 MB/s eta 0:00:02
-         ---                                      1.9/20.3 MB 10.1 MB/s eta 0:00:02
-         ----                                     2.3/20.3 MB 10.5 MB/s eta 0:00:02
-         -----                                    2.6/20.3 MB 9.8 MB/s eta 0:00:02
-         ------                                   3.1/20.3 MB 9.8 MB/s eta 0:00:02
-         ------                                   3.5/20.3 MB 9.7 MB/s eta 0:00:02
-         -------                                  4.0/20.3 MB 9.8 MB/s eta 0:00:02
-         --------                                 4.4/20.3 MB 9.7 MB/s eta 0:00:02
-         ---------                                4.9/20.3 MB 9.8 MB/s eta 0:00:02
-         ----------                               5.4/20.3 MB 9.8 MB/s eta 0:00:02
-         -----------                              5.9/20.3 MB 9.9 MB/s eta 0:00:02
-         ------------                             6.4/20.3 MB 10.2 MB/s eta 0:00:02
-         -------------                            6.9/20.3 MB 10.2 MB/s eta 0:00:02
-         --------------                           7.4/20.3 MB 10.3 MB/s eta 0:00:02
-         ---------------                          7.9/20.3 MB 10.3 MB/s eta 0:00:02
-         ----------------                         8.3/20.3 MB 10.2 MB/s eta 0:00:02
-         -----------------                        8.8/20.3 MB 10.3 MB/s eta 0:00:02
-         ------------------                       9.4/20.3 MB 10.4 MB/s eta 0:00:02
-         -------------------                      9.9/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------                     10.3/20.3 MB 10.2 MB/s eta 0:00:01
-         --------------------                    10.8/20.3 MB 10.2 MB/s eta 0:00:01
-         ---------------------                   11.1/20.3 MB 10.2 MB/s eta 0:00:01
-         ----------------------                  11.6/20.3 MB 10.1 MB/s eta 0:00:01
-         -----------------------                 12.1/20.3 MB 10.2 MB/s eta 0:00:01
-         ------------------------                12.6/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------------               13.0/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------------               13.5/20.3 MB 10.4 MB/s eta 0:00:01
-         --------------------------              14.0/20.3 MB 10.4 MB/s eta 0:00:01
-         ---------------------------             14.5/20.3 MB 10.6 MB/s eta 0:00:01
-         ----------------------------            15.0/20.3 MB 10.6 MB/s eta 0:00:01
-         -----------------------------           15.5/20.3 MB 10.6 MB/s eta 0:00:01
-         ------------------------------          16.0/20.3 MB 10.6 MB/s eta 0:00:01
-         -------------------------------         16.5/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------        17.1/20.3 MB 10.6 MB/s eta 0:00:01
-         ---------------------------------       17.5/20.3 MB 10.7 MB/s eta 0:00:01
-         ----------------------------------      18.0/20.3 MB 10.7 MB/s eta 0:00:01
-         -----------------------------------     18.5/20.3 MB 10.7 MB/s eta 0:00:01
-         ------------------------------------    18.9/20.3 MB 10.6 MB/s eta 0:00:01
-         -------------------------------------   19.4/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  19.8/20.3 MB 10.4 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         ---------------------------------------- 20.3/20.3 MB 8.5 MB/s eta 0:00:00
-    Requirement already satisfied: aiofiles<24.0,>=22.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (22.1.0)
-    Requirement already satisfied: altair<6.0,>=4.2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (4.2.2)
-    Requirement already satisfied: fastapi in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.95.1)
-    Requirement already satisfied: ffmpy in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.3.0)
-    Collecting gradio-client==0.6.1 (from gradio==3.50.2)
-      Downloading gradio_client-0.6.1-py3-none-any.whl (299 kB)
-                                                  0.0/299.2 kB ? eta -:--:--
-         -------------------------------------- 299.2/299.2 kB 6.3 MB/s eta 0:00:00
-    Requirement already satisfied: httpx in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.24.0)
-    Requirement already satisfied: huggingface-hub>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.14.1)
-    Collecting importlib-resources<7.0,>=1.3 (from gradio==3.50.2)
-      Downloading importlib_resources-6.1.1-py3-none-any.whl (33 kB)
-    Requirement already satisfied: jinja2<4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.1.2)
-    Requirement already satisfied: markupsafe~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.1.2)
-    Requirement already satisfied: matplotlib~=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.5.2)
-    Requirement already satisfied: numpy~=1.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.23.4)
-    Requirement already satisfied: orjson~=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.8.11)
-    Requirement already satisfied: packaging in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (23.1)
-    Requirement already satisfied: pandas<3.0,>=1.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.3.5)
-    Requirement already satisfied: pillow<11.0,>=8.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (9.5.0)
-    Requirement already satisfied: pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,<3.0.0,>=1.7.4 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.10.7)
-    Requirement already satisfied: pydub in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.25.1)
-    Requirement already satisfied: python-multipart in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.0.6)
-    Requirement already satisfied: pyyaml<7.0,>=5.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (6.0)
-    Requirement already satisfied: requests~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.29.0)
-    Requirement already satisfied: semantic-version~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.10.0)
-    Requirement already satisfied: typing-extensions~=4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (4.5.0)
-    Requirement already satisfied: uvicorn>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.22.0)
-    Requirement already satisfied: websockets<12.0,>=10.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (11.0.2)
-    Requirement already satisfied: fsspec in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio-client==0.6.1->gradio==3.50.2) (2023.4.0)
-    Requirement already satisfied: entrypoints in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (0.4)
-    Requirement already satisfied: jsonschema>=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (4.17.3)
-    Requirement already satisfied: toolz in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (0.12.0)
-    Requirement already satisfied: filelock in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from huggingface-hub>=0.14.0->gradio==3.50.2) (3.12.0)
-    Requirement already satisfied: tqdm>=4.42.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from huggingface-hub>=0.14.0->gradio==3.50.2) (4.65.0)
-    Requirement already satisfied: cycler>=0.10 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (0.11.0)
-    Requirement already satisfied: fonttools>=4.22.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (4.39.3)
-    Requirement already satisfied: kiwisolver>=1.0.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (1.4.4)
-    Requirement already satisfied: pyparsing>=2.2.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (2.4.7)
-    Requirement already satisfied: python-dateutil>=2.7 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (2.8.2)
-    Requirement already satisfied: pytz>=2017.3 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from pandas<3.0,>=1.0->gradio==3.50.2) (2023.3)
-    Requirement already satisfied: charset-normalizer<4,>=2 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (3.1.0)
-    Requirement already satisfied: idna<4,>=2.5 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (3.4)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (1.26.15)
-    Requirement already satisfied: certifi>=2017.4.17 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (2022.12.7)
-    Requirement already satisfied: click>=7.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from uvicorn>=0.14.0->gradio==3.50.2) (8.1.3)
-    Requirement already satisfied: h11>=0.8 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from uvicorn>=0.14.0->gradio==3.50.2) (0.14.0)
-    Requirement already satisfied: starlette<0.27.0,>=0.26.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from fastapi->gradio==3.50.2) (0.26.1)
-    Requirement already satisfied: httpcore<0.18.0,>=0.15.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpx->gradio==3.50.2) (0.17.0)
-    Requirement already satisfied: sniffio in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpx->gradio==3.50.2) (1.3.0)
-    Requirement already satisfied: colorama in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from click>=7.0->uvicorn>=0.14.0->gradio==3.50.2) (0.4.6)
-    Requirement already satisfied: anyio<5.0,>=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpcore<0.18.0,>=0.15.0->httpx->gradio==3.50.2) (3.6.2)
-    Requirement already satisfied: attrs>=17.4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from jsonschema>=3.0->altair<6.0,>=4.2.0->gradio==3.50.2) (23.1.0)
-    Requirement already satisfied: pyrsistent!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from jsonschema>=3.0->altair<6.0,>=4.2.0->gradio==3.50.2) (0.19.3)
-    Requirement already satisfied: six>=1.5 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from python-dateutil>=2.7->matplotlib~=3.0->gradio==3.50.2) (1.16.0)
-    Installing collected packages: importlib-resources, gradio-client, gradio
-      Attempting uninstall: gradio-client
-        Found existing installation: gradio_client 0.1.4
-        Uninstalling gradio_client-0.1.4:
-          Successfully uninstalled gradio_client-0.1.4
-      Attempting uninstall: gradio
-        Found existing installation: gradio 3.28.1
-        Uninstalling gradio-3.28.1:
-          Successfully uninstalled gradio-3.28.1
-    Successfully installed gradio-3.50.2 gradio-client-0.6.1 importlib-resources-6.1.1
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -747,7 +632,7 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
             latent_timestep = timesteps[:1]
     
             # get the initial random noise unless the user supplied it
-            latents, meta = self.prepare_latents(None, latent_timestep)
+            latents, meta = self.prepare_latents(latent_timestep)
             mask, masked_image_latents = self.prepare_mask_latents(
                 mask,
                 masked_image,
@@ -822,13 +707,11 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
     
             return image_embeddings
     
-        def prepare_latents(self, image:PIL.Image.Image = None, latent_timestep:torch.Tensor = None):
+        def prepare_latents(self, latent_timestep:torch.Tensor = None):
             """
             Function for getting initial latents for starting generation
             
             Parameters:
-                image (PIL.Image.Image, *optional*, None):
-                    Input image for generation, if not provided randon noise will be used as starting point
                 latent_timestep (torch.Tensor, *optional*, None):
                     Predicted by scheduler initial step for image generation, required for latent image mixing with nosie
             Returns:
@@ -837,18 +720,10 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
             """
             latents_shape = (1, 4, self.height // 8, self.width // 8)
             noise = np.random.randn(*latents_shape).astype(np.float32)
-            if image is None:
-                # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
-                if isinstance(self.scheduler, LMSDiscreteScheduler):
-                    noise = noise * self.scheduler.sigmas[0].numpy()
-                return noise, {}
-            input_image, meta = preprocess(image)
-            moments = self.vae_encoder(input_image)[self._vae_e_output]
-            mean, logvar = np.split(moments, 2, axis=1) 
-            std = np.exp(logvar * 0.5)
-            latents = (mean + std * np.random.randn(*mean.shape)) * 0.18215
-            latents = self.scheduler.add_noise(torch.from_numpy(latents), torch.from_numpy(noise), latent_timestep).numpy()
-            return latents, meta
+            # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
+            if isinstance(self.scheduler, LMSDiscreteScheduler):
+                noise = noise * self.scheduler.sigmas[0].numpy()
+            return noise, {}
     
         def postprocess_image(self, image:np.ndarray, meta:Dict, output_type:str = "pil"):
             """
@@ -912,7 +787,7 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -1048,37 +923,36 @@ This can take a while to run.
     example = {}
     ref_dir = 'data/reference'
     image_dir = 'data/image'
-    ref_list = [os.path.join(ref_dir,file) for file in os.listdir(ref_dir)]
+    ref_list = [os.path.join(ref_dir,file) for file in os.listdir(ref_dir) if file.endswith(".jpg")]
     ref_list.sort()
-    image_list = [os.path.join(image_dir,file) for file in os.listdir(image_dir)]
+    image_list = [os.path.join(image_dir,file) for file in os.listdir(image_dir) if file.endswith(".png")]
     image_list.sort()
     
     
     image_blocks = gr.Blocks()
     with image_blocks as demo:
         with gr.Group():
-            with gr.Box():
-                with gr.Row():
-                    with gr.Column():
-                        image = gr.Image(source='upload', tool='sketch', elem_id="image_upload", type="pil", label="Source Image")
-                        reference = gr.Image(source='upload', elem_id="image_upload", type="pil", label="Reference Image")
+            with gr.Row():
+                with gr.Column():
+                    image = gr.ImageEditor(sources=['upload'], type="pil", label="Source Image")
+                    reference = gr.Image(sources=['upload'], type="pil", label="Reference Image")
     
-                    with gr.Column():
-                        image_out = gr.Image(label="Output", elem_id="output-img")
-                        steps = gr.Slider(label="Steps", value=15, minimum=2, maximum=75, step=1,interactive=True)
+                with gr.Column():
+                    image_out = gr.Image(label="Output", elem_id="output-img")
+                    steps = gr.Slider(label="Steps", value=15, minimum=2, maximum=75, step=1,interactive=True)
     
-                        seed = gr.Slider(0, 10000, label='Seed (0 = random)', value=0, step=1)
+                    seed = gr.Slider(0, 10000, label='Seed (0 = random)', value=0, step=1)
     
-                        with gr.Row(elem_id="prompt-container"):
-                            btn = gr.Button("Paint!")
-                               
-                with gr.Row():
-                    with gr.Column():
-                        gr.Examples(image_list, inputs=[image],label="Examples - Source Image",examples_per_page=12)
-                    with gr.Column():
-                        gr.Examples(ref_list, inputs=[reference],label="Examples - Reference Image",examples_per_page=12)
-                
-                btn.click(fn=predict, inputs=[image, reference, seed, steps], outputs=[image_out])
+                    with gr.Row(elem_id="prompt-container"):
+                        btn = gr.Button("Paint!")
+                           
+            with gr.Row():
+                with gr.Column():
+                    gr.Examples(image_list, inputs=[image],label="Examples - Source Image",examples_per_page=12)
+                with gr.Column():
+                    gr.Examples(ref_list, inputs=[reference],label="Examples - Reference Image",examples_per_page=12)
+            
+            btn.click(fn=predict, inputs=[image, reference, seed, steps], outputs=[image_out])
     
     # Launching the Gradio app
     try:
@@ -1098,7 +972,7 @@ This can take a while to run.
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -5,7 +5,7 @@ This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
 
 A pre-trained `MobileNetV3
-model <https://docs.openvino.ai/2023.3/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
 from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
@@ -13,15 +13,16 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Imports <#imports>`__
--  `Download the Model and data samples <#download-the-model-and-data-samples>`__
--  `Select inference device <#select-inference-device>`__
--  `Load the Model <#load-the-model>`__
--  `Load an Image <#load-an-image>`__
--  `Do Inference <#do-inference>`__
+-  `Imports <#Imports>`__
+-  `Download the Model and data
+   samples <#Download-the-Model-and-data-samples>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
 
 .. code:: ipython3
 
@@ -34,8 +35,10 @@ tutorial.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -55,8 +58,10 @@ Imports
     
     from notebook_utils import download_file
 
-Download the Model and data samples 
------------------------------------------------------------------------------
+Download the Model and data samples
+-----------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -89,8 +94,10 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -117,8 +124,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model 
---------------------------------------------------------
+Load the Model
+--------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -128,8 +137,10 @@ Load the Model
     
     output_layer = compiled_model.output(0)
 
-Load an Image 
--------------------------------------------------------
+Load an Image
+-------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -160,8 +171,10 @@ Load an Image
 .. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_1.png
 
 
-Do Inference 
-------------------------------------------------------
+Do Inference
+------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

@@ -11,47 +11,44 @@ with Connectionist Temporal Classification (CTC) loss. The model is
 available from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-**Table of contents:**
----
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Imports <#imports>`__
-
--  `Settings <#settings>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
 -  `Download and Convert Public
-   Model <#download-and-convert-public-model>`__
+   Model <#Download-and-Convert-Public-Model>`__
 
-   -  `Download Model <#download-model>`__
-   -  `Convert Model <#convert-model>`__
+   -  `Download Model <#Download-Model>`__
 
--  `Audio Processing <#audio-processing>`__
+-  `Audio Processing <#Audio-Processing>`__
 
-   -  `Define constants <#define-constants>`__
-   -  `Available Audio Formats <#available-audio-formats>`__
-   -  `Load Audio File <#load-audio-file>`__
-   -  `Visualize Audio File <#visualize-audio-file>`__
-   -  `Change Type of Data <#change-type-of-data>`__
-   -  `Convert Audio to Mel
-      Spectrum <#convert-audio-to-mel-spectrum>`__
+   -  `Define constants <#Define-constants>`__
+   -  `Available Audio Formats <#Available-Audio-Formats>`__
+   -  `Load Audio File <#Load-Audio-File>`__
+   -  `Visualize Audio File <#Visualize-Audio-File>`__
+   -  `Change Type of Data <#Change-Type-of-Data>`__
+   -  `Convert Audio to Mel Spectrum <#Convert-Audio-to-Mel-Spectrum>`__
    -  `Run Conversion from Audio to Mel
-      Format <#run-conversion-from-audio-to-mel-format>`__
-   -  `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
-   -  `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
+      Format <#Run-Conversion-from-Audio-to-Mel-Format>`__
+   -  `Visualize Mel Spectrogram <#Visualize-Mel-Spectrogram>`__
+   -  `Adjust Mel scale to Input <#Adjust-Mel-scale-to-Input>`__
 
--  `Load the Model <#load-the-model>`__
+-  `Load the Model <#Load-the-Model>`__
 
-   -  `Do Inference <#do-inference>`__
-   -  `Read Output <#read-output>`__
-   -  `Implementation of
-      Decoding <#implementation-of-decoding>`__
-   -  `Run Decoding and Print
-      Output <#run-decoding-and-print-output>`__
+   -  `Do Inference <#Do-Inference>`__
+   -  `Read Output <#Read-Output>`__
+   -  `Implementation of Decoding <#Implementation-of-Decoding>`__
+   -  `Run Decoding and Print Output <#Run-Decoding-and-Print-Output>`__
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip install -q "librosa>=0.8.1" "openvino-dev>=2023.1.0" "numpy<1.24"
+    %pip install -q "librosa>=0.8.1" "matplotlib<3.8" "openvino-dev>=2023.1.0" "numpy<1.24"
 
 .. code:: ipython3
 
@@ -75,8 +72,10 @@ Imports
     )
     from notebook_utils import download_file
 
-Settings 
---------------------------------------------------
+Settings
+--------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this part, all variables used in the notebook are set.
 
@@ -89,15 +88,18 @@ In this part, all variables used in the notebook are set.
     precision = "FP16"
     model_name = "quartznet-15x5-en"
 
-Download and Convert Public Model 
----------------------------------------------------------------------------
+Download and Convert Public Model
+---------------------------------
 
-If it is your first run, models will be downloaded and converted here.
-It my take a few minutes. Use ``omz_downloader`` and ``omz_converter``,
-which are command-line tools from the ``openvino-dev`` package.
+`back to top ⬆️ <#Table-of-contents:>`__ If it is your first run, models
+will be downloaded and converted here. It my take a few minutes. Use
+``omz_downloader`` and ``omz_converter``, which are command-line tools
+from the ``openvino-dev`` package.
 
-Download Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download Model
+~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``omz_downloader`` tool automatically creates a directory structure
 and downloads the selected model. This step is skipped if the model is
@@ -230,13 +232,17 @@ Representation (OpenVINO IR).
     [NeMo W 2023-09-11 15:01:18 deprecated:66] Function ``local_parameters`` is deprecated. It is going to be removed in the 0.11 version.
 
 
-Audio Processing 
-----------------------------------------------------------
+Audio Processing
+----------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now that the model is converted, load an audio file.
 
-Define constants 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Define constants
+~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, locate an audio file and define the alphabet used by the model.
 This tutorial uses the Latin alphabet beginning with a space symbol and
@@ -248,8 +254,10 @@ could be any other character.
     audio_file_name = "edge_to_cloud.ogg"
     alphabet = " abcdefghijklmnopqrstuvwxyz'~"
 
-Available Audio Formats 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Available Audio Formats
+~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are multiple supported audio formats that can be used with the
 model:
@@ -259,8 +267,10 @@ model:
 ``RF64``, ``SD2``, ``SDS``, ``IRCAM``, ``VOC``, ``W64``, ``WAV``,
 ``NIST``, ``WAVEX``, ``WVE``, ``XI``
 
-Load Audio File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load Audio File
+~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the file after checking a file extension. Pass ``sr`` (stands for a
 ``sampling rate``) as an additional parameter. The model supports files
@@ -296,8 +306,10 @@ Now, you can play your audio file.
 
 
 
-Visualize Audio File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visualize Audio File
+~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can visualize how your audio file presents on a wave plot and
 spectrogram.
@@ -326,8 +338,10 @@ spectrogram.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_20_2.png
 
 
-Change Type of Data 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Change Type of Data
+~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The file loaded in the previous step may contain data in ``float`` type
 with a range of values between -1 and 1. To generate a viable input,
@@ -340,8 +354,10 @@ multiply each value by the max value of ``int16`` and convert it to
         audio = (audio * (2**15 - 1))
     audio = audio.astype(np.int16)
 
-Convert Audio to Mel Spectrum 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Audio to Mel Spectrum
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Next, convert the pre-pre-processed audio to `Mel
 Spectrum <https://medium.com/analytics-vidhya/understanding-the-mel-spectrogram-fca2afa2ce53>`__.
@@ -380,8 +396,10 @@ article <https://towardsdatascience.com/audio-deep-learning-made-simple-part-2-w
             return np.pad(normalized, ((0, 0), (0, padding - remainder)))[None]
         return normalized[None]
 
-Run Conversion from Audio to Mel Format 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Conversion from Audio to Mel Format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this step, convert a current audio file into `Mel
 scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
@@ -390,8 +408,10 @@ scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
 
     mel_basis, spec = audio_to_mel(audio=audio.flatten(), sampling_rate=sampling_rate)
 
-Visualize Mel Spectrogram 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visualize Mel Spectrogram
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For more information about Mel spectrogram, refer to this
 `article <https://towardsdatascience.com/getting-to-know-the-mel-spectrogram-31bca3e2d9d0>`__.
@@ -414,8 +434,10 @@ presents filter bank for converting Hz to Mels.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_28_1.png
 
 
-Adjust Mel scale to Input 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Adjust Mel scale to Input
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Before reading the network, make sure that the input is ready.
 
@@ -423,8 +445,10 @@ Before reading the network, make sure that the input is ready.
 
     audio = mel_to_input(mel_basis=mel_basis, spec=spec)
 
-Load the Model 
---------------------------------------------------------
+Load the Model
+--------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, you can read and load the network.
 
@@ -484,8 +508,10 @@ Select device from dropdown list
     model.reshape({model_input_layer: shape})
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Do Inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Do Inference
+~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Everything is set up. Now, the only thing that remains is passing input
 to the previously loaded network and running inference.
@@ -494,8 +520,10 @@ to the previously loaded network and running inference.
 
     character_probabilities = compiled_model([ov.Tensor(audio)])[0]
 
-Read Output 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Read Output
+~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 After inference, you need to reach out the output. The default output
 format for ``QuartzNet 15x5`` are per-frame probabilities (after
@@ -524,8 +552,10 @@ The last step is getting symbols from corresponding indexes in charlist.
     # Run argmax to pick most possible symbols
     character_probabilities = np.argmax(character_probabilities, axis=1)
 
-Implementation of Decoding 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Implementation of Decoding
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To decode previously explained output, you need the `Connectionist
 Temporal Classification (CTC)
@@ -543,8 +573,10 @@ function. This solution will remove consecutive letters from the output.
             previous_letter_id = letter_index
         return ''.join(transcription)
 
-Run Decoding and Print Output 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Decoding and Print Output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

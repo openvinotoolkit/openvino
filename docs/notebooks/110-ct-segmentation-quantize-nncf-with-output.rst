@@ -53,37 +53,37 @@ demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Load PyTorch Model <#Load-PyTorch-Model>`__
+-  `Download CT-scan Data <#Download-CT-scan-Data>`__
+-  `Configuration <#Configuration>`__
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Load PyTorch Model <#load-pytorch-model>`__
--  `Download CT-scan Data <#download-ct-scan-data>`__
--  `Configuration <#configuration>`__
+   -  `Dataset <#Dataset>`__
+   -  `Metric <#Metric>`__
 
-   -  `Dataset <#dataset>`__
-   -  `Metric <#metric>`__
+-  `Quantization <#Quantization>`__
+-  `Compare FP32 and INT8 Model <#Compare-FP32-and-INT8-Model>`__
 
--  `Quantization <#quantization>`__
--  `Compare FP32 and INT8 Model <#compare-fp-and-int-model>`__
-
-   -  `Compare File Size <#compare-file-size>`__
+   -  `Compare File Size <#Compare-File-Size>`__
    -  `Compare Metrics for the original model and the quantized model to
       be sure that there no
-      degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation>`__
+      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
    -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#compare-performance-of-the-fp-ir-model-and-quantized-models>`__
+      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models>`__
    -  `Visually Compare Inference
-      Results <#visually-compare-inference-results>`__
+      Results <#Visually-Compare-Inference-Results>`__
 
--  `Show Live Inference <#show-live-inference>`__
+-  `Show Live Inference <#Show-Live-Inference>`__
 
    -  `Load Model and List of Image
-      Files <#load-model-and-list-of-image-files>`__
-   -  `Show Inference <#show-inference>`__
+      Files <#Load-Model-and-List-of-Image-Files>`__
+   -  `Show Inference <#Show-Inference>`__
 
--  `References <#references>`__
+-  `References <#References>`__
 
 .. code:: ipython3
 
@@ -98,7 +98,7 @@ purposes, use a representative dataset for quantizing the model.
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -182,10 +182,14 @@ Imports
 
 .. parsed-literal::
 
-    2023-12-06 22:47:51.629108: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-06 22:47:51.662883: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-25 22:50:47.254337: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-01-25 22:50:47.287377: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-06 22:47:52.221639: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-01-25 22:50:47.852256: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -196,7 +200,7 @@ Imports
 Settings
 --------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 By default, this notebook will download one CT scan from the KITS19
 dataset that will be used for quantization. To use the full dataset, set
@@ -214,7 +218,7 @@ dataset that will be used for quantization. To use the full dataset, set
 Load PyTorch Model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download the pre-trained model weights, load the PyTorch model and the
 ``state_dict`` that was saved after training. The model used in this
@@ -262,7 +266,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 Download CT-scan Data
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -290,12 +294,12 @@ Download CT-scan Data
 Configuration
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Dataset
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
@@ -303,7 +307,7 @@ version of the Dataset class in the `training
 notebook <pytorch-monai-training.ipynb>`__.
 
 Images are loaded with MONAI’s
-`LoadImage <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
+```LoadImage`` <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
 to align with the image loading method in the training notebook. This
 method rotates and flips the images. We define a ``rotate_and_flip``
 method to display the images in the expected orientation:
@@ -395,7 +399,7 @@ kidney pixels to verify that the annotations look correct:
 Metric
 ~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Define a metric to determine the performance of the model.
 
@@ -432,7 +436,7 @@ library.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Before quantizing the model, we compute the F1 score on the ``FP32``
 model, for comparison:
@@ -468,8 +472,16 @@ this notebook.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
 
 
@@ -570,11 +582,11 @@ model and save it.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:333: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:334: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:341: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:342: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
 
 
@@ -588,12 +600,12 @@ repository for more information.
 Compare FP32 and INT8 Model
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -607,13 +619,13 @@ Compare File Size
 .. parsed-literal::
 
     FP32 IR model size: 3864.14 KB
-    INT8 model size: 1940.55 KB
+    INT8 model size: 1940.41 KB
 
 
 Compare Metrics for the original model and the quantized model to be sure that there no degradation.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -635,7 +647,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 Compare Performance of the FP32 IR Model and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
@@ -672,32 +684,40 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] Device info:
+
+
+.. parsed-literal::
+
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.10 ms
+    [ INFO ] Read model took 26.68 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add_425) : f32 / [...] / [?,1,16..,16..]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [?,1,16..,16..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add_425) : f32 / [...] / [?,1,16..,16..]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [?,1,16..,16..]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 80.42 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 86.15 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -705,9 +725,9 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   NUM_STREAMS: 1
     [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   PERF_COUNT: NO
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   PERFORMANCE_HINT: LATENCY
     [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]   ENABLE_CPU_PINNING: True
@@ -719,9 +739,9 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 9/11] Creating infer requests and preparing input tensors
     [ ERROR ] Input x is dynamic. Provide data shapes!
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 485, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 486, in main
         data_queue = get_input_data(paths_to_input, app_inputs_info)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
         raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
     Exception: Input x is dynamic. Provide data shapes!
 
@@ -738,18 +758,18 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.76 ms
+    [ INFO ] Read model took 13.10 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x.1 (node: x.1) : f32 / [...] / [1,1,512,512]
@@ -759,11 +779,19 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
+
+
+.. parsed-literal::
+
     [ INFO ]     x.1 (node: x.1) : f32 / [N,C,H,W] / [1,1,512,512]
     [ INFO ] Model outputs:
     [ INFO ]     571 (node: 571) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 188.00 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 188.53 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -771,9 +799,9 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   NUM_STREAMS: 1
     [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   PERF_COUNT: NO
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   PERFORMANCE_HINT: LATENCY
     [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]   ENABLE_CPU_PINNING: True
@@ -787,23 +815,31 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Fill input 'x.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 30.70 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] First inference took 30.02 ms
+
+
+.. parsed-literal::
+
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            971 iterations
-    [ INFO ] Duration:         15006.86 ms
+    [ INFO ] Count:            964 iterations
+    [ INFO ] Duration:         15009.54 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        15.20 ms
-    [ INFO ]    Average:       15.24 ms
-    [ INFO ]    Min:           14.91 ms
-    [ INFO ]    Max:           16.90 ms
-    [ INFO ] Throughput:   64.70 FPS
+    [ INFO ]    Median:        15.33 ms
+    [ INFO ]    Average:       15.36 ms
+    [ INFO ]    Min:           14.97 ms
+    [ INFO ]    Max:           17.10 ms
+    [ INFO ] Throughput:   64.23 FPS
 
 
 Visually Compare Inference Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Visualize the results of the model on four slices of the validation set.
 Compare the results of the ``FP32`` IR model with the results of the
@@ -882,7 +918,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 
 .. parsed-literal::
 
-    Visualizing results with seed 1701899334
+    Visualizing results with seed 1706219510
 
 
 
@@ -892,7 +928,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 Show Live Inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
@@ -912,7 +948,7 @@ printed.
 Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the `Open Model
@@ -941,7 +977,7 @@ overlay of the segmentation mask on the original image/frame.
 Show Inference
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the next cell, we run the ``show_live_inference`` function, which
 loads the ``segmentation_model`` to the specified ``device`` (using
@@ -965,14 +1001,14 @@ performs inference, and displays the results on the frames loaded in
 
 .. parsed-literal::
 
-    Loaded model to CPU in 0.18 seconds.
-    Total time for 68 frames: 2.73 seconds, fps:25.30
+    Loaded model to CPU in 0.21 seconds.
+    Total time for 68 frames: 2.62 seconds, fps:26.34
 
 
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 **OpenVINO** - `NNCF
 Repository <https://github.com/openvinotoolkit/nncf/>`__ - `Neural

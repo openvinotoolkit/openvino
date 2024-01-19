@@ -44,38 +44,38 @@ An additional part demonstrates how to run quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Prepare models for OpenVINO format
-   conversion <#prepare-models-for-openvino-format-conversion>`__
+   conversion <#Prepare-models-for-OpenVINO-format-conversion>`__
 -  `Convert models to OpenVINO
-   format <#convert-models-to-openvino-format>`__
+   format <#Convert-models-to-OpenVINO-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-Net <#u-net>`__
-   -  `VAE <#vae>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-Net <#U-Net>`__
+   -  `VAE <#VAE>`__
 
--  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
 
-   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+   -  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
 
--  `Text-to-image generation <#text-to-image-generation>`__
--  `Quantization <#quantization>`__
+-  `Text-to-image generation <#Text-to-image-generation>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run quantization <#run-quantization>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run quantization <#Run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#compare-inference-time-of-the-fp-and-int-models>`__
-   -  `Compare UNet file size <#compare-unet-file-size>`__
+      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+   -  `Compare UNet file size <#Compare-UNet-file-size>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -85,7 +85,7 @@ Prerequisites
 Prepare models for OpenVINO format conversion
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this tutorial we will use
 `LCM_Dreamshaper_v7 <https://huggingface.co/SimianLuo/LCM_Dreamshaper_v7>`__
@@ -175,13 +175,37 @@ provide which module should be loaded for initialization using
 
 .. parsed-literal::
 
+    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    diffusion_pytorch_model.safetensors:   0%|          | 0.00/3.44G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/1.22G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/492M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
 Convert models to OpenVINO format
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -202,7 +226,7 @@ Let us convert each part:
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -271,10 +295,24 @@ hidden states.
     del text_encoder
     gc.collect()
 
+
+.. parsed-literal::
+
+    Text encoder will be loaded from model/text_encoder.xml
+
+
+
+
+.. parsed-literal::
+
+    9
+
+
+
 U-Net
 ~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 U-Net model, similar to Stable Diffusion UNet model, has four inputs:
 
@@ -330,10 +368,24 @@ Model predicts the ``sample`` state for the next step.
     del unet
     gc.collect()
 
+
+.. parsed-literal::
+
+    Unet successfully converted to IR and saved to model/unet.xml
+
+
+
+
+.. parsed-literal::
+
+    0
+
+
+
 VAE
 ~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -395,10 +447,24 @@ VAE encoder, can be found in Stable Diffusion notebook.
     del vae
     gc.collect()
 
+
+.. parsed-literal::
+
+    VAE decoder will be loaded from model/vae_decoder.xml
+
+
+
+
+.. parsed-literal::
+
+    0
+
+
+
 Prepare inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -673,7 +739,7 @@ decoded by the decoder part of the variational auto encoder.
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, you should create instances of OpenVINO Model and compile it
 using selected device. Select device from dropdown list for running
@@ -735,7 +801,7 @@ scheduler and safety checker from original LCM pipeline.
 Text-to-image generation
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action
 
@@ -778,7 +844,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -841,10 +907,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`laion/laion2B-en <https://huggingface.co/datasets/laion/laion2B-en>`__
+`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -874,7 +940,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = lcm_pipeline.unet
         lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
     
-        dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).shuffle(seed=42)
+        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
         safety_checker = lcm_pipeline.safety_checker
         lcm_pipeline.safety_checker = None
@@ -883,7 +949,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:
-            prompt = batch["TEXT"]
+            prompt = batch["caption"]
             if len(prompt) > tokenizer.model_max_length:
                 continue
             _ = lcm_pipeline(
@@ -925,19 +991,13 @@ model inputs for calibration we should customize ``CompiledModel``.
 
 .. parsed-literal::
 
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
       0%|          | 0/200 [00:00<?, ?it/s]
 
 
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 
@@ -969,6 +1029,11 @@ Create a quantized model from the pre-trained converted OpenVINO model.
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
 
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+
+
 
 .. parsed-literal::
 
@@ -1013,7 +1078,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 .. parsed-literal::
 
-    INFO:nncf:96 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:122 ignored nodes were found by name in the NNCFGraph
 
 
 
@@ -1092,7 +1157,7 @@ data.
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1108,16 +1173,18 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 10
-    calibration_dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).take(validation_size)
+    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
     validation_data = []
-    for batch in calibration_dataset:
-        prompt = batch["TEXT"]
+    for idx, batch in enumerate(calibration_dataset):
+        if idx >= validation_size:
+            break
+        prompt = batch["caption"]
         validation_data.append(prompt)
     
     def calculate_inference_time(pipeline, calibration_dataset):
         inference_time = []
         pipeline.set_progress_bar_config(disable=True)
-        for prompt in calibration_dataset:
+        for idx, prompt in enumerate(validation_data):
             start = time.perf_counter()
             _ = pipeline(
                 prompt,
@@ -1131,14 +1198,9 @@ pipelines, we use median inference time on calibration subset.
             end = time.perf_counter()
             delta = end - start
             inference_time.append(delta)
+            if idx >= validation_size:
+                break
         return np.median(inference_time)
-
-
-
-.. parsed-literal::
-
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
-
 
 .. code:: ipython3
 
@@ -1151,13 +1213,13 @@ pipelines, we use median inference time on calibration subset.
 
 .. parsed-literal::
 
-    Performance speed up: 1.349
+    Performance speed up: 1.319
 
 
 Compare UNet file size
 ^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1173,15 +1235,15 @@ Compare UNet file size
 
 .. parsed-literal::
 
-    FP16 model size: 1678912.43 KB
-    INT8 model size: 840741.46 KB
+    FP16 model size: 1678912.37 KB
+    INT8 model size: 840792.93 KB
     Model compression rate: 1.997
 
 
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

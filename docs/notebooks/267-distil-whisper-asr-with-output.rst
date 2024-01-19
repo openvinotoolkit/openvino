@@ -35,51 +35,55 @@ Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
-
-**Table of contents:**
-
-- `Prerequisites <#prerequisites>`__
-- `Load PyTorch model <#load-pytorch-model>`__
-- `Prepare input sample <#prepare-input-sample>`__
-- `Run model inference <#run-model-inference>`__
-- `Load OpenVINO model using Optimum library <#load-openvino-model-using-optimum-library>`__
-- `Select Inference device <#select-inference-device>`__
-- `Compile OpenVINO model <#compile-openvino-model>`__
-- `Run OpenVINO model inference <#run-openvino-model-inference>`__
-- `Compare performance PyTorch vs OpenVINO <#compare-performance-pytorch-vs-openvino>`__
-- `Compare with OpenAI Whisper <#compare-with-openai-whisper>`__
-- `Usage OpenVINO model with HuggingFace pipelines <#usage-openvino-model-with-huggingface-pipelines>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Quantize Distil-Whisper encoder and decoder models <#quantize-distil-whisper-encoder-and-decoder-models>`__
-- `Run quantized model inference <#run-quantized-model-inference>`__
-- `Compare performance and accuracy of the original and quantized models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
-- `Interactive demo <#interactive-demo>`__
+#### Table of contents: - `Prerequisites <#Prerequisites>`__ - `Load
+PyTorch model <#Load-PyTorch-model>`__ - `Prepare input
+sample <#Prepare-input-sample>`__ - `Run model
+inference <#Run-model-inference>`__ - `Load OpenVINO model using Optimum
+library <#Load-OpenVINO-model-using-Optimum-library>`__ - `Select
+Inference device <#Select-Inference-device>`__ - `Compile OpenVINO
+model <#Compile-OpenVINO-model>`__ - `Run OpenVINO model
+inference <#Run-OpenVINO-model-inference>`__ - `Compare performance
+PyTorch vs OpenVINO <#Compare-performance-PyTorch-vs-OpenVINO>`__ -
+`Compare with OpenAI Whisper <#Compare-with-OpenAI-Whisper>`__ - `Usage
+OpenVINO model with HuggingFace
+pipelines <#Usage-OpenVINO-model-with-HuggingFace-pipelines>`__ -
+`Quantization <#Quantization>`__ - `Prepare calibration
+datasets <#Prepare-calibration-datasets>`__ - `Quantize Distil-Whisper
+encoder and decoder
+models <#Quantize-Distil-Whisper-encoder-and-decoder-models>`__ - `Run
+quantized model inference <#Run-quantized-model-inference>`__ - `Compare
+performance and accuracy of the original and quantized
+models <#Compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+- `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip uninstall -q -y optimum-intel optimum
-    %pip install -q transformers onnx "git+https://github.com/eaidova/optimum-intel.git@ea/whisper" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.35" onnx "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
 
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``AutoModelForSpeechSeq2Seq.from_pretrained`` method is used for the
 initialization of PyTorch Whisper model using the transformers library.
-We will use the ``distil-whisper/distil-large-v2`` model as an example
-in this tutorial. The model will be downloaded once during first run and
-this process may require some time. More details about this model can be
-found in
-`model_card <https://huggingface.co/distil-whisper/distil-large-v2>`__.
+By default, we will use the ``distil-whisper/distil-large-v2`` model as
+an example in this tutorial. The model will be downloaded once during
+first run and this process may require some time.
+
+You may also choose other models from `Distil-Whisper hugging face
+collection <https://huggingface.co/collections/distil-whisper/distil-whisper-models-65411987e6727569748d2eb6>`__
+such as ``distil-whisper/distil-medium.en`` or
+``distil-whisper/distil-small.en``. Models of the original Whisper
+architecture are also available, more on them
+`here <https://huggingface.co/openai>`__.
 
 Preprocessing and post-processing are important in this model use.
 ``AutoProcessor`` class used for initialization ``WhisperProcessor`` is
@@ -89,14 +93,57 @@ using tokenizer.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
+    model_ids = {
+        "Distil-Whisper": [
+            "distil-whisper/distil-large-v2",
+            "distil-whisper/distil-medium.en",
+            "distil-whisper/distil-small.en"
+        ],
+        "Whisper": [
+            "openai/whisper-large-v3",
+            "openai/whisper-large-v2",
+            "openai/whisper-large",
+            "openai/whisper-medium",
+            "openai/whisper-small",
+            "openai/whisper-base",
+            "openai/whisper-tiny",
+            "openai/whisper-medium.en",
+            "openai/whisper-small.en",
+            "openai/whisper-base.en",
+            "openai/whisper-tiny.en",
+        ]
+    }
+    
+    model_type = widgets.Dropdown(
+        options=model_ids.keys(),
+        value="Distil-Whisper",
+        description="Model type:",
+        disabled=False,
+    )
+    
+    model_type
+
+.. code:: ipython3
+
+    model_id = widgets.Dropdown(
+        options=model_ids[model_type.value],
+        value=model_ids[model_type.value][0],
+        description="Model:",
+        disabled=False,
+    )
+    
+    model_id
+
+.. code:: ipython3
+
     from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
     
-    distil_model_id = "distil-whisper/distil-large-v2"
+    processor = AutoProcessor.from_pretrained(model_id.value)
     
-    processor = AutoProcessor.from_pretrained(distil_model_id)
-    
-    pt_distil_model = AutoModelForSpeechSeq2Seq.from_pretrained(distil_model_id)
-    pt_distil_model.eval();
+    pt_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_id.value)
+    pt_model.eval();
 
 
 .. parsed-literal::
@@ -107,7 +154,7 @@ using tokenizer.
 Prepare input sample
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The processor expects audio data in numpy array format and information
 about the audio sampling rate and returns the ``input_features`` tensor
@@ -135,7 +182,7 @@ by Hugging Face datasets implementation.
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To perform speech recognition, one can use ``generate`` interface of the
 model. After generation is finished processor.batch_decode can be used
@@ -145,7 +192,7 @@ for decoding predicted token_ids into text transcription.
 
     import IPython.display as ipd
     
-    predicted_ids = pt_distil_model.generate(input_features)
+    predicted_ids = pt_model.generate(input_features)
     transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
     
     display(ipd.Audio(sample["audio"]["array"], rate=sample["audio"]["sampling_rate"]))
@@ -173,7 +220,7 @@ for decoding predicted token_ids into text transcription.
 Load OpenVINO model using Optimum library
 -----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Hugging Face Optimum API is a high-level API that enables us to
 convert and quantize models from the Hugging Face Transformers library
@@ -213,17 +260,18 @@ OpenVINO model. It means that we can reuse initialized early processor.
     from pathlib import Path
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     
-    distil_model_path = Path(distil_model_id.split("/")[-1])
+    model_path = Path(model_id.value.replace('/', '_'))
+    ov_config = {"CACHE_DIR": ""}
     
-    if not distil_model_path.exists():
-        ov_distil_model = OVModelForSpeechSeq2Seq.from_pretrained(
-            distil_model_id, export=True, compile=False
+    if not model_path.exists():
+        ov_model = OVModelForSpeechSeq2Seq.from_pretrained(
+            model_id.value, ov_config=ov_config, export=True, compile=False, load_in_8bit=False
         )
-        ov_distil_model.half()
-        ov_distil_model.save_pretrained(distil_model_path)
+        ov_model.half()
+        ov_model.save_pretrained(model_path)
     else:
-        ov_distil_model = OVModelForSpeechSeq2Seq.from_pretrained(
-            distil_model_path, compile=False
+        ov_model = OVModelForSpeechSeq2Seq.from_pretrained(
+            model_path, ov_config=ov_config, compile=False
         )
 
 
@@ -235,7 +283,7 @@ OpenVINO model. It means that we can reuse initialized early processor.
 Select Inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -265,12 +313,12 @@ Select Inference device
 Compile OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    ov_distil_model.to(device.value)
-    ov_distil_model.compile()
+    ov_model.to(device.value)
+    ov_model.compile()
 
 
 .. parsed-literal::
@@ -283,11 +331,11 @@ Compile OpenVINO model
 Run OpenVINO model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    predicted_ids = ov_distil_model.generate(input_features)
+    predicted_ids = ov_model.generate(input_features)
     transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
     
     display(ipd.Audio(sample["audio"]["array"], rate=sample["audio"]["sampling_rate"]))
@@ -323,7 +371,7 @@ Run OpenVINO model inference
 Compare performance PyTorch vs OpenVINO
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -344,8 +392,8 @@ Compare performance PyTorch vs OpenVINO
 
 .. code:: ipython3
 
-    perf_distil_torch = measure_perf(pt_distil_model, sample)
-    perf_distil_ov = measure_perf(ov_distil_model, sample)
+    perf_torch = measure_perf(pt_model, sample)
+    perf_ov = measure_perf(ov_model, sample)
 
 
 
@@ -362,11 +410,9 @@ Compare performance PyTorch vs OpenVINO
 
 .. code:: ipython3
 
-    print(f"Mean torch {distil_model_path.name} generation time: {perf_distil_torch:.3f}s")
-    print(f"Mean openvino {distil_model_path.name} generation time: {perf_distil_ov:.3f}s")
-    print(
-        f"Performance {distil_model_path.name} openvino speedup: {perf_distil_torch / perf_distil_ov:.3f}"
-    )
+    print(f"Mean torch {model_id.value} generation time: {perf_torch:.3f}s")
+    print(f"Mean openvino {model_id.value} generation time: {perf_ov:.3f}s")
+    print(f"Performance {model_id.value} openvino speedup: {perf_torch / perf_ov:.3f}")
 
 
 .. parsed-literal::
@@ -376,100 +422,13 @@ Compare performance PyTorch vs OpenVINO
     Performance distil-large-v2 openvino speedup: 1.684
 
 
-Compare with OpenAI Whisper
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-Since Distil-Whisper is optimized version of original OpenAI Whisper
-model, let’s compare performance and check benefits of using it.
-
-.. code:: ipython3
-
-    import gc
-    
-    model_id = "openai/whisper-large-v2"
-    model_path = Path(model_id.split("/")[-1])
-    
-    pt_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_id)
-    pt_model.eval()
-    
-    perf_torch = measure_perf(pt_model, sample)
-    
-    del pt_model
-    gc.collect();
-
-
-
-.. parsed-literal::
-
-    Measuring performance:   0%|          | 0/10 [00:00<?, ?it/s]
-
-
-we can convert in OpenVINO format and run OpenAI Whisper using the same
-interface like its distilled version
-
-.. code:: ipython3
-
-    if not model_path.exists():
-        ov_model = OVModelForSpeechSeq2Seq.from_pretrained(
-            model_id, export=True, compile=False
-        )
-        ov_model.half()
-        ov_model.generation_config = pt_distil_model.generation_config
-        ov_model.save_pretrained(model_path)
-    else:
-        ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_path, compile=False)
-    
-    ov_model.to(device.value)
-    ov_model.compile()
-    
-    perf_ov = measure_perf(ov_model, sample)
-    del ov_model
-    gc.collect();
-
-
-.. parsed-literal::
-
-    Compiling the encoder to AUTO ...
-    Compiling the decoder to AUTO ...
-    Compiling the decoder to AUTO ...
-
-
-
-.. parsed-literal::
-
-    Measuring performance:   0%|          | 0/10 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
-
-    print(f"{distil_model_path.name} generation time in PyTorch: {perf_distil_torch:.3f}s")
-    print(f"{model_path.name} generation time in PyTorch: {perf_torch:.3f}s")
-    print(
-        f"{distil_model_path.name} vs {model_path.name} speedup in PyTorch: {perf_torch / perf_distil_torch:.3f}"
-    )
-    print(f"{distil_model_path.name} generation time in OpenVINO: {perf_distil_ov:.3f}s")
-    print(f"{model_path.name} generation time in OpenVINO: {perf_ov:.3f}s")
-    print(
-        f"{distil_model_path.name} vs {model_path.name} speedup in OpenVINO: {perf_ov / perf_distil_ov:.3f}"
-    )
-
-
-.. parsed-literal::
-
-    distil-large-v2 generation time in PyTorch: 3.064s
-    whisper-large-v2 generation time in PyTorch: 5.054s
-    distil-large-v2 vs whisper-large-v2 speedup in PyTorch: 1.649
-    distil-large-v2 generation time in OpenVINO: 1.819s
-    whisper-large-v2 generation time in OpenVINO: 3.815s
-    distil-large-v2 vs whisper-large-v2 speedup in OpenVINO: 2.097
-
+load_in_8bit### Compare with OpenAI Whisper `back to top
+⬆️ <#Table-of-contents:>`__
 
 Usage OpenVINO model with HuggingFace pipelines
 -----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Like the original PyTorch model, the OpenVINO model is also compatible
 with HuggingFace
@@ -486,11 +445,11 @@ seconds is optimal. To activate batching, pass the argument batch_size.
 
     from transformers import pipeline
     
-    ov_distil_model.generation_config = pt_distil_model.generation_config
+    ov_model.generation_config = pt_model.generation_config
     
     pipe = pipeline(
         "automatic-speech-recognition",
-        model=ov_distil_model,
+        model=ov_model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         max_new_tokens=128,
@@ -637,7 +596,7 @@ popular subtitles format.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -694,7 +653,7 @@ quantization.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
@@ -720,7 +679,7 @@ improves quantization quality.
     
         def __call__(self, *args, **kwargs):
             self.data_cache.append(*args)
-            return self.request(*args, *kwargs)
+            return self.request(*args, **kwargs)
     
         def infer(self, inputs: Any = None, shared_memory: bool = False):
             self.data_cache.append(inputs)
@@ -730,10 +689,10 @@ improves quantization quality.
             self,
             inputs: Any = None,
             userdata: Any = None,
-            shared_memory: bool = False,
+            share_inputs: bool = False,
         ):
             self.data_cache.append(inputs)
-            self.request.infer(inputs, shared_memory)
+            self.request.infer(inputs, share_inputs)
     
         def wait(self):
             pass
@@ -756,7 +715,7 @@ improves quantization quality.
         ov_model.decoder_with_past.request = InferRequestWrapper(original_decoder_with_past_request,
                                                                  decoder_calibration_data)
     
-        calibration_dataset = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
+        calibration_dataset = load_dataset("librispeech_asr", "clean", split="validation", streaming=True)
         for sample in tqdm(islice(calibration_dataset, calibration_dataset_size), desc="Collecting calibration data",
                            total=calibration_dataset_size):
             input_features = extract_input_features(sample)
@@ -770,7 +729,7 @@ improves quantization quality.
 Quantize Distil-Whisper encoder and decoder models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
 Distil-Whisper encoder and decoder-with-past models. We don’t quantize
@@ -781,11 +740,12 @@ negligible.
 
     %%skip not $to_quantize.value
     
+    import gc
     import shutil
     import nncf
     
-    CALIBRATION_DATASET_SIZE = 10
-    quantized_distil_model_path = Path(f"{distil_model_path}_quantized")
+    CALIBRATION_DATASET_SIZE = 50
+    quantized_distil_model_path = Path(f"{model_path}_quantized")
     
     
     def quantize(ov_model, calibration_dataset_size):
@@ -824,17 +784,17 @@ negligible.
             gc.collect()
     
             # Copy the config file and the first-step-decoder manually
-            shutil.copy(distil_model_path / "config.json", quantized_distil_model_path / "config.json")
-            shutil.copy(distil_model_path / "openvino_decoder_model.xml", quantized_distil_model_path / "openvino_decoder_model.xml")
-            shutil.copy(distil_model_path / "openvino_decoder_model.bin", quantized_distil_model_path / "openvino_decoder_model.bin")
+            shutil.copy(model_path / "config.json", quantized_distil_model_path / "config.json")
+            shutil.copy(model_path / "openvino_decoder_model.xml", quantized_distil_model_path / "openvino_decoder_model.xml")
+            shutil.copy(model_path / "openvino_decoder_model.bin", quantized_distil_model_path / "openvino_decoder_model.bin")
     
-        quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_distil_model_path, compile=False)
+        quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_distil_model_path, ov_config=ov_config, compile=False)
         quantized_ov_model.to(device.value)
         quantized_ov_model.compile()
         return quantized_ov_model
     
     
-    ov_quantized_distil_model = quantize(ov_distil_model, CALIBRATION_DATASET_SIZE)
+    ov_quantized_model = quantize(ov_model, CALIBRATION_DATASET_SIZE)
 
 
 
@@ -893,7 +853,7 @@ negligible.
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s compare the transcription results for original and quantized
 models.
@@ -908,10 +868,10 @@ models.
     sample = dataset[0]
     input_features = extract_input_features(sample)
     
-    predicted_ids = ov_distil_model.generate(input_features)
+    predicted_ids = ov_model.generate(input_features)
     transcription_original = processor.batch_decode(predicted_ids, skip_special_tokens=True)
     
-    predicted_ids = ov_quantized_distil_model.generate(input_features)
+    predicted_ids = ov_quantized_model.generate(input_features)
     transcription_quantized = processor.batch_decode(predicted_ids, skip_special_tokens=True)
     
     display(ipd.Audio(sample["audio"]["array"], rate=sample["audio"]["sampling_rate"]))
@@ -941,7 +901,7 @@ Results are the same!
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, we compare original and quantized Distil-Whisper models from
 accuracy and performance stand-points.
@@ -1018,8 +978,8 @@ decoder-with-past model forwards, and for the whole model inference too.
     test_dataset = test_dataset.shuffle(seed=42).take(TEST_DATASET_SIZE)
     test_samples = [sample for sample in test_dataset]
     
-    accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_distil_model, test_samples)
-    accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(ov_quantized_distil_model, test_samples)
+    accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_model, test_samples)
+    accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(ov_quantized_model, test_samples)
     print(f"Encoder performance speedup: {times_original[1] / times_quantized[1]:.3f}")
     print(f"Decoder with past performance speedup: {times_original[2] / times_quantized[2]:.3f}")
     print(f"Whole pipeline performance speedup: {times_original[0] / times_quantized[0]:.3f}")
@@ -1060,7 +1020,7 @@ without major accuracy drop!
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We are also providing an interactive demo using the Gradio interface,
 where you can test model capabilities on your own audio data (using the
@@ -1083,27 +1043,28 @@ recognition. Multilingual support will be provided later.
     MAX_AUDIO_MINS = 30  # maximum audio input in minutes
     
     
+    generate_kwargs = {"language": "en", "task": "transcribe"} if not model_id.value.endswith(".en") else {}
     ov_pipe = pipeline(
         "automatic-speech-recognition",
-        model=ov_distil_model,
+        model=ov_model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         max_new_tokens=128,
         chunk_length_s=15,
-        generate_kwargs={"language": "en", "task": "transcribe"},
+        generate_kwargs=generate_kwargs,
     )
     ov_pipe_forward = ov_pipe._forward
     
     if to_quantize.value:
-        ov_quantized_distil_model.generation_config = ov_distil_model.generation_config
+        ov_quantized_model.generation_config = ov_model.generation_config
         ov_quantized_pipe = pipeline(
             "automatic-speech-recognition",
-            model=ov_quantized_distil_model,
+            model=ov_quantized_model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
             max_new_tokens=128,
             chunk_length_s=15,
-            generate_kwargs={"language": "en", "task": "transcribe"},
+            generate_kwargs=generate_kwargs,
         )
         ov_quantized_pipe_forward = ov_quantized_pipe._forward
     
@@ -1207,25 +1168,3 @@ recognition. Multilingual support will be provided later.
         demo.launch(debug=False)
     except Exception:
         demo.launch(share=True, debug=False)
-
-
-.. parsed-literal::
-
-    The model 'OVModelForWhisper' is not supported for automatic-speech-recognition. Supported models are ['Pop2PianoForConditionalGeneration', 'SeamlessM4TForSpeechToText', 'SpeechEncoderDecoderModel', 'Speech2TextForConditionalGeneration', 'SpeechT5ForSpeechToText', 'WhisperForConditionalGeneration', 'Data2VecAudioForCTC', 'HubertForCTC', 'MCTCTForCTC', 'SEWForCTC', 'SEWDForCTC', 'UniSpeechForCTC', 'UniSpeechSatForCTC', 'Wav2Vec2ForCTC', 'Wav2Vec2ConformerForCTC', 'WavLMForCTC'].
-    The model 'OVModelForWhisper' is not supported for automatic-speech-recognition. Supported models are ['Pop2PianoForConditionalGeneration', 'SeamlessM4TForSpeechToText', 'SpeechEncoderDecoderModel', 'Speech2TextForConditionalGeneration', 'SpeechT5ForSpeechToText', 'WhisperForConditionalGeneration', 'Data2VecAudioForCTC', 'HubertForCTC', 'MCTCTForCTC', 'SEWForCTC', 'SEWDForCTC', 'UniSpeechForCTC', 'UniSpeechSatForCTC', 'Wav2Vec2ForCTC', 'Wav2Vec2ConformerForCTC', 'WavLMForCTC'].
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/gradio/blocks.py:891: UserWarning: api_name transcribe already exists, using transcribe_1
-      warnings.warn(f"api_name {api_name} already exists, using {api_name_}")
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
