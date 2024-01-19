@@ -9,6 +9,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

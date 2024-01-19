@@ -228,14 +228,6 @@ public:
                         uint32_t stride : 1;
                         uint32_t broadcast : 1;
                     } eltwise;
-                    struct lstm_gemm_t {
-                        uint32_t bias : 1;
-                        uint32_t hidden : 1;
-                    } lstm_gemm;
-                    struct lstm_dynamic_t {
-                        uint32_t last_hidden : 1;
-                        uint32_t last_cell : 1;
-                    } lstm_dynamic;
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
@@ -338,11 +330,7 @@ public:
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 
-    void EnableLSTMGEMMBias() { key.restrict.val.dedicated.lstm_gemm.bias = 1; }
-    void EnableLSTMGEMMHidden() { key.restrict.val.dedicated.lstm_gemm.hidden = 1; }
     void EnableLSTMEltCell() { key.restrict.val.dedicated.lstm_elt.cell = 1; }
-    void EnableLSTMDyanmicOptionalHiddenOutput() { key.restrict.val.dedicated.lstm_dynamic.last_hidden = 1; }
-    void EnableLSTMDyanmicOptionalCellOutput() { key.restrict.val.dedicated.lstm_dynamic.last_cell = 1; }
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);

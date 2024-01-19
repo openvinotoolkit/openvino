@@ -5,7 +5,7 @@ Additional Configurations For Hardware
 
 
 .. meta::
-   :description: Learn how to create additional configurations for your devices 
+   :description: Learn how to create additional configurations for your devices
                  to work with Intel® Distribution of OpenVINO™ toolkit.
 
 .. _additional configurations:
@@ -13,13 +13,11 @@ Additional Configurations For Hardware
 .. toctree::
    :maxdepth: 2
    :hidden:
- 
+
    For GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
    For NPU <openvino_docs_install_guides_configurations_for_intel_npu>
-   For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
-
-For certain use cases, you may need to install additional software, to use the full 
+For certain use cases, you may need to install additional software, to use the full
 potential of OpenVINO™. Check the following list for components for elements used in
 your workflow:
 
@@ -35,15 +33,9 @@ your workflow:
     See the :doc:`guide on NPU configuration <openvino_docs_install_guides_configurations_for_intel_npu>`
     for details.
 
-| **GNA drivers**
-|   If you want to run inference on a GNA (note that it is currently being deprecated and will no longer
-    be supported beyond 2023.2), make sure your GPU's drivers are properly installed. See the 
-    :doc:`guide on GNA configuration <openvino_docs_install_guides_configurations_for_intel_gna>`
-    for details.
-
 | **Open Computer Vision Library**
 |   OpenCV is used to extend the capabilities of some models, for example enhance some of
-    OpenVINO samples, when used as a dependency in compilation. To install OpenCV for OpenVINO, see the 
+    OpenVINO samples, when used as a dependency in compilation. To install OpenCV for OpenVINO, see the
     `instructions on GtHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
 
 

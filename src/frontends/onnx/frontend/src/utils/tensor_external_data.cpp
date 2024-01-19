@@ -58,9 +58,7 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
     auto full_path = ov::util::path_join({model_dir, m_data_location});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    NGRAPH_SUPPRESS_DEPRECATED_START
     ov::util::convert_path_win_style(full_path);
-    NGRAPH_SUPPRESS_DEPRECATED_END
     std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
                                        std::ios::binary | std::ios::in | std::ios::ate);
 #else
