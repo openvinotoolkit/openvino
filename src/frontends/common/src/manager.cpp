@@ -4,11 +4,9 @@
 
 #include "openvino/frontend/manager.hpp"
 
-#include <openvino/util/env_util.hpp>
-#include <openvino/util/file_util.hpp>
-
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "plugin_loader.hpp"
 #include "utils.hpp"
@@ -210,7 +208,7 @@ private:
     }
 
     void search_all_plugins() {
-        auto fe_lib_dir = get_frontend_library_path();
+        auto fe_lib_dir = ov::util::get_ov_lib_path();
         if (!fe_lib_dir.empty())
             find_plugins(fe_lib_dir, m_plugins);
     }

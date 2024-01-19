@@ -48,9 +48,3 @@
     catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
-
-namespace ov {
-namespace frontend {
-std::string get_frontend_library_path();
-}  // namespace frontend
-}  // namespace ov
