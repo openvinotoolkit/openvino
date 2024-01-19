@@ -25,7 +25,7 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
 
 TEST(F8E4M3Test, f32_inf) {
     const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::infinity());
-
+    // f8 is NaN as there is no infinity
     EXPECT_EQ(f8.to_bits(), 0x7f);
 }
 
@@ -39,6 +39,35 @@ TEST(F8E4M3Test, f32_nan) {
     const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::quiet_NaN());
 
     EXPECT_EQ(f8.to_bits(), 0x7f);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::quiet_NaN().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_min_normalized) {
+    const auto f8 = ov::float8_e4m3(0.015625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00001000);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::min().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_max_normalized) {
+    const auto f8 = ov::float8_e4m3(448.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111110);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::max().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_lowest_normalized) {
+    const auto f8 = ov::float8_e4m3(-448.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111110);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::lowest().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_denorm_min) {
+    const auto f8 = ov::float8_e4m3(0.001953125f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::denorm_min().to_bits());
 }
 
 TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
