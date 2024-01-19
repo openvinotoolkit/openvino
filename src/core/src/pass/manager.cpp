@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/pass/pass.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/visualize_tree.hpp"

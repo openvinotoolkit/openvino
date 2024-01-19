@@ -10,7 +10,6 @@
 #include <openvino/cc/pass/itt.hpp>
 
 #include "atomic_guard.hpp"
-#include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace std;
