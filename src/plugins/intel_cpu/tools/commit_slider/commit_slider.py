@@ -2,7 +2,7 @@ import subprocess
 import os
 import shutil
 import sys
-from distutils.dir_util import copy_tree
+from shutil import copytree
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
@@ -45,7 +45,7 @@ else:
     else:
         safeClearDir(workPath, cfgData)
     curPath = os.getcwd()
-    copy_tree(curPath, workPath)
+    copytree(curPath, workPath)
     scriptName = os.path.basename(__file__)
     argString = " ".join(sys.argv)
     formattedCmd = "{py} {workPath}/{argString} -wd".format(
@@ -57,12 +57,12 @@ else:
     tempLogPath = cfgData["logPath"].format(workPath=workPath)
     permLogPath = cfgData["logPath"].format(workPath=curPath)
     safeClearDir(permLogPath, cfgData)
-    copy_tree(tempLogPath, permLogPath)
+    copytree(tempLogPath, permLogPath)
 
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copy_tree(tempCachePath, permCachePath)
+    copytree(tempCachePath, permCachePath)
 
     shutil.copyfile(
         os.path.join(workPath, customCfgPath),

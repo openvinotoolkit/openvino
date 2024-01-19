@@ -13,9 +13,9 @@ import platform
 import subprocess  # nosec
 import shutil
 import re
-from distutils import log
-from distutils.command.build import build
-from distutils.command.clean import clean
+import logging as log
+from setuptools.command.build import build
+from setuptools._distutils.command.clean import clean  #todo: get rif of it
 from pathlib import Path
 from fnmatch import fnmatchcase
 import pkg_resources

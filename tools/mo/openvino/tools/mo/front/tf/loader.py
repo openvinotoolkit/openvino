@@ -5,7 +5,7 @@ import argparse
 import logging as log
 import os
 import re
-from distutils.version import LooseVersion
+from setuptools._distutils.version import LooseVersion  #todo: get rif of it
 from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node

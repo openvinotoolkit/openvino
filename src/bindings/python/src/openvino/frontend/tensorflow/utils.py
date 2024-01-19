@@ -7,7 +7,7 @@
 
 import logging as log
 import sys
-from distutils.version import LooseVersion
+from setuptools._distutils.version import LooseVersion  #todo: get rif of it
 from typing import List, Dict, Union
 
 import numpy as np

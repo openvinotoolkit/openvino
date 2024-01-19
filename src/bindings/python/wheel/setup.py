@@ -10,6 +10,7 @@ import typing
 import platform
 import re
 import multiprocessing
+import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
@@ -17,11 +18,11 @@ from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
-from distutils.command.build import build
-from distutils.command.clean import clean
-from distutils.errors import DistutilsSetupError
-from distutils.file_util import copy_file
-from distutils import log
+from setuptools.command.build import build
+from setuptools._distutils.command.clean import clean  # todo: get rif of it
+from setuptools.errors import SetupError
+from setuptools._distutils.file_util import copy_file  # todo: get rif of it
+
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -197,7 +198,7 @@ class PrebuiltExtension(Extension):
     def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
             nln = "\n"
-            raise DistutilsSetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
+            raise SetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
         super().__init__(name, sources, *args, **kwargs)
         self._needs_stub = False
 
@@ -427,7 +428,7 @@ class CopyExt(build_ext):
 
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
-                raise DistutilsSetupError(f"build_ext can accept PrebuiltExtension only, but got {extension.name}")
+                raise SetupError(f"build_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -509,7 +510,7 @@ def set_rpath(rpath, binary):
     if sys.platform == "linux":
         with open(os.path.realpath(binary), "rb") as file:
             if file.read(1) != b"\x7f":
-                log.warn(f"WARNING: {binary}: missed ELF header")
+                log.warning(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
         cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]
