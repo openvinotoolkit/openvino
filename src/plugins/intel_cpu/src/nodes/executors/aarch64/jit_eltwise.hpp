@@ -21,7 +21,7 @@ public:
     explicit JitEltwiseExecutor(const ExecutorContext::CPtr context);
 
     static bool isSupported(
-        const Node* node,
+        const Algorithm& algorithm,
         const float alpha,
         const float beta,
         const float gamma);
