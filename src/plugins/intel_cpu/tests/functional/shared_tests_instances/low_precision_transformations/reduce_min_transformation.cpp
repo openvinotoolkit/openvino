@@ -22,28 +22,28 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 
 const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         true,
         "Output_original",
         "u8"
     },
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         false,
         "Output_original",
         "u8"
     },
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         true,
         "Output_original",
         "u8"
     },
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         false,
         "Output_original",
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
     },
     {
         {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ov::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -64,7 +64,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
     },
     {
         {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ov::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -77,7 +77,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
     },
     {
         {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ov::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -90,7 +90,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
     },
     {
         {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ov::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -106,7 +106,7 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMinTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
