@@ -150,7 +150,7 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/openvino
         DESTINATION ${OV_CPACK_INCLUDEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
