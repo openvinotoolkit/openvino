@@ -22,6 +22,9 @@ namespace op {
 #define TF_OP_CONVERTER(op)       OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 #define TF_OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
+TF_OP_CONVERTER(translate_assign_op);
+TF_OP_CONVERTER(translate_assign_add_op);
+TF_OP_CONVERTER(translate_assign_sub_op);
 TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
 TF_OP_CONVERTER(translate_enter_op);
@@ -343,7 +346,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
 
         // Translators for SavedModel and MetaGraph
-        {"Assign", CreatorFunction(translate_readvariable_op)},
+        {"Assign", CreatorFunction(translate_assign_op)},
+        {"AssignAdd", CreatorFunction(translate_assign_add_op)},
+        {"AssignSub", CreatorFunction(translate_assign_sub_op)},
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},

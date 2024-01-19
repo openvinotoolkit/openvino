@@ -5,15 +5,15 @@
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/unsupported_constant.hpp"
+#include "helper_ops/variable.hpp"
 #include "input_model.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
 
 using namespace std;
-using namespace ov::opset8;
 using namespace ov;
 using namespace ov::op;
 
@@ -45,7 +45,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
             node,
             static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
             "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
-        return std::make_shared<Constant>(
+        return std::make_shared<v0::Constant>(
             ov_type,
             shape,
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + entry.offset(),
@@ -60,7 +60,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
         }
         fs->seekg(entry.offset(), std::ios::beg);
         fs->read(reinterpret_cast<char*>(var_data.data()), entry.size());
-        return std::make_shared<Constant>(ov_type, shape, var_data);
+        return std::make_shared<v0::Constant>(ov_type, shape, var_data);
     }
 }
 
@@ -69,7 +69,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     auto translate_session = node.get_translate_session();
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
-                             "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
+                             "[TensorFlow Frontend] internal error: translate session is nullptr.");
     auto model = dynamic_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
     TENSORFLOW_OP_VALIDATION(
         node,
@@ -81,8 +81,9 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     if (ov_type == element::undefined) {
         const_node = std::make_shared<UnsupportedConstant>();
     } else if (var_index.get() == nullptr) {
-        auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
-        const_node = std::make_shared<Parameter>(ov_type, shape);
+        auto ov_shape = node.get_attribute<ov::PartialShape>("shape").get_shape();
+        const_node =
+            std::make_shared<frontend::tensorflow::Variable>(node.get_name(), ov_shape, ov_type, node.get_decoder());
     } else {
         // Getting variable description from variables index
         const char* entry_data = nullptr;
@@ -131,7 +132,8 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
             const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
             break;
         default:
-            FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
+            FRONT_END_THROW("[TensorFlow Frontend] internal error: encountered unknown element type " +
+                            ov_type.get_type_name());
         }
     }
     set_node_name(node.get_name(), const_node);
@@ -139,13 +141,13 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
 }
 
 OutputVector translate_varisinitialized_op(const NodeContext& node) {
-    auto const_node = std::make_shared<Constant>(::ov::element::boolean, Shape{}, true);
+    auto const_node = std::make_shared<v0::Constant>(::ov::element::boolean, Shape{}, true);
     set_node_name(node.get_name(), const_node);
     return {const_node};
 }
 
 OutputVector translate_readvariable_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"ReadVariableOp", "Assign"});
+    default_op_checks(node, 1, {"ReadVariableOp"});
 
     // Documentation says it should return only one tensor with dtype, but
     // _output_shapes is a vector of shapes and it means it may have multiple outputs
@@ -164,8 +166,8 @@ OutputVector translate_readvariable_op(const NodeContext& node) {
         std::shared_ptr<ov::Node> output_node;
         if (node.get_input(0).get_partial_shape().is_static() &&
             output_shapes[i].get_shape() != node.get_input(0).get_shape()) {
-            auto reshape_shape = make_shared<Constant>(ov::element::i32, output_shapes[i].get_shape());
-            output_node = make_shared<Reshape>(node.get_input(0), reshape_shape, false);
+            auto reshape_shape = make_shared<v0::Constant>(ov::element::i32, output_shapes[i].get_shape());
+            output_node = make_shared<v1::Reshape>(node.get_input(0), reshape_shape, false);
         } else {
             output_node = node.get_input(0).get_node_shared_ptr();
         }
@@ -226,7 +228,7 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
 OutputVector translate_staticregexfullmatch_op(const NodeContext& node) {
     default_op_checks(node, 1, {"StaticRegexFullMatch"});
     // auto pattern = node.get_attribute_as_any("pattern").as<std::string>();
-    auto const_node = std::make_shared<Constant>(ov::element::boolean, ov::Shape{}, true);
+    auto const_node = std::make_shared<v0::Constant>(ov::element::boolean, ov::Shape{}, true);
     set_node_name(node.get_name(), const_node);
     return {const_node};
 }
