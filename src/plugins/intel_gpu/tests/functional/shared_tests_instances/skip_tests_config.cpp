@@ -14,7 +14,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
-            R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
+            R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
@@ -36,9 +36,9 @@ std::vector<std::string> disabledTestPatterns() {
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
-            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 68712
@@ -58,12 +58,16 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 124060
             R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)",
+            // Issue: 128924
+            R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
+            // Issue: 129802
+            R"(.*smoke_OVClassBasicTestP/OVClassBasicTestP.registerExistingPluginThrows.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
-            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
-            R"(.*ExecGraphSerializationTest.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
@@ -84,5 +88,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Nms9LayerTest.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
     };
 }

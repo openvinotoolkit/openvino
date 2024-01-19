@@ -276,6 +276,7 @@ bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
     auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, NULL);
     if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
+
     return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
 }
 
@@ -299,7 +300,7 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 }  // namespace
 
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_platform_id platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform)
 : _context(ctx)
 , _device(dev)
 , _platform(platform)

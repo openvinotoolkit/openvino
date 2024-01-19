@@ -5,7 +5,7 @@ graph {
     input: "A"
     input: "B"
     output: "C"
-    op_type: "Greater_Or_Equal"
+    op_type: "GreaterOrEqual"
   }
   name: "test_greater_or_equal_float"
   input {

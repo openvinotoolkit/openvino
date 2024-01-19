@@ -74,7 +74,7 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 .. showcase::
    :title: 270-sound-generation-audioldm2
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/270-sound-generation-audioldm2/270-sound-generation-audioldm2.png
-   
+
    Sound Generation with AudioLDM2 and OpenVINO.
 
 .. showcase::
@@ -135,7 +135,7 @@ Additional Resources
 
 .. |binder logo| image:: https://mybinder.org/badge_logo.svg
    :alt: Binder button
-.. |colab logo| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+.. |colab logo| image:: https://colab.research.google.com/assets/colab-badge.svg
    :width: 109
    :alt: Google Colab button
 

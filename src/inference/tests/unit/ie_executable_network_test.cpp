@@ -12,7 +12,7 @@
 
 #include "cpp/ie_executable_network_base.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
@@ -34,7 +34,6 @@ using testing::Throw;
 //  5. void SetConfig(const std::map<std::string, Any>& config)
 //  6. Parameter GetConfig(const std::string& name) const
 //  7. Parameter GetMetric(const std::string& name) const
-//  8. RemoteContext::Ptr GetContext()
 
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
