@@ -18,7 +18,7 @@ two consecutive stages: all-instance segmentation and prompt-guided
 selection.
 
 In the first stage,
-`YOLOv8-seg <https://docs.ultralytics.com/tasks/segment/>`__ is used
+```YOLOv8-seg`` <https://docs.ultralytics.com/tasks/segment/>`__ is used
 to produce segmentation masks for all instances in the image. In the
 second stage, FastSAM outputs the region-of-interest corresponding to
 the prompt.
@@ -28,66 +28,94 @@ the prompt.
 
    pipeline
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Prerequisites <#Prerequisites>`__
 
--  `Prerequisites <#prerequisites>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-
--  `FastSAM in Ultralytics <#fastsam-in-ultralytics>`__
+-  `FastSAM in Ultralytics <#FastSAM-in-Ultralytics>`__
 -  `Convert the model to OpenVINO Intermediate representation (IR)
-   format <#convert-the-model-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-the-model-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 -  `Embedding the converted models into the original
-   pipeline <#embedding-the-converted-models-into-the-original-pipeline>`__
+   pipeline <#Embedding-the-converted-models-into-the-original-pipeline>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Adapt OpenVINO models to the original
-      pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
+      pipeline <#Adapt-OpenVINO-models-to-the-original-pipeline>`__
 
 -  `Optimize the model using NNCF Post-training Quantization
-   API <#optimize-the-model-using-nncf-post-training-quantization-api>`__
+   API <#Optimize-the-model-using-NNCF-Post-training-Quantization-API>`__
 
    -  `Compare the performance of the Original and Quantized
-      Models <#compare-the-performance-of-the-original-and-quantized-models>`__
+      Models <#Compare-the-performance-of-the-Original-and-Quantized-Models>`__
 
--  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
+-  `Try out the converted pipeline <#Try-out-the-converted-pipeline>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q "ultralytics==8.0.200" onnx --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino-dev>=2023.1.0"
     %pip install -q "nncf>=2.6.0"
-    %pip install -q gradio
+    %pip install -q "gradio>=4.13"
 
 
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -116,7 +144,7 @@ Imports
 FastSAM in Ultralytics
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with `Fast Segment Anything
 Model <https://github.com/CASIA-IVA-Lab/FastSAM>`__ by
@@ -142,10 +170,1497 @@ model and generate a segmentation map.
     Downloading https://github.com/ultralytics/assets/releases/download/v0.0.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
+.. parsed-literal::
+
+      0%|          | 0.00/138M [00:00<?, ?B/s]
 
 .. parsed-literal::
 
-      0%|          | 0.00/138M [00:00<?, ?B/s]
+      0%|          | 176k/138M [00:00<01:20, 1.79MB/s]
+
+.. parsed-literal::
+
+      0%|          | 512k/138M [00:00<00:53, 2.72MB/s]
+
+.. parsed-literal::
+
+      1%|          | 896k/138M [00:00<00:44, 3.22MB/s]
+
+.. parsed-literal::
+
+      1%|          | 1.24M/138M [00:00<00:41, 3.42MB/s]
+
+.. parsed-literal::
+
+      1%|          | 1.62M/138M [00:00<00:40, 3.56MB/s]
+
+.. parsed-literal::
+
+      1%|▏         | 1.98M/138M [00:00<00:39, 3.61MB/s]
+
+.. parsed-literal::
+
+      2%|▏         | 2.36M/138M [00:00<00:38, 3.66MB/s]
+
+.. parsed-literal::
+
+      2%|▏         | 2.73M/138M [00:00<00:38, 3.70MB/s]
+
+.. parsed-literal::
+
+      2%|▏         | 3.11M/138M [00:00<00:38, 3.71MB/s]
+
+.. parsed-literal::
+
+      3%|▎         | 3.49M/138M [00:01<00:37, 3.75MB/s]
+
+.. parsed-literal::
+
+      3%|▎         | 3.86M/138M [00:01<00:37, 3.76MB/s]
+
+.. parsed-literal::
+
+      3%|▎         | 4.23M/138M [00:01<00:37, 3.75MB/s]
+
+.. parsed-literal::
+
+      3%|▎         | 4.61M/138M [00:01<00:37, 3.76MB/s]
+
+.. parsed-literal::
+
+      4%|▎         | 4.98M/138M [00:01<00:37, 3.76MB/s]
+
+.. parsed-literal::
+
+      4%|▍         | 5.36M/138M [00:01<00:37, 3.75MB/s]
+
+.. parsed-literal::
+
+      4%|▍         | 5.73M/138M [00:01<00:36, 3.77MB/s]
+
+.. parsed-literal::
+
+      4%|▍         | 6.10M/138M [00:01<00:36, 3.75MB/s]
+
+.. parsed-literal::
+
+      5%|▍         | 6.48M/138M [00:01<00:36, 3.77MB/s]
+
+.. parsed-literal::
+
+      5%|▍         | 6.85M/138M [00:01<00:36, 3.78MB/s]
+
+.. parsed-literal::
+
+      5%|▌         | 7.23M/138M [00:02<00:36, 3.77MB/s]
+
+.. parsed-literal::
+
+      5%|▌         | 7.60M/138M [00:02<00:36, 3.80MB/s]
+
+.. parsed-literal::
+
+      6%|▌         | 7.97M/138M [00:02<00:36, 3.76MB/s]
+
+.. parsed-literal::
+
+      6%|▌         | 8.34M/138M [00:02<00:36, 3.76MB/s]
+
+.. parsed-literal::
+
+      6%|▋         | 8.72M/138M [00:02<00:36, 3.75MB/s]
+
+.. parsed-literal::
+
+      7%|▋         | 9.09M/138M [00:02<00:35, 3.77MB/s]
+
+.. parsed-literal::
+
+      7%|▋         | 9.47M/138M [00:02<00:35, 3.76MB/s]
+
+.. parsed-literal::
+
+      7%|▋         | 9.84M/138M [00:02<00:35, 3.77MB/s]
+
+.. parsed-literal::
+
+      7%|▋         | 10.2M/138M [00:02<00:35, 3.76MB/s]
+
+.. parsed-literal::
+
+      8%|▊         | 10.6M/138M [00:03<00:35, 3.76MB/s]
+
+.. parsed-literal::
+
+      8%|▊         | 11.0M/138M [00:03<00:35, 3.77MB/s]
+
+.. parsed-literal::
+
+      8%|▊         | 11.3M/138M [00:03<00:35, 3.77MB/s]
+
+.. parsed-literal::
+
+      8%|▊         | 11.7M/138M [00:03<00:35, 3.76MB/s]
+
+.. parsed-literal::
+
+      9%|▊         | 12.1M/138M [00:03<00:35, 3.76MB/s]
+
+.. parsed-literal::
+
+      9%|▉         | 12.5M/138M [00:03<00:35, 3.75MB/s]
+
+.. parsed-literal::
+
+      9%|▉         | 12.8M/138M [00:03<00:34, 3.76MB/s]
+
+.. parsed-literal::
+
+     10%|▉         | 13.2M/138M [00:03<00:34, 3.75MB/s]
+
+.. parsed-literal::
+
+     10%|▉         | 13.6M/138M [00:03<00:34, 3.75MB/s]
+
+.. parsed-literal::
+
+     10%|█         | 14.0M/138M [00:03<00:34, 3.75MB/s]
+
+.. parsed-literal::
+
+     10%|█         | 14.3M/138M [00:04<00:34, 3.75MB/s]
+
+.. parsed-literal::
+
+     11%|█         | 14.7M/138M [00:04<00:34, 3.74MB/s]
+
+.. parsed-literal::
+
+     11%|█         | 15.1M/138M [00:04<00:34, 3.76MB/s]
+
+.. parsed-literal::
+
+     11%|█         | 15.5M/138M [00:04<00:34, 3.75MB/s]
+
+.. parsed-literal::
+
+     11%|█▏        | 15.8M/138M [00:04<00:34, 3.77MB/s]
+
+.. parsed-literal::
+
+     12%|█▏        | 16.2M/138M [00:04<00:34, 3.76MB/s]
+
+.. parsed-literal::
+
+     12%|█▏        | 16.6M/138M [00:04<00:33, 3.76MB/s]
+
+.. parsed-literal::
+
+     12%|█▏        | 17.0M/138M [00:04<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     13%|█▎        | 17.3M/138M [00:04<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     13%|█▎        | 17.7M/138M [00:04<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     13%|█▎        | 18.1M/138M [00:05<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     13%|█▎        | 18.5M/138M [00:05<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     14%|█▎        | 18.8M/138M [00:05<00:33, 3.76MB/s]
+
+.. parsed-literal::
+
+     14%|█▍        | 19.2M/138M [00:05<00:33, 3.76MB/s]
+
+.. parsed-literal::
+
+     14%|█▍        | 19.6M/138M [00:05<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     14%|█▍        | 20.0M/138M [00:05<00:33, 3.75MB/s]
+
+.. parsed-literal::
+
+     15%|█▍        | 20.3M/138M [00:05<00:32, 3.75MB/s]
+
+.. parsed-literal::
+
+     15%|█▍        | 20.7M/138M [00:05<00:32, 3.76MB/s]
+
+.. parsed-literal::
+
+     15%|█▌        | 21.1M/138M [00:05<00:32, 3.75MB/s]
+
+.. parsed-literal::
+
+     16%|█▌        | 21.5M/138M [00:06<00:32, 3.77MB/s]
+
+.. parsed-literal::
+
+     16%|█▌        | 21.8M/138M [00:06<00:32, 3.76MB/s]
+
+.. parsed-literal::
+
+     16%|█▌        | 22.2M/138M [00:06<00:32, 3.77MB/s]
+
+.. parsed-literal::
+
+     16%|█▋        | 22.6M/138M [00:06<00:31, 3.79MB/s]
+
+.. parsed-literal::
+
+     17%|█▋        | 22.9M/138M [00:06<00:32, 3.77MB/s]
+
+.. parsed-literal::
+
+     17%|█▋        | 23.3M/138M [00:06<00:32, 3.76MB/s]
+
+.. parsed-literal::
+
+     17%|█▋        | 23.7M/138M [00:06<00:31, 3.78MB/s]
+
+.. parsed-literal::
+
+     17%|█▋        | 24.1M/138M [00:06<00:31, 3.76MB/s]
+
+.. parsed-literal::
+
+     18%|█▊        | 24.4M/138M [00:06<00:31, 3.75MB/s]
+
+.. parsed-literal::
+
+     18%|█▊        | 24.8M/138M [00:06<00:31, 3.77MB/s]
+
+.. parsed-literal::
+
+     18%|█▊        | 25.2M/138M [00:07<00:31, 3.76MB/s]
+
+.. parsed-literal::
+
+     18%|█▊        | 25.6M/138M [00:07<00:31, 3.78MB/s]
+
+.. parsed-literal::
+
+     19%|█▉        | 25.9M/138M [00:07<00:31, 3.76MB/s]
+
+.. parsed-literal::
+
+     19%|█▉        | 26.3M/138M [00:07<00:31, 3.75MB/s]
+
+.. parsed-literal::
+
+     19%|█▉        | 26.7M/138M [00:07<00:31, 3.75MB/s]
+
+.. parsed-literal::
+
+     20%|█▉        | 27.1M/138M [00:07<00:31, 3.75MB/s]
+
+.. parsed-literal::
+
+     20%|█▉        | 27.4M/138M [00:07<00:30, 3.77MB/s]
+
+.. parsed-literal::
+
+     20%|██        | 27.8M/138M [00:07<00:30, 3.75MB/s]
+
+.. parsed-literal::
+
+     20%|██        | 28.2M/138M [00:07<00:30, 3.75MB/s]
+
+.. parsed-literal::
+
+     21%|██        | 28.6M/138M [00:08<00:30, 3.76MB/s]
+
+.. parsed-literal::
+
+     21%|██        | 28.9M/138M [00:08<00:30, 3.78MB/s]
+
+.. parsed-literal::
+
+     21%|██        | 29.3M/138M [00:08<00:30, 3.76MB/s]
+
+.. parsed-literal::
+
+     21%|██▏       | 29.7M/138M [00:08<00:30, 3.76MB/s]
+
+.. parsed-literal::
+
+     22%|██▏       | 30.1M/138M [00:08<00:30, 3.76MB/s]
+
+.. parsed-literal::
+
+     22%|██▏       | 30.4M/138M [00:08<00:29, 3.77MB/s]
+
+.. parsed-literal::
+
+     22%|██▏       | 30.8M/138M [00:08<00:29, 3.77MB/s]
+
+.. parsed-literal::
+
+     23%|██▎       | 31.2M/138M [00:08<00:29, 3.76MB/s]
+
+.. parsed-literal::
+
+     23%|██▎       | 31.6M/138M [00:08<00:29, 3.76MB/s]
+
+.. parsed-literal::
+
+     23%|██▎       | 31.9M/138M [00:08<00:29, 3.79MB/s]
+
+.. parsed-literal::
+
+     23%|██▎       | 32.3M/138M [00:09<00:29, 3.76MB/s]
+
+.. parsed-literal::
+
+     24%|██▎       | 32.7M/138M [00:09<00:29, 3.78MB/s]
+
+.. parsed-literal::
+
+     24%|██▍       | 33.1M/138M [00:09<00:29, 3.77MB/s]
+
+.. parsed-literal::
+
+     24%|██▍       | 33.4M/138M [00:09<00:29, 3.76MB/s]
+
+.. parsed-literal::
+
+     24%|██▍       | 33.8M/138M [00:09<00:29, 3.77MB/s]
+
+.. parsed-literal::
+
+     25%|██▍       | 34.2M/138M [00:09<00:29, 3.76MB/s]
+
+.. parsed-literal::
+
+     25%|██▍       | 34.6M/138M [00:09<00:28, 3.76MB/s]
+
+.. parsed-literal::
+
+     25%|██▌       | 34.9M/138M [00:09<00:28, 3.77MB/s]
+
+.. parsed-literal::
+
+     26%|██▌       | 35.3M/138M [00:09<00:28, 3.74MB/s]
+
+.. parsed-literal::
+
+     26%|██▌       | 35.7M/138M [00:10<00:28, 3.74MB/s]
+
+.. parsed-literal::
+
+     26%|██▌       | 36.0M/138M [00:10<00:28, 3.74MB/s]
+
+.. parsed-literal::
+
+     26%|██▋       | 36.4M/138M [00:10<00:28, 3.76MB/s]
+
+.. parsed-literal::
+
+     27%|██▋       | 36.8M/138M [00:10<00:28, 3.76MB/s]
+
+.. parsed-literal::
+
+     27%|██▋       | 37.2M/138M [00:10<00:28, 3.77MB/s]
+
+.. parsed-literal::
+
+     27%|██▋       | 37.5M/138M [00:10<00:28, 3.76MB/s]
+
+.. parsed-literal::
+
+     27%|██▋       | 37.9M/138M [00:10<00:27, 3.77MB/s]
+
+.. parsed-literal::
+
+     28%|██▊       | 38.3M/138M [00:10<00:27, 3.78MB/s]
+
+.. parsed-literal::
+
+     28%|██▊       | 38.7M/138M [00:10<00:27, 3.77MB/s]
+
+.. parsed-literal::
+
+     28%|██▊       | 39.0M/138M [00:10<00:27, 3.78MB/s]
+
+.. parsed-literal::
+
+     29%|██▊       | 39.4M/138M [00:11<00:27, 3.77MB/s]
+
+.. parsed-literal::
+
+     29%|██▉       | 39.8M/138M [00:11<00:27, 3.76MB/s]
+
+.. parsed-literal::
+
+     29%|██▉       | 40.2M/138M [00:11<00:27, 3.77MB/s]
+
+.. parsed-literal::
+
+     29%|██▉       | 40.5M/138M [00:11<00:27, 3.76MB/s]
+
+.. parsed-literal::
+
+     30%|██▉       | 40.9M/138M [00:11<00:27, 3.78MB/s]
+
+.. parsed-literal::
+
+     30%|██▉       | 41.3M/138M [00:11<00:26, 3.77MB/s]
+
+.. parsed-literal::
+
+     30%|███       | 41.7M/138M [00:11<00:26, 3.78MB/s]
+
+.. parsed-literal::
+
+     30%|███       | 42.0M/138M [00:11<00:26, 3.77MB/s]
+
+.. parsed-literal::
+
+     31%|███       | 42.4M/138M [00:11<00:26, 3.76MB/s]
+
+.. parsed-literal::
+
+     31%|███       | 42.8M/138M [00:11<00:26, 3.77MB/s]
+
+.. parsed-literal::
+
+     31%|███       | 43.2M/138M [00:12<00:26, 3.76MB/s]
+
+.. parsed-literal::
+
+     31%|███▏      | 43.5M/138M [00:12<00:26, 3.76MB/s]
+
+.. parsed-literal::
+
+     32%|███▏      | 43.9M/138M [00:12<00:26, 3.77MB/s]
+
+.. parsed-literal::
+
+     32%|███▏      | 44.3M/138M [00:12<00:26, 3.76MB/s]
+
+.. parsed-literal::
+
+     32%|███▏      | 44.6M/138M [00:12<00:26, 3.76MB/s]
+
+.. parsed-literal::
+
+     33%|███▎      | 45.0M/138M [00:12<00:25, 3.77MB/s]
+
+.. parsed-literal::
+
+     33%|███▎      | 45.4M/138M [00:12<00:25, 3.77MB/s]
+
+.. parsed-literal::
+
+     33%|███▎      | 45.8M/138M [00:12<00:25, 3.76MB/s]
+
+.. parsed-literal::
+
+     33%|███▎      | 46.1M/138M [00:12<00:25, 3.78MB/s]
+
+.. parsed-literal::
+
+     34%|███▎      | 46.5M/138M [00:13<00:25, 3.77MB/s]
+
+.. parsed-literal::
+
+     34%|███▍      | 46.9M/138M [00:13<00:25, 3.76MB/s]
+
+.. parsed-literal::
+
+     34%|███▍      | 47.3M/138M [00:13<00:25, 3.77MB/s]
+
+.. parsed-literal::
+
+     34%|███▍      | 47.6M/138M [00:13<00:25, 3.78MB/s]
+
+.. parsed-literal::
+
+     35%|███▍      | 48.0M/138M [00:13<00:25, 3.77MB/s]
+
+.. parsed-literal::
+
+     35%|███▍      | 48.4M/138M [00:13<00:24, 3.78MB/s]
+
+.. parsed-literal::
+
+     35%|███▌      | 48.8M/138M [00:13<00:24, 3.77MB/s]
+
+.. parsed-literal::
+
+     36%|███▌      | 49.1M/138M [00:13<00:24, 3.78MB/s]
+
+.. parsed-literal::
+
+     36%|███▌      | 49.5M/138M [00:13<00:24, 3.77MB/s]
+
+.. parsed-literal::
+
+     36%|███▌      | 49.9M/138M [00:13<00:24, 3.76MB/s]
+
+.. parsed-literal::
+
+     36%|███▋      | 50.2M/138M [00:14<00:24, 3.76MB/s]
+
+.. parsed-literal::
+
+     37%|███▋      | 50.6M/138M [00:14<00:24, 3.77MB/s]
+
+.. parsed-literal::
+
+     37%|███▋      | 51.0M/138M [00:14<00:24, 3.78MB/s]
+
+.. parsed-literal::
+
+     37%|███▋      | 51.4M/138M [00:14<00:24, 3.77MB/s]
+
+.. parsed-literal::
+
+     37%|███▋      | 51.8M/138M [00:14<00:24, 3.76MB/s]
+
+.. parsed-literal::
+
+     38%|███▊      | 52.1M/138M [00:14<00:24, 3.73MB/s]
+
+.. parsed-literal::
+
+     38%|███▊      | 52.5M/138M [00:14<00:24, 3.73MB/s]
+
+.. parsed-literal::
+
+     38%|███▊      | 52.9M/138M [00:14<00:23, 3.75MB/s]
+
+.. parsed-literal::
+
+     39%|███▊      | 53.2M/138M [00:14<00:23, 3.75MB/s]
+
+.. parsed-literal::
+
+     39%|███▉      | 53.6M/138M [00:15<00:23, 3.76MB/s]
+
+.. parsed-literal::
+
+     39%|███▉      | 54.0M/138M [00:15<00:23, 3.76MB/s]
+
+.. parsed-literal::
+
+     39%|███▉      | 54.4M/138M [00:15<00:23, 3.77MB/s]
+
+.. parsed-literal::
+
+     40%|███▉      | 54.7M/138M [00:15<00:23, 3.78MB/s]
+
+.. parsed-literal::
+
+     40%|███▉      | 55.1M/138M [00:15<00:23, 3.77MB/s]
+
+.. parsed-literal::
+
+     40%|████      | 55.5M/138M [00:15<00:22, 3.78MB/s]
+
+.. parsed-literal::
+
+     40%|████      | 55.9M/138M [00:15<00:22, 3.77MB/s]
+
+.. parsed-literal::
+
+     41%|████      | 56.2M/138M [00:15<00:22, 3.76MB/s]
+
+.. parsed-literal::
+
+     41%|████      | 56.6M/138M [00:15<00:22, 3.77MB/s]
+
+.. parsed-literal::
+
+     41%|████      | 57.0M/138M [00:15<00:22, 3.76MB/s]
+
+.. parsed-literal::
+
+     41%|████▏     | 57.4M/138M [00:16<00:22, 3.75MB/s]
+
+.. parsed-literal::
+
+     42%|████▏     | 57.7M/138M [00:16<00:22, 3.77MB/s]
+
+.. parsed-literal::
+
+     42%|████▏     | 58.1M/138M [00:16<00:22, 3.77MB/s]
+
+.. parsed-literal::
+
+     42%|████▏     | 58.5M/138M [00:16<00:22, 3.76MB/s]
+
+.. parsed-literal::
+
+     43%|████▎     | 58.8M/138M [00:16<00:21, 3.79MB/s]
+
+.. parsed-literal::
+
+     43%|████▎     | 59.2M/138M [00:16<00:21, 3.77MB/s]
+
+.. parsed-literal::
+
+     43%|████▎     | 59.6M/138M [00:16<00:21, 3.78MB/s]
+
+.. parsed-literal::
+
+     43%|████▎     | 60.0M/138M [00:16<00:21, 3.74MB/s]
+
+.. parsed-literal::
+
+     44%|████▎     | 60.3M/138M [00:16<00:21, 3.76MB/s]
+
+.. parsed-literal::
+
+     44%|████▍     | 60.7M/138M [00:16<00:21, 3.76MB/s]
+
+.. parsed-literal::
+
+     44%|████▍     | 61.1M/138M [00:17<00:21, 3.75MB/s]
+
+.. parsed-literal::
+
+     44%|████▍     | 61.5M/138M [00:17<00:21, 3.75MB/s]
+
+.. parsed-literal::
+
+     45%|████▍     | 61.8M/138M [00:17<00:21, 3.76MB/s]
+
+.. parsed-literal::
+
+     45%|████▌     | 62.2M/138M [00:17<00:21, 3.78MB/s]
+
+.. parsed-literal::
+
+     45%|████▌     | 62.6M/138M [00:17<00:21, 3.77MB/s]
+
+.. parsed-literal::
+
+     46%|████▌     | 63.0M/138M [00:17<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     46%|████▌     | 63.3M/138M [00:17<00:20, 3.77MB/s]
+
+.. parsed-literal::
+
+     46%|████▌     | 63.7M/138M [00:17<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     46%|████▋     | 64.1M/138M [00:17<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     47%|████▋     | 64.5M/138M [00:18<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     47%|████▋     | 64.8M/138M [00:18<00:20, 3.77MB/s]
+
+.. parsed-literal::
+
+     47%|████▋     | 65.2M/138M [00:18<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     47%|████▋     | 65.6M/138M [00:18<00:20, 3.77MB/s]
+
+.. parsed-literal::
+
+     48%|████▊     | 65.9M/138M [00:18<00:20, 3.76MB/s]
+
+.. parsed-literal::
+
+     48%|████▊     | 66.3M/138M [00:18<00:19, 3.77MB/s]
+
+.. parsed-literal::
+
+     48%|████▊     | 66.7M/138M [00:18<00:19, 3.78MB/s]
+
+.. parsed-literal::
+
+     49%|████▊     | 67.1M/138M [00:18<00:19, 3.75MB/s]
+
+.. parsed-literal::
+
+     49%|████▉     | 67.4M/138M [00:18<00:19, 3.78MB/s]
+
+.. parsed-literal::
+
+     49%|████▉     | 67.8M/138M [00:18<00:19, 3.77MB/s]
+
+.. parsed-literal::
+
+     49%|████▉     | 68.2M/138M [00:19<00:19, 3.76MB/s]
+
+.. parsed-literal::
+
+     50%|████▉     | 68.5M/138M [00:19<00:19, 3.75MB/s]
+
+.. parsed-literal::
+
+     50%|████▉     | 68.9M/138M [00:19<00:19, 3.79MB/s]
+
+.. parsed-literal::
+
+     50%|█████     | 69.3M/138M [00:19<00:19, 3.79MB/s]
+
+.. parsed-literal::
+
+     50%|█████     | 69.7M/138M [00:19<00:19, 3.77MB/s]
+
+.. parsed-literal::
+
+     51%|█████     | 70.0M/138M [00:19<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     51%|█████     | 70.4M/138M [00:19<00:18, 3.77MB/s]
+
+.. parsed-literal::
+
+     51%|█████     | 70.8M/138M [00:19<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     51%|█████▏    | 71.2M/138M [00:19<00:18, 3.77MB/s]
+
+.. parsed-literal::
+
+     52%|█████▏    | 71.5M/138M [00:19<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     52%|█████▏    | 71.9M/138M [00:20<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     52%|█████▏    | 72.3M/138M [00:20<00:18, 3.77MB/s]
+
+.. parsed-literal::
+
+     53%|█████▎    | 72.7M/138M [00:20<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     53%|█████▎    | 73.0M/138M [00:20<00:18, 3.77MB/s]
+
+.. parsed-literal::
+
+     53%|█████▎    | 73.4M/138M [00:20<00:18, 3.76MB/s]
+
+.. parsed-literal::
+
+     53%|█████▎    | 73.8M/138M [00:20<00:17, 3.79MB/s]
+
+.. parsed-literal::
+
+     54%|█████▎    | 74.2M/138M [00:20<00:17, 3.77MB/s]
+
+.. parsed-literal::
+
+     54%|█████▍    | 74.5M/138M [00:20<00:17, 3.76MB/s]
+
+.. parsed-literal::
+
+     54%|█████▍    | 74.9M/138M [00:20<00:17, 3.76MB/s]
+
+.. parsed-literal::
+
+     54%|█████▍    | 75.3M/138M [00:21<00:17, 3.76MB/s]
+
+.. parsed-literal::
+
+     55%|█████▍    | 75.7M/138M [00:21<00:17, 3.77MB/s]
+
+.. parsed-literal::
+
+     55%|█████▌    | 76.0M/138M [00:21<00:17, 3.76MB/s]
+
+.. parsed-literal::
+
+     55%|█████▌    | 76.4M/138M [00:21<00:17, 3.75MB/s]
+
+.. parsed-literal::
+
+     56%|█████▌    | 76.8M/138M [00:21<00:17, 3.75MB/s]
+
+.. parsed-literal::
+
+     56%|█████▌    | 77.2M/138M [00:21<00:17, 3.75MB/s]
+
+.. parsed-literal::
+
+     56%|█████▌    | 77.5M/138M [00:21<00:16, 3.77MB/s]
+
+.. parsed-literal::
+
+     56%|█████▋    | 77.9M/138M [00:21<00:16, 3.76MB/s]
+
+.. parsed-literal::
+
+     57%|█████▋    | 78.3M/138M [00:21<00:16, 3.77MB/s]
+
+.. parsed-literal::
+
+     57%|█████▋    | 78.6M/138M [00:21<00:16, 3.79MB/s]
+
+.. parsed-literal::
+
+     57%|█████▋    | 79.0M/138M [00:22<00:16, 3.76MB/s]
+
+.. parsed-literal::
+
+     57%|█████▋    | 79.4M/138M [00:22<00:16, 3.73MB/s]
+
+.. parsed-literal::
+
+     58%|█████▊    | 79.8M/138M [00:22<00:16, 3.73MB/s]
+
+.. parsed-literal::
+
+     58%|█████▊    | 80.1M/138M [00:22<00:16, 3.74MB/s]
+
+.. parsed-literal::
+
+     58%|█████▊    | 80.5M/138M [00:22<00:16, 3.76MB/s]
+
+.. parsed-literal::
+
+     59%|█████▊    | 80.9M/138M [00:22<00:16, 3.75MB/s]
+
+.. parsed-literal::
+
+     59%|█████▉    | 81.3M/138M [00:22<00:15, 3.77MB/s]
+
+.. parsed-literal::
+
+     59%|█████▉    | 81.6M/138M [00:22<00:15, 3.76MB/s]
+
+.. parsed-literal::
+
+     59%|█████▉    | 82.0M/138M [00:22<00:15, 3.77MB/s]
+
+.. parsed-literal::
+
+     60%|█████▉    | 82.4M/138M [00:23<00:15, 3.78MB/s]
+
+.. parsed-literal::
+
+     60%|█████▉    | 82.8M/138M [00:23<00:15, 3.76MB/s]
+
+.. parsed-literal::
+
+     60%|██████    | 83.1M/138M [00:23<00:15, 3.75MB/s]
+
+.. parsed-literal::
+
+     60%|██████    | 83.5M/138M [00:23<00:15, 3.76MB/s]
+
+.. parsed-literal::
+
+     61%|██████    | 83.9M/138M [00:23<00:15, 3.76MB/s]
+
+.. parsed-literal::
+
+     61%|██████    | 84.3M/138M [00:23<00:15, 3.75MB/s]
+
+.. parsed-literal::
+
+     61%|██████    | 84.6M/138M [00:23<00:14, 3.76MB/s]
+
+.. parsed-literal::
+
+     61%|██████▏   | 85.0M/138M [00:23<00:14, 3.78MB/s]
+
+.. parsed-literal::
+
+     62%|██████▏   | 85.4M/138M [00:23<00:14, 3.76MB/s]
+
+.. parsed-literal::
+
+     62%|██████▏   | 85.8M/138M [00:23<00:14, 3.77MB/s]
+
+.. parsed-literal::
+
+     62%|██████▏   | 86.1M/138M [00:24<00:14, 3.78MB/s]
+
+.. parsed-literal::
+
+     63%|██████▎   | 86.5M/138M [00:24<00:14, 3.77MB/s]
+
+.. parsed-literal::
+
+     63%|██████▎   | 86.9M/138M [00:24<00:14, 3.78MB/s]
+
+.. parsed-literal::
+
+     63%|██████▎   | 87.3M/138M [00:24<00:14, 3.76MB/s]
+
+.. parsed-literal::
+
+     63%|██████▎   | 87.6M/138M [00:24<00:14, 3.71MB/s]
+
+.. parsed-literal::
+
+     64%|██████▎   | 88.0M/138M [00:24<00:14, 3.72MB/s]
+
+.. parsed-literal::
+
+     64%|██████▍   | 88.4M/138M [00:24<00:13, 3.74MB/s]
+
+.. parsed-literal::
+
+     64%|██████▍   | 88.7M/138M [00:24<00:13, 3.74MB/s]
+
+.. parsed-literal::
+
+     64%|██████▍   | 89.1M/138M [00:24<00:13, 3.74MB/s]
+
+.. parsed-literal::
+
+     65%|██████▍   | 89.5M/138M [00:25<00:13, 3.74MB/s]
+
+.. parsed-literal::
+
+     65%|██████▌   | 89.9M/138M [00:25<00:13, 3.74MB/s]
+
+.. parsed-literal::
+
+     65%|██████▌   | 90.2M/138M [00:25<00:13, 3.76MB/s]
+
+.. parsed-literal::
+
+     66%|██████▌   | 90.6M/138M [00:25<00:13, 3.75MB/s]
+
+.. parsed-literal::
+
+     66%|██████▌   | 91.0M/138M [00:25<00:13, 3.77MB/s]
+
+.. parsed-literal::
+
+     66%|██████▌   | 91.4M/138M [00:25<00:12, 3.80MB/s]
+
+.. parsed-literal::
+
+     66%|██████▋   | 91.7M/138M [00:25<00:12, 3.78MB/s]
+
+.. parsed-literal::
+
+     67%|██████▋   | 92.1M/138M [00:25<00:12, 3.77MB/s]
+
+.. parsed-literal::
+
+     67%|██████▋   | 92.5M/138M [00:25<00:12, 3.78MB/s]
+
+.. parsed-literal::
+
+     67%|██████▋   | 92.9M/138M [00:25<00:12, 3.77MB/s]
+
+.. parsed-literal::
+
+     67%|██████▋   | 93.2M/138M [00:26<00:12, 3.75MB/s]
+
+.. parsed-literal::
+
+     68%|██████▊   | 93.6M/138M [00:26<00:12, 3.75MB/s]
+
+.. parsed-literal::
+
+     68%|██████▊   | 94.0M/138M [00:26<00:12, 3.79MB/s]
+
+.. parsed-literal::
+
+     68%|██████▊   | 94.4M/138M [00:26<00:12, 3.77MB/s]
+
+.. parsed-literal::
+
+     69%|██████▊   | 94.7M/138M [00:26<00:12, 3.76MB/s]
+
+.. parsed-literal::
+
+     69%|██████▉   | 95.1M/138M [00:26<00:11, 3.78MB/s]
+
+.. parsed-literal::
+
+     69%|██████▉   | 95.5M/138M [00:26<00:11, 3.76MB/s]
+
+.. parsed-literal::
+
+     69%|██████▉   | 95.9M/138M [00:26<00:11, 3.75MB/s]
+
+.. parsed-literal::
+
+     70%|██████▉   | 96.2M/138M [00:26<00:11, 3.76MB/s]
+
+.. parsed-literal::
+
+     70%|██████▉   | 96.6M/138M [00:26<00:11, 3.77MB/s]
+
+.. parsed-literal::
+
+     70%|███████   | 97.0M/138M [00:27<00:11, 3.76MB/s]
+
+.. parsed-literal::
+
+     70%|███████   | 97.3M/138M [00:27<00:11, 3.77MB/s]
+
+.. parsed-literal::
+
+     71%|███████   | 97.7M/138M [00:27<00:11, 3.78MB/s]
+
+.. parsed-literal::
+
+     71%|███████   | 98.1M/138M [00:27<00:11, 3.79MB/s]
+
+.. parsed-literal::
+
+     71%|███████   | 98.5M/138M [00:27<00:11, 3.77MB/s]
+
+.. parsed-literal::
+
+     72%|███████▏  | 98.8M/138M [00:27<00:10, 3.76MB/s]
+
+.. parsed-literal::
+
+     72%|███████▏  | 99.2M/138M [00:27<00:10, 3.77MB/s]
+
+.. parsed-literal::
+
+     72%|███████▏  | 99.6M/138M [00:27<00:10, 3.77MB/s]
+
+.. parsed-literal::
+
+     72%|███████▏  | 100M/138M [00:27<00:10, 3.76MB/s] 
+
+.. parsed-literal::
+
+     73%|███████▎  | 100M/138M [00:28<00:10, 3.75MB/s]
+
+.. parsed-literal::
+
+     73%|███████▎  | 101M/138M [00:28<00:10, 3.75MB/s]
+
+.. parsed-literal::
+
+     73%|███████▎  | 101M/138M [00:28<00:10, 3.76MB/s]
+
+.. parsed-literal::
+
+     73%|███████▎  | 101M/138M [00:28<00:10, 3.75MB/s]
+
+.. parsed-literal::
+
+     74%|███████▎  | 102M/138M [00:28<00:10, 3.75MB/s]
+
+.. parsed-literal::
+
+     74%|███████▍  | 102M/138M [00:28<00:10, 3.76MB/s]
+
+.. parsed-literal::
+
+     74%|███████▍  | 103M/138M [00:28<00:09, 3.78MB/s]
+
+.. parsed-literal::
+
+     74%|███████▍  | 103M/138M [00:28<00:09, 3.78MB/s]
+
+.. parsed-literal::
+
+     75%|███████▍  | 103M/138M [00:28<00:09, 3.77MB/s]
+
+.. parsed-literal::
+
+     75%|███████▌  | 104M/138M [00:28<00:09, 3.75MB/s]
+
+.. parsed-literal::
+
+     75%|███████▌  | 104M/138M [00:29<00:09, 3.75MB/s]
+
+.. parsed-literal::
+
+     76%|███████▌  | 104M/138M [00:29<00:09, 3.77MB/s]
+
+.. parsed-literal::
+
+     76%|███████▌  | 105M/138M [00:29<00:09, 3.76MB/s]
+
+.. parsed-literal::
+
+     76%|███████▌  | 105M/138M [00:29<00:09, 3.75MB/s]
+
+.. parsed-literal::
+
+     76%|███████▋  | 106M/138M [00:29<00:09, 3.76MB/s]
+
+.. parsed-literal::
+
+     77%|███████▋  | 106M/138M [00:29<00:09, 3.76MB/s]
+
+.. parsed-literal::
+
+     77%|███████▋  | 106M/138M [00:29<00:08, 3.77MB/s]
+
+.. parsed-literal::
+
+     77%|███████▋  | 107M/138M [00:29<00:08, 3.75MB/s]
+
+.. parsed-literal::
+
+     77%|███████▋  | 107M/138M [00:29<00:08, 3.77MB/s]
+
+.. parsed-literal::
+
+     78%|███████▊  | 107M/138M [00:30<00:08, 3.78MB/s]
+
+.. parsed-literal::
+
+     78%|███████▊  | 108M/138M [00:30<00:08, 3.78MB/s]
+
+.. parsed-literal::
+
+     78%|███████▊  | 108M/138M [00:30<00:08, 3.77MB/s]
+
+.. parsed-literal::
+
+     79%|███████▊  | 109M/138M [00:30<00:08, 3.78MB/s]
+
+.. parsed-literal::
+
+     79%|███████▉  | 109M/138M [00:30<00:08, 3.78MB/s]
+
+.. parsed-literal::
+
+     79%|███████▉  | 109M/138M [00:30<00:08, 3.75MB/s]
+
+.. parsed-literal::
+
+     79%|███████▉  | 110M/138M [00:30<00:07, 3.75MB/s]
+
+.. parsed-literal::
+
+     80%|███████▉  | 110M/138M [00:30<00:07, 3.76MB/s]
+
+.. parsed-literal::
+
+     80%|███████▉  | 110M/138M [00:30<00:07, 3.76MB/s]
+
+.. parsed-literal::
+
+     80%|████████  | 111M/138M [00:30<00:07, 3.75MB/s]
+
+.. parsed-literal::
+
+     80%|████████  | 111M/138M [00:31<00:07, 3.75MB/s]
+
+.. parsed-literal::
+
+     81%|████████  | 112M/138M [00:31<00:07, 3.75MB/s]
+
+.. parsed-literal::
+
+     81%|████████  | 112M/138M [00:31<00:07, 3.75MB/s]
+
+.. parsed-literal::
+
+     81%|████████▏ | 112M/138M [00:31<00:07, 3.76MB/s]
+
+.. parsed-literal::
+
+     82%|████████▏ | 113M/138M [00:31<00:07, 3.77MB/s]
+
+.. parsed-literal::
+
+     82%|████████▏ | 113M/138M [00:31<00:07, 3.76MB/s]
+
+.. parsed-literal::
+
+     82%|████████▏ | 113M/138M [00:31<00:06, 3.76MB/s]
+
+.. parsed-literal::
+
+     82%|████████▏ | 114M/138M [00:31<00:06, 3.77MB/s]
+
+.. parsed-literal::
+
+     83%|████████▎ | 114M/138M [00:31<00:06, 3.77MB/s]
+
+.. parsed-literal::
+
+     83%|████████▎ | 115M/138M [00:31<00:06, 3.76MB/s]
+
+.. parsed-literal::
+
+     83%|████████▎ | 115M/138M [00:32<00:06, 3.75MB/s]
+
+.. parsed-literal::
+
+     83%|████████▎ | 115M/138M [00:32<00:06, 3.74MB/s]
+
+.. parsed-literal::
+
+     84%|████████▎ | 116M/138M [00:32<00:06, 3.76MB/s]
+
+.. parsed-literal::
+
+     84%|████████▍ | 116M/138M [00:32<00:06, 3.76MB/s]
+
+.. parsed-literal::
+
+     84%|████████▍ | 116M/138M [00:32<00:06, 3.77MB/s]
+
+.. parsed-literal::
+
+     85%|████████▍ | 117M/138M [00:32<00:05, 3.76MB/s]
+
+.. parsed-literal::
+
+     85%|████████▍ | 117M/138M [00:32<00:05, 3.77MB/s]
+
+.. parsed-literal::
+
+     85%|████████▌ | 118M/138M [00:32<00:05, 3.78MB/s]
+
+.. parsed-literal::
+
+     85%|████████▌ | 118M/138M [00:32<00:05, 3.77MB/s]
+
+.. parsed-literal::
+
+     86%|████████▌ | 118M/138M [00:33<00:05, 3.77MB/s]
+
+.. parsed-literal::
+
+     86%|████████▌ | 119M/138M [00:33<00:05, 3.74MB/s]
+
+.. parsed-literal::
+
+     86%|████████▌ | 119M/138M [00:33<00:05, 3.76MB/s]
+
+.. parsed-literal::
+
+     86%|████████▋ | 119M/138M [00:33<00:05, 3.77MB/s]
+
+.. parsed-literal::
+
+     87%|████████▋ | 120M/138M [00:33<00:05, 3.76MB/s]
+
+.. parsed-literal::
+
+     87%|████████▋ | 120M/138M [00:33<00:05, 3.77MB/s]
+
+.. parsed-literal::
+
+     87%|████████▋ | 121M/138M [00:33<00:04, 3.78MB/s]
+
+.. parsed-literal::
+
+     87%|████████▋ | 121M/138M [00:33<00:04, 3.78MB/s]
+
+.. parsed-literal::
+
+     88%|████████▊ | 121M/138M [00:33<00:04, 3.77MB/s]
+
+.. parsed-literal::
+
+     88%|████████▊ | 122M/138M [00:33<00:04, 3.76MB/s]
+
+.. parsed-literal::
+
+     88%|████████▊ | 122M/138M [00:34<00:04, 3.77MB/s]
+
+.. parsed-literal::
+
+     89%|████████▊ | 122M/138M [00:34<00:04, 3.78MB/s]
+
+.. parsed-literal::
+
+     89%|████████▉ | 123M/138M [00:34<00:04, 3.77MB/s]
+
+.. parsed-literal::
+
+     89%|████████▉ | 123M/138M [00:34<00:04, 3.78MB/s]
+
+.. parsed-literal::
+
+     89%|████████▉ | 124M/138M [00:34<00:04, 3.77MB/s]
+
+.. parsed-literal::
+
+     90%|████████▉ | 124M/138M [00:34<00:03, 3.77MB/s]
+
+.. parsed-literal::
+
+     90%|████████▉ | 124M/138M [00:34<00:03, 3.76MB/s]
+
+.. parsed-literal::
+
+     90%|█████████ | 125M/138M [00:34<00:03, 3.77MB/s]
+
+.. parsed-literal::
+
+     90%|█████████ | 125M/138M [00:34<00:03, 3.76MB/s]
+
+.. parsed-literal::
+
+     91%|█████████ | 125M/138M [00:35<00:03, 3.77MB/s]
+
+.. parsed-literal::
+
+     91%|█████████ | 126M/138M [00:35<00:03, 3.76MB/s]
+
+.. parsed-literal::
+
+     91%|█████████▏| 126M/138M [00:35<00:03, 3.77MB/s]
+
+.. parsed-literal::
+
+     92%|█████████▏| 127M/138M [00:35<00:03, 3.77MB/s]
+
+.. parsed-literal::
+
+     92%|█████████▏| 127M/138M [00:35<00:03, 3.78MB/s]
+
+.. parsed-literal::
+
+     92%|█████████▏| 127M/138M [00:35<00:03, 3.78MB/s]
+
+.. parsed-literal::
+
+     92%|█████████▏| 128M/138M [00:35<00:02, 3.80MB/s]
+
+.. parsed-literal::
+
+     93%|█████████▎| 128M/138M [00:35<00:02, 3.78MB/s]
+
+.. parsed-literal::
+
+     93%|█████████▎| 128M/138M [00:35<00:02, 3.77MB/s]
+
+.. parsed-literal::
+
+     93%|█████████▎| 129M/138M [00:35<00:02, 3.78MB/s]
+
+.. parsed-literal::
+
+     93%|█████████▎| 129M/138M [00:36<00:02, 3.77MB/s]
+
+.. parsed-literal::
+
+     94%|█████████▎| 130M/138M [00:36<00:02, 3.74MB/s]
+
+.. parsed-literal::
+
+     94%|█████████▍| 130M/138M [00:36<00:02, 3.74MB/s]
+
+.. parsed-literal::
+
+     94%|█████████▍| 130M/138M [00:36<00:02, 3.74MB/s]
+
+.. parsed-literal::
+
+     95%|█████████▍| 131M/138M [00:36<00:02, 3.76MB/s]
+
+.. parsed-literal::
+
+     95%|█████████▍| 131M/138M [00:36<00:02, 3.77MB/s]
+
+.. parsed-literal::
+
+     95%|█████████▌| 131M/138M [00:36<00:01, 3.76MB/s]
+
+.. parsed-literal::
+
+     95%|█████████▌| 132M/138M [00:36<00:01, 3.76MB/s]
+
+.. parsed-literal::
+
+     96%|█████████▌| 132M/138M [00:36<00:01, 3.77MB/s]
+
+.. parsed-literal::
+
+     96%|█████████▌| 133M/138M [00:36<00:01, 3.76MB/s]
+
+.. parsed-literal::
+
+     96%|█████████▌| 133M/138M [00:37<00:01, 3.78MB/s]
+
+.. parsed-literal::
+
+     96%|█████████▋| 133M/138M [00:37<00:01, 3.77MB/s]
+
+.. parsed-literal::
+
+     97%|█████████▋| 134M/138M [00:37<00:01, 3.76MB/s]
+
+.. parsed-literal::
+
+     97%|█████████▋| 134M/138M [00:37<00:01, 3.77MB/s]
+
+.. parsed-literal::
+
+     97%|█████████▋| 134M/138M [00:37<00:01, 3.78MB/s]
+
+.. parsed-literal::
+
+     98%|█████████▊| 135M/138M [00:37<00:00, 3.77MB/s]
+
+.. parsed-literal::
+
+     98%|█████████▊| 135M/138M [00:37<00:00, 3.78MB/s]
+
+.. parsed-literal::
+
+     98%|█████████▊| 136M/138M [00:37<00:00, 3.78MB/s]
+
+.. parsed-literal::
+
+     98%|█████████▊| 136M/138M [00:37<00:00, 3.80MB/s]
+
+.. parsed-literal::
+
+     99%|█████████▊| 136M/138M [00:38<00:00, 3.76MB/s]
+
+.. parsed-literal::
+
+     99%|█████████▉| 137M/138M [00:38<00:00, 3.75MB/s]
+
+.. parsed-literal::
+
+     99%|█████████▉| 137M/138M [00:38<00:00, 3.77MB/s]
+
+.. parsed-literal::
+
+     99%|█████████▉| 137M/138M [00:38<00:00, 3.76MB/s]
+
+.. parsed-literal::
+
+    100%|█████████▉| 138M/138M [00:38<00:00, 3.77MB/s]
+
+.. parsed-literal::
+
+    100%|█████████▉| 138M/138M [00:38<00:00, 3.76MB/s]
+
+.. parsed-literal::
+
+    100%|██████████| 138M/138M [00:38<00:00, 3.76MB/s]
+
+.. parsed-literal::
+
+    
 
 
 
@@ -157,8 +1672,16 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 621.3ms
-    Speed: 3.7ms preprocess, 621.3ms inference, 22.9ms postprocess per image at shape (1, 3, 768, 1024)
+
+
+.. parsed-literal::
+
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 641.7ms
+
+
+.. parsed-literal::
+
+    Speed: 3.8ms preprocess, 641.7ms inference, 27.5ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -178,7 +1701,7 @@ Observe the results below.
 Convert the model to OpenVINO Intermediate representation (IR) format
 ---------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Ultralytics Model export API enables conversion of PyTorch models to
 OpenVINO IR format. Under the hood it utilizes the
@@ -197,18 +1720,42 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-1.13.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-2.1.2+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+
+
+.. parsed-literal::
+
     
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
+
+
+.. parsed-literal::
+
     
-    ONNX: starting export with onnx 1.15.0 opset 16...
-    ONNX: export success ✅ 3.4s, saved as 'FastSAM-x.onnx' (275.5 MB)
+    ONNX: starting export with onnx 1.15.0 opset 17...
+
+
+.. parsed-literal::
+
+    ONNX: export success ✅ 3.9s, saved as 'FastSAM-x.onnx' (275.5 MB)
+
+
+.. parsed-literal::
+
     
-    OpenVINO: starting export with openvino 2023.2.0-13089-cfd42bd2cb0-HEAD...
+    OpenVINO: starting export with openvino 2023.3.0-13775-ceeafaf64f3-releases/2023/3...
+
+
+.. parsed-literal::
+
     OpenVINO: export success ✅ 1.1s, saved as 'FastSAM-x_openvino_model/' (275.9 MB)
+
+
+.. parsed-literal::
+
     
-    Export complete (7.4s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
+    Export complete (8.0s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -217,7 +1764,7 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 Embedding the converted models into the original pipeline
 ---------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
@@ -233,7 +1780,7 @@ used to compile the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -261,7 +1808,7 @@ from the dropdown list:
 Adapt OpenVINO models to the original pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Here we create wrapper classes for the OpenVINO model that we want to
 embed in the original inference pipeline. Here are some of the things to
@@ -307,8 +1854,16 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 321.2ms
-    Speed: 2.3ms preprocess, 321.2ms inference, 20.1ms postprocess per image at shape (1, 3, 480, 640)
+
+
+.. parsed-literal::
+
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 336.9ms
+
+
+.. parsed-literal::
+
+    Speed: 3.5ms preprocess, 336.9ms inference, 18.5ms postprocess per image at shape (1, 3, 480, 640)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -328,7 +1883,7 @@ the same as of the original model.
 Optimize the model using NNCF Post-training Quantization API
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -536,13 +2091,41 @@ repo <../230-yolov8-optimization/>`__.
 .. parsed-literal::
 
     INFO:nncf:12 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:9 ignored nodes were found by types in the NNCFGraph
+
+
+.. parsed-literal::
+
+    INFO:nncf:13 ignored nodes were found by types in the NNCFGraph
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 204 /model.22/Sigmoid
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 246 /model.22/dfl/conv/Conv
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 275 /model.22/Sub
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 276 /model.22/Add_10
-    INFO:nncf:Not adding activation input quantizer for operation: 298 /model.22/Sub_1
-    INFO:nncf:Not adding activation input quantizer for operation: 335 /model.22/Mul_5
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 299 /model.22/Sub_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 341 /model.22/Mul_5
 
 
 
@@ -568,7 +2151,7 @@ repo <../230-yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:80: RuntimeWarning: invalid value encountered in multiply
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
       return Tensor(self.data * unwrap_tensor_data(other))
 
 
@@ -596,7 +2179,7 @@ repo <../230-yolov8-optimization/>`__.
 Compare the performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, we iterate both the OV model and the quantized model over the
 calibration dataset to measure the performance.
@@ -665,7 +2248,7 @@ calibration dataset to measure the performance.
 Try out the converted pipeline
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The demo app below is created using `Gradio
 package <https://www.gradio.app/docs/interface>`__.
@@ -981,7 +2564,7 @@ based on user input.
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

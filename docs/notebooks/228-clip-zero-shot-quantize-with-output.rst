@@ -8,45 +8,48 @@ Compression Framework) and infer quantized model via OpenVINO™ Toolkit.
 The optimization process contains the following steps:
 
 1. Quantize the converted OpenVINO model from
-   `notebook <228-clip-zero-shot-convert-with-output.html>`__ with NNCF.
+   `notebook <228-clip-zero-shot-convert.ipynb>`__ with NNCF.
 2. Check the model result using the same input data from the
-   `notebook <228-clip-zero-shot-convert-with-output.html>`__.
+   `notebook <228-clip-zero-shot-convert.ipynb>`__.
 3. Compare model size of converted and quantized models.
 4. Compare performance of converted and quantized models.
 
 ..
 
    **NOTE**: you should run
-   `228-clip-zero-shot-convert <228-clip-zero-shot-convert-with-output.html>`__
+   `228-clip-zero-shot-convert <228-clip-zero-shot-convert.ipynb>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Create and initialize
-   quantization <#create-and-initialize-quantization>`__
+   quantization <#Create-and-initialize-quantization>`__
 
-   -  `Prepare datasets <#prepare-datasets>`__
+   -  `Prepare datasets <#Prepare-datasets>`__
 
--  `Run quantized OpenVINO
-   model <#run-quantized-openvino-model>`__
+-  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
 
-   -  `Compare File Size <#compare-file-size>`__
+   -  `Compare File Size <#Compare-File-Size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#compare-inference-time-of-the-fp-ir-and-quantized-models>`__
+      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q datasets
     %pip install -q "nncf>=2.6.0"
 
-Create and initialize quantization 
-----------------------------------------------------------------------------
+Create and initialize quantization
+----------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -63,8 +66,10 @@ The optimization process contains the following steps:
 3. Serialize the ``INT8`` model using ``openvino.runtime.serialize``
    function.
 
-Prepare datasets 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare datasets
+~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -165,21 +170,21 @@ model.
         It iterates over the dataloader, fetching batches and storing the relevant data.
         """
         data = []
-        print(f"Fetching {init_steps} for the initialization...")
-        counter = 0
-        for batch in tqdm(dataloader):
-            if counter == init_steps:
-                break
-            if batch:
-                counter += 1
-                with torch.no_grad():
-                    data.append(
-                        {
-                            "pixel_values": batch["pixel_values"].to("cpu"),
-                            "input_ids": batch["input_ids"].to("cpu"),
-                            "attention_mask": batch["attention_mask"].to("cpu")
-                        }
-                    )
+        print(f"Fetching {init_steps} samples for the initialization...")
+        with tqdm(total=init_steps) as pbar:
+            for batch in dataloader:
+                if len(data) == init_steps:
+                    break
+                if batch:
+                    pbar.update(1)
+                    with torch.no_grad():
+                        data.append(
+                            {
+                                "pixel_values": batch["pixel_values"].to("cpu"),
+                                "input_ids": batch["input_ids"].to("cpu"),
+                                "attention_mask": batch["attention_mask"].to("cpu")
+                            }
+                        )
         return data
     
     
@@ -237,6 +242,8 @@ Create a quantized model from the pre-trained ``FP16`` model.
         model=ov_model,
         calibration_dataset=calibration_dataset,
         model_type=nncf.ModelType.TRANSFORMER,
+        # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
+        advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.6)
     )
     serialize(quantized_model, int8_model_path)
 
@@ -254,13 +261,15 @@ than quantization. See the `NNCF
 documentation <https://github.com/openvinotoolkit/nncf/#documentation>`__
 in the NNCF repository for more information.
 
-Run quantized OpenVINO model 
-----------------------------------------------------------------------
+Run quantized OpenVINO model
+----------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
 the same input data from the `1st
-notebook <228-clip-zero-shot-image-classification-with-output.html>`__.
+notebook <228-clip-zero-shot-image-classification.ipynb>`__.
 
 .. code:: ipython3
 
@@ -315,8 +324,10 @@ notebook <228-clip-zero-shot-image-classification-with-output.html>`__.
 .. image:: 228-clip-zero-shot-quantize-with-output_files/228-clip-zero-shot-quantize-with-output_16_0.png
 
 
-Compare File Size 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compare File Size
+^^^^^^^^^^^^^^^^^
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -336,12 +347,13 @@ Compare File Size
     Model compression rate: 1.979
 
 
-Compare inference time of the FP16 IR and quantized models 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compare inference time of the FP16 IR and quantized models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To measure the inference performance of the ``FP16`` and ``INT8``
-models, we use median inference time on calibration dataset. So we can
-approximately estimate the speed up of the dynamic quantized models.
+`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+performance of the ``FP16`` and ``INT8`` models, we use median inference
+time on calibration dataset. So we can approximately estimate the speed
+up of the dynamic quantized models.
 
    **NOTE**: For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt

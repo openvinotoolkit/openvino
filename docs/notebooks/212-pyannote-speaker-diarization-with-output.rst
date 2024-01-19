@@ -9,7 +9,7 @@ and, when used together with speaker recognition systems, by providing
 the speaker’s true identity. It is used to answer the question “who
 spoke when?”
 
-.. figure:: https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/_images/asr_sd_diagram.png
+.. figure:: https://developer-blogs.nvidia.com/wp-content/uploads/2022/09/speaker-diarization.png
    :alt: image.png
 
    image.png
@@ -37,51 +37,58 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Prepare pipeline <#prepare-pipeline>`__
--  `Login to huggingfacehub to get access to pre-trained
+-  `Prerequisites <#Prerequisites>`__
+-  `Prepare pipeline <#Prepare-pipeline>`__
+-  `login to huggingfacehub to get access to pre-trained
    model <#login-to-huggingfacehub-to-get-access-to-pre-trained-model>`__
--  `Load test audio file <#load-test-audio-file>`__
--  `Run inference pipeline <#run-inference-pipeline>`__
+-  `Load test audio file <#Load-test-audio-file>`__
+-  `Run inference pipeline <#Run-inference-pipeline>`__
 -  `Convert model to OpenVINO Intermediate Representation
-   format <#convert-model-to-openvino-intermediate-representation-format>`__
--  `Select inference device <#select-inference-device>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Select inference device <#Select-inference-device>`__
 -  `Replace segmentation model with
-   OpenVINO <#replace-segmentation-model-with-openvino>`__
+   OpenVINO <#Replace-segmentation-model-with-OpenVINO>`__
 -  `Run speaker diarization with
-   OpenVINO <#run-speaker-diarization-with-openvino>`__
+   OpenVINO <#Run-speaker-diarization-with-OpenVINO>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip install  -q -r requirements.txt
+    %pip install  -q "librosa>=0.8.1" "matplotlib<3.8" "ruamel.yaml>=0.17.8,<0.17.29" --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio git+https://github.com/eaidova/pyannote-audio.git@hub0.10 openvino>=2023.1.0
 
 
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 3.20.1 which is incompatible.
-    paddlepaddle 2.5.2 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
-    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.32.0 which is incompatible.
+    paddlepaddle 2.6.0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.33.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.1.78 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
 Prepare pipeline
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Traditional Speaker Diarization systems can be generalized into a
 five-step process:
@@ -138,10 +145,9 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
    the following code:
 
 .. code:: python
-   :force:
+
 
    ## login to huggingfacehub to get access to pre-trained model
-
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -159,7 +165,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 Load test audio file
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -217,7 +223,7 @@ Load test audio file
 Run inference pipeline
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -238,7 +244,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.21 s
+    Diarization pipeline took 15.77 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -280,17 +286,17 @@ We can also print each time frame and corresponding speaker:
 Convert model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
 will use ``torch.onnx.export`` for exporting the ONNX model from
 PyTorch. We need to provide initialized model’s instance and example of
-inputs for shape inference. We will use ``mo.convert_model``
+inputs for shape inference. We will use ``ov.convert_model``
 functionality to convert the ONNX models. The ``mo.convert_model``
 Python function returns an OpenVINO model ready to load on the device
 and start making predictions. We can save it on disk for the next usage
-with ``openvino.runtime.serialize``.
+with ``ov.save_model``.
 
 .. code:: ipython3
 
@@ -321,7 +327,7 @@ with ``openvino.runtime.serialize``.
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -350,7 +356,7 @@ select device from dropdown list for running inference using OpenVINO
 Replace segmentation model with OpenVINO
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -382,7 +388,7 @@ Replace segmentation model with OpenVINO
 Run speaker diarization with OpenVINO
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -397,7 +403,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 14.54 s
+    Diarization pipeline took 15.03 s
 
 
 .. code:: ipython3

@@ -18,34 +18,30 @@ Inception ResNet
 V2 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__
 instance segmentation model to OpenVINO `Intermediate
 Representation <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
-(OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+(OpenVINO IR) format, using `Model Conversion
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image. 
-
-**Table of contents:**
-
-- `Prerequisites <#prerequisites>`__
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
-- `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Load the Model <#load-the-model>`__
-- `Get Model Information <#get-model-information>`__
-- `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
-- `Perform Inference <#perform-inference>`__
-- `Inference Result Visualization <#inference-result-visualization>`__
-- `Next Steps <#next-steps>`__
-- `Async inference pipeline <#async-inference-pipeline>`__
-- `Integration preprocessing to model <#integration-preprocessing-to-model>`__
+and do inference with a sample image. #### Table of contents: -
+`Prerequisites <#Prerequisites>`__ - `Imports <#Imports>`__ -
+`Settings <#Settings>`__ - `Download Model from TensorFlow
+Hub <#Download-Model-from-TensorFlow-Hub>`__ - `Convert Model to
+OpenVINO IR <#Convert-Model-to-OpenVINO-IR>`__ - `Test Inference on the
+Converted Model <#Test-Inference-on-the-Converted-Model>`__ - `Select
+inference device <#Select-inference-device>`__ - `Load the
+Model <#Load-the-Model>`__ - `Get Model
+Information <#Get-Model-Information>`__ - `Get an Image for Test
+Inference <#Get-an-Image-for-Test-Inference>`__ - `Perform
+Inference <#Perform-Inference>`__ - `Inference Result
+Visualization <#Inference-Result-Visualization>`__ - `Next
+Steps <#Next-Steps>`__ - `Async inference
+pipeline <#Async-inference-pipeline>`__ - `Integration preprocessing to
+model <#Integration-preprocessing-to-model>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required packages:
 
@@ -75,7 +71,7 @@ The notebook uses utility functions. The cell below will download the
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -96,7 +92,7 @@ Imports
 Settings
 --------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Define model related variables and create corresponding directories:
 
@@ -125,7 +121,7 @@ Define model related variables and create corresponding directories:
 Download Model from TensorFlow Hub
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download archive with TensorFlow Instance Segmentation model
 (`mask_rcnn_inception_resnet_v2_1024x1024 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__)
@@ -159,7 +155,7 @@ archive:
 Convert Model to OpenVINO IR
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Model Optimizer Python API can be used to convert the
 TensorFlow model to OpenVINO IR.
@@ -187,12 +183,12 @@ when the model is run in the future.
 Test Inference on the Converted Model
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -222,7 +218,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -232,7 +228,7 @@ Load the Model
 Get Model Information
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Mask R-CNN with Inception ResNet V2 instance segmentation model has one
 input - a three-channel image of variable size. The input tensor shape
@@ -310,7 +306,7 @@ the first (and highest) detection score.
 Get an Image for Test Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load and save an image:
 
@@ -355,7 +351,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f53cb91bca0>
+    <matplotlib.image.AxesImage at 0x7f5f2fe7a310>
 
 
 
@@ -366,7 +362,7 @@ Read the image, resize and convert it to the input shape of the network:
 Perform Inference
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -415,7 +411,7 @@ be extracted from the result. For further model result visualization
 Inference Result Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Define utility functions to visualize the inference results
 
@@ -657,7 +653,7 @@ original test image:
 Next Steps
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
@@ -665,7 +661,7 @@ performance of your application using OpenVINO.
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The key advantage of the Async
+`back to top ⬆️ <#Table-of-contents:>`__ The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -676,7 +672,7 @@ tutorial <115-async-api-with-output.html>`__.
 Integration preprocessing to model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing

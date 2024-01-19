@@ -54,43 +54,43 @@ tokens into audio codec tokens to generate the full waveform. To enable
 the community to use Bark via public code, EnCodec codec from Facebook
 is used to act as an audio representation.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Prerequisites <#Prerequisites>`__
+-  `Download and Convert models <#Download-and-Convert-models>`__
 
--  `Prerequisites <#prerequisites>`__
--  `Download and Convert models <#download-and-convert-models>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `Coarse encoder <#Coarse-encoder>`__
+   -  `Fine encoder <#Fine-encoder>`__
+   -  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `Coarse encoder <#coarse-encoder>`__
-   -  `Fine encoder <#fine-encoder>`__
-   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Run model inference <#Run-model-inference>`__
 
--  `Run model inference <#run-model-inference>`__
+   -  `Select Inference device <#Select-Inference-device>`__
 
-   -  `Select Inference device <#select-inference-device>`__
-
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import sys
     
     if sys.platform == "linux":
-        %pip install -q "torch==1.13.1" "torchvision==0.14.1" "torchaudio==0.13.1" --index-url https://download.pytorch.org/whl/cpu
+        %pip install -q "torch" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     else:
-        %pip install -q "torch==1.13.1" "torchvision==0.14.1" "torchaudio==0.13.1"
+        %pip install -q "torch" "torchvision" "torchaudio"
     %pip install -q "openvino>=2023.1.0" gradio
     %pip install -q "git+https://github.com/suno-ai/bark.git"
 
 Download and Convert models
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -109,7 +109,7 @@ Download and Convert models
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text encoder is responsible for embedding initial text prompt into
 high-level semantic tokens. it uses tokenizer for conversion input text
@@ -170,7 +170,7 @@ models for that.
 Coarse encoder
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Coarse encoder is a causal autoregressive transformer, that takes as
 input the results of the text encoder model. It aims at predicting the
@@ -266,7 +266,7 @@ provide empty tensor on the first step.
 Fine encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Fine encoder is time a non-causal autoencoder transformer, which
 iteratively predicts the last codebooks based on the sum of the previous
@@ -297,7 +297,7 @@ codebooks embeddings obtained using Coarse encoder.
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For better usability, classes for working with models provided below.
 
@@ -872,7 +872,7 @@ consists from several steps, illustrated on the diagram below:
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now is time to see model in action. We need only wrap our models to
 classes and run ``generate_audio`` function.
@@ -880,7 +880,7 @@ classes and run ``generate_audio`` function.
 Select Inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -969,7 +969,7 @@ select device from dropdown list for running inference using OpenVINO
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1121,7 +1121,7 @@ Interactive demo
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

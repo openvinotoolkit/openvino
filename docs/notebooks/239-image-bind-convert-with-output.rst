@@ -67,36 +67,36 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
--  `Prepare input data <#prepare-input-data>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Instantiate PyTorch model <#Instantiate-PyTorch-model>`__
+-  `Prepare input data <#Prepare-input-data>`__
 -  `Convert Model to OpenVINO Intermediate Representation (IR)
-   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Zero-shot classification using ImageBind and
-   OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
+   OpenVINO <#Zero-shot-classification-using-ImageBind-and-OpenVINO>`__
 
-   -  `Text-Image classification <#text-image-classification>`__
-   -  `Text-Audio classification <#text-audio-classification>`__
-   -  `Image-Audio classification <#image-audio-classification>`__
+   -  `Text-Image classification <#Text-Image-classification>`__
+   -  `Text-Audio classification <#Text-Audio-classification>`__
+   -  `Image-Audio classification <#Image-Audio-classification>`__
 
--  `Next Steps <#next-steps>`__
+-  `Next Steps <#Next-Steps>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import sys
     
-    %pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore "openvino>=2023.1.0"  --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2023.1.0" numpy scipy matplotlib --extra-index-url https://download.pytorch.org/whl/cpu
     
     if sys.version_info.minor < 8:
         %pip install -q "decord"
@@ -104,9 +104,9 @@ Prerequisites
         %pip install -q "eva-decord"
     
     if sys.platform != "linux":
-        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2"
+        %pip install -q "torch>=2.0.1" "torchvision>=0.15.2" "torchaudio>=2.0.2"
     else:
-        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2" --index-url https://download.pytorch.org/whl/cpu
+        %pip install -q "torch>=2.0.1" "torchvision>=0.15.2" "torchaudio>=2.0.2" --index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -128,7 +128,7 @@ Prerequisites
 Instantiate PyTorch model
 -------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To start work with the model, we should instantiate the PyTorch model
 class. ``imagebind_model.imagebind_huge(pretrained=True)`` downloads
@@ -166,7 +166,7 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
 Prepare input data
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ImageBind works with data across 6 different modalities. Each of them
 requires its steps for preprocessing. ``data`` module is responsible for
@@ -200,7 +200,7 @@ data reading and preprocessing for each modality.
 Convert Model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch through Model Conversion API. You will use
 `model conversion Python
@@ -236,7 +236,7 @@ embeddings.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -301,7 +301,7 @@ select device from dropdown list for running inference using OpenVINO
 Zero-shot classification using ImageBind and OpenVINO
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In zero-shot classification, a piece of data is embedded and fed to the
 model to retrieve a label that corresponds with the contents of the
@@ -364,7 +364,7 @@ they represent the same object.
 Text-Image classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -380,7 +380,7 @@ Text-Image classification
 Text-Audio classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -396,7 +396,7 @@ Text-Audio classification
 Image-Audio classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -511,7 +511,7 @@ Putting all together, we can match text, image, and sound for our data.
 Next Steps
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__
 notebook to quantize the IR model with the Post-training Quantization

@@ -74,33 +74,34 @@ The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
 audio generation.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Stable Diffusion pipeline in Optimum
-   Intel <#stable-diffusion-pipeline-in-optimum-intel>`__
+   Intel <#Stable-Diffusion-pipeline-in-Optimum-Intel>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Prepare postprocessing for reconstruction audio from spectrogram
-   image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
--  `Run Inference pipeline <#run-inference-pipeline>`__
--  `Interactive demo <#interactive-demo>`__
+   image <#Prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
+-  `Run Inference pipeline <#Run-Inference-pipeline>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch<2.1" "torchaudio<2.1" "diffusers>=0.16.1" "transformers>=4.33.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchaudio "diffusers>=0.16.1" "transformers>=4.33.0"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx "gradio>=3.34.0" "openvino>=2023.1.0"
 
 Stable Diffusion pipeline in Optimum Intel
 ------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -139,7 +140,7 @@ running.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -201,7 +202,7 @@ select device from dropdown list for running inference using OpenVINO
 Prepare postprocessing for reconstruction audio from spectrogram image
 ----------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -279,7 +280,6 @@ from a spectrogram image using Griffin-Lim Algorithm.
             sample_rate=sample_rate,
             mel_scale=True,
             n_mels=n_mels,
-            max_mel_iters=200,
             num_griffin_lim_iters=32,
         )
     
@@ -330,7 +330,6 @@ from a spectrogram image using Griffin-Lim Algorithm.
         sample_rate: int,
         mel_scale: bool = True,
         n_mels: int = 512,
-        max_mel_iters: int = 200,
         num_griffin_lim_iters: int = 32,
         device: str = "cpu",
     ) -> np.ndarray:
@@ -350,7 +349,6 @@ from a spectrogram image using Griffin-Lim Algorithm.
                 n_stft=n_fft // 2 + 1,
                 norm=None,
                 mel_scale="htk",
-                max_iter=max_mel_iters,
             ).to(device)
     
             Sxx_torch = mel_inv_scaler(Sxx_torch)
@@ -370,7 +368,7 @@ from a spectrogram image using Griffin-Lim Algorithm.
 Run Inference pipeline
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -499,7 +497,7 @@ without the other. More explanation of how it works can be found in this
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -589,7 +587,7 @@ Interactive demo
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

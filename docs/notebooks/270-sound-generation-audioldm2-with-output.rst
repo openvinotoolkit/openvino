@@ -19,41 +19,42 @@ music.
 In this tutorial we will try out the pipeline, convert the models
 backing it one by one and will run an interactive app with Gradio!
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Instantiating Generation
-   Pipeline <#instantiating-generation-pipeline>`__
+   Pipeline <#Instantiating-Generation-Pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
+   -  `Text Encoder <#Text-Encoder>`__
    -  `Second text encoder
-      conversion <#second-text-encoder-conversion>`__
-   -  `Vocoder conversion <#vocoder-conversion>`__
-   -  `GPT-2 conversion <#gpt--conversion>`__
-   -  `Projection model conversion <#projection-model-conversion>`__
-   -  `UNet conversion <#unet-conversion>`__
-   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+      conversion <#Second-text-encoder-conversion>`__
+   -  `Vocoder conversion <#Vocoder-conversion>`__
+   -  `GPT-2 conversion <#GPT-2-conversion>`__
+   -  `Projection model conversion <#Projection-model-conversion>`__
+   -  `UNet conversion <#UNet-conversion>`__
+   -  `VAE Decoder conversion <#VAE-Decoder-conversion>`__
 
 -  `Select inference device for Stable Diffusion
-   pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+   pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
 -  `Adapt OpenVINO models to the original
-   pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
--  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
+   pipeline <#Adapt-OpenVINO-models-to-the-original-pipeline>`__
+-  `Try out the converted pipeline <#Try-out-the-converted-pipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/c93a0f86-d9cf-4bd1-93b9-e27532170d75
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
+    %pip uninstall -q -y "openvino-dev" "openvino" "openvino-nightly" 
     %pip install -q accelerate "diffusers>=0.21.0" transformers torch gradio --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.2.0"
+    %pip install -q "openvino-nightly"
 
 
 .. parsed-literal::
@@ -65,10 +66,10 @@ Prerequisites
 Instantiating Generation Pipeline
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with `AudioLDM 2 <https://huggingface.co/cvssp/audioldm2>`__ by
-`Centre for Vision, Speech and Signal Processing - University of Surrey <https://www.surrey.ac.uk/centre-vision-speech-signal-processing>`__,
+```Centre for Vision, Speech and Signal Processing - University of Surrey`` <https://www.surrey.ac.uk/centre-vision-speech-signal-processing>`__,
 we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
 exposes the ``AudioLDM2Pipeline`` class, simplifying the model
@@ -133,7 +134,7 @@ sample.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `Model conversion
 API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
@@ -170,13 +171,13 @@ The pipeline consists of seven important parts:
 CLAP Text Encoder Conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First frozen text-encoder. AudioLDM2 uses the joint audio-text embedding
 model
 `CLAP <https://huggingface.co/docs/transformers/model_doc/clap#transformers.CLAPTextModelWithProjection>`__,
 specifically the
-`laion/clap-htsat-unfused <https://huggingface.co/laion/clap-htsat-unfused>`__
+```laion/clap-htsat-unfused`` <https://huggingface.co/laion/clap-htsat-unfused>`__
 variant. The text branch is used to encode the text prompt to a prompt
 embedding. The full audio-text model is used to rank generated waveforms
 against the text prompt by computing similarity scores.
@@ -220,7 +221,7 @@ against the text prompt by computing similarity scores.
 T5 Text Encoder Conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As second frozen text-encoder, AudioLDM2 uses the
 `T5 <https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5EncoderModel>`__,
@@ -269,7 +270,7 @@ hidden states.
 Projection model conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 A trained model used to linearly project the hidden-states from the
 first and second text encoder models and insert learned Start Of
@@ -312,7 +313,7 @@ input to the language model.
 GPT-2 conversion
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `GPT-2 <https://huggingface.co/gpt2>`__ is an auto-regressive language
 model used to generate a sequence of hidden-states conditioned on the
@@ -364,9 +365,9 @@ projected outputs from the two text encoders.
 Vocoder conversion
 ~~~~~~~~~~~~~~~~~~
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-`SpeechT5 HiFi-GAN Vocoder <https://huggingface.co/microsoft/speecht5_hifigan>`__
+```SpeechT5 HiFi-GAN Vocoder`` <https://huggingface.co/microsoft/speecht5_hifigan>`__
 is used to convert the mel-spectrogram latents to the final audio
 waveform.
 
@@ -398,7 +399,7 @@ waveform.
 UNet conversion
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The UNet model is used to denoise the encoded audio latents. The process
 of UNet model conversion remains the same, like for original Stable
@@ -445,7 +446,7 @@ Diffusion model.
 VAE Decoder conversion
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
@@ -499,7 +500,7 @@ diffusion
 Select inference device for Stable Diffusion pipeline
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -530,7 +531,7 @@ select device from dropdown list for running inference using OpenVINO
 Adapt OpenVINO models to the original pipeline
 ----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Here we create wrapper classes for all three OpenVINO models that we
 want to embed in the original inference pipeline. Here are some of the
@@ -717,7 +718,7 @@ Now we initialize the wrapper objects and load them to the HF pipeline
 Try out the converted pipeline
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a

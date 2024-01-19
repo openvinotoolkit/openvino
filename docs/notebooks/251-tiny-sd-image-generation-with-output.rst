@@ -39,40 +39,40 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Create PyTorch Models pipeline <#Create-PyTorch-Models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation
-   format <#convert-models-to-openvino-intermediate-representation-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-net <#u-net>`__
-   -  `VAE <#vae>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-net <#U-net>`__
+   -  `VAE <#VAE>`__
 
--  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
+-  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
 
-   -  `Text-to-Image generation <#text-to-image-generation>`__
-   -  `Image-to-Image generation <#image-to-image-generation>`__
-   -  `Interactive Demo <#interactive-demo>`__
+   -  `Text-to-Image generation <#Text-to-Image-generation>`__
+   -  `Image-to-Image generation <#Image-to-Image-generation>`__
+   -  `Interactive Demo <#Interactive-Demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "openvino>=2023.1.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio" 
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "openvino>=2023.3.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio"
 
 Create PyTorch Models pipeline
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -124,7 +124,7 @@ First, load the pre-trained weights of all components of the model.
 Convert models to OpenVINO Intermediate representation format
 -------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -155,7 +155,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -227,7 +227,7 @@ hidden states.
 U-net
 ~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 U-net model has three inputs:
 
@@ -306,7 +306,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -420,7 +420,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare Inference Pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -823,7 +823,7 @@ of the variational auto encoder.
 Configure Inference Pipeline
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, you should create instances of OpenVINO Model.
 
@@ -858,6 +858,48 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
+
+Calibrate UNet for GPU inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On a GPU device a model is executed in FP16 precision. For Tiny-SD UNet
+model there known to be accuracy issues caused by this. Therefore, a
+special calibration procedure is used to selectively mark some
+operations to be executed in full precision.
+
+.. code:: ipython3
+
+    import pickle
+    import urllib.request
+    import os
+    
+    # Fetch `model_upcast_utils` which helps to restore accuracy when inferred on GPU
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/model_upcast_utils.py',
+        filename='model_upcast_utils.py'
+    )
+    
+    # Fetch an example input for UNet model needed for upcasting calibration process
+    urllib.request.urlretrieve(
+        url='https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/pkl/unet_calibration_example_input.pkl',
+        filename='unet_calibration_example_input.pkl'
+    )
+    from model_upcast_utils import is_model_partially_upcasted, partially_upcast_nodes_to_fp32
+    
+    unet_model = core.read_model(UNET_OV_PATH)
+    if 'GPU' in core.available_devices and not is_model_partially_upcasted(unet_model):
+        with open("unet_calibration_example_input.pkl", "rb") as f:
+            example_input = pickle.load(f)
+        unet_model = partially_upcast_nodes_to_fp32(unet_model, example_input, upcast_ratio=0.7,
+                                                    operation_types=["Convolution"])
+    
+        ov.save_model(unet_model, UNET_OV_PATH.with_suffix("._tmp.xml"))
+        del unet_model
+        os.remove(UNET_OV_PATH)
+        os.remove(str(UNET_OV_PATH).replace(".xml", ".bin"))
+        UNET_OV_PATH.with_suffix("._tmp.xml").rename(UNET_OV_PATH)
+        UNET_OV_PATH.with_suffix("._tmp.bin").rename(UNET_OV_PATH.with_suffix('.bin'))
+
 
 .. code:: ipython3
 
@@ -897,7 +939,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action
 
@@ -960,7 +1002,7 @@ Now is show time!
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_33_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_35_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
@@ -968,7 +1010,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1036,7 +1078,7 @@ found in this
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_37_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
 
 
 
@@ -1065,13 +1107,13 @@ found in this
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_41_1.png
 
 
 Interactive Demo
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1146,7 +1188,7 @@ Interactive Demo
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -1,5 +1,5 @@
 🤗 Hugging Face Model Hub with OpenVINO™
-=========================================
+=======================================
 
 The Hugging Face (HF) `Model Hub <https://huggingface.co/models>`__ is a
 central repository for pre-trained deep learning models. It allows
@@ -17,39 +17,39 @@ Throughout this notebook we will learn: 1. How to load a HF pipeline
 using the ``transformers`` package and then convert it to OpenVINO. 2.
 How to load the same pipeline using Optimum Intel package.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Converting a Model from the HF Transformers
-   Package <#converting-a-model-from-the-hf-transformers-package>`__
+   Package <#Converting-a-Model-from-the-HF-Transformers-Package>`__
 
-   -  `Installing Requirements <#installing-requirements>`__
-   -  `Imports <#imports>`__
+   -  `Installing Requirements <#Installing-Requirements>`__
+   -  `Imports <#Imports>`__
    -  `Initializing a Model Using the HF Transformers
-      Package <#initializing-a-model-using-the-hf-transformers-package>`__
-   -  `Original Model inference <#original-model-inference>`__
+      Package <#Initializing-a-Model-Using-the-HF-Transformers-Package>`__
+   -  `Original Model inference <#Original-Model-inference>`__
    -  `Converting the Model to OpenVINO IR
-      format <#converting-the-model-to-openvino-ir-format>`__
-   -  `Converted Model Inference <#converted-model-inference>`__
+      format <#Converting-the-Model-to-OpenVINO-IR-format>`__
+   -  `Converted Model Inference <#Converted-Model-Inference>`__
 
 -  `Converting a Model Using the Optimum Intel
-   Package <#converting-a-model-using-the-optimum-intel-package>`__
+   Package <#Converting-a-Model-Using-the-Optimum-Intel-Package>`__
 
    -  `Install Requirements for
-      Optimum <#install-requirements-for-optimum>`__
-   -  `Import Optimum <#import-optimum>`__
+      Optimum <#Install-Requirements-for-Optimum>`__
+   -  `Import Optimum <#Import-Optimum>`__
    -  `Initialize and Convert the Model Automatically using OVModel
-      class <#initialize-and-convert-the-model-automatically-using-ovmodel-class>`__
+      class <#Initialize-and-Convert-the-Model-Automatically-using-OVModel-class>`__
    -  `Convert model using Optimum CLI
-      interface <#convert-model-using-optimum-cli-interface>`__
-   -  `The Optimum Model Inference <#the-optimum-model-inference>`__
+      interface <#Convert-model-using-Optimum-CLI-interface>`__
+   -  `The Optimum Model Inference <#The-Optimum-Model-Inference>`__
 
 .. |image0| image:: https://github.com/huggingface/optimum-intel/raw/main/readme_logo.png
 
 Converting a Model from the HF Transformers Package
 ---------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Hugging Face transformers package provides API for initializing a model
 and loading a set of pre-trained weights using the model text handle.
@@ -61,7 +61,7 @@ by popularity and novelty.
 Installing Requirements
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -73,14 +73,22 @@ Installing Requirements
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -95,7 +103,7 @@ Imports
 Initializing a Model Using the HF Transformers Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use `roberta text sentiment
 classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
@@ -121,7 +129,13 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+      return self.fget.__get__(instance, owner)()
+
+
+.. parsed-literal::
+
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
 
@@ -129,7 +143,7 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 Original Model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s do a classification of a simple prompt below.
 
@@ -161,7 +175,7 @@ Let’s do a classification of a simple prompt below.
 Converting the Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We use the OpenVINO `Model
+`back to top ⬆️ <#Table-of-contents:>`__ We use the OpenVINO `Model
 conversion
 API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
@@ -183,7 +197,7 @@ Note how we reuse our real ``encoded_input``, passing it to the
 Converted Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we pick a device to do the model inference
 
@@ -252,7 +266,7 @@ first example in the list above relies on the ``diffusers``.
 Converting a Model Using the Optimum Intel Package
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 🤗 Optimum Intel is the interface between the 🤗 Transformers and
 Diffusers libraries and the different tools and libraries provided by
@@ -266,11 +280,11 @@ OpenVINO Runtime.
 Install Requirements for Optimum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel"@git+https://github.com/huggingface/optimum-intel.git onnx
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx
 
 
 .. parsed-literal::
@@ -289,7 +303,7 @@ Install Requirements for Optimum
 Import Optimum
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Documentation for Optimum Intel states: >You can now easily perform
 inference with OpenVINO Runtime on a variety of Intel processors (see
@@ -316,21 +330,33 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-12-06 23:11:40.151548: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-06 23:11:40.186477: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+
+
+.. parsed-literal::
+
+    2024-01-25 23:14:43.057378: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-01-25 23:14:43.091971: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-06 23:11:40.746805: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-01-25 23:14:43.657635: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Initialize and Convert the Model Automatically using OVModel class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To load a Transformers model and convert it to the OpenVINO format on
 the fly, you can set ``export=True`` when loading your model. The model
@@ -361,13 +387,33 @@ inference run.
 .. parsed-literal::
 
     Framework not specified. Using pt to export to ONNX.
-    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+
+
+.. parsed-literal::
+
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+
+
+.. parsed-literal::
+
     Using the export variant default. Available variants are:
         - default: The default ONNX variant.
+
+
+.. parsed-literal::
+
     Using framework PyTorch: 2.1.0+cpu
+
+
+.. parsed-literal::
+
     Overriding 1 configuration item(s)
+
+
+.. parsed-literal::
+
     	- use_cache -> False
 
 
@@ -384,7 +430,7 @@ inference run.
 Convert model using Optimum CLI interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Alternatively, you can use the Optimum CLI interface for converting
 models (supported starting optimum-intel 1.12 version). General command
@@ -432,12 +478,18 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2023-12-06 23:11:53.006485: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-01-25 23:14:55.440371: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--cache_dir CACHE_DIR]
                                        [--framework {pt,tf}] [--trust-remote-code]
                                        [--pad-token-id PAD_TOKEN_ID] [--fp16]
                                        [--int8]
+                                       [--weight-format {fp32,fp16,int8,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}]
+                                       [--ratio RATIO] [--disable-stateful]
                                        output
     
     optional arguments:
@@ -454,20 +506,21 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['multiple-choice', 'depth-estimation', 'audio-
-                            classification', 'fill-mask', 'audio-frame-
-                            classification', 'image-to-text', 'text-
-                            classification', 'semantic-segmentation', 'automatic-
-                            speech-recognition', 'image-classification', 'text-to-
-                            audio', 'stable-diffusion', 'masked-im', 'text2text-
-                            generation', 'conversational', 'zero-shot-object-
-                            detection', 'mask-generation', 'token-classification',
-                            'feature-extraction', 'question-answering', 'audio-
-                            xvector', 'object-detection', 'zero-shot-image-
-                            classification', 'image-to-image', 'text-generation',
-                            'stable-diffusion-xl', 'image-segmentation']. For
-                            decoder models, use `xxx-with-past` to export the
-                            model using past key values in the decoder.
+                            ['stable-diffusion', 'audio-xvector', 'text-
+                            classification', 'automatic-speech-recognition',
+                            'image-segmentation', 'audio-classification',
+                            'multiple-choice', 'image-to-text', 'stable-diffusion-
+                            xl', 'zero-shot-image-classification', 'text-to-
+                            audio', 'fill-mask', 'object-detection', 'image-to-
+                            image', 'mask-generation', 'image-classification',
+                            'feature-extraction', 'semantic-segmentation', 'text-
+                            generation', 'question-answering', 'conversational',
+                            'zero-shot-object-detection', 'masked-im', 'sentence-
+                            similarity', 'audio-frame-classification', 'text2text-
+                            generation', 'depth-estimation', 'token-
+                            classification']. For decoder models, use `xxx-with-
+                            past` to export the model using past key values in the
+                            decoder.
       --cache_dir CACHE_DIR
                             Path indicating where to store cache.
       --framework {pt,tf}   The framework to use for the export. If not provided,
@@ -484,6 +537,27 @@ Full list of supported arguments available via ``--help``
                             it.
       --fp16                Compress weights to fp16
       --int8                Compress weights to int8
+      --weight-format {fp32,fp16,int8,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}
+                            The weight format of the exporting model, e.g. f32
+                            stands for float32 weights, f16 - for float16 weights,
+                            i8 - INT8 weights, int4_* - for INT4 compressed
+                            weights.
+      --ratio RATIO         Compression ratio between primary and backup
+                            precision. In the case of INT4, NNCF evaluates layer
+                            sensitivity and keeps the most impactful layers in
+                            INT8precision (by default 20% in INT8). This helps to
+                            achieve better accuracy after weight compression.
+      --disable-stateful    Disable stateful converted models, stateless models
+                            will be generated instead. Stateful models are
+                            produced by default when this key is not used. In
+                            stateful models all kv-cache inputs and outputs are
+                            hidden in the model and are not exposed as model
+                            inputs and outputs. If --disable-stateful option is
+                            used, it may result in sub-optimal inference
+                            performance. Use it when you intentionally want to use
+                            a stateless model, for example, to be compatible with
+                            existing OpenVINO native inference code that expects
+                            kv-cache inputs and outputs in the model.
 
 
 The command line export for model from example above with FP16 weights
@@ -504,13 +578,40 @@ compression:
 
 .. parsed-literal::
 
-    2023-12-06 23:11:57.342495: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-01-25 23:14:59.738992: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    `--fp16` option is deprecated and will be removed in a future version. Use `--weight-format` instead.
+
+
+.. parsed-literal::
+
     Framework not specified. Using pt to export to ONNX.
-    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+      return self.fget.__get__(instance, owner)()
+
+
+.. parsed-literal::
+
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+
+
+.. parsed-literal::
+
     Using the export variant default. Available variants are:
         - default: The default ONNX variant.
+
+
+.. parsed-literal::
+
     Using framework PyTorch: 2.1.0+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
@@ -527,7 +628,6 @@ be loaded using the same OVModelForXXX class.
 .. parsed-literal::
 
     Compiling the model to AUTO ...
-    Setting OpenVINO CACHE_DIR to models/optimum_model/fp16/model_cache
 
 
 There are some models in the Hugging Face Models Hub, that are already
@@ -538,7 +638,7 @@ link <https://huggingface.co/models?library=openvino&sort=trending>`__.
 The Optimum Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model inference is exactly the same as for the original model!
 

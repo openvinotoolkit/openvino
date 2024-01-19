@@ -25,31 +25,30 @@ of increased latency, however.
 .. |image0| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/oneformer_architecture.png
 
 Table of contents:
-~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^
 
--  `Install required
-   libraries <#install-required-libraries>`__
--  `Prepare the environment <#prepare-the-environment>`__
+-  `Install required libraries <#Install-required-libraries>`__
+-  `Prepare the environment <#Prepare-the-environment>`__
 -  `Load OneFormer fine-tuned on COCO for universal
-   segmentation <#load-oneformer-fine-tuned-on-coco-for-universal-segmentation>`__
+   segmentation <#Load-OneFormer-fine-tuned-on-COCO-for-universal-segmentation>`__
 -  `Convert the model to OpenVINO IR
-   format <#convert-the-model-to-openvino-ir-format>`__
--  `Select inference device <#select-inference-device>`__
--  `Choose a segmentation
-   task <#choose-a-segmentation-task>`__
--  `Inference <#inference>`__
--  `Quantization <#quantization>`__
+   format <#Convert-the-model-to-OpenVINO-IR-format>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Choose a segmentation task <#Choose-a-segmentation-task>`__
+-  `Inference <#Inference>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Preparing calibration
-      dataset <#preparing-calibration-dataset>`__
-   -  `Run quantization <#run-quantization>`__
+   -  `Preparing calibration dataset <#Preparing-calibration-dataset>`__
+   -  `Run quantization <#Run-quantization>`__
    -  `Compare model size and
-      performance <#compare-model-size-and-performance>`__
+      performance <#Compare-model-size-and-performance>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
-Install required libraries 
----------------------------------------------------------------------
+Install required libraries
+--------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -61,8 +60,10 @@ Install required libraries
     Note: you may need to restart the kernel to use updated packages.
 
 
-Prepare the environment 
-------------------------------------------------------------------
+Prepare the environment
+-----------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Import all required packages and set paths for models and constant
 variables.
@@ -92,8 +93,10 @@ variables.
     IR_PATH = Path("oneformer.xml")
     OUTPUT_NAMES = ['class_queries_logits', 'masks_queries_logits']
 
-Load OneFormer fine-tuned on COCO for universal segmentation 
--------------------------------------------------------------------------------------------------------
+Load OneFormer fine-tuned on COCO for universal segmentation
+------------------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Here we use the ``from_pretrained`` method of
 ``OneFormerForUniversalSegmentation`` to load the `HuggingFace OneFormer
@@ -132,8 +135,10 @@ images and post-process model outputs for visualization.
         "task_inputs": torch.randn(1, task_seq_length)
     }
 
-Convert the model to OpenVINO IR format 
-----------------------------------------------------------------------------------
+Convert the model to OpenVINO IR format
+---------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert the PyTorch model to IR format to take advantage of OpenVINO
 optimization tools and features. The ``openvino.convert_model`` python
@@ -168,8 +173,10 @@ should provide PyTorch model instance and example input to
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
 
 
-Select inference device 
-------------------------------------------------------------------
+Select inference device
+-----------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -368,8 +375,10 @@ the inference results.
 
 
 
-Choose a segmentation task 
----------------------------------------------------------------------
+Choose a segmentation task
+--------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -387,8 +396,10 @@ Choose a segmentation task
 
 
 
-Inference 
-----------------------------------------------------
+Inference
+---------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -414,8 +425,10 @@ Inference
 
 
 
-Quantization 
--------------------------------------------------------
+Quantization
+------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -466,8 +479,10 @@ not selected
     
     %load_ext skip_kernel_extension
 
-Preparing calibration dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preparing calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use images from
 `COCO128 <https://www.kaggle.com/datasets/ultralytics/coco128>`__
@@ -532,8 +547,10 @@ dataset as calibration samples.
     coco128.zip:   0%|          | 0.00/6.66M [00:00<?, ?B/s]
 
 
-Run quantization 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run quantization
+~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we call ``nncf.quantize()`` in order to apply quantization to
 OneFormer model.
@@ -613,8 +630,10 @@ Let’s see quantized model prediction next to original model prediction.
 .. image:: 249-oneformer-segmentation-with-output_files/249-oneformer-segmentation-with-output_39_3.png
 
 
-Compare model size and performance 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare model size and performance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we compare original and quantized model footprint and inference
 speed.
@@ -680,8 +699,10 @@ speed.
     Performance speedup: 1.260
 
 
-Interactive Demo 
------------------------------------------------------------
+Interactive Demo
+----------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -771,7 +792,7 @@ Interactive Demo
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

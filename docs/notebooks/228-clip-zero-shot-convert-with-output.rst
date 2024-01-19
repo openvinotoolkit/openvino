@@ -27,22 +27,23 @@ image classification. The notebook contains the following steps:
 3. Convert model to OpenVINO IR, using model conversion API.
 4. Run CLIP with OpenVINO.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Instantiate model <#instantiate-model>`__
--  `Run PyTorch model
-   inference <#run-pytorch-model-inference>`__
+-  `Instantiate model <#Instantiate-model>`__
+-  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
--  `Run OpenVINO model <#run-openvino-model>`__
+   format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
+-  `Run OpenVINO model <#Run-OpenVINO-model>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
--  `Next Steps <#next-steps>`__
+-  `Next Steps <#Next-Steps>`__
 
-Instantiate model 
------------------------------------------------------------
+Instantiate model
+-----------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 CLIP (Contrastive Language-Image Pre-Training) is a neural network
 trained on various (image, text) pairs. It can be instructed in natural
@@ -103,8 +104,10 @@ tokenizer and preparing the images.
     2023-10-26 14:25:34.675789: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Run PyTorch model inference 
----------------------------------------------------------------------
+Run PyTorch model inference
+---------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -153,8 +156,10 @@ similarity score for the final result.
 .. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_5_0.png
 
 
-Convert model to OpenVINO Intermediate Representation (IR) format. 
-------------------------------------------------------------------------------------------------------------
+Convert model to OpenVINO Intermediate Representation (IR) format.
+------------------------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -192,8 +197,10 @@ save it on disk for the next usage with ``ov.save_model``.
       if attention_mask.size() != (bsz, 1, tgt_len, src_len):
 
 
-Run OpenVINO model 
-------------------------------------------------------------
+Run OpenVINO model
+------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The steps for making predictions with the OpenVINO CLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -206,8 +213,10 @@ same input data from the example above with PyTorch.
     # create OpenVINO core object instance
     core = ov.Core()
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -323,15 +332,17 @@ example, ``cat,dog,bird``)
 
 
 
-.. .. raw:: html
+.. raw:: html
 
-..    <div><iframe src="https://4ec3df1c48219763b1.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+    <div><iframe src="https://4ec3df1c48219763b1.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-Next Steps 
-----------------------------------------------------
+Next Steps
+----------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Open the
-`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize-with-output.html>`__
+`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

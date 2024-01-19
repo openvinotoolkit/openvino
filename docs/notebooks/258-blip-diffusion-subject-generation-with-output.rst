@@ -7,40 +7,40 @@ subject-and-text condition. BLIP-Diffusion enables zero-shot
 subject-driven generation, and efficient fine-tuning for customized
 subjects with up to 20x speedup. In addition, BLIP-Diffusion can be
 flexibly combined with ControlNet and prompt-to-prompt to enable novel
-subject-driven generation and editing applications. 
-
-**Table of contents**:
-
-- `Prerequisites <#prerequisites>`__
-- `Load the model <#load-the-model>`__
-- `Infer the original model <#infer-the-original-model>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Convert the model to OpenVINO Intermediate Representation (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
-- `Q-Former <#q-former>`__
-- `Text encoder <#text-encoder>`__
-- `ControlNet <#controlnet>`__
-- `UNet <#unet>`__
-- `Variational Autoencoder (VAE) <#variational-autoencoder-vae>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Interactive inference <#interactive-inference>`__
+subject-driven generation and editing applications. #### Table of
+contents: - `Prerequisites <#Prerequisites>`__ - `Load the
+model <#Load-the-model>`__ - `Infer the original
+model <#Infer-the-original-model>`__ - `Zero-Shot subject-driven
+generation <#Zero-Shot-subject-driven-generation>`__ - `Controlled
+subject-driven generation
+(Canny-edge) <#Controlled-subject-driven-generation-(Canny-edge)>`__ -
+`Controlled subject-driven generation
+(Scribble) <#Controlled-subject-driven-generation-(Scribble)>`__ -
+`Convert the model to OpenVINO Intermediate Representation
+(IR) <#Convert-the-model-to-OpenVINO-Intermediate-Representation-(IR)>`__
+- `Q-Former <#Q-Former>`__ - `Text encoder <#Text-encoder>`__ -
+`ControlNet <#ControlNet>`__ - `UNet <#UNet>`__ - `Variational
+Autoencoder (VAE) <#Variational-Autoencoder-(VAE)>`__ - `Select
+inference device <#Select-inference-device>`__ -
+`Inference <#Inference>`__ - `Zero-Shot subject-driven
+generation <#Zero-Shot-subject-driven-generation>`__ - `Controlled
+subject-driven generation
+(Canny-edge) <#Controlled-subject-driven-generation-(Canny-edge)>`__ -
+`Controlled subject-driven generation
+(Scribble) <#Controlled-subject-driven-generation-(Scribble)>`__ -
+`Interactive inference <#Interactive-inference>`__
 
 .. |image0| image:: https://github.com/salesforce/LAVIS/raw/main/projects/blip-diffusion/teaser-website.png
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" matplotlib Pillow gradio
-    %pip install -q -extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
 
 
 .. parsed-literal::
@@ -106,7 +106,7 @@ Prerequisites
 Load the model
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use Hugging Face ``diffusers`` library to load the model using
 ``from_pretrained`` method.
@@ -152,12 +152,12 @@ We use Hugging Face ``diffusers`` library to load the model using
 Infer the original model
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Zero-Shot subject-driven generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The pipeline takes a subject image and prompt text as input. The output
 is an image containing the subject with conditions from the prompt
@@ -212,7 +212,7 @@ is an image containing the subject with conditions from the prompt
 Controlled subject-driven generation (Canny-edge)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Canny edge
 detector <https://en.wikipedia.org/wiki/Canny_edge_detector>`__ is a
@@ -288,7 +288,7 @@ description.
 Controlled subject-driven generation (Scribble)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `Holistically-Nested Edge
 Detection <https://arxiv.org/pdf/1504.06375.pdf>`__ (HED) is a deep
@@ -360,11 +360,11 @@ edge map is the final output of HED and input of our diffusion model.
 Convert the model to OpenVINO Intermediate Representation (IR)
 --------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 BLIP-Diffusion pipeline has the following structure:
 
-.. figure:: 258-blip-diffusion-subject-generation-with-output_files/1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
+.. figure:: attachment:1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
    :alt: image
 
    image
@@ -452,7 +452,7 @@ we clean after every conversion.
 Q-Former
 ~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Q-Former was introduced in
 `BLIP-2 <https://arxiv.org/pdf/2301.12597.pdf>`__ paper and is a
@@ -579,7 +579,7 @@ Original QFormer model takes raw text as input, so we redefine the
 Text encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 BLIP-Diffusion pipeline uses CLIP text encoder, the default encoder for
 Stable Diffusion-based models. The only difference is it allows for an
@@ -631,7 +631,7 @@ embeddings, and interact with them using self-attention.
 ControlNet
 ~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ControlNet model was introduced in `Adding Conditional Control to
 Text-to-Image Diffusion
@@ -677,7 +677,7 @@ segmentation maps, and keypoints for pose detection.
 UNet
 ~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `UNet <https://huggingface.co/papers/1505.04597>`__ model is one of
 the most important components of a diffusion system because it
@@ -794,7 +794,7 @@ facilitates the actual diffusion process.
 Variational Autoencoder (VAE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The variational autoencoder (VAE) model with KL loss was introduced in
 `Auto-Encoding Variational
@@ -835,7 +835,7 @@ decoder in separate ``torch.nn.Module``.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -891,7 +891,7 @@ select device from dropdown list for running inference using OpenVINO
 Inference
 ---------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1139,7 +1139,7 @@ Inference
 Zero-Shot subject-driven generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1178,7 +1178,7 @@ Zero-Shot subject-driven generation
 Controlled subject-driven generation (Canny-edge)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1239,7 +1239,7 @@ Controlled subject-driven generation (Canny-edge)
 Controlled subject-driven generation (Scribble)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1296,7 +1296,7 @@ Controlled subject-driven generation (Scribble)
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

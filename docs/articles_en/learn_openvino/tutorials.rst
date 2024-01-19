@@ -60,6 +60,27 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 
 .. showcase::
+   :title: 275-llm-question-answering
+   :img: _static/images/notebook_eye.png
+
+   LLM Instruction-following pipeline with OpenVINO.
+
+
+.. showcase::
+   :title: 274-efficient-sam
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/274-efficient-sam/274-efficient-sam.png
+
+   Object segmentations with EfficientSAM and OpenVINO.
+
+
+.. showcase::
+   :title: 273-stable-zephyr-3b-chatbot
+   :img: _static/images/notebook_eye.png
+
+   LLM-powered chatbot using Stable-Zephyr-3b and OpenVINO.
+
+
+.. showcase::
    :title: 272-paint-by-example
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
 
@@ -101,23 +122,6 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
    Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
 
-.. showcase::
-   :title: 263-latent-consistency-models-image-generation
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/263-latent-consistency-models-image-generation/263-latent-consistency-models-image-generation.png
-
-   Image generation with Latent Consistency Model and OpenVINO.
-
-.. showcase::
-   :title: 263-lcm-lora-controlnet
-   :img: https://user-images.githubusercontent.com/29454499/284292122-f146e16d-7233-49f7-a401-edcb714b5288.png
-
-   Text-to-Image Generation with LCM LoRA and ControlNet Conditioning.
-
-.. showcase::
-   :title: 262-softvc-voice-conversion
-   :img: _static/images/notebook_eye.png
-
-   SoftVC VITS Singing Voice Conversion and OpenVINO.
 
 
 .. note::

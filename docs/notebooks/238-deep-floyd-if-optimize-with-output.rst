@@ -7,44 +7,41 @@ applying 8-bit post-training quantization and weights compression from
 Compression Framework) and infer optimized model via OpenVINO™ Toolkit.
 
    **NOTE**: you should run
-   `238-deep-floyd-if-convert <238-deep-floyd-if-convert-with-output.html>`__
+   `238-deep-floyd-if-convert <238-deep-floyd-if-convert.ipynb>`__
    notebook first to generate OpenVINO IR model that is used for
    optimization.
 
 The optimization process contains the following steps: 1. Compress
 weights of the converted OpenVINO text encoder from
-`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Quantize
+`notebook <238-deep-floyd-if-convert.ipynb>`__ with NNCF. 2. Quantize
 the converted stage_1 and stage_2 U-Nets from
-`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Check the
+`notebook <238-deep-floyd-if-convert.ipynb>`__ with NNCF. 2. Check the
 model result using the same input data from the
-`notebook <238-deep-floyd-if-convert-with-output.html>`__. 3. Compare model size of
+`notebook <238-deep-floyd-if-convert.ipynb>`__. 3. Compare model size of
 converted and optimized models. 4. Compare performance of converted and
 optimized models.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Prerequisites <#Prerequisites>`__
+-  `Compress weights <#Compress-weights>`__
+-  `Quantize <#Quantize>`__
 
--  `Prerequisites <#prerequisites>`__
--  `Compress text encoder
-   weights <#compress-text-encoder-weights>`__
--  `Create and initialize
-   quantization <#create-and-initialize-quantization>`__
+   -  `Prepare dataset <#Prepare-dataset>`__
+   -  `Quantize first stage U-Net <#Quantize-first-stage-U-Net>`__
+   -  `Quantize second stage U-Net <#Quantize-second-stage-U-Net>`__
 
-   -  `Prepare datasets <#prepare-datasets>`__
-   -  `Quantize first stage
-      U-Net <#quantize-first-stage-u-net>`__
-   -  `Quantize second stage
-      U-Net <#quantize-second-stage-u-net>`__
+-  `Run optimized OpenVINO model <#Run-optimized-OpenVINO-model>`__
 
--  `Run optimized OpenVINO
-   models <#run-quantized-openvino-model>`__
-
-   -  `Compare file sizes <#compare-file-sizes>`__
+   -  `Compare file sizes <#Compare-file-sizes>`__
    -  `Compare performance time of the converted and optimized
-      models <#compare-performance-time-of-the-converted-and-optimized-models>`__
+      models <#Compare-performance-time-of-the-converted-and-optimized-models>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -109,8 +106,10 @@ Prerequisites
 
 
 
-Compress weights 
-----------------------------------------------------------
+Compress weights
+----------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text encoder model consumes ~22 GB of disk space. To avoid running out
 of memory, we suggest using 8-bit weights compression instead of
@@ -142,20 +141,24 @@ quantized model, but this will significantly reduce the model footprint.
     Wall time: 4min 12s
 
 
-Quantize 
---------------------------------------------------
+Quantize
+--------
 
-Prepare dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`back to top ⬆️ <#Table-of-contents:>`__
+
+Prepare dataset
+~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 DeepFloyd IF consists of a U-Net model for first and second stages.
 First stage U-Net generates 64x64 px image based on text prompt, second
 stage U-Net generates a 256x256 px image based on image from previous
 step. We use a portion of train
-`LAION2B <https://huggingface.co/datasets/laion/laion2B-en>`__ dataset
-from Hugging Face as calibration data. LAION2B is the English subset of
-the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
-2 billion objects.
+`LAION2B <https://huggingface.co/datasets/laion/laion2B-en-aesthetic>`__
+dataset from Hugging Face as calibration data. LAION2B is the English
+subset of the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset,
+contains over 2 billion objects.
 
 .. code:: ipython3
 
@@ -192,7 +195,7 @@ the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
         """
         Prepares a text dataset for quantization.
         """
-        dataset = load_dataset("laion/laion2B-en", streaming=True, split="train")
+        dataset = load_dataset("laion/laion2B-en-aesthetic", streaming=True, split="train")
         train_dataset = dataset.shuffle(seed=RANDOM_SEED, buffer_size=1000).take(opt_init_steps)
         dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, stage_1)
@@ -309,8 +312,10 @@ To collect intermediate model inputs for calibration we should customize
         if len(stage_1_data_cache) >= opt_init_steps:
             break
 
-Quantize first stage U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Quantize first stage U-Net
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -431,8 +436,10 @@ Quantize first stage U-Net
     Wall time: 24min 32s
 
 
-Quantize second stage U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Quantize second stage U-Net
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -465,12 +472,14 @@ Quantize second stage U-Net
     Wall time: 49min 24s
 
 
-Run optimized OpenVINO model 
-----------------------------------------------------------------------
+Run optimized OpenVINO model
+----------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let us check predictions with the optimized OpenVINO DeepFloyd IF model
 result using the same input data from the `1st
-notebook <238-deep-floyd-if-with-output.html>`__.
+notebook <238-deep-floyd-if.ipynb>`__.
 
 .. code:: ipython3
 
@@ -686,14 +695,15 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 
 
 
-.. note:: Accuracy of quantized models can generally be improved by
+   **NOTE**: Accuracy of quantized models can generally be improved by
    increasing calibration dataset size. For U-Net models, you can
    collect a more diverse dataset by using a smaller ``selection_prob``
    value, but this will increase the dataset collection time.
 
+Compare file sizes
+^^^^^^^^^^^^^^^^^^
 
-Compare file sizes 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s calculate the compression rate of the optimized IRs file size
 relative to the FP16 OpenVINO models file size
@@ -731,8 +741,10 @@ relative to the FP16 OpenVINO models file size
         * Model compression rate: 3.993
 
 
-Compare performance time of the converted and optimized models 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compare performance time of the converted and optimized models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
