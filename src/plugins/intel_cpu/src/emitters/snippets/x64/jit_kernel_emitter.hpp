@@ -77,6 +77,10 @@ private:
 
     const size_t reg_indexes_idx;
     const size_t reg_const_params_idx;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_kernel_emitter(const jit_kernel_emitter *emitter);
+#endif
 };
 
 }   // namespace intel_cpu

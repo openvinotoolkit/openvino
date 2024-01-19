@@ -343,10 +343,6 @@ std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
-#ifdef SNIPPETS_DEBUG_CAPS
-    lowering_config.m_save_expressions = lowering_config.m_save_expressions || (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
-#endif
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
