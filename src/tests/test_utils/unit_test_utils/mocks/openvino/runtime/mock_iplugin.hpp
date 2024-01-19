@@ -9,7 +9,6 @@
 #include <map>
 #include <string>
 
-#include "ie_extension.h"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"

@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_extension.h"
 #include "ie_iextension.h"
 #include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"

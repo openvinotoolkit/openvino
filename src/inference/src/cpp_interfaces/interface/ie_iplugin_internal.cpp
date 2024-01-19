@@ -141,7 +141,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
             auto new_impl =
-                std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
+                std::make_shared<details::CNNNetworkNGraphImpl>(function, IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
