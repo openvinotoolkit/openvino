@@ -39,7 +39,6 @@
 #include <map>
 #include <memory>
 #include <set>
-
 #include <string>
 #include <vector>
 
@@ -76,6 +75,68 @@ using namespace dnnl::impl::cpu::aarch64;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+#if defined(OPENVINO_ARCH_ARM64)
+namespace {
+bool jitIsSupported(const Node* node,
+                    const float alpha,
+                    const float beta,
+                    const float gamma,
+                    const std::vector<ov::element::Type>& input_precisions = {}) {
+    const Algorithm& algorithm = node->getAlgorithm();
+    const auto is_supported = one_of(algorithm,
+                                     Algorithm::EltwiseAdd,
+                                     Algorithm::EltwiseMultiply,
+                                     Algorithm::EltwiseMulAdd,
+                                     Algorithm::EltwisePowerStatic,
+                                     Algorithm::EltwiseRelu);
+    if (!is_supported) {
+        return false;
+    }
+
+    const auto check_precisions = [&node](
+            const std::vector<ov::element::Type>& precisions,
+            const std::set<ov::element::Type>& supported_precisions) {
+        const auto& input_precisions = precisions.size() == 0 ? node->getOriginalInputPrecisions() : precisions;
+        if (std::any_of(input_precisions.begin(),
+                        input_precisions.end(),
+                        [&supported_precisions](const ov::element::Type& precision) {
+                            return supported_precisions.find(precision) == supported_precisions.end();
+                        })) {
+            return false;
+        }
+
+        const auto& output_precisions = node->getOriginalOutputPrecisions();
+        if (std::any_of(output_precisions.begin(),
+                        output_precisions.end(),
+                        [&supported_precisions](const ov::element::Type& precision) {
+                            return supported_precisions.find(precision) == supported_precisions.end();
+                        })) {
+            return false;
+        }
+
+        return true;
+    };
+
+    const std::set<ov::element::Type> supported_precisions = {
+        ov::element::f16,
+        ov::element::f32,
+        ov::element::i32,
+        ov::element::u32
+    };
+
+    if (!check_precisions(input_precisions, supported_precisions)) {
+        return false;
+    }
+
+    if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
+        return false;
+    }
+
+    return true;
+}
+} // namespace
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -2247,7 +2308,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 #elif defined(OPENVINO_ARCH_ARM64)
     const bool useJit = canUseOptimizedImpl &&
-                        executors::aarch64::JitEltwiseExecutor::isSupported(this, getAlpha(), getBeta(), getGamma());
+                        jitIsSupported(this, getAlpha(), getBeta(), getGamma()) &&
+                        executors::aarch64::JitEltwiseExecutor::isSupported(getAlgorithm(), getAlpha(), getBeta(), getGamma());
     if (!useJit) {
         canUseOptimizedImpl = false;
     }
@@ -2974,6 +3036,35 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastP
     return true;
 }
 
+bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (parentNode->getType() != Type::Convert) {
+        return false;
+    }
+    const auto& input_precisions = parentNode->getOriginalInputPrecisions();
+    if (!jitIsSupported(this, getAlpha(), getBeta(), getGamma(), input_precisions)) {
+        return false;
+    }
+#else
+    const auto isSuitableParentNode = [](const Node* parentNode) {
+        return parentNode->getType() == Type::Convert &&
+               (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
+                parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) &&
+               parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
+    };
+
+    auto isSuitableChildNode = [](const Node* childNode) {
+        return childNode->getParentEdges().size() != 2;
+    };
+
+    if (!isSuitableParentNode(parentNode.get()) || !isSuitableChildNode(this)) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
         if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
@@ -2998,14 +3089,14 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
 
-    if (!executors::aarch64::JitEltwiseExecutor::isSupported(this, getAlpha(), getBeta(), getGamma())) {
+    if (!jitIsSupported(this, getAlpha(), getBeta(), getGamma())) {
         return false;
     }
     const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
-    if ((eltwise == nullptr) || (!executors::aarch64::JitEltwiseExecutor::isSupported(eltwise,
-                                                                                      eltwise->getAlpha(),
-                                                                                      eltwise->getBeta(),
-                                                                                      eltwise->getGamma()))) {
+    if ((eltwise == nullptr) || (!jitIsSupported(eltwise,
+                                                 eltwise->getAlpha(),
+                                                 eltwise->getBeta(),
+                                                 eltwise->getGamma()))) {
         return false;
     }
 #else
