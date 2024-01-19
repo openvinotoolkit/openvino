@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "ie_blob.h"
+#include "blob_factory.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"

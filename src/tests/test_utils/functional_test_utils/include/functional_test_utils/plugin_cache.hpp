@@ -4,10 +4,15 @@
 
 #pragma once
 
-#include <ie_core.hpp>
 #include <memory>
 #include <mutex>
 #include <string>
+
+namespace InferenceEngine {
+
+class Core;
+
+}  // namespace InferenceEngine
 
 class PluginCache {
 public:
