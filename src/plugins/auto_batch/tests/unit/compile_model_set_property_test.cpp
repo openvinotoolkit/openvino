@@ -2,29 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
 #include "ov_models/subgraph_builders.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using set_property_param = std::tuple<ov::AnyMap,  // Property need to be set
                                       bool>;       // Throw exception
@@ -109,7 +90,7 @@ public:
 
         ON_CALL(*m_core, get_property(_, StrEq("GPU_DEVICE_TOTAL_MEM_SIZE"), _)).WillByDefault(Return("10240"));
 
-        const ov::AnyMap configs = {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(16)"}};
+        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
 
         ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
     }
@@ -123,7 +104,7 @@ TEST_P(CompileModelSetPropertyTest, CompileModelSetPropertyTestCase) {
 }
 
 const std::vector<set_property_param> compile_model_set_property_param_test = {
-    set_property_param{{{CONFIG_KEY(AUTO_BATCH_TIMEOUT), std::uint32_t(100)}}, false},
+    set_property_param{{{ov::auto_batch_timeout(static_cast<uint32_t>(100))}}, false},
     set_property_param{{{"INCORRECT_CONFIG", 2}}, true},
 };
 

@@ -7,12 +7,15 @@
 
 #include <iostream>
 
-#include "async_infer_request.hpp"
 #include "compiled_model.hpp"
-#include "ie_icore.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
-#include "sync_infer_request.hpp"
+
+using ::testing::_;
+using ::testing::MatcherCast;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::StrEq;
 
 using namespace ov::mock_autobatch_plugin;
 

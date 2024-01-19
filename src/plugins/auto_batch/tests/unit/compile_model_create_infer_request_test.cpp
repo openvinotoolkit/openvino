@@ -2,30 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-#include "ov_models/subgraph_builders.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using CreateInferRequestTestParams = std::tuple<int,   // batch_size
                                                 int>;  // inferReq number
@@ -94,7 +74,7 @@ public:
         m_i_compile_model_without_batch = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_auto_batch_plugin);
         m_compile_model_without_batch = {m_i_compile_model_without_batch, {}};
 
-        m_config = {{"AUTO_BATCH_TIMEOUT", "200"}};
+        m_config = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}};
 
         m_device_info = {"CPU", {}, m_batch_size};
         m_batched_inputs = {"Parameter_0"};
