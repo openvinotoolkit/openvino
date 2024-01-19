@@ -97,9 +97,6 @@ public:
     virtual operator std::vector<uint64_t>&() {
         OPENVINO_THROW("Invalid type access");
     }
-    virtual operator ngraph::HostTensorPtr&() {
-        OPENVINO_THROW("Invalid type access");
-    }
     virtual operator std::shared_ptr<ov::Model>&() {
         OPENVINO_THROW("Invalid type access");
     }
@@ -289,10 +286,8 @@ public:
         adapter.set(m_values.get<std::vector<double>>(name));
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::HostTensorPtr& data = m_values.get<ngraph::HostTensorPtr>(name);
-        data->read(adapter.get_ptr(), adapter.size());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto data = m_values.get<ov::Tensor>(name);
+        std::memcpy(adapter.get_ptr(), data.data(), adapter.size());
     }
 
 protected:

@@ -7,9 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

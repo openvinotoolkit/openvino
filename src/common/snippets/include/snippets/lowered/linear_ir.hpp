@@ -30,8 +30,6 @@ enum PerfCountMode {
 
 class Config {
 public:
-    // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
-    bool m_save_expressions = false;
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
