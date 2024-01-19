@@ -25,7 +25,7 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
     auto dtype1 = context.get_input_type(1);
 
     if (lhs.get_element_type() == element::boolean && rhs.get_element_type() == element::boolean){
-        // if it works FRONT_END_OP_CONVERSION_CHECK(true, "aten::add is used as OR logical operator, can convert");
+        FRONT_END_OP_CONVERSION_CHECK(true, "aten::mul is used as AND logical operator, can convert");
     }
 
     // Handle inplace operation and type alignment
