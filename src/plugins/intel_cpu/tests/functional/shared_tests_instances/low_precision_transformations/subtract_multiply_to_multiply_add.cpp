@@ -15,16 +15,16 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     // U8: Multiply {} => Multiply (ScaleShift)
     {
         {1, 3, 16, 16},
-        ngraph::element::f32,
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        ov::element::f32,
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
     },
     // U8: Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
     {
         {1, 3, 16, 16},
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256ul,
-            ngraph::Shape({1, 3, 1, 1}),
+            ov::Shape({1, 3, 1, 1}),
             {0.f, 0.f, 0.f},
             {2.55f, 2.55f / 2.f, 2.55f / 3.f},
             {0.f, 0.f, 0.f},
@@ -34,10 +34,10 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     // U8: Subtract + Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
     {
         {1, 3, 16, 16},
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256ul,
-            ngraph::Shape({1, 3, 1, 1}),
+            ov::Shape({1, 3, 1, 1}),
             {2.55f / 2, 2.55f / 4.f, 2.55f / 6.f},
             {2.55f, 2.55f / 2.f, 2.55f / 3.f},
             {2.55f / 2, 2.55f / 4.f, 2.55f / 6.f},
@@ -46,10 +46,10 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     {
         {1, 3, 16, 16},
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256ul,
-            ngraph::Shape({1}),
+            ov::Shape({1}),
             {2.55f / 2},
             {2.55f},
             {2.55f / 2},

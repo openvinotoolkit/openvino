@@ -36,7 +36,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 9, 9 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 9, 9 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),

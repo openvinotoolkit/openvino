@@ -24,77 +24,77 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeOnDataValues = {
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
-            { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{5.f}, ngraph::element::i8},
+        {{5.f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
-            { {127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.3f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
+            { {0.3f}, ov::element::f32, {}, false }
         },
         {},
         "f32"
     },
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             {},
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{5.f}, ngraph::element::i8},
+        {{5.f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             {},
-            { {0.3f}, ngraph::element::f32, {}, false }
+            { {0.3f}, ov::element::f32, {}, false }
         },
         {},
         "i8"
     },
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             { },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{5.f}, ngraph::element::i8},
+        {{5.f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
-            { {127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.3f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
+            { {0.3f}, ov::element::f32, {}, false }
         },
         {},
         "f32"
     },
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
-            { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{5.f}, ngraph::element::i8},
+        {{5.f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             { },
-            { {0.3f}, ngraph::element::f32, {}, false }
+            { {0.3f}, ov::element::f32, {}, false }
         },
         {},
         "u8"
@@ -104,7 +104,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeWithNotOptimalTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),

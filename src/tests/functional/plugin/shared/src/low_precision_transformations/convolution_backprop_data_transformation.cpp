@@ -42,7 +42,7 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
 
 
-    std::shared_ptr<ngraph::Node> weights;
+    std::shared_ptr<ov::Node> weights;
 
     const auto inputShape = inputShapeAndHandling.first;
 

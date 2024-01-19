@@ -27,7 +27,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {0},
         std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
     // U8: per-channel quantization
@@ -38,7 +38,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {0},
         std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256,
             {1, 3, 1},
@@ -56,7 +56,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {1},
         std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {
             256,
             {3, 1},
@@ -74,7 +74,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {0},
         std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
 };

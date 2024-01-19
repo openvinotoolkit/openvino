@@ -21,7 +21,7 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };

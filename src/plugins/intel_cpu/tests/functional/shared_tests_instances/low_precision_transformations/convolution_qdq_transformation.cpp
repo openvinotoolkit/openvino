@@ -56,20 +56,20 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     //          \        /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
         {
-            {ngraph::element::f32},
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            {ov::element::f32},
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        { std::vector<float>{ 15.f }, ngraph::element::f32},
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { std::vector<float>{ 15.f }, ov::element::f32},
+        { 255ul, ov::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
-            { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
+            { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
         "f32"
@@ -110,20 +110,20 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     //          \        /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
         {
-            {ngraph::element::f32},
+            {ov::element::f32},
             {},
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        { std::vector<float>{ 15.f }, ngraph::element::f32},
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
+        { std::vector<float>{ 15.f }, ov::element::f32},
+        { 255ul, ov::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
+        { ov::element::i8, false },
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             {},
-            { {0.2f}, ngraph::element::f32, {}, false }
+            { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
         "u8"
@@ -161,20 +161,20 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     //          \        /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
         {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{0.5f}, ngraph::element::i8},
+        {{0.5f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
         "f32"
@@ -212,47 +212,47 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     //          \        /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
+        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
         {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
+            { ov::element::f32, false },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.1f}, ov::element::f32, {}, false }
         },
-        {{0.5f}, ngraph::element::i8},
+        {{0.5f}, ov::element::i8},
         {},
         {},
         {
-            { ngraph::element::f32, false },
+            { ov::element::f32, false },
             {},
-            { {0.2f}, ngraph::element::f32, {}, false }
+            { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
         "u8"
     },
 
     {
-        { 16ul, {{ 1, 1, 1, 1 }}, { -0.8f }, { 0.f }, { 0.f }, { 15.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
+        { 16ul, {{ 1, 1, 1, 1 }}, { -0.8f }, { 0.f }, { 0.f }, { 15.f }, ov::element::f32 },
+        { ov::element::u8, false },
         {
-                { ngraph::element::f32, false },
-                { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-                { {0.1f}, ngraph::element::f32, {}, false }
+                { ov::element::f32, false },
+                { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+                { {0.1f}, ov::element::f32, {}, false }
         },
-        {{0.5f}, ngraph::element::i8},
+        {{0.5f}, ov::element::i8},
         {},
         {},
         {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 {},
-                { {0.2f}, ngraph::element::f32, {}, false }
+                { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
         "u8"
     },
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 4, 4 },
     { 4, 3, 4, 4 }
 };

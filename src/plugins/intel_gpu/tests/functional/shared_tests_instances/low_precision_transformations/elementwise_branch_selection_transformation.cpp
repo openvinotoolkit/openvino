@@ -26,7 +26,7 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {
                 {},
                 { std::vector<float>(9, 1.f), ov::element::i8, {3, 3, 1, 1} },
-                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ngraph::element::f32, {3, 1, 1, 1}} }
+                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ov::element::f32, {3, 1, 1, 1}} }
             },
             { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         },
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {
                 {},
                 { std::vector<float>(9, 1.f), ov::element::i8, {3, 3, 1, 1} },
-                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ngraph::element::f32, {3, 1, 1, 1}} }
+                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ov::element::f32, {3, 1, 1, 1}} }
             },
             {}
         },
@@ -53,7 +53,7 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {
                 {},
                 { std::vector<float>(9, 1.f), ov::element::i8, {3, 3, 1, 1} },
-                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ngraph::element::f32, {3, 1, 1, 1}} }
+                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ov::element::f32, {3, 1, 1, 1}} }
             },
             {}
         },
@@ -62,7 +62,7 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {
                 {},
                 { std::vector<float>(9, 1.f), ov::element::i8, {3, 3, 1, 1} },
-                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ngraph::element::f32, {3, 1, 1, 1}} }
+                { {ov::element::f32}, {}, {std::vector<float>(3, 1.f), ov::element::f32, {3, 1, 1, 1}} }
             },
             { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         },

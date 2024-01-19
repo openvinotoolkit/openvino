@@ -19,21 +19,21 @@ const std::vector<std::pair<ov::PartialShape, ov::Shape>> shapes = {
 
 const std::vector<interpAttributes> interpAttrs = {
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
             {0},
             {0}),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             true,
             {0},
             {0}),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "linear",
             false,
             false,
