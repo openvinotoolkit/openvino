@@ -16,12 +16,12 @@ const std::vector<ov::element::Type> netPrecisions = {
 
 const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues> params = {
     {
-        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        { 255ul, ngraph::Shape { 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } }
+        { 256ul, ov::Shape { 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ov::Shape { 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } }
     },
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+const std::vector<std::pair<ov::PartialShape, ov::Shape>> inputShapes = {
     {{ 1, 16 }, { 10, 16 }},
     {{ 1, 16 }, { 16, 10 }}
 };

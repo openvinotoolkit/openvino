@@ -5,12 +5,13 @@
 #include "ngraph/specialize_function.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/assign.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START;
+
+using ov::op::v0::Constant;
 
 std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> f,
                                                       const std::vector<element::Type>& parameter_element_types,
@@ -32,9 +33,9 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
 
         if (parameter_values[i] != nullptr && parameter_shapes[i].is_static() &&
             parameter_element_types[i].is_static()) {
-            m[f->get_parameters()[i].get()] = std::make_shared<op::Constant>(parameter_element_types[i],
-                                                                             parameter_shapes[i].to_shape(),
-                                                                             parameter_values[i]);
+            m[f->get_parameters()[i].get()] = std::make_shared<Constant>(parameter_element_types[i],
+                                                                         parameter_shapes[i].to_shape(),
+                                                                         parameter_values[i]);
         } else {
             m[f->get_parameters()[i].get()] =
                 std::make_shared<op::Parameter>(parameter_element_types[i], parameter_shapes[i]);
@@ -86,12 +87,12 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
     ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
-        new_results[i] = std::static_pointer_cast<op::Result>(m[new_results[i].get()]);
+        new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);
         new_results[i]->set_friendly_name(name);
     }
-    SinkVector new_sinks = f->get_sinks();
+    auto new_sinks = f->get_sinks();
     for (size_t i = 0; i < new_sinks.size(); i++) {
-        new_sinks[i] = std::static_pointer_cast<op::Sink>(m[new_sinks[i].get()]);
+        new_sinks[i] = std::static_pointer_cast<ov::op::Sink>(m[new_sinks[i].get()]);
     }
 
     return std::make_shared<Function>(new_results, new_sinks, new_parameters);

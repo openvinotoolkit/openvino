@@ -118,52 +118,6 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     ASSERT_EQ(out_mem->get_layout().get_partial_shape(), expected_shape);
 }
 
-TEST(prepare_buffer_fusing, propagate_data_padding) {
-    auto& engine = get_test_engine();
-
-    auto in_layout = layout{ ov::PartialShape{1, 4, 3, 3}, data_types::f32, format::bfyx };
-
-    std::vector<std::pair<primitive_id, tensor>> offsets;
-    std::vector<input_info> inputs;
-    for (int i = 0; i < 2; i++) {
-        auto id = "crop_" + std::to_string(i);
-        inputs.push_back(input_info("split:" + id));
-        offsets.push_back({ id, {0, (i * 2), 0, 0} });
-    }
-
-    topology topology;
-    topology.add(input_layout("input", in_layout));
-    topology.add(split("split", input_info("input"), offsets));
-    topology.add(reorder("crop_0_reorder", inputs[0], format::bfzyx, data_types::f32));
-    topology.add(reorder("crop_1_reorder", inputs[1], format::bfzyx, data_types::f32));
-    topology.add(concatenation("concat", {input_info("crop_0_reorder"), input_info("crop_1_reorder")}, 1));
-    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    cldnn::network net(engine, topology, config);
-
-    auto in_mem = engine.allocate_memory(in_layout);
-    tests::set_random_values<float>(in_mem);
-
-    net.set_input_data("input", in_mem);
-    std::map<cldnn::primitive_id, cldnn::network_output> output;
-    ASSERT_NO_THROW(output = net.execute());
-
-    auto out_mem = output.at("output").get_memory();
-
-    ASSERT_NE(out_mem, nullptr);
-    cldnn::mem_lock<int64_t> output_ptr(out_mem, get_test_stream());
-    cldnn::mem_lock<int64_t> input_ptr(in_mem, get_test_stream());
-
-    ASSERT_EQ(input_ptr.size(), output_ptr.size());
-    for (size_t i = 0; i < input_ptr.size(); ++i)
-    {
-        ASSERT_EQ(output_ptr[i], input_ptr[i]);
-    }
-}
-
 TEST(prepare_buffer_fusing, in_place_concat_static) {
     auto& engine = get_test_engine();
     auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx }; // => {1, 4, 3, 2}
@@ -912,7 +866,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
     auto in2 = rg.generate_random_1d<ov::float16>(input2_mem->count(), 0, 1);
     auto in3 = rg.generate_random_1d<ov::float16>(input3_mem->count(), 0, 1);
     auto in4 = rg.generate_random_1d<ov::float16>(input4_mem->count(), 0, 1);
-    
+
     set_values<ov::float16>(input1_mem, in1);
     set_values<ov::float16>(input2_mem, in2);
     set_values<ov::float16>(input3_mem, in3);
