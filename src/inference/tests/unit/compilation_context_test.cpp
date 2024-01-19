@@ -22,7 +22,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-
 using namespace ov;
 using namespace ::testing;
 using namespace std::chrono;
@@ -366,22 +365,20 @@ TEST(NetworkContext, HashOfSameModelWithClone) {
     model1->set_friendly_name("test model");
     auto model1_clone = model1->clone();
     ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model1_clone, {}));
-    auto model2 = create_simple_model(); // model without friendly name
+    auto model2 = create_simple_model();  // model without friendly name
     auto preproc = ov::preprocess::PrePostProcessor(model2);
     const auto output_precision = ov::element::f16;
     // SET INPUT PRECISION
-    const auto &inputs = model2->inputs();
-    for (size_t i = 0; i < inputs.size(); i++)
-    {
-        const auto &item = inputs[i];
-        auto &in = preproc.input(item.get_any_name());
+    const auto& inputs = model2->inputs();
+    for (size_t i = 0; i < inputs.size(); i++) {
+        const auto& item = inputs[i];
+        auto& in = preproc.input(item.get_any_name());
         in.tensor().set_element_type(output_precision);
         // preproc.output(i).tensor().set_element_type(output_precision);
     }
     // SET OUTPUT PRECISION
-    const auto &outs = model2->outputs();
-    for (size_t i = 0; i < outs.size(); i++)
-    {
+    const auto& outs = model2->outputs();
+    for (size_t i = 0; i < outs.size(); i++) {
         preproc.output(i).tensor().set_element_type(output_precision);
     }
     model2 = preproc.build();
