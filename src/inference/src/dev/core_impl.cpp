@@ -483,19 +483,19 @@ void ov::CoreImpl::register_compile_time_plugins() {
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto parse_result = ov::util::pugixml::parse_xml(xml_config_file.c_str());
+    using namespace ov::util;
+    auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
         OPENVINO_THROW(parse_result.error_msg);
     }
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace ov::util::pugixml;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
-        std::string deviceName = get_str_attr(pluginNode, "name");
+        std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
         if (pluginRegistry.find(deviceName) != pluginRegistry.end()) {
             OPENVINO_THROW("Device with \"", deviceName, "\"  is already registered in the OpenVINO Runtime");
         }
@@ -504,7 +504,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         }
 
         ov::util::FilePath pluginPath =
-            ov::util::get_plugin_path(get_str_attr(pluginNode, "location"), xml_config_file, by_abs_path);
+            ov::util::get_plugin_path(pugixml::get_str_attr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -512,8 +512,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
         if (propertiesNode) {
             FOREACH_CHILD (propertyNode, propertiesNode, "property") {
-                std::string key = get_str_attr(propertyNode, "key");
-                std::string value = get_str_attr(propertyNode, "value");
+                std::string key = pugixml::get_str_attr(propertyNode, "key");
+                std::string value = pugixml::get_str_attr(propertyNode, "value");
                 config[key] = value;
             }
         }
@@ -525,7 +525,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         if (extensionsNode) {
             FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
                 ov::util::FilePath extensionLocation =
-                    ov::util::to_file_path(get_str_attr(extensionNode, "location").c_str());
+                    ov::util::to_file_path(pugixml::get_str_attr(extensionNode, "location").c_str());
                 listOfExtentions.push_back(extensionLocation);
             }
         }
