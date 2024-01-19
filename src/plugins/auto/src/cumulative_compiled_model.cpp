@@ -35,9 +35,6 @@ std::shared_ptr<const ov::Model> AutoCumuCompiledModel::get_runtime_model() cons
 }
 
 ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -53,13 +50,6 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{ov::device::priorities};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (name == ov::supported_properties) {
         auto ro_properties = default_ro_properties();
