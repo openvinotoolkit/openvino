@@ -112,8 +112,8 @@ class TestMulTypes(PytorchLayerTest):
 class TestMulBool(PytorchLayerTest):
     def _prepare_input(self):
         shape = np.random.randint(1, 5, size=3)  # Random shape for each tensor
-        input_tensor = np.random.randint(0, 2, size=shape)
-        other_tensor = np.random.randint(0, 2, size=shape)
+        input_tensor = np.random.randint(0, 2, size=shape).astype(np.bool_)
+        other_tensor = np.random.randint(0, 2, size=shape).astype(np.bool_)
         return (input_tensor,other_tensor)
 
 
@@ -123,9 +123,7 @@ class TestMulBool(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, input_tensor, other_tensor):
-                input_tensor = input_tensor.to(torch.bool)
-                other_tensor = other_tensor.to(torch.bool)
-                return input_tensor * other_tensor
+                return torch.logical_and(input_tensor, other_tensor)
 
         ref_net = None
 
