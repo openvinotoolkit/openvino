@@ -273,7 +273,6 @@ const std::vector<ElementType>& netType() {
 const std::vector<ElementType>& netTypeJit() {
     static const std::vector<ElementType> netType = {
         ElementType::i32,
-        ElementType::u32,
         ElementType::f32};
     return netType;
 }

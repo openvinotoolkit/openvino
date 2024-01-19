@@ -841,6 +841,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
 void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
+#ifndef OPENVINO_ARCH_ARM64
     auto isSuitableParentNode = [](NodePtr parentNode) {
         return parentNode->getType() == Type::Convert && parentNode->getChildEdges().size() == 1 &&
                (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
@@ -851,10 +852,28 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     auto isSuitableChildNode = [](NodePtr childNode) {
         return childNode->getType() == Type::Eltwise && childNode->getParentEdges().size() != 2;
     };
+#endif
 
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
         auto parentNode = *parent;
+
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.empty()) {
+            parent++;
+            continue;
+        }
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+
+#if defined(OPENVINO_ARCH_ARM64)
+        if ((parentNode->getType() != Type::Convert) ||
+            (childNode->getType() != Type::Eltwise) ||
+            (!childNode->canFuse(parentNode))) {
+            parent++;
+            continue;
+        }
+#else
         if (!isSuitableParentNode(parentNode)) {
             parent++;
             continue;
@@ -862,12 +881,12 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ParentNode);
 
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+
         if (!isSuitableChildNode(childNode)) {
             parent++;
             continue;
         }
-
+#endif
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
 
         auto parents = parentNode->parentEdges;

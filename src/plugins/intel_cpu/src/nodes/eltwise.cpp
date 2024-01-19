@@ -38,7 +38,6 @@
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <openvino/op/bitwise_and.hpp>
 #include <openvino/op/bitwise_not.hpp>
 #include <openvino/op/bitwise_or.hpp>
@@ -82,6 +81,68 @@ using namespace dnnl::impl::cpu::aarch64;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+#if defined(OPENVINO_ARCH_ARM64)
+namespace {
+bool jitIsSupported(
+    const Node* node,
+    const float alpha,
+    const float beta,
+    const float gamma,
+    const std::vector<ov::element::Type>& input_precisions = {}) {
+    const Algorithm& algorithm = node->getAlgorithm();
+    const auto is_supported = one_of(algorithm,
+                                    Algorithm::EltwiseAdd,
+                                    Algorithm::EltwiseMultiply,
+                                    Algorithm::EltwiseMulAdd,
+                                    Algorithm::EltwisePowerStatic,
+                                    Algorithm::EltwiseRelu);
+    if (!is_supported) {
+        return false;
+    }
+
+    const auto check_precisions = [&node](const std::vector<ov::element::Type>& precisions,
+                                          const std::set<ov::element::Type>& supported_precisions) {
+        const auto& input_precisions = precisions.size() == 0 ? node->getOriginalInputPrecisions() : precisions;
+        if (std::any_of(input_precisions.begin(),
+                        input_precisions.end(),
+                        [&supported_precisions](const ov::element::Type& precision) {
+                            return supported_precisions.find(precision) == supported_precisions.end();
+                        })) {
+            return false;
+        }
+
+        const auto& output_precisions = node->getOriginalOutputPrecisions();
+        if (std::any_of(output_precisions.begin(),
+                        output_precisions.end(),
+                        [&supported_precisions](const ov::element::Type& precision) {
+                            return supported_precisions.find(precision) == supported_precisions.end();
+                        })) {
+            return false;
+        }
+
+        return true;
+    };
+
+    const std::set<ov::element::Type> supported_precisions = {
+        ov::element::f16,
+        ov::element::f32,
+        ov::element::i32,
+        ov::element::u32
+    };
+
+    if (!check_precisions(input_precisions, supported_precisions)) {
+        return false;
+    }
+
+    if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
+        return false;
+    }
+
+    return true;
+}
+} // namespace
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -2253,7 +2314,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 #elif defined(OPENVINO_ARCH_ARM64)
     const bool useJit = canUseOptimizedImpl &&
-                        executors::aarch64::JitEltwiseExecutor::isSupported(this, getAlpha(), getBeta(), getGamma());
+                        executors::aarch64::JitEltwiseExecutor::isSupported(getAlgorithm(), getAlpha(), getBeta(), getGamma());
     if (!useJit) {
         canUseOptimizedImpl = false;
     }
@@ -2981,6 +3042,41 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
+    // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum possible
+    if ((node->getType() == Type::Eltwise) && (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)) {
+        return false;
+    }
+
+#if defined (OPENVINO_ARCH_ARM64)
+    if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
+        return false;
+
+    if (node->getType() == ov::intel_cpu::Type::Convert) {
+        // Convert => Eltwise
+        const auto eltwise = dynamic_cast<const Eltwise*>(this);
+        const auto& input_precisions = node->getOriginalInputPrecisions();
+        if (!jitIsSupported(this,
+                            eltwise->getAlpha(),
+                            eltwise->getBeta(),
+                            eltwise->getGamma(),
+                            input_precisions)) {
+            return false;
+        }
+    } else {
+        const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
+        if (!jitIsSupported(this, getAlpha(), getBeta(), getGamma())) {
+            return false;
+        }
+        if ((eltwise == nullptr) || (!jitIsSupported(eltwise,
+                                                     eltwise->getAlpha(),
+                                                     eltwise->getBeta(),
+                                                     eltwise->getGamma()))) {
+            return false;
+        }
+    }
+
+    return true;
+#else
     auto isIntegerComputeSupported = [](const Node* node) {
         if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
                                           Algorithm::EltwiseMultiply,
@@ -3000,24 +3096,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return true;
     };
 
-#if defined (OPENVINO_ARCH_ARM64)
-    if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
-        return false;
-
-    if (!executors::aarch64::JitEltwiseExecutor::isSupported(this, getAlpha(), getBeta(), getGamma())) {
-        return false;
-    }
-    const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
-    if ((eltwise == nullptr) || (!executors::aarch64::JitEltwiseExecutor::isSupported(eltwise,
-                                                                                      eltwise->getAlpha(),
-                                                                                      eltwise->getBeta(),
-                                                                                      eltwise->getGamma()))) {
-        return false;
-    }
-#else
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
-#endif
 
     // TODO: EltwiseLog is supported only via reference executor
     if (one_of(getAlgorithm(),
@@ -3080,17 +3160,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             }
         }
 
-        // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum possible
-        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
-            return false;
-
         return true;
     }
 
     if (node->getType() == Type::FakeQuantize) {
         return node->getAlgorithm() != Algorithm::FQBinarization;
     }
-
+#endif
     return false;
 }
 
