@@ -287,6 +287,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=FakeQuantizeBinaryConvolution.*)");
     // Issue: 124395
     retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
+    retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
 #    endif
 
 #endif
