@@ -584,12 +584,16 @@ TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
 TEST_F(OVTensorTest, setMaxSizeShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
-    const ov::Shape newShape({1, 3, 5, 3});
+    const ov::Shape new_shape({1, 2, 4, 3});
+    const ov::Shape roi_capacity({1, 2, 4, 3});
 
-    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 3}));
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
 
-    roi_tensor.set_shape(newShape);
-    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+    roi_tensor.set_shape(new_shape);
+    ASSERT_EQ(roi_tensor.get_shape(), new_shape);
+
+    roi_tensor.set_shape(roi_capacity);
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
 }
 
 TEST_F(OVTensorTest, setShapeGtMaxOnRoiTensor) {

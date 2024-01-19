@@ -17,6 +17,29 @@
 
 namespace ov {
 
+namespace {
+Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const Coordinate& end) {
+    OPENVINO_ASSERT(tensor_shape.size() == begin.size());
+    OPENVINO_ASSERT(begin.size() == end.size());
+
+    auto roi_shape = Shape(begin.size());
+
+    auto roi_begin = begin.begin();
+    auto roi_end = end.begin();
+    auto roi_dim = roi_shape.begin();
+    auto max_dim = tensor_shape.begin();
+
+    for (; max_dim != tensor_shape.end(); ++max_dim, ++roi_begin, ++roi_end, ++roi_dim) {
+        OPENVINO_ASSERT(*roi_begin <= *max_dim);
+        OPENVINO_ASSERT(*roi_end <= *max_dim);
+        *roi_dim = *roi_end - *roi_begin;
+        OPENVINO_ASSERT(*roi_dim <= *max_dim);
+    }
+
+    return roi_shape;
+}
+}  // namespace
+
 /**
  * @brief View tensor to external memory
  * The tensor doesn't own the external memory
@@ -266,22 +289,15 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type, const Sha
  */
 class RoiTensor : public ITensor {
 public:
-    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) : m_owner{owner} {
+    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+        : m_owner{owner},
+          m_shape{make_roi_shape(owner->get_shape(), begin, end)},
+          m_capacity{m_shape},
+          m_offset{
+              std::inner_product(begin.begin(), begin.end(), owner->get_strides().begin(), static_cast<size_t>(0))} {
         OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
                         owner->get_element_type());
-        auto owner_shape = owner->get_shape();
-        OPENVINO_ASSERT(owner_shape.size() == begin.size());
-        OPENVINO_ASSERT(begin.size() == end.size());
-        m_shape.resize(begin.size());
-        for (size_t i = 0; i < begin.size(); ++i) {
-            OPENVINO_ASSERT(begin[i] <= owner_shape[i]);
-            OPENVINO_ASSERT(end[i] <= owner_shape[i]);
-            m_shape[i] = end[i] - begin[i];
-            OPENVINO_ASSERT(m_shape[i] <= owner_shape[i]);
-        }
-        auto& strides = get_strides();
-        m_offset = std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
     }
 
     const element::Type& get_element_type() const override {
@@ -297,24 +313,16 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        const auto tensor_rank = m_shape.size();
-        OPENVINO_ASSERT(new_shape.size() == tensor_rank);
+        OPENVINO_ASSERT(new_shape.size() == m_shape.size());
 
-        auto owner_dim = m_owner->get_shape().cbegin();
-        auto stride = get_strides().cbegin();
-        auto new_dim = new_shape.cbegin();
-        auto dim = m_shape.cbegin();
-
-        for (size_t current_offset = m_offset; new_dim != new_shape.cend(); ++dim, ++new_dim, ++owner_dim, ++stride) {
-            const auto roi_coord = (current_offset / *stride);
-            const auto is_dim_compatible = roi_coord + *new_dim <= *owner_dim;
-            OPENVINO_ASSERT(is_dim_compatible,
+        for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
+             ++max_dim, ++new_dim) {
+            OPENVINO_ASSERT(*new_dim <= *max_dim,
                             "Cannot set new shape: ",
                             new_shape,
                             " for ROI tensor! Dimension: ",
                             std::distance(new_shape.cbegin(), new_dim),
                             " is not compatible.");
-            current_offset -= *stride * roi_coord;
         }
 
         m_shape = std::move(new_shape);
@@ -327,8 +335,9 @@ public:
 
 private:
     std::shared_ptr<ITensor> m_owner;
-    size_t m_offset;
     Shape m_shape;
+    const Shape m_capacity;
+    const size_t m_offset;
 };
 
 /**
