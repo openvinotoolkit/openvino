@@ -2,14 +2,14 @@
 
 This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_query_api.html).
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_sample_hello_query_device.html)
 
 ## Requirements
 
 | Options                     | Values                                                                                                  |
 | ----------------------------| --------------------------------------------------------------------------------------------------------|
 | Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)     |
-| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_hello_query_device_README.html) |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_sample_hello_query_device.html)                          |
 
 The following Python API is used in the application:
 

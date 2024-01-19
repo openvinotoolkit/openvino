@@ -20,5 +20,7 @@ public:
     explicit ocl_error(cl::Error const& err);
 };
 
+#define OCL_ERR_MSG_FMT(err) ("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err()))
+
 }  // namespace ocl
 }  // namespace cldnn

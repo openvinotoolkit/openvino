@@ -48,7 +48,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
         for (const auto& entry_point : loop->get_entry_points()) {
             const auto& parent_port = entry_point.expr_port->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
-            const auto parent_loop_ids = parent_expr->get_loop_ids();
+            const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())
                 continue;
 

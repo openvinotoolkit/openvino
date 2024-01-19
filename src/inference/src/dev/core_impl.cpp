@@ -11,6 +11,7 @@
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
 #include "dev/iplugin_wrapper.hpp"
+#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -703,9 +704,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                InferenceEngine::IExtensionPtr ext;
+                std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                AddExtensionUnsafe(ext);
+                add_extensions_unsafe(ext);
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
@@ -1498,8 +1499,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context ? plugin.import_model(networkStream, context, config)
-                                     : plugin.import_model(networkStream, config);
+            ov::AnyMap update_config = config;
+            update_config[ov::loaded_from_cache.name()] = true;
+            compiled_model = context ? plugin.import_model(networkStream, context, update_config)
+                                     : plugin.import_model(networkStream, update_config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }
@@ -1523,11 +1526,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
 
-    // 0. Move ov::device::priorities / TARGET_FALLBACK key to property_config
-    auto device_priorities_it = user_config.find("TARGET_FALLBACK");
-    if (device_priorities_it == user_config.end()) {
-        device_priorities_it = user_config.find(ov::device::priorities.name());
-    }
+    // 0. Move ov::device::priorities key to property_config
+    auto device_priorities_it = user_config.find(ov::device::priorities.name());
     if (device_priorities_it != user_config.end()) {
         property_config[device_priorities_it->first] = device_priorities_it->second.as<std::string>();
     }

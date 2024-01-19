@@ -22,7 +22,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ov::frontend::onnx::common;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace {
 using namespace ONNX_NAMESPACE;
@@ -97,7 +97,7 @@ void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProt
     if (dim.is_static()) {
         new_dim->set_dim_value(dim.get_length());
     } else {
-        // nGraph Dimension is also considered dynamic if it represents a constrained range
+        // Dimension is also considered dynamic if it represents a constrained range
         // of allowed values as well as if it's unconstrained at all. ONNX cannot represent
         // ranged dimensions so this might not be 100% accurate. The modified ONNX model will
         // always have a fully dynamic dimension in this case.
@@ -140,7 +140,7 @@ std::string extract_name(const T& input_or_initializer) {
 
 void modify_initializer(TensorProto& initializer,
                         const std::string& name,
-                        const std::shared_ptr<ngraph::op::Constant> values,
+                        const std::shared_ptr<ov::op::v0::Constant> values,
                         ValueInfoProto* input) {
     const auto elem_type = values->get_element_type();
     OPENVINO_ASSERT(is_supported_ov_type(elem_type),
@@ -392,7 +392,7 @@ element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& 
     return ngraph::onnx_import::common::get_ov_element_type(type);
 }
 
-void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {
+void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ov::PartialShape>& input_shapes) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_shapes) {
@@ -540,7 +540,7 @@ std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
-    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values) {
+    const std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>& input_values) {
     auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input : input_values) {

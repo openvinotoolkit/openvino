@@ -137,9 +137,6 @@ void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threadi
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
-    if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
-        return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
-    }
     if (m_context)
         return m_context;
     return m_plugin->get_default_context({});

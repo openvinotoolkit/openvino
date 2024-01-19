@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <debug.h>
-
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>

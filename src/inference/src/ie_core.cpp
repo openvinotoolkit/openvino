@@ -28,7 +28,6 @@
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_remote_context.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -150,22 +149,6 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
     }
 }
 
-ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
-                                    RemoteContext::Ptr context,
-                                    const std::map<std::string, std::string>& config) {
-    auto valid = ::CheckStatic(network);
-    try {
-        OPENVINO_ASSERT(std::get<0>(valid),
-                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
-                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                        std::get<1>(valid));
-        auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
-        return {exec._ptr, exec._so};
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
@@ -186,31 +169,6 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
     try {
         return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
-RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
-    try {
-        return _impl->CreateContext(deviceName, params);
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
-RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
-    if (deviceName.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support remote context";
-    }
-    if (deviceName.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support remote context";
-    }
-    if (deviceName.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support remote context";
-    }
-    try {
-        return _impl->GetDefaultContext(deviceName);
     } catch (const ov::Exception& ex) {
         IE_THROW() << ex.what();
     }
@@ -290,30 +248,6 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
 
     try {
         auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
-        return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
-ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
-                                      const RemoteContext::Ptr& context,
-                                      const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
-
-    if (context == nullptr) {
-        IE_THROW() << "Remote context is null";
-    }
-
-    std::string deviceName_ = context->getDeviceName();
-    ov::DeviceIDParser device(deviceName_);
-    std::string deviceName = device.get_device_name();
-
-    try {
-        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
-        auto exec =
-            _impl->get_plugin(deviceName)
-                .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
         return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
     } catch (const ov::Exception& ex) {
         IE_THROW() << ex.what();
