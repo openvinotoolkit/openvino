@@ -31,7 +31,6 @@ if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_definitions(HAVE_AVX2=1)
 endif()
 
-
 find_package(libGNA REQUIRED
              CONFIG
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
@@ -51,14 +50,14 @@ ov_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ov_mark_target_as_cc(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
-        Threads::Threads libGNA)
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy Threads::Threads libGNA)
 
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-        _NO_MKL_
-    )
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:libGNA,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_compile_definitions(${TARGET_NAME} PRIVATE _NO_MKL_)
+
+ov_set_threading_interface_for(${TARGET_NAME})
 
 # must be called after all target_link_libraries
 ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
@@ -80,12 +79,19 @@ target_compile_definitions(${TARGET_NAME}_test_static
             USE_STATIC_IE)
 
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_transformations libGNA::API)
+
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_include_directories(${TARGET_NAME}_test_static SYSTEM
+    PUBLIC
+        $<TARGET_PROPERTY:libGNA::API,INTERFACE_INCLUDE_DIRECTORIES>)
+
+ov_set_threading_interface_for(${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
