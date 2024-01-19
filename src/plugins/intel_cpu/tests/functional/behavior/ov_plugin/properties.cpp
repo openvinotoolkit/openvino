@@ -318,4 +318,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
             testing::HasSubstr(expect_message));
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
+    ASSERT_EQ(value.as<std::string>(), "CPU");
+}
+
 } // namespace
