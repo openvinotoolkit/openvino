@@ -1584,7 +1584,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 
 // Apply inference precision configuration
 void Graph::EnforceInferencePrecision() {
-    CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
+    CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
 
@@ -1652,10 +1652,9 @@ void Graph::EnforceInferencePrecision() {
             continue;
 
 #ifdef CPU_DEBUG_CAPS
-        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers()))
             continue;
 #endif
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), " is enforced to use", inferPrec);
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
@@ -1675,12 +1674,32 @@ void Graph::EnforceInferencePrecision() {
                 if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
                     return true;
 
+                if (node->getType() == Type::Convert) {
+                    auto dstPrecision = node->getOriginalOutputPrecisionAtPort(0);
+                    if (dstPrecision.is_integral_number() && dstPrecision.bitwidth() > 8) {
+                        // BF16 only has 8bit precision & FP16 has 10bit precision
+                        // they cannot reserve the interger-level precision for number with abs value >255 or >1024
+                        // so we keep input as f32
+                        return true;
+                    }
+                }
+
                 return false;
             };
 
             if (keepOriginalInputPrecisionAtPort(node, i))
                 continue;
 
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getTypeStr(),
+                      " : ",
+                      node->getName(),
+                      " input[",
+                      i,
+                      "] is enforced to use",
+                      inferPrec);
             node->setOriginalInputPrecisionAtPort(i, inferPrec);
         }
 
@@ -1695,6 +1714,16 @@ void Graph::EnforceInferencePrecision() {
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
                 continue;
 
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getTypeStr(),
+                      " : ",
+                      node->getName(),
+                      " output[",
+                      i,
+                      "] is enforced to use",
+                      inferPrec);
             node->setOriginalOutputPrecisionAtPort(i, inferPrec);
         }
     }
