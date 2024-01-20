@@ -11,7 +11,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
