@@ -26,11 +26,35 @@ void regclass_graph_Shape(py::module m) {
     shape.def(py::init<const ov::Shape&>(), py::arg("axis_lengths"));
     shape.def(py::init<const std::string&>(), py::arg("shape"));
     shape.def(
-        "__eq__",
-        [](const ov::Shape& a, const ov::Shape& b) {
-            return a == b;
-        },
-        py::is_operator());
+    "__eq__",
+     {
+        if (a.size() != py::len(b)) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (a[i] != b[i].cast<size_t>()) {
+                return false;
+            }
+        }
+        return true;
+    },
+    py::is_operator());
+
+shape.def(
+    "__eq__",
+     {
+        if (a.size() != py::len(b)) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (a[i] != b[i].cast<size_t>()) {
+                return false;
+            }
+        }
+        return true;
+    },
+    py::is_operator());
+
     shape.def("__len__", [](const ov::Shape& v) {
         return v.size();
     });

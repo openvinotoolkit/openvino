@@ -145,17 +145,34 @@ void regclass_graph_PartialShape(py::module m) {
         )");
 
     shape.def(
-        "__eq__",
-        [](const ov::PartialShape& a, const ov::PartialShape& b) {
-            return a == b;
-        },
-        py::is_operator());
-    shape.def(
-        "__eq__",
-        [](const ov::PartialShape& a, const ov::Shape& b) {
-            return a == b;
-        },
-        py::is_operator());
+    "__eq__",
+    [](const ov::PartialShape& a, const py::tuple& b) {
+        if (a.size() != py::len(b)) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (a[i] != b[i].cast<size_t>()) {
+                return false;
+            }
+        }
+        return true;
+    },
+    py::is_operator());
+
+shape.def(
+    "__eq__",
+    [](const ov::PartialShape& a, const py::list& b) {
+        if (a.size() != py::len(b)) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (a[i] != b[i].cast<size_t>()) {
+                return false;
+            }
+        }
+        return true;
+    },
+    py::is_operator());
 
     shape.def("__len__", [](const ov::PartialShape& self) {
         return self.size();
