@@ -7,11 +7,8 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "ngraph/node.hpp"
-#include "ngraph/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 
 namespace ngraph {
@@ -26,7 +23,7 @@ inline OutputVector gather(const Node& node) {
 
     return {std::make_shared<ov::op::v8::Gather>(data,
                                                  indices,
-                                                 default_opset::Constant::create(element::i64, Shape{}, {axis}))};
+                                                 ov::op::v0::Constant::create(element::i64, Shape{}, {axis}))};
 }
 
 }  // namespace set_1
