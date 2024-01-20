@@ -13,31 +13,34 @@ std::unordered_set<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_op
 bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
- 
-    auto in_value = input_value(0);
+    const auto p_value = input_value(0);
+    auto g_value = graph_value;
+    auto saved = matcher->start_match();
+    auto& pattern_map = matcher->get_pattern_value_map();
 
-    std::list<Output<Node>> pattern_queue{in_value};
-    while (!pattern_queue.empty()) {
-        auto p_value = pattern_queue.front();
-        pattern_queue.pop_front();
-        auto saved = matcher->start_match();
-        if (matcher->match_value(p_value, graph_value)) {
-            auto& pattern_map = matcher->get_pattern_value_map();
-            if (!pattern_map.count(in_value.get_node_shared_ptr()))
-                pattern_map[in_value.get_node_shared_ptr()] = graph_value;
-            return saved.finish(true);
-        }
-        
-        const auto p_node = p_value.get_node_shared_ptr();
-        const auto p_type_info = p_node->get_type_info(); 
-        if (!optional_types.count(p_type_info) ||
-            p_node->get_input_size() != 1) {
-            return false;
-        }
-        
-        for (size_t in_idx = 0; in_idx < p_node->get_input_size(); ++in_idx) {
-            pattern_queue.push_back(p_node->input_value(in_idx));
-        }
+    auto p_node = p_value.get_node_shared_ptr();
+    if (matcher->match_value(p_value, g_value)) {
+        pattern_map[p_node] = g_value;
+        return saved.finish(true);
+    }
+    auto g_node = g_value.get_node_shared_ptr();
+    if (g_node->get_input_size() != 1) {
+        return false;
+    }
+
+    auto g_type_info = g_node->get_type_info();
+
+    if (!std::any_of(optional_types.begin(), optional_types.end(), [&](const NodeTypeInfo& type_info) {
+            return g_type_info.is_castable(type_info);
+        })) {
+        return false;
+    }
+
+    pattern_map[g_node] = g_value;
+    g_value = g_node->input_value(0);
+    if (matcher->match_value(p_value, g_value)) {
+        pattern_map[p_node] = g_value;
+        return saved.finish(true);
     }
     return false;
 }

@@ -453,16 +453,14 @@ TEST(pattern, matcher) {
 
     // Optional
     {
-        const auto add = std::make_shared<op::v1::Add>(a, b);
-        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs>(add),
-                            std::make_shared<op::v1::Add>(a, b)));
-        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs>(std::make_shared<ov::op::v0::Abs>(add)),
-                            std::make_shared<op::v1::Add>(a, b)));
-        const auto abs = std::make_shared<ov::op::v0::Abs>(std::make_shared<ov::op::v0::Abs>(add));
-        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs>(abs),
-                            std::make_shared<op::v1::Add>(a, b)));
-        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(std::make_shared<op::v0::Relu>(abs)),
-                            std::make_shared<op::v1::Add>(a, b)));
+        auto c = std::make_shared<op::v1::Add>(a, b);
+        auto d = std::make_shared<op::v1::Add>(a, b);
+        auto e = ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(c);
+
+        ASSERT_TRUE(n.match(e, d));
+        ASSERT_TRUE(n.match(e, std::make_shared<op::v0::Abs>(d)));
+        ASSERT_TRUE(n.match(e, std::make_shared<op::v0::Relu>(d)));
+        ASSERT_FALSE(n.match(e, std::make_shared<op::v0::Abs>(std::make_shared<op::v0::Relu>(d))));
     }
 
     // Branch

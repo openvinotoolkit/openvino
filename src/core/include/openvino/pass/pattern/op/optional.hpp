@@ -12,17 +12,25 @@ namespace pass {
 namespace pattern {
 namespace op {
 /// A submatch on the graph value which contains optional op types defined in constructor.
-/// The match is succeed in case of full graphs matching or partually graph matching without
-/// excepted optional op types. Otherside fails.
+/// The match is succeed in case of full graphs matching or extended by one of optional type graph or pattern.
+/// Otherwise fails.
+/// Important note: graph can include only one optional op in the end of graph vs pattern.
+/// Optional op can contain only 1 in and 1 out
 class OPENVINO_API Optional : public Pattern {
 public:
     OPENVINO_RTTI("patternOptional");
     /// \brief creates an optional node matching one pattern. Add nodes to match list.
     /// \param type_infos Optional operation types to exclude them from the matching
-    /// in case the following op types do not exist in a graph to match
-    /// \param patterns The pattern to match a graph. Should contains optional op types
-    Optional(const std::unordered_set<DiscreteTypeInfo>& type_infos, const Output<Node>& pattern)
-        : Pattern({pattern}),
+    /// in case the following op types do not exist in a pattern to match.
+    /// \param patterns The pattern to match a graph.
+    Optional(
+        const std::unordered_set<DiscreteTypeInfo>& type_infos,
+        const Output<Node>& pattern,
+        const pattern::op::ValuePredicate& pred =
+            [](const Output<Node>& output) {
+                return true;
+            })
+        : Pattern({pattern}, pred),
           optional_types(type_infos){};
 
     bool match_value(pattern::Matcher* matcher,
@@ -50,10 +58,14 @@ void collect_type_info(std::unordered_set<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input) {
+std::shared_ptr<Node> optional(
+    const Output<Node>& input,
+    const pattern::op::ValuePredicate& pred = [](const Output<Node>& output) {
+        return true;
+    }) {
     std::unordered_set<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, input);
+    return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
 }
 
 }  // namespace pattern

@@ -27,6 +27,9 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         pattern::consumers_count(1));
     const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
+    // TODO: replace by `pattern::optional<ov::op::v0::Convert>` in the future.
+    // Impossible now because we try to find `convert` node in `pattern_value_map`
+    // `optional op` is not added to `pattern_value_map`
     const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
     const auto random_uniform_or_convert_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});

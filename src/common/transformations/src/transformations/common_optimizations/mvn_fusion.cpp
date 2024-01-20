@@ -20,6 +20,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -60,9 +61,8 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
-
     auto cast = pattern::wrap_type<ov::op::v0::Convert>({reuseSub1OrNot});
-    const auto hasConvertOrNot = std::make_shared<pattern::op::Or>(OutputVector{cast, reuseSub1OrNot});
+    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
