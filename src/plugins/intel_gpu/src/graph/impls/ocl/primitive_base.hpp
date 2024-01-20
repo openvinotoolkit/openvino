@@ -259,8 +259,6 @@ protected:
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
-            std::vector<event::ptr> new_events;
-
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
@@ -280,10 +278,10 @@ protected:
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            if (_kernel_data.needs_sub_kernels_sync)
-                new_events.push_back(ev);
+            if (_kernel_data.needs_sub_kernels_sync) {
+                tmp_events = {ev};
+            }
             all_events.push_back(ev);
-            tmp_events = new_events;
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))

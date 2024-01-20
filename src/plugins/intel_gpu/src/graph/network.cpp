@@ -1034,12 +1034,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
-        if (!inst->get_node().get_selected_impl()->is_cpu())
-            executed_prims++;
-
-        if (needs_flushing && executed_prims % flush_frequency == 0) {
+        executed_prims++;
+        if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
-        }
 
         // Dump output buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
