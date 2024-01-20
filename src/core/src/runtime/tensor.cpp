@@ -17,7 +17,7 @@ const PartialShape& runtime::Tensor::get_partial_shape() const {
     return m_descriptor->get_partial_shape();
 }
 
-const element::Type& runtime::Tensor::get_element_type() const {
+const ov::element::Type& runtime::Tensor::get_element_type() const {
     return m_descriptor->get_element_type();
 }
 

@@ -34,8 +34,10 @@ void RollLayerTest::SetUp() {
     auto paramData = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto shiftNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
-    auto axesNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
+    auto shiftNode =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
+    auto axesNode =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
     auto roll = std::make_shared<ov::op::v7::Roll>(paramVector[0], shiftNode, axesNode);
 

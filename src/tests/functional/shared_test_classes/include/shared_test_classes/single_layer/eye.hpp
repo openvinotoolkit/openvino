@@ -9,7 +9,7 @@ namespace LayerTestsDefinitions {
 
 using ElementType = ov::element::Type_t;
 using TargetDevice = std::string;
-using LocalElementType = ov::element_type_traits<ngraph::element::i32>::value_type;
+using LocalElementType = ov::element_type_traits<ov::element::i32>::value_type;
 
 using EyeLayerTestParams = std::tuple<std::vector<ov::Shape>,  // eye shape
                                       std::vector<int>,        // output batch shape

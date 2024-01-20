@@ -69,7 +69,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
 
     //Reshape_1 [1,thirdDimOut*num_cells] -> [1, num_cells, thirdDimOut]
     std::vector<uint64_t> outFormShapes1 = { batch_size, num_cells, thirdDimOut };
-    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
+    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
     auto reshape1 = std::make_shared<ov::op::v1::Reshape>(params[0], pattern1, false);
 
     auto reshape1_shape = reshape1->output(0).get_shape();
@@ -94,7 +94,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
 
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
     outFormShapes1 = { batch_size, reshape1_shape[2] };
-    auto constantX = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);
+    auto constantX = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ngraph::Shape{2}, outFormShapes1);
     auto lstm1 = std::make_shared<ov::op::v4::LSTMCell>(std::make_shared<ov::op::v1::Reshape>(X, constantX, false),
         H_t, C_t,
         weightsNode, reccurrenceWeightsNode, hiddenSize);

@@ -34,9 +34,7 @@ void TransposeLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
-    const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
-                                                                         inOrderShape,
-                                                                         inputOrder);
+    const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64, inOrderShape, inputOrder);
     const auto transpose = std::make_shared<ov::op::v1::Transpose>(params.at(0), inputOrderOp);
     const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose");

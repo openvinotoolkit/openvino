@@ -64,8 +64,8 @@ std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<prop
 }
 
 void ProposalLayerTest::Compare(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-    const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     num_selected_boxes = 0;
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
         const auto &expected = expectedOutputs[outputIndex].second;
@@ -91,14 +91,18 @@ void ProposalLayerTest::Compare(
 
         switch (precision) {
         case InferenceEngine::Precision::BF16:
-            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size,
-                    ngraph::bfloat16(threshold), outputIndex);
+            Compare(reinterpret_cast<const ov::bfloat16*>(expectedBuffer),
+                    reinterpret_cast<const ov::bfloat16*>(actualBuffer),
+                    size,
+                    ov::bfloat16(threshold),
+                    outputIndex);
             break;
         case InferenceEngine::Precision::FP16:
-            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
-                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size,
-                    ngraph::float16(threshold), outputIndex);
+            Compare(reinterpret_cast<const ov::float16*>(expectedBuffer),
+                    reinterpret_cast<const ov::float16*>(actualBuffer),
+                    size,
+                    ov::float16(threshold),
+                    outputIndex);
             break;
         case InferenceEngine::Precision::FP32:
             Compare<float>(reinterpret_cast<const float *>(expectedBuffer),

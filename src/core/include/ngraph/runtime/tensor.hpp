@@ -20,7 +20,7 @@
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -42,8 +42,8 @@ public:
     const ngraph::PartialShape& get_partial_shape() const;
 
     /// \brief Get tensor element type
-    /// \return element::Type
-    virtual const element::Type& get_element_type() const;
+    /// \return ov::element::Type
+    virtual const ov::element::Type& get_element_type() const;
 
     /// \brief Get number of elements in the tensor
     /// \return number of elements in the tensor

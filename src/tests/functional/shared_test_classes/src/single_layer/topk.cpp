@@ -40,7 +40,7 @@ void TopKLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+    auto k = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(
             std::make_shared<ov::op::v3::TopK>(params[0], k, axis, mode, sort));
 
@@ -73,14 +73,14 @@ InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::I
             rawBlobDataPtr[i] = static_cast<float>(data[i] / divisor);
         }
     } else if (InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision()) {
-        auto *rawBlobDataPtr = blob->buffer().as<ngraph::bfloat16 *>();
+        auto* rawBlobDataPtr = blob->buffer().as<ov::bfloat16*>();
         for (size_t i = 0; i < size; i++) {
-            rawBlobDataPtr[i] = static_cast<ngraph::bfloat16>(data[i] / divisor);
+            rawBlobDataPtr[i] = static_cast<ov::bfloat16>(data[i] / divisor);
         }
     } else if (InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision()) {
-        auto *rawBlobDataPtr = blob->buffer().as<ngraph::float16 *>();
+        auto* rawBlobDataPtr = blob->buffer().as<ov::float16*>();
         for (size_t i = 0; i < size; i++) {
-            rawBlobDataPtr[i] = static_cast<ngraph::float16>(data[i] / divisor);
+            rawBlobDataPtr[i] = static_cast<ov::float16>(data[i] / divisor);
         }
     }
 

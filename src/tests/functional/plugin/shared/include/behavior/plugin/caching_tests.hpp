@@ -19,17 +19,16 @@
 #include <ie_core.hpp>
 #include <ie_common.h>
 
-using ngraphFunctionGenerator = std::function<std::shared_ptr<ngraph::Function>(ngraph::element::Type, std::size_t)>;
+using ngraphFunctionGenerator = std::function<std::shared_ptr<ngraph::Function>(ov::element::Type, std::size_t)>;
 using nGraphFunctionWithName = std::tuple<ngraphFunctionGenerator, std::string>;
-using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
-                                                                         ngraph::element::Type_t type)>;
+using ngraphFunctionIS =
+    std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape, ov::element::Type_t type)>;
 
-using loadNetworkCacheParams = std::tuple<
-        nGraphFunctionWithName, // ngraph function with friendly name
-        ngraph::element::Type,  // precision
-        std::size_t,            // batch size
-        std::string            // device name
-        >;
+using loadNetworkCacheParams = std::tuple<nGraphFunctionWithName,  // ngraph function with friendly name
+                                          ov::element::Type,       // precision
+                                          std::size_t,             // batch size
+                                          std::string              // device name
+                                          >;
 
 namespace LayerTestsDefinitions {
 
@@ -38,7 +37,7 @@ class LoadNetworkCacheTestBase : public testing::WithParamInterface<loadNetworkC
                                  virtual public LayerTestsUtils::LayerTestsCommon {
     std::string           m_cacheFolderName;
     std::string           m_functionName;
-    ngraph::element::Type m_precision;
+    ov::element::Type m_precision;
     size_t                m_batchSize;
 public:
     static std::string getTestCaseName(testing::TestParamInfo<loadNetworkCacheParams> obj);

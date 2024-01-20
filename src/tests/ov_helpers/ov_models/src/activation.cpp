@@ -51,7 +51,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
                                          std::vector<size_t> inShape,
                                          std::vector<float> constantsValue) {
@@ -154,7 +154,7 @@ std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
 }
 
 std::shared_ptr<ov::Node> makeActivation(const ov::ParameterVector& parameters,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType) {
     switch (activationType) {
     case ov::test::utils::ActivationTypes::LeakyRelu:

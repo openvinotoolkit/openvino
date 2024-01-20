@@ -38,8 +38,8 @@ void TransposeAdd::SetUp() {
     ngraph::Shape permute_order(input_shape.size());
     std::iota(std::begin(permute_order), std::end(permute_order), 0);
     std::iter_swap(std::end(permute_order) - 2, std::end(permute_order) - 1);
-    auto transpose_in_params = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
-        ngraph::Shape{permute_order.size()}, permute_order);
+    auto transpose_in_params =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ngraph::Shape{permute_order.size()}, permute_order);
     auto transpose_in = std::make_shared<ov::op::v1::Transpose>(params[0], transpose_in_params);
 
     auto add_const = ov::test::utils::deprecated::make_constant<float>(ngPrc, transpose_in->get_output_shape(0), {}, true);

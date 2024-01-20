@@ -26,7 +26,7 @@ using namespace std::placeholders;
 
 namespace LayerTestsDefinitions {
 
-static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::element::Type type, size_t batchSize) {
+static std::shared_ptr<ngraph::Function> simple_function_multiply(ov::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
     auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
@@ -46,7 +46,7 @@ static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::elemen
     return func;
 }
 
-static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::Type type, size_t batchSize) {
+static std::shared_ptr<ngraph::Function> simple_function_relu(ov::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
     auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
@@ -65,7 +65,7 @@ static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::T
 }
 
 ngraphFunctionGenerator LoadNetworkCacheTestBase::inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape) {
-    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+    return [fun, inputShape](ov::element::Type type, std::size_t batchSize) {
         auto shape = inputShape;
         shape[0] = batchSize;
         return fun(shape, type);
@@ -120,9 +120,10 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunc
 
 std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
-    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
-    }, "TIwithLSTMcell1"});
+    res.push_back(nGraphFunctionWithName{[](ov::element::Type type, size_t batchSize) {
+                                             return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
+                                         },
+                                         "TIwithLSTMcell1"});
     return res;
 }
 
@@ -160,7 +161,8 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
-    return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
+    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" +
+           deviceName;
 }
 
 void LoadNetworkCacheTestBase::SetUp() {

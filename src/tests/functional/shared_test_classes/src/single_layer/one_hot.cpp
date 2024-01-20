@@ -8,7 +8,7 @@ namespace LayerTestsDefinitions {
 
 std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
     int64_t axis;
-    ngraph::element::Type depth_type, set_type;
+    ov::element::Type depth_type, set_type;
     int64_t depth_val;
     float on_val, off_val;
     InferenceEngine::Precision netPrecision;
@@ -34,7 +34,7 @@ std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHot
 void OneHotLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     int64_t axis;
-    ngraph::element::Type depth_type, set_type;
+    ov::element::Type depth_type, set_type;
     int64_t depth_val;
     float on_val, off_val;
     InferenceEngine::Precision netPrecision;

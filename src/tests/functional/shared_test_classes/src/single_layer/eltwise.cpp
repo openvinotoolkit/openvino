@@ -111,9 +111,10 @@ void EltwiseLayerTest::SetUp() {
             case ngraph::helpers::EltwiseTypes::DIVIDE:
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
-                std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
-                secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
-                break;
+            std::vector<float> data =
+                NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
+            secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+            break;
             }
             case ngraph::helpers::EltwiseTypes::POWER:
                 secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true, 3);

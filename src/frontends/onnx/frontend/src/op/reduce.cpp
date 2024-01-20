@@ -22,12 +22,12 @@ namespace {
 std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
-    const auto scalar = default_opset::Constant::create(element::i32, Shape{1}, {0});
+    const auto scalar = default_opset::Constant::create(ov::element::i32, Shape{1}, {0});
     const auto rank_of_input = std::make_shared<default_opset::ShapeOf>(shape_of_input);
     const auto rank_of_input_scalar = std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
-    const auto start = default_opset::Constant::create(element::i32, Shape{}, {0});
-    const auto step = default_opset::Constant::create(element::i32, Shape{}, {1});
-    return std::make_shared<default_opset::Range>(start, rank_of_input_scalar, step, element::i64);
+    const auto start = default_opset::Constant::create(ov::element::i32, Shape{}, {0});
+    const auto step = default_opset::Constant::create(ov::element::i32, Shape{}, {1});
+    return std::make_shared<default_opset::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
 std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node) {
@@ -75,7 +75,7 @@ std::shared_ptr<ngraph::Node> get_reduction_axes_from_attr(const Node& node) {
                          ")");
     }
 
-    return default_opset::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes);
+    return default_opset::Constant::create(ov::element::i64, Shape{reduction_axes.size()}, reduction_axes);
 }
 
 template <typename OpType>

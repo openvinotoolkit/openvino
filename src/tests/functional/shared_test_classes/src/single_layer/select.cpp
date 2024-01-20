@@ -29,7 +29,8 @@ namespace LayerTestsDefinitions {
         std::tie(inputShapes, inputPrecision, broadcast, targetDevice) = this->GetParam();
 
         ngraph::ParameterVector paramNodesVector;
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(inputShapes[CONDITION]));
+        auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean,
+                                                                 ngraph::Shape(inputShapes[CONDITION]));
         paramNodesVector.push_back(paramNode);
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         for (size_t i = 1; i < inputShapes.size(); i++) {

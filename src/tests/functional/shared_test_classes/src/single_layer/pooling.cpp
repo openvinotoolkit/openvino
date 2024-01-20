@@ -106,7 +106,7 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
-    ngraph::element::Type indexElementType;
+    ov::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
@@ -205,7 +205,7 @@ void MaxPoolingV8LayerTest::SetUp() {
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
-    ngraph::element::Type indexElementType;
+    ov::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 

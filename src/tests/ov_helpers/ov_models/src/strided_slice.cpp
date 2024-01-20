@@ -14,7 +14,7 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& end,
                                     const std::vector<int64_t>& stride,
                                     const std::vector<int64_t>& axes,
-                                    const element::Type& type) {
+                                    const ov::element::Type& type) {
     ov::Shape constShape = {begin.size()};
     auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, begin.data());
     auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, end.data());

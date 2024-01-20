@@ -53,7 +53,7 @@ public:
         return m_indices;
     }
 
-    const element::Type& get_ov_type() const {
+    const ov::element::Type& get_ov_type() const {
         return m_values.get_ov_type();
     }
 

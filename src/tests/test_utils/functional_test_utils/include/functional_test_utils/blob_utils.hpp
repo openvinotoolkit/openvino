@@ -360,7 +360,7 @@ template <>
 inline void convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32>(float* dst,
                                                                                                       const short* src,
                                                                                                       size_t nelem) {
-    auto srcBf16 = reinterpret_cast<const ngraph::bfloat16*>(src);
+    auto srcBf16 = reinterpret_cast<const ov::bfloat16*>(src);
     for (size_t i = 0; i < nelem; i++) {
         dst[i] = static_cast<float>(srcBf16[i]);
     }

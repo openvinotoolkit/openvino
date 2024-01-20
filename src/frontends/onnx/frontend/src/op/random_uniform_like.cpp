@@ -20,7 +20,7 @@ OutputVector random_uniform_like(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
     const auto input = inputs.at(0);
 
-    ngraph::element::Type target_type;
+    ov::element::Type target_type;
     if (node.has_attribute("dtype")) {
         const auto dtype = node.get_attribute_value<int64_t>("dtype");
         target_type = common::get_ov_element_type(dtype);

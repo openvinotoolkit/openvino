@@ -20,7 +20,7 @@ OutputVector tile(const Node& node) {
 
     // Workaround for backends which require repeats to be i64.
     // Remove the following line when no longer needed.
-    repeats = std::make_shared<default_opset::Convert>(repeats, element::i64);
+    repeats = std::make_shared<default_opset::Convert>(repeats, ov::element::i64);
 
     return {std::make_shared<default_opset::Tile>(input, repeats)};
 }

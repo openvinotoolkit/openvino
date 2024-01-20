@@ -4,33 +4,32 @@
 
 #pragma once
 
-#include <typeindex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <tuple>
 #include <gtest/gtest.h>
-#include <ngraph/node.hpp>
+
 #include <ie_core.hpp>
+#include <memory>
 #include <ngraph/function.hpp>
+#include <ngraph/node.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/type/bfloat16.hpp>
 #include <ngraph/pass/serialize.hpp>
+#include <string>
+#include <tuple>
+#include <typeindex>
+#include <vector>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-
-#include "functional_test_utils/crash_handler.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/crash_handler.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
-
-#include "ov_models/utils/ov_helpers.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsUtils {
 
@@ -58,20 +57,21 @@ public:
 
     virtual void QueryNetwork();
 
-    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+    static void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expected,
+                        const std::vector<InferenceEngine::Blob::Ptr>& actual,
                         float threshold,
                         float abs_threshold = -1.f);
 
-    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const InferenceEngine::Blob::Ptr &actual,
+    static void Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>>& expected,
+                        const InferenceEngine::Blob::Ptr& actual,
                         float threshold,
                         float abs_threshold = -1.f);
 
-    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                         const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
+    virtual void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+                         const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs);
 
-    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected, const InferenceEngine::Blob::Ptr &actual);
+    virtual void Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>>& expected,
+                         const InferenceEngine::Blob::Ptr& actual);
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
@@ -169,7 +169,7 @@ protected:
 
     virtual void Validate();
 
-    virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
+    virtual std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
 
     /// default method to convert parameters for reference operation. Used before reference implementation execution
     /// can be overridden by specific operation test

@@ -36,7 +36,7 @@ OutputVector mean_variance_normalization(const Node& node) {
     const std::vector<std::size_t> normalized_axes =
         ngraph::normalize_axes(node.get_description(), axes, data.get_partial_shape().rank());
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto const_axes = default_opset::Constant::create(element::i64, Shape{normalized_axes.size()}, normalized_axes);
+    auto const_axes = default_opset::Constant::create(ov::element::i64, Shape{normalized_axes.size()}, normalized_axes);
     return {std::make_shared<ov::op::v6::MVN>(data, const_axes, true, 1e-09f, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 

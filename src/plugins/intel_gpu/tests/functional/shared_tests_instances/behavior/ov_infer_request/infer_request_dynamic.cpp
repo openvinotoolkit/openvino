@@ -17,7 +17,7 @@ auto configs = []() {
 
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
-    const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
+    const ov::element::Type_t ngPrc = ov::element::Type_t::f32;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");

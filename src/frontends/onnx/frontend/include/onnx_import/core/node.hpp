@@ -29,6 +29,9 @@ class NodeProto;
 }  // namespace ONNX_NAMESPACE
 
 namespace ngraph {
+namespace element {
+using ov::element::Type;
+}
 namespace onnx_import {
 namespace error {
 namespace node {
@@ -96,7 +99,8 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name) const;
 
     template <typename T>
-    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, element::Type type) const;
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
+                                                                    ov::element::Type type) const;
 
     template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, T default_value) const;

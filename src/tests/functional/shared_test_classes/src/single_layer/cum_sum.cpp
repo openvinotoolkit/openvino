@@ -32,7 +32,9 @@ void CumSumLayerTest::SetUp() {
     std::tie(inputShapes, inputPrecision, axis, exclusive, reverse, targetDevice) = this->GetParam();
     const auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     const auto paramData = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes));
-    const auto axisNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
+    const auto axisNode =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{axis})
+            ->output(0);
     const auto cumSum = std::make_shared<ov::op::v0::CumSum>(paramData, axisNode, exclusive, reverse);
 
     ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(cumSum)};

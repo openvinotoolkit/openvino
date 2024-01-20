@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
@@ -23,8 +23,8 @@ OutputVector max_roi_pool(const Node& node) {
     const auto X = inputs.at(0);
     const auto rois = inputs.at(1);
 
-    OPENVINO_ASSERT(X.get_element_type() == element::f16 || X.get_element_type() == element::f32 ||
-                        X.get_element_type() == element::f64,
+    OPENVINO_ASSERT(X.get_element_type() == ov::element::f16 || X.get_element_type() == ov::element::f32 ||
+                        X.get_element_type() == ov::element::f64,
                     "MaxRoiPool operator only supports float16, float32 and float64 datatypes.");
 
     const auto pooled_shape = node.get_attribute_value<std::vector<size_t>>("pooled_shape");

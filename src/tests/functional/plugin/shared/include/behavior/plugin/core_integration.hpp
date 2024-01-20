@@ -422,22 +422,20 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
         std::shared_ptr<ngraph::Function> func;
         {
             ngraph::PartialShape shape({1, 84});
-            ngraph::element::Type type(ngraph::element::Type_t::f32);
+            ov::element::Type type(ov::element::Type_t::f32);
             auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-            auto matMulWeights =
-                    ov::op::v0::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
+            auto matMulWeights = ov::op::v0::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
             auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(matMulWeights);
-            auto gConst1 = ov::op::v0::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
-            auto gConst2 = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, {}, {0});
+            auto gConst1 = ov::op::v0::Constant::create(ov::element::Type_t::i32, {1}, {1});
+            auto gConst2 = ov::op::v0::Constant::create(ov::element::Type_t::i64, {}, {0});
             auto gather = std::make_shared<ov::op::v1::Gather>(shapeOf, gConst1, gConst2);
-            auto concatConst = ov::op::v0::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
+            auto concatConst = ov::op::v0::Constant::create(ov::element::Type_t::i64, {1}, {1});
             auto concat =
                     std::make_shared<ov::op::v0::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
             auto relu = std::make_shared<ov::op::v0::Relu>(param);
             auto reshape = std::make_shared<ov::op::v1::Reshape>(relu, concat, false);
             auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, matMulWeights, false, true);
-            auto matMulBias =
-                    ov::op::v0::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
+            auto matMulBias = ov::op::v0::Constant::create(ov::element::Type_t::f32, {1, 10}, {1});
             auto addBias = std::make_shared<ov::op::v1::Add>(matMul, matMulBias);
             auto result = std::make_shared<ov::op::v0::Result>(addBias);
 

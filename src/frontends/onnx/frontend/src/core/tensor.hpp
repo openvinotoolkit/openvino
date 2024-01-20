@@ -131,37 +131,37 @@ public:
         return static_cast<Type>(m_tensor_proto->data_type());
     }
 
-    const element::Type& get_ov_type() const {
+    const ov::element::Type& get_ov_type() const {
         if (!m_tensor_proto->has_data_type()) {
             FRONT_END_THROW("Tensor has no specified data type");
         }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-            return element::boolean;
+            return ov::element::boolean;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return element::f32;
+            return ov::element::f32;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return element::f16;
+            return ov::element::f16;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return element::f64;
+            return ov::element::f64;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-            return element::i8;
+            return ov::element::i8;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-            return element::i16;
+            return ov::element::i16;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-            return element::i32;
+            return ov::element::i32;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-            return element::i64;
+            return ov::element::i64;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-            return element::u8;
+            return ov::element::u8;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-            return element::u16;
+            return ov::element::u16;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-            return element::u32;
+            return ov::element::u32;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-            return element::u64;
+            return ov::element::u64;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return element::bf16;
+            return ov::element::bf16;
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED:
             FRONT_END_THROW("Data type is Undefined");
         default:
@@ -181,31 +181,31 @@ public:
         }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-            return make_ov_constant<char>(element::boolean);
+            return make_ov_constant<char>(ov::element::boolean);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return make_ov_constant<float>(element::f32);
+            return make_ov_constant<float>(ov::element::f32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return make_ov_constant<ov::float16>(element::f16);
+            return make_ov_constant<ov::float16>(ov::element::f16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return make_ov_constant<double>(element::f64);
+            return make_ov_constant<double>(ov::element::f64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-            return make_ov_constant<int8_t>(element::i8);
+            return make_ov_constant<int8_t>(ov::element::i8);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-            return make_ov_constant<int16_t>(element::i16);
+            return make_ov_constant<int16_t>(ov::element::i16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-            return make_ov_constant<int32_t>(element::i32);
+            return make_ov_constant<int32_t>(ov::element::i32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-            return make_ov_constant<int64_t>(element::i64);
+            return make_ov_constant<int64_t>(ov::element::i64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-            return make_ov_constant<uint8_t>(element::u8);
+            return make_ov_constant<uint8_t>(ov::element::u8);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-            return make_ov_constant<uint16_t>(element::u16);
+            return make_ov_constant<uint16_t>(ov::element::u16);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-            return make_ov_constant<uint32_t>(element::u32);
+            return make_ov_constant<uint32_t>(ov::element::u32);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-            return make_ov_constant<uint64_t>(element::u64);
+            return make_ov_constant<uint64_t>(ov::element::u64);
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return make_ov_constant<ov::bfloat16>(element::bf16);
+            return make_ov_constant<ov::bfloat16>(ov::element::bf16);
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
@@ -219,7 +219,7 @@ private:
                                           std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
                                           std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         size_t data_size = get_data_size();
         if (has_external_data()) {
@@ -257,7 +257,7 @@ private:
                                           !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
                                           !std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
         auto data_size = data.size();

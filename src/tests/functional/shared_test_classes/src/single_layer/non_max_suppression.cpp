@@ -19,7 +19,7 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::string targetDevice;
     std::tie(inShapeParams,
              inPrecisions,
@@ -71,9 +71,8 @@ void NmsLayerTest::GenerateInputs() {
     }
 }
 
-void NmsLayerTest::Compare(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+void NmsLayerTest::Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+                           const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
 
@@ -111,7 +110,7 @@ public:
  * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
  */
 void NmsLayerTest::CompareBBoxes(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -291,7 +290,7 @@ void NmsLayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,
@@ -352,7 +351,7 @@ void Nms9LayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,

@@ -36,7 +36,7 @@ class ConvertColorNV12AccuracyTest : public ConvertColorNV12LayerTest {
 protected:
     void GenerateInputs() override; // Generate predefined image with R/G/B combinations
     void Validate() override;       // Regular validate + percentage of acceptable deviations
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
 
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 private:

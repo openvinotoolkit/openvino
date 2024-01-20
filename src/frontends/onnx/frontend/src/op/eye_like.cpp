@@ -43,7 +43,7 @@ OutputVector eye_like(const Node& node) {
                      input_rank.get_length(),
                      " is unsupported, only 2D shapes are supported");
 
-    element::Type target_type;
+    ov::element::Type target_type;
     if (node.has_attribute("dtype")) {
         std::int64_t dtype = node.get_attribute_value<std::int64_t>("dtype");
         target_type = common::get_ov_element_type(dtype);

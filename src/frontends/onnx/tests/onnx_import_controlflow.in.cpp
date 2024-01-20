@@ -31,16 +31,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
     // Shape inference tests
     const auto& parameters = model->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
-    EXPECT_EQ(parameters.at(0)->get_element_type(), element::f32);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ov::element::f32);
     EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
     EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
 
     const auto& results = model->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_EQ(model->get_output_element_type(0), ov::element::f32);
     EXPECT_TRUE(model->get_output_partial_shape(0).is_static());
     EXPECT_EQ(model->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(model->get_output_element_type(1), element::f32);
+    EXPECT_EQ(model->get_output_element_type(1), ov::element::f32);
     EXPECT_TRUE(model->get_output_partial_shape(1).is_static());
     EXPECT_EQ(model->get_output_shape(1), (Shape{3, 1, 2}));
 
@@ -380,10 +380,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skip
 
     const auto& results = model->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_EQ(model->get_output_element_type(0), ov::element::f32);
     EXPECT_TRUE(model->get_output_partial_shape(0).is_static());
     EXPECT_EQ(model->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(model->get_output_element_type(1), element::f32);
+    EXPECT_EQ(model->get_output_element_type(1), ov::element::f32);
     EXPECT_TRUE(model->get_output_partial_shape(1).rank().is_static());
     EXPECT_EQ(model->get_output_partial_shape(1).rank(), 3);
     EXPECT_EQ(model->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 1, 2}));

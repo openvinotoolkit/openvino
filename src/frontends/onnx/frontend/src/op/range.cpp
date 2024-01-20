@@ -22,8 +22,7 @@ OutputVector range(const Node& node) {
     Output<ngraph::Node> stop{inputs[1]};
     Output<ngraph::Node> step{inputs[2]};
 
-    auto axes =
-        std::make_shared<default_opset::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
+    auto axes = std::make_shared<default_opset::Constant>(ov::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
 
     // Check if step is a tensor with a single value
     if (start.get_shape().size() == 1 && start.get_shape()[0] == 1) {

@@ -343,7 +343,7 @@ TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
         auto relu = std::make_shared<ov::op::v0::Relu>(param);

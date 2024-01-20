@@ -34,8 +34,8 @@ public:
 
         const auto reducePrecision = dequantization->get_output_element_type(0);
         const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
-            std::vector<element::Type>{ reducePrecision, constant->get_element_type() },
-            std::vector<element::Type>{ reducePrecision },
+            std::vector<ov::element::Type>{reducePrecision, constant->get_element_type()},
+            std::vector<ov::element::Type>{reducePrecision},
             ov::op::TemporaryReplaceOutputType(dequantization, reducePrecision).get(),
             ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);
@@ -114,8 +114,8 @@ public:
             constantValues);
 
         const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
-            std::vector<element::Type>{ precisionAfterOperation, constant->get_element_type() },
-            std::vector<element::Type>{ precisionAfterOperation },
+            std::vector<ov::element::Type>{precisionAfterOperation, constant->get_element_type()},
+            std::vector<ov::element::Type>{precisionAfterOperation},
             ov::op::TemporaryReplaceOutputType(dequantization, precisionAfterOperation).get(),
             ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);

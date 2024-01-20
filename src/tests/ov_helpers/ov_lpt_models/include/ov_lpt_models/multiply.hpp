@@ -48,7 +48,7 @@ public:
 
 class MultiplyFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ov::Model> get(const element::Type model_precision, const MultiplyValues& actualValues);
+    static std::shared_ptr<ov::Model> get(const ov::element::Type model_precision, const MultiplyValues& actualValues);
 };
 
 }  // namespace subgraph

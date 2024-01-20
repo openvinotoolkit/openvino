@@ -50,7 +50,7 @@ OutputVector global_lp_pool(const Node& node) {
         output_shape.at(0) = data_shape[0].get_length();
 
         const auto reshape_pattern =
-            default_opset::Constant::create(element::i64, Shape{output_shape.size()}, output_shape);
+            default_opset::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape);
 
         slice = std::make_shared<default_opset::Reshape>(slice, reshape_pattern, false);
     }

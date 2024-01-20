@@ -29,16 +29,16 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                    // Params using to create inputs
-                                       InputPrecisions,                            // Input precisions
-                                       int32_t,                                    // Max output boxes per class
-                                       InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta
-                                       int32_t,                                    // background_class
-                                       int32_t,                                    // keep_top_k
-                                       ngraph::element::Type,                      // Output type
+using MulticlassNmsParams = std::tuple<std::vector<InputShape>,  // Params using to create inputs
+                                       InputPrecisions,          // Input precisions
+                                       int32_t,                  // Max output boxes per class
+                                       InputfloatVar,            // iouThreshold, scoreThreshold, nmsEta
+                                       int32_t,                  // background_class
+                                       int32_t,                  // keep_top_k
+                                       ov::element::Type,        // Output type
                                        ov::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
-                                       InputboolVar,                               // Sort result across batch, normalized
-                                       bool,                                       // make output shape static
+                                       InputboolVar,  // Sort result across batch, normalized
+                                       bool,          // make output shape static
                                        std::string>;
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>,

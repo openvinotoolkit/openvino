@@ -14,7 +14,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
-    const element::Type inputPrecision,
+    const ov::element::Type inputPrecision,
     const PartialShape& inputShape,
     const builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,

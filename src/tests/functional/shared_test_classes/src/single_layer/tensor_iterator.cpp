@@ -79,8 +79,9 @@ namespace LayerTestsDefinitions {
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1},
-                                                               std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                           ngraph::Shape{1},
+                                                           std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {

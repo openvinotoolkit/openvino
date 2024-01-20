@@ -35,7 +35,7 @@ namespace set_11 {
 OutputVector clip(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
     const Output<ov::Node> data = inputs.at(0);
-    const element::Type data_type = data.get_element_type();
+    const ov::element::Type data_type = data.get_element_type();
     Output<ov::Node> min;
     Output<ov::Node> max;
 

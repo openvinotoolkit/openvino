@@ -17,7 +17,7 @@ std::string TensorNamesTest::getTestCaseName(const testing::TestParamInfo<constR
 void TensorNamesTest::SetUp() {
     std::tie(targetDevice) = this->GetParam();
 
-    auto parameter = std::make_shared<ov::op::v0::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
     parameter->set_friendly_name("parameter");
     parameter->get_output_tensor(0).set_names({"input"});
     auto relu_prev = std::make_shared<ov::op::v0::Relu>(parameter);

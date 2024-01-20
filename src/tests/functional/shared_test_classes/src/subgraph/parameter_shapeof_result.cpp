@@ -9,7 +9,7 @@
 namespace SubgraphTestsDefinitions {
 
 std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterShapeOfResultParams>& obj) {
-    ngraph::element::Type inType;
+    ov::element::Type inType;
     std::string targetDevice;
     std::tie(inType, targetDevice) = obj.param;
     std::ostringstream result;
@@ -19,7 +19,7 @@ std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(const testing::T
 }
 
 void ParameterShapeOfResultSubgraphTest::SetUp() {
-    ngraph::element::Type inType;
+    ov::element::Type inType;
     std::tie(inType, targetDevice) = this->GetParam();
     inPrc = InferenceEngine::details::convertPrecision(inType);
 

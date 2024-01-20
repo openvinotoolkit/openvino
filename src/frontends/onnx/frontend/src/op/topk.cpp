@@ -10,8 +10,8 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 
@@ -43,7 +43,7 @@ OutputVector topk(const Node& node) {
                                               axis,
                                               default_opset::TopK::Mode::MAX,
                                               default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+                                              ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -61,7 +61,7 @@ OutputVector topk(const Node& node) {
                                               axis,
                                               default_opset::TopK::Mode::MAX,
                                               default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+                                              ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -85,7 +85,7 @@ OutputVector topk(const Node& node) {
     const auto mode = compute_max ? default_opset::TopK::Mode::MAX : default_opset::TopK::Mode::MIN;
 
     std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, element::i64);
+        std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }

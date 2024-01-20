@@ -22,8 +22,8 @@
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
 using ov::TensorLabel;
