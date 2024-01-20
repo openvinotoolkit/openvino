@@ -66,7 +66,7 @@ void TransposeLayerCPUTest::SetUp() {
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
     function = std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "TransposeLayerCPUTest");
-    functionRefs = ov::clone_model(*function);
+    functionRefs = function->clone();
 }
 
 TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
