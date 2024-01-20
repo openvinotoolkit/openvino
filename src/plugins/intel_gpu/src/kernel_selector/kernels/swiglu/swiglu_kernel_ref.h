@@ -1,0 +1,40 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "kernel_base_opencl.h"
+
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// swiglu_params
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct swiglu_params : public base_params {
+    swiglu_params() : base_params(KernelType::SWIGLU), axis(0), split_length(0) {}
+    int32_t axis;
+    int32_t split_length;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// swiglu_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct swiglu_optional_params : optional_params {
+    swiglu_optional_params() : optional_params(KernelType::SWIGLU) {}
+};
+
+class SwiGLUKernelRef : public KernelBaseOpenCL {
+public:
+    SwiGLUKernelRef() : KernelBaseOpenCL("swiglu_ref") {}
+    virtual ~SwiGLUKernelRef() {}
+
+    virtual JitConstants GetJitConstants(const swiglu_params& params) const;
+    virtual CommonDispatchData SetDefault(const swiglu_params& params) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params&, const optional_params&) const override;
+};
+}  // namespace kernel_selector
