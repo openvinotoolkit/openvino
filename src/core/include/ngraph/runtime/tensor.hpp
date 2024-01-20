@@ -17,17 +17,18 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/descriptor/tensor.hpp"
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 namespace ngraph {
 namespace runtime {
 NGRAPH_SUPPRESS_DEPRECATED_START
 class NGRAPH_API NGRAPH_API_DEPRECATED Tensor {
 protected:
-    Tensor(const std::shared_ptr<ngraph::descriptor::Tensor>& descriptor) : m_descriptor(descriptor), m_stale(true) {}
+    Tensor(const std::shared_ptr<ov::descriptor::Tensor>& descriptor) : m_descriptor(descriptor), m_stale(true) {}
 
 public:
     virtual ~Tensor() {}
@@ -64,7 +65,7 @@ public:
     virtual void read(void* p, size_t n) const = 0;
 
 protected:
-    std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
+    std::shared_ptr<ov::descriptor::Tensor> m_descriptor;
     bool m_stale;
 };
 NGRAPH_SUPPRESS_DEPRECATED_END

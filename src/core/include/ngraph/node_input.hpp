@@ -17,10 +17,10 @@
 #include <cstring>
 #include <map>
 
-#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_input.hpp"
 
 namespace ngraph {
