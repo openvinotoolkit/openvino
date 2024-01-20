@@ -461,7 +461,7 @@ void broadcast_input(ov::TensorVector& inputs,
 ///
 template <typename T>
 ov::Tensor build_identity(const ov::Tensor& input, const ov::TensorLabel& repeated_label_dims) {
-    // allocate HostTensor for building identity tensor
+    // allocate Tensor for building identity tensor
     OPENVINO_ASSERT(repeated_label_dims.size() > 1);
     Shape input_shape = input.get_shape();
     Shape identity_shape(input_shape.size(), 1);
