@@ -55,6 +55,10 @@ private:
     size_t m_store_offset_c = 0lu;
 
     std::vector<size_t> io_data_size {};
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter);
+#endif
 };
 
 }   // namespace intel_cpu
