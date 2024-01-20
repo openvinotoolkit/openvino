@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_iextension.h"
 #include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
@@ -20,16 +19,6 @@
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
-
-//
-// ie_iextension.h
-//
-ILayerImpl::~ILayerImpl() {}
-ILayerExecImpl::~ILayerExecImpl() {}
-std::map<std::string, ngraph::OpSet> IExtension::getOpSets() {
-    return {};
-}
-
 namespace details {
 
 void Rethrow() {
