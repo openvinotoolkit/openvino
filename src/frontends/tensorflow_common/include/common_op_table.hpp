@@ -45,6 +45,7 @@ OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
+OP_CONVERTER(translate_case_op);
 OP_CONVERTER(translate_cast_op);
 OP_CONVERTER(translate_clip_by_value_op);
 OP_CONVERTER(translate_complex_op);
