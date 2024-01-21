@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "utils/common.hpp"
@@ -39,7 +39,7 @@ OutputVector random_uniform_like(const Node& node) {
     auto high_convert = std::make_shared<ov::op::v0::Convert>(high_const, target_type);
     auto low_convert = std::make_shared<ov::op::v0::Convert>(low_const, target_type);
 
-    const auto target_shape = std::make_shared<default_opset::ShapeOf>(input);
+    const auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
 
     return {std::make_shared<ov::op::v8::RandomUniform>(target_shape,
                                                         low_convert,
