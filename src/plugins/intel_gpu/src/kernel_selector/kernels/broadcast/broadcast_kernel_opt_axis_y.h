@@ -9,7 +9,7 @@
 namespace kernel_selector {
 class BroadcastKernelOptAxisY : public BroadcastKernelBase {
 public:
-    BroadcastKernelOptAxisY() : BroadcastKernelBase("broadcast_gpu_opt") {}
+    BroadcastKernelOptAxisY() : BroadcastKernelBase("broadcast_gpu_opt_axis_y") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;

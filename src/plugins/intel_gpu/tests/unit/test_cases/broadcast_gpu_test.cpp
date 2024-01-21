@@ -2256,7 +2256,8 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
 
     auto input_static_layout = cldnn::layout{ov::PartialShape{in_static_shape}, data_types::f16, format::bfzyx};
     auto input_dynamic_layout = cldnn::layout{ov::PartialShape{in_dynamic_shape}, data_types::f16, format::bfzyx};
-    auto target_shape_layout = cldnn::layout{ov::PartialShape{5}, data_types::i32, format::bfyx};
+    auto target_shape_layout = cldnn::layout{ov::PartialShape{static_cast<ov::Dimension::value_type>(target_shape.size())},
+                                                                data_types::i32, format::bfyx};
 
     primitive_id input_id = "input";
     primitive_id target_shape_id = "target_shape";
@@ -2265,7 +2266,13 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
     topology.add(input_layout(input_id, input_dynamic_layout));
     topology.add(input_layout(target_shape_id, target_shape_layout));
     auto broadcast_prim = broadcast("broadcast", input_info(input_id), input_info(target_shape_id), ov::AxisSet({}), ov::op::BroadcastType::BIDIRECTIONAL);
-    broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3], output_shape[4]});
+    if (output_shape.size() == 6) {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3], output_shape[4], output_shape[5]});
+    } else if (output_shape.size() == 5) {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3], output_shape[4]});
+    } else {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3]});
+    }
     topology.add(broadcast_prim);
     topology.add(reorder("output", input_info("broadcast"), format::bfzyx, data_types::f16));
 
@@ -2286,10 +2293,11 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
     network->set_input_data(target_shape_id, target_shape_mem);
 
     auto outputs = network->execute();
-
     auto output = outputs.at("output").get_memory();
+
     ASSERT_NE(output, nullptr);
     cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    ASSERT_EQ(network->get_primitive("broadcast")->get_implementation_name(), "broadcast_gpu_opt_axis_y");
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
@@ -2303,42 +2311,40 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
 
     ASSERT_EQ(output_ref.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
-    if (0) {
-        std::cout << "checking output ..... " << std::endl;
-        std::stringstream ss_out;
-        std::stringstream ss_ref;
-        ss_ref << "output_ref = [" << std::endl;
-        ss_out << "output_out = [" << std::endl;
+    if (output_shape.size() == 6) {
         for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
             for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
-                for (tensor::value_type z = 0; z < output_shape.at(2); ++z) {
-                    for (tensor::value_type y = 0; y < output_shape.at(3); ++y) {
-                        ss_ref << "[";
-                        ss_out << "[";
-                        for (tensor::value_type x = 0; x < output_shape.at(4); ++x) {
-                            auto output_off = (((b * output_shape.at(1) + f) * output_shape.at(2) + z) * output_shape.at(3) + y) * output_shape.at(4) + x;
-                            ss_ref << output_ptr[output_off] << ",";
-                            ss_out << output_ref[output_off] << ",";
+                for (tensor::value_type w = 0; w < output_shape.at(2); ++w) {
+                    for (tensor::value_type z = 0; z < output_shape.at(3); ++z) {
+                        for (tensor::value_type y = 0; y < output_shape.at(4); ++y) {
+                            for (tensor::value_type x = 0; x < output_shape.at(5); ++x) {
+                                auto output_off = ((((b * output_shape.at(1) + f) * output_shape.at(2) + w) * output_shape.at(3) + z) * output_shape.at(4) + y) * output_shape.at(5) + x;
+                                ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
+                            }
                         }
-                        ss_ref << "]," << std::endl;
-                        ss_out<< "]," << std::endl;
                     }
                 }
             }
         }
-        ss_ref << "]" << std::endl;
-        ss_out << "]" << std::endl;
-        std::cout << "result is  " << std::endl;
-        std::cout << ss_ref.str() << std::endl;
-        std::cout << ss_out.str() << std::endl;
-    }
-
-    for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
-        for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
-            for (tensor::value_type z = 0; z < output_shape.at(2); ++z) {
-                for (tensor::value_type y = 0; y < output_shape.at(3); ++y) {
-                    for (tensor::value_type x = 0; x < output_shape.at(4); ++x) {
-                        auto output_off = (((b * output_shape.at(1) + f) * output_shape.at(2) + z) * output_shape.at(3) + y) * output_shape.at(4) + x;
+    } else if (output_shape.size() == 5) {
+        for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
+            for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
+                for (tensor::value_type z = 0; z < output_shape.at(2); ++z) {
+                    for (tensor::value_type y = 0; y < output_shape.at(3); ++y) {
+                        for (tensor::value_type x = 0; x < output_shape.at(4); ++x) {
+                            auto output_off = (((b * output_shape.at(1) + f) * output_shape.at(2) + z) * output_shape.at(3) + y) * output_shape.at(4) + x;
+                            ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
+            for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
+                for (tensor::value_type y = 0; y < output_shape.at(2); ++y) {
+                    for (tensor::value_type x = 0; x < output_shape.at(3); ++x) {
+                        auto output_off = ((b * output_shape.at(1) + f) * output_shape.at(2) + y) * output_shape.at(3) + x;
                         ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
                     }
                 }
@@ -2363,6 +2369,18 @@ TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x19x1_axis_Y_19) {
     run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,19,1},{1,1,1,19,1});
 }
 
-TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x19x1_axis_F_14_Z_12) {
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x3x1_axis_Y_3) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,3,1},{1,1,1,3,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfwzyx_21x1x2x1x1_to_21x1x2x19x1_axis_F_14_Z_12) {
     run_broadcast_gpu_opt_y_axis({21,14,12,1,1},{-1,14,12,1,1},{21,14,12,1,1},{1,14,12,1,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfyx_21x2x1x1_to_21x2x3x1_axis_Y_13) {
+    run_broadcast_gpu_opt_y_axis({21,2,1,5},{-1,2,1,5},{21,2,13,5},{1,1,13,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x5_to_21x1x2x15x5_axis_Y_15) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
 }

@@ -76,11 +76,14 @@ BroadcastKernelBase::DispatchData BroadcastKernelOptAxisY::SetDefault(const broa
                                                                        Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
     // Use block calculation only when y is broadcast axis ans x dim is bigger than vec_size
-    if ((input.X().v == output.X().v) && (input.X().v >= vec_size) && (input.Y().v != output.Y().v) && (output.Y().v > y_blocks)) {
-        dispatchData.gws = { (output.X().v / vec_size), (output.Y().v / y_blocks),
+    if ((input.X().v == output.X().v) && (input.Y().v != output.Y().v)
+        && (input.Batch().v == output.Batch().v) && (input.Feature().v == output.Feature().v)
+        && (input.W().v == output.W().v) && (input.Z().v == output.Z().v)) {
+        dispatchData.gws = { ((output.X().v > vec_size)? (output.X().v / vec_size) : 1),
+                             ((output.Y().v > y_blocks)? (output.Y().v / y_blocks) : 1),
                                 output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
     } else {
-        dispatchData.gws = { output.X().v, output.Y().v, output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
+        dispatchData.gws = { output.X().v, output.Y().v * output.Z().v * output.W().v, output.Batch().v * output.Feature().v };
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
