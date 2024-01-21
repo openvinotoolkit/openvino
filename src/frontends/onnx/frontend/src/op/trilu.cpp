@@ -25,9 +25,18 @@ OutputVector trilu(const Node& node) {
     if (rank.is_static()) {
         CHECK_VALID_NODE(node, rank.get_length() >= 2, "Trilu first input's rank must be >= 2");
     }
+
+    Output<ngraph::Node> k;
     bool is_k_available = num_inputs == 2 && !ov::op::util::is_null(inputs[1]);
     if (is_k_available) {
-        CHECK_VALID_NODE(node, inputs[1].get_partial_shape().compatible({}), "Trilu second input must be a scalar");
+        k = inputs[1];
+        auto axes =
+            std::make_shared<default_opset::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
+        // Check if k is a tensor with a single value
+        if (k.get_shape().size() == 1 && k.get_shape()[0] == 1) {
+            k = std::make_shared<default_opset::Squeeze>(k, axes);
+        }
+        CHECK_VALID_NODE(node, k.get_partial_shape().compatible({}), "Trilu second input must be a scalar");
     }
 
     const auto shape = std::make_shared<default_opset::ShapeOf>(input);
@@ -76,10 +85,8 @@ OutputVector trilu(const Node& node) {
     // create 2D tensor with shape [N, 1] and values [[k], [k + 1], ..., [N + k - 1]]
     std::shared_ptr<ngraph::Node> vertical_range;
     if (is_k_available) {
-        vertical_range = std::make_shared<default_opset::Range>(inputs[1],
-                                                                std::make_shared<default_opset::Add>(N, inputs[1]),
-                                                                one,
-                                                                element::i64);
+        vertical_range =
+            std::make_shared<default_opset::Range>(k, std::make_shared<default_opset::Add>(N, k), one, element::i64);
     } else {
         vertical_range = std::make_shared<default_opset::Range>(zero, N, one, element::i64);
     }
