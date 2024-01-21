@@ -5,13 +5,13 @@
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/unsupported_constant.hpp"
-#include "helper_ops/variable.hpp"
 #include "input_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
+#include "variable.hpp"
 
 using namespace std;
 using namespace ov;

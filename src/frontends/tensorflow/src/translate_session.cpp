@@ -9,7 +9,6 @@
 #include "helper_ops/merge.hpp"
 #include "helper_ops/next_iteration.hpp"
 #include "helper_ops/switch.hpp"
-#include "helper_ops/variable.hpp"
 #include "input_model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -17,6 +16,7 @@
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
+#include "variable.hpp"
 
 using namespace ov::frontend::tensorflow;
 

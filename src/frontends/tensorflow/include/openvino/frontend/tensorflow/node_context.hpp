@@ -6,10 +6,10 @@
 
 #include "decoder.hpp"
 #include "exception.hpp"
-#include "helper_ops/variable.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "utils.hpp"
+#include "variable.hpp"
 
 namespace ov {
 namespace frontend {
