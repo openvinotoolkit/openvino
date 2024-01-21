@@ -285,13 +285,26 @@ KERNEL(gemm_tiled_opt)(
     if (TILE_K_NOT_DIVISIBLE) {
         // Loading leftovers of the matrix B
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
-#if HAS_DYNAMIC_N_PADDING
-            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
-#else
-            b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
-#endif
+        #if TRANSPOSE_INPUT1 == 0
+            #if HAS_DYNAMIC_N_PADDING
+                b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+            #else
+                b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+            #endif
             b_ptr += input1_offset;
+        #elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+            if (b_raw_global_id > N - 1) {
+                b_tile[b_load_id] = 0;
+            } else {
+                uint b_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (b_load_id + K_FULL_ITERATIONS * TILE_K), x);
+                b_tile[b_load_id] = input1[b_idx];
+            }
+        #endif
         } // Loading leftovers of the matrix B end
+        #if TRANSPOSE_INPUT1 == 1
+            b_ptr = b_ptr + (input1_offset * sglid);
+            b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
+        #endif // TRANSPOSE_INPUT1
 
         // Loading leftovers of the matrix A and tile C calculation
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
@@ -307,13 +320,26 @@ KERNEL(gemm_tiled_opt)(
 #if TILE_K_NOT_DIVISIBLE
     // Loading leftovers of the matrix B
     unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
-#if TILE_N_NOT_DIVISIBLE
-        b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
-#else // TILE_N_NOT_DIVISIBLE
-        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-#endif // TILE_N_NOT_DIVISIBLE
+    #if TRANSPOSE_INPUT1 == 0
+        #if TILE_N_NOT_DIVISIBLE
+            b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+        #else // TILE_N_NOT_DIVISIBLE
+            b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+        #endif // TILE_N_NOT_DIVISIBLE
         b_ptr += input1_offset;
+    #elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+        if (b_raw_global_id > N - 1) {
+            b_tile[b_load_id] = 0;
+        } else {
+            uint b_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (b_load_id + K_FULL_ITERATIONS * TILE_K), x);
+            b_tile[b_load_id] = input1[b_idx];
+        }
+    #endif
     } // Loading leftovers of the matrix B end
+    #if TRANSPOSE_INPUT1 == 1
+        b_ptr = b_ptr + (input1_offset * sglid);
+        b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
+    #endif // TRANSPOSE_INPUT1
 
     // Loading leftovers of the matrix A and tile C calculation
     unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {

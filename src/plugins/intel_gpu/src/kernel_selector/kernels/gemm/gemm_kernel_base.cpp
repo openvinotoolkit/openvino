@@ -39,14 +39,14 @@ std::vector<int64_t> GemmKernelBase::ConvTo8dims(const std::vector<int64_t>& ord
         dims_order.push_back(order_idx[0] + 6);
         dims_order.push_back(order_idx[1] + 6);
     } else if (order_idx.size() == 3) {
-        dims_order.push_back(order_idx[0] == 0 ? 0 : order_idx[0] + 5);
-        dims_order.push_back(1);
+        dims_order.push_back(0);
+        dims_order.push_back(order_idx[0] == 0 ? 1 : order_idx[0] + 5);
         dims_order.push_back(2);
         dims_order.push_back(3);
         dims_order.push_back(4);
         dims_order.push_back(5);
-        dims_order.push_back(order_idx[1] == 0 ? 0 : order_idx[1] + 5);
-        dims_order.push_back(order_idx[2] == 0 ? 0 : order_idx[2] + 5);
+        dims_order.push_back(order_idx[1] == 0 ? 1 : order_idx[1] + 5);
+        dims_order.push_back(order_idx[2] == 0 ? 1 : order_idx[2] + 5);
     } else if (order_idx.size() == 4) {
         dims_order.push_back(order_idx[0] < 2 ? order_idx[0] : order_idx[0] + 4);
         dims_order.push_back(order_idx[1] < 2 ? order_idx[1] : order_idx[1] + 4);
@@ -146,8 +146,8 @@ std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) 
         dims_order = "b,f,w,z,"
                     + dims2[get_order_idx(order_idx, 0)] + "," + dims2[get_order_idx(order_idx, 1)];
     } else if (order_idx.size() == 3) {
-        const std::vector<std::string> dims3 = {"b", "y", "x"};
-        dims_order = dims3[get_order_idx(order_idx, 0)] + ",f,w,z,"
+        const std::vector<std::string> dims3 = {"f", "y", "x"};
+        dims_order = "b," + dims3[get_order_idx(order_idx, 0)] + ",w,z,"
                     + dims3[get_order_idx(order_idx, 1)] + "," + dims3[get_order_idx(order_idx, 2)];
     } else if (order_idx.size() == 4) {
         const std::vector<std::string> dims4 = {"b", "f", "y", "x"};

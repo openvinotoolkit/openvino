@@ -72,8 +72,8 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     auto shape_a = input_shapes[0];
     auto shape_b = input_shapes[1];
 
-    auto shape_a_t = transpose_shape(shape_a, order_a);
-    auto shape_b_t = transpose_shape(shape_b, order_b);
+    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a, order_a) : shape_a;
+    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b, order_b) : shape_b;
     auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {

@@ -52,15 +52,23 @@ TransposeMatMulFusion::TransposeMatMulFusion() {
 
 
 TransposeMatMulMatcher::TransposeMatMulMatcher() {
-    auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
-        return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr;
+    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
+        switch (output.get_element_type()) {
+            case ov::element::f16:
+            case ov::element::f32: return true;
+            default: return false;
+        }
+    };
+    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
+        return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
+               && is_fp_type(output);
     };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_b_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m});
-    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m});
+    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, is_fp_type);
+    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, is_fp_type);
 
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
@@ -88,9 +96,15 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
             auto tranpose_a_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_a_order_m).get_node_shared_ptr());
             order_a = tranpose_a_order->cast_vector<int64_t>();
         }
+        if (matmul->get_transpose_a() && order_a.size() > 1) {
+            std::swap(*(order_a.end() - 1), *(order_a.end() - 2));
+        }
         if (pattern_map.count(transpose_b_m) > 0) {
             auto tranpose_b_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_b_order_m).get_node_shared_ptr());
             order_b = tranpose_b_order->cast_vector<int64_t>();
+        }
+        if (matmul->get_transpose_b() && order_b.size() > 1) {
+            std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
         auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
@@ -108,15 +122,23 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
 }
 
 TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
-    auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
-        return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr;
+    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
+        switch (output.get_element_type()) {
+            case ov::element::f16:
+            case ov::element::f32: return true;
+            default: return false;
+        }
+    };
+    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
+        return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
+               && is_fp_type(output);
     };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_b_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m});
-    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m});
+    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, is_fp_type);
+    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, is_fp_type);
 
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
@@ -142,9 +164,15 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
             auto tranpose_a_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_a_order_m).get_node_shared_ptr());
             order_a = tranpose_a_order->cast_vector<int64_t>();
         }
+        if (matmul->get_transpose_a() && order_a.size() > 1) {
+            std::swap(*(order_a.end() - 1), *(order_a.end() - 2));
+        }
         if (pattern_map.count(transpose_b_m) > 0) {
             auto tranpose_b_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_b_order_m).get_node_shared_ptr());
             order_b = tranpose_b_order->cast_vector<int64_t>();
+        }
+        if (matmul->get_transpose_b() && order_b.size() > 1) {
+            std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
         auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();

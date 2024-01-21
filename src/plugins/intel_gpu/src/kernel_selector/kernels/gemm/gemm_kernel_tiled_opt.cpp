@@ -196,7 +196,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto get_untransposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
                                             const std::vector<int64_t>& dims_order, const std::string dim) {
             int64_t target_dim_idx;
-            size_t rank = data_tensor.GetDims().size();
+            const size_t rank = data_tensor.GetDims().size();
             if (dim.compare("Y") == 0) {
                 target_dim_idx = rank - 2;
             } else if (dim.compare("X") == 0) {
@@ -205,10 +205,11 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 OPENVINO_THROW("Unsupported dimension: ", dim);
             }
 
-            size_t loc = 0;
+            size_t loc = (dims_order.size() < rank) ? (rank - dims_order.size()) : 0;
             if (dims_order.size() == 0) {
                 loc = static_cast<size_t>(target_dim_idx);
             } else {
+                target_dim_idx = (dims_order.size() < rank) ? (target_dim_idx + dims_order.size() - rank) : target_dim_idx;
                 for (auto dim_idx : dims_order) {
                     if (dim_idx == target_dim_idx)
                         break;
