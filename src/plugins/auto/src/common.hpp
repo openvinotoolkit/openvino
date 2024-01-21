@@ -8,8 +8,6 @@
 #include <map>
 #include <string>
 #include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
