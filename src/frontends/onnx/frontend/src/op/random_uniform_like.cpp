@@ -7,7 +7,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "utils/common.hpp"
