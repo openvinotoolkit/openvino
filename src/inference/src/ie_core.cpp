@@ -22,7 +22,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
-#include "file_utils.h"
+#include "openvino/util/file_util.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
 #include "ie_network_reader.hpp"
