@@ -2297,7 +2297,6 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
 
     ASSERT_NE(output, nullptr);
     cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
-    ASSERT_EQ(network->get_primitive("broadcast")->get_implementation_name(), "broadcast_gpu_opt_axis_y");
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);

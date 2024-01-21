@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,13 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    virtual JitConstants GetJitConstants(const broadcast_params& params) const;
-    virtual DispatchData SetDefault(const broadcast_params& params) const;
-    virtual KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    JitConstants GetJitConstants(const broadcast_params& params) const;
+    DispatchData SetDefault(const broadcast_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
-    std::string GetInputBlockND(const broadcast_params& params) const;
+
+    // Tune params to the specific platform.
+    const size_t vec_size = 2;
+    const size_t y_blocks = 4;
 };
 }  // namespace kernel_selector

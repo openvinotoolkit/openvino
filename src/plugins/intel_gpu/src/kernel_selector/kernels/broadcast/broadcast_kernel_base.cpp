@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,27 +11,48 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("BROADCAST_ORDER", params.input_order)});
+    jit.AddConstants({MakeJitConstant("VEC_SIZE", vec_size)});
+    jit.AddConstants({MakeJitConstant("Y_BLOCKS", y_blocks)});
 
     return jit;
 }
 
 BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcast_params& params) const {
     const auto& output = params.outputs[0];
+    const auto& input = params.inputs[0];
 
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws = { output.X().v, output.Y().v * output.Z().v * output.W().v, output.Batch().v * output.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    // Use block calculation only when y is broadcast axis ans x dim is bigger than vec_size
+    if (((out_layout == DataLayout::bfyx && in_layout == DataLayout::bfyx)
+            || (out_layout == DataLayout::bfzyx && in_layout == DataLayout::bfzyx)
+            || (out_layout == DataLayout::bfwzyx && in_layout == DataLayout::bfwzyx))
+        && (input.X().v == output.X().v) && (input.Y().v != output.Y().v)
+        && (input.Batch().v == output.Batch().v) && (input.Feature().v == output.Feature().v)
+        && (input.W().v == output.W().v) && (input.Z().v == output.Z().v)) {
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                        { Tensor::DataChannelName::Y },
+                                                                        { Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                        Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        dispatchData.gws = { ((output.X().v > vec_size)? (output.X().v / vec_size) : 1),
+                             ((output.Y().v > y_blocks)? (output.Y().v / y_blocks) : 1),
+                                output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    } else {
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                        { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
+                                                                        { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+
+        dispatchData.gws = { output.X().v, output.Y().v * output.Z().v * output.W().v, output.Batch().v * output.Feature().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    }
 
     return dispatchData;
 }
 
-std::string BroadcastKernelBase::GetInputBlockND(const broadcast_params& params) const {
+static std::string GetInputBlockND(const broadcast_params& params) {
     const auto& input = params.inputs[0];
 
     std::stringstream s;
