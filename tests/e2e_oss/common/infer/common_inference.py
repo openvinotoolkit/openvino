@@ -19,12 +19,12 @@ except ImportError:
 
 from openvino.runtime import Core
 from openvino.inference_engine import get_version as ie_get_version
-from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
+from e2e_oss.common.multiprocessing_utils import multiprocessing_run
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-from utils.e2e.infer.provider import ClassProvider
-from utils.e2e.infer.network_modifiers import Container
+from e2e_oss.common.infer.provider import ClassProvider
+from e2e_oss.common.infer.network_modifiers import Container
 
 
 def resolve_library_name(libname):

@@ -1,6 +1,6 @@
 import inspect
 from e2e_oss.test_utils.test_utils import log_timestamp
-from utils.e2e.common.base_provider import BaseProvider, BaseStepProvider
+from e2e_oss.common.common.base_provider import BaseProvider, BaseStepProvider
 
 
 class ClassProvider(BaseProvider):

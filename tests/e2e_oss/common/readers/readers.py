@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from e2e_oss.test_utils.path_utils import resolve_file_path
 from e2e_oss.test_utils.tf_hub_utils import prepare_inputs, get_inputs_info
-from utils.e2e.readers.provider import ClassProvider
+from e2e_oss.common.readers.provider import ClassProvider
 
 try:
     from onnx import TensorProto, numpy_helper

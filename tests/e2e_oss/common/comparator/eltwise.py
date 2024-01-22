@@ -55,7 +55,7 @@ class EltwiseComparator(ClassProvider):
             if data.shape != ref.shape:
                 log.error("Shape of IE output {} isn't equal with shape of FW output {} for layer '{}'. "
                           "Run Dummy comparator to get statistics.".format(data.shape, ref.shape, layer))
-                from utils.e2e.comparator.dummy import Dummy
+                from e2e_oss.common.comparator.dummy import Dummy
                 Dummy({}, infer_result={layer: data}, reference={layer: ref}).compare()
                 statuses.append(False)
             if not np.any(data) and not np.any(ref):

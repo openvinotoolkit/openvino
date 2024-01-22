@@ -4,7 +4,7 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 
 from .provider import ClassProvider
-from utils.e2e.comparator.threshold_utils import get_default_ssim_threshold
+from e2e_oss.common.comparator.threshold_utils import get_default_ssim_threshold
 
 
 class SSIMComparator(ClassProvider):

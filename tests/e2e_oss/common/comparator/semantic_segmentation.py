@@ -4,7 +4,7 @@ import numpy as np
 from e2e_oss.common_utils.table_utils import make_table
 
 from .provider import ClassProvider
-from utils.e2e.comparator.threshold_utils import get_default_iou_threshold
+from e2e_oss.common.comparator.threshold_utils import get_default_iou_threshold
 
 
 

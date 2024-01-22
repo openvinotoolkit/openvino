@@ -9,7 +9,7 @@ import numpy as np
 
 from e2e_oss.common.test_utils import name_aligner
 from e2e_oss.pipelines.pipeline_templates.comparators_template import dummy_comparators, eltwise_comparators
-from utils.e2e.comparator.container import ComparatorsContainer
+from e2e_oss.common.comparator.container import ComparatorsContainer
 
 
 def should_run_reshape(instance) -> bool:

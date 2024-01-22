@@ -3,7 +3,7 @@ import os
 import sys
 from pathlib import Path
 
-from utils.e2e.ref_collector.provider import ClassProvider
+from e2e_oss.common.common.base_provider.ref_collector.provider import ClassProvider
 
 
 os.environ["GLOG_minloglevel"] = "3"

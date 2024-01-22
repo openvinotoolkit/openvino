@@ -13,8 +13,8 @@ import logging as log
 import sys
 from collections import OrderedDict
 
-from utils.e2e.common.pipeline import PassThroughData
-from utils.e2e.postprocessors.provider import StepProvider
+from e2e_oss.common.common.pipeline import PassThroughData
+from e2e_oss.common.postprocessors.provider import StepProvider
 from .provider import ClassProvider
 
 

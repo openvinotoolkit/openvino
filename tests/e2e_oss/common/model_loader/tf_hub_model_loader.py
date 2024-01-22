@@ -2,7 +2,7 @@ import logging as log
 import sys
 import tensorflow_hub as hub
 
-from utils.e2e.model_loader.provider import ClassProvider
+from e2e_oss.common.model_loader.provider import ClassProvider
 
 
 class TFHubModelLoader(ClassProvider):

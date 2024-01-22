@@ -1,7 +1,7 @@
 """Common postprocessors."""
 import numpy as np
 
-from utils.e2e.preprocessors.preprocessors import SliceData, Normalize, CustomPreproc, RemoveLayersFromInputData, \
+from e2e_oss.common.preprocessors.preprocessors import SliceData, Normalize, CustomPreproc, RemoveLayersFromInputData, \
     RenameInputs, Squeeze
 from .provider import ClassProvider
 

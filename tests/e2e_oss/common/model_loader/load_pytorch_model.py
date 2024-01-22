@@ -4,7 +4,7 @@ import os
 import torch
 
 from e2e_oss.test_utils.pytorch_loaders import *
-from utils.e2e.model_loader.provider import ClassProvider
+from e2e_oss.common.model_loader.provider import ClassProvider
 
 
 class PyTorchModelLoader(ClassProvider):

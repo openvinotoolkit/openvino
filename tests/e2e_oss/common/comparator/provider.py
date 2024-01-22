@@ -1,5 +1,5 @@
 import inspect
-from utils.e2e.common.base_provider import BaseProvider
+from e2e_oss.common.common.base_provider import BaseProvider
 
 
 class ClassProvider(BaseProvider):
