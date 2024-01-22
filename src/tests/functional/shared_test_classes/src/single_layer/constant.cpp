@@ -38,8 +38,8 @@ void ConstantLayerTest::SetUp() {
 
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_precision);
     auto constant = ov::op::v0::Constant::create(precision, data_shape, data_elements);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(constant)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(constant)};
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "constant");
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{}, "constant");
 }
 }  // namespace LayerTestsDefinitions

@@ -48,8 +48,8 @@ void GatherNDLayerTest::SetUp() {
     auto dataNode = params[0];
     auto gather = std::dynamic_pointer_cast<ov::op::v5::GatherND>(
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
-    function = std::make_shared<ngraph::Function>(results, params, "gatherND");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
+    function = std::make_shared<ov::Model>(results, params, "gatherND");
 }
 
 
@@ -72,8 +72,8 @@ void GatherND8LayerTest::SetUp() {
     auto dataNode = params[0];
     auto gather = std::dynamic_pointer_cast<ov::op::v8::GatherND>(
         ngraph::builder::makeGatherND8(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(gather) };
-    function = std::make_shared<ngraph::Function>(results, params, "gatherND");
+    ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(gather) };
+    function = std::make_shared<ov::Model>(results, params, "gatherND");
 }
 
 }  // namespace LayerTestsDefinitions

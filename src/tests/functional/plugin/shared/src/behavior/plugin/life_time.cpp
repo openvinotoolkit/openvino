@@ -35,7 +35,7 @@ namespace BehaviorTestsDefinitions {
     }
 
     void release_order_test(std::vector<int> order, const std::string &target_device,
-                            std::shared_ptr<ngraph::Function> function) {
+                            std::shared_ptr<ov::Model> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         auto exe_net = core.LoadNetwork(cnnNet, target_device);

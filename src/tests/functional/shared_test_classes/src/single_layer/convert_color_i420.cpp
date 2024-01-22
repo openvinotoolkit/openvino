@@ -100,7 +100,7 @@ void ConvertColorI420AccuracyTest::Validate() {
     I420TestUtils::ValidateColors(expected_output.data(), actualBuffer, expected_output.size(), 0.02);
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> ConvertColorI420AccuracyTest::CalculateRefs() {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> ConvertColorI420AccuracyTest::CalculateRefs() {
     auto refs = ConvertColorI420LayerTest::CalculateRefs();
     if (!refs.empty()) {
         auto out = refs[0].second;

@@ -24,7 +24,7 @@ public:
     void SetUp() override;
 
 protected:
-    std::shared_ptr<ngraph::Function> fnPtr;
+    std::shared_ptr<ov::Model> fnPtr;
 };
 
 class ExecGraphSerializationTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,

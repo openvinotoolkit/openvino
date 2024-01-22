@@ -56,8 +56,8 @@ void GatherElementsLayerTest::SetUp() {
 
     auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], indicesNode, axis);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
-    function = std::make_shared<ngraph::Function>(results, params, "gatherEl");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather)};
+    function = std::make_shared<ov::Model>(results, params, "gatherEl");
 }
 
 }  // namespace LayerTestsDefinitions

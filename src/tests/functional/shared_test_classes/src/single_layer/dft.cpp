@@ -33,14 +33,14 @@ void DFTLayerTest::SetUp() {
     ngraph::helpers::DFTOpType opType;
     std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    ngraph::ParameterVector paramVector;
-    auto paramData = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes));
+    ov::ParameterVector paramVector;
+    auto paramData = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes));
     paramVector.push_back(paramData);
 
     auto dft = ngraph::builder::makeDFT(paramVector[0], axes, signalSize, opType);
 
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(dft)};
-    function = std::make_shared<ngraph::Function>(results, paramVector, "DFT");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(dft)};
+    function = std::make_shared<ov::Model>(results, paramVector, "DFT");
 }
 }  // namespace LayerTestsDefinitions

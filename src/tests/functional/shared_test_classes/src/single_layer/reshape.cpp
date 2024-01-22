@@ -38,11 +38,11 @@ void ReshapeLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     auto constNode = std::make_shared<ov::op::v0::Constant>(
-            ngraph::element::Type_t::i64, ngraph::Shape{outFormShapes.size()}, outFormShapes);
+            ov::element::Type_t::i64, ov::Shape{outFormShapes.size()}, outFormShapes);
     auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
             std::make_shared<ov::op::v1::Reshape>(paramsIn[0], constNode, specialZero));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape)};
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape)};
+    function = std::make_shared<ov::Model>(results, paramsIn, "Reshape");
 }
 
 }  // namespace LayerTestsDefinitions

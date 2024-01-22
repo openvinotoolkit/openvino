@@ -90,7 +90,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
         "ExperimentalDetectronGenerateProposalsSingleImage");
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<5>(GetParam());
 
     inputs.clear();

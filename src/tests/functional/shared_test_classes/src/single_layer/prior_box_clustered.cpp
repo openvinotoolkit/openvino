@@ -93,7 +93,7 @@ void PriorBoxClusteredLayerTest::SetUp() {
         shape_of_2,
         attributes);
 
-    ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(priorBoxClustered) };
-    function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
+    ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(priorBoxClustered) };
+    function = std::make_shared<ov::Model>(results, params, "PB_Clustered");
 }
 }  // namespace LayerTestsDefinitions

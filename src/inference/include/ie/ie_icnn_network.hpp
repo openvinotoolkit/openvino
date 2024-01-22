@@ -27,7 +27,8 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace InferenceEngine {
 
@@ -53,7 +54,7 @@ public:
      * @return nGraph function
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual std::shared_ptr<ngraph::Function> getFunction() noexcept = 0;
+    virtual std::shared_ptr<ov::Model> getFunction() noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -61,7 +62,7 @@ public:
      * @return constant nGraph function
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
+    virtual std::shared_ptr<const ov::Model> getFunction() const noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -201,7 +202,7 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& partialShapes,
+    virtual StatusCode reshape(const std::map<std::string, ov::PartialShape>& partialShapes,
                                ResponseDesc* resp) noexcept {
         (void)partialShapes;
         (void)resp;

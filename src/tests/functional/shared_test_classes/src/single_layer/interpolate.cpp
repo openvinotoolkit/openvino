@@ -75,10 +75,10 @@ void InterpolateLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto sizesConst = ov::op::v0::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+    auto sizesConst = ov::op::v0::Constant(ov::element::Type_t::i64, {targetShape.size()}, targetShape);
     auto sizesInput = std::make_shared<ov::op::v0::Constant>(sizesConst);
 
-    auto scales_const = ov::op::v0::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
+    auto scales_const = ov::op::v0::Constant(ov::element::Type_t::f32, {scales.size()}, scales);
     auto scalesInput = std::make_shared<ov::op::v0::Constant>(scales_const);
 
     ov::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin,
@@ -91,7 +91,7 @@ void InterpolateLayerTest::SetUp() {
                                                                     scalesInput,
                                                                     interpolateAttributes);
     } else {
-        auto axesConst = ov::op::v0::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
+        auto axesConst = ov::op::v0::Constant(ov::element::Type_t::i64, {axes.size()}, axes);
         auto axesInput = std::make_shared<ov::op::v0::Constant>(axesConst);
 
         interpolate = std::make_shared<ov::op::v4::Interpolate>(params[0],
@@ -100,8 +100,8 @@ void InterpolateLayerTest::SetUp() {
                                                                     axesInput,
                                                                     interpolateAttributes);
     }
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 //Interpolate-1
@@ -149,7 +149,7 @@ void Interpolate1LayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto sizesConst = ov::op::v0::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+    auto sizesConst = ov::op::v0::Constant(ov::element::Type_t::i64, {targetShape.size()}, targetShape);
     auto sizesInput = std::make_shared<ov::op::v0::Constant>(sizesConst);
 
     bool align_corners = true;
@@ -164,8 +164,8 @@ void Interpolate1LayerTest::SetUp() {
 
     auto interpolate = std::make_shared<ov::op::v0::Interpolate>(params[0], sizesInput, interpolateAttributes);
 
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 namespace v11 {
@@ -215,9 +215,9 @@ static std::shared_ptr<ov::op::v0::Constant> makeScalesOrSizesInput(ov::op::util
                                                                         const std::vector<size_t>& sizes,
                                                                         const std::vector<float>& scales) {
     if (shapeCalcMode == ov::op::util::InterpolateBase::ShapeCalcMode::SIZES)
-        return std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{sizes.size()}, sizes);
+        return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{sizes.size()}, sizes);
     else
-        return std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::f32, ov::Shape{scales.size()}, scales);
+        return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape{scales.size()}, scales);
 }
 
 void InterpolateLayerTest::SetUp() {
@@ -254,15 +254,15 @@ void InterpolateLayerTest::SetUp() {
                                                                      scalesOrSizesInput,
                                                                      interpolateAttributes);
     } else {
-        auto axesInput = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+        auto axesInput = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
 
         interpolate = std::make_shared<ov::op::v11::Interpolate>(params[0],
                                                                      scalesOrSizesInput,
                                                                      axesInput,
                                                                      interpolateAttributes);
     }
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 } // namespace v11

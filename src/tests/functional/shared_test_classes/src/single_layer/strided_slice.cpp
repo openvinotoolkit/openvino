@@ -59,8 +59,8 @@ void StridedSliceLayerTest::SetUp() {
                                                              ssParams.shrinkAxisMask,
                                                              ssParams.ellipsisAxisMask);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ss)};
-    function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ss)};
+    function = std::make_shared<ov::Model>(results, params, "StridedSlice");
 }
 
 }  // namespace LayerTestsDefinitions

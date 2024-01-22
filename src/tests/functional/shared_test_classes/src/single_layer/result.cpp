@@ -29,7 +29,7 @@ void ResultLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(params[0])};
-    function = std::make_shared<ngraph::Function>(results, params, "result");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(params[0])};
+    function = std::make_shared<ov::Model>(results, params, "result");
 }
 }  // namespace LayerTestsDefinitions

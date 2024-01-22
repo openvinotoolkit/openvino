@@ -6,10 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/type/float16.hpp>
-
 #include <algorithm>
 #include <functional>
 #include <initializer_list>

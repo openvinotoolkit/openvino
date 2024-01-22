@@ -68,13 +68,13 @@ void LSTMCellBasicTest::SetUp() {
     for (auto&& param : params)
         paramsOuts.push_back(param);
 
-    std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
+    std::vector<ov::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
     auto lstm_cell = ngraph::builder::makeLSTM(paramsOuts, WRB, hidden_size, activations, {}, {}, clip);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
                                  std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
-    function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
+    function = std::make_shared<ov::Model>(results, params, "lstm_cell");
     if (should_decompose) {
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::LSTMCellDecomposition>();
         m.run_passes(function);
     }

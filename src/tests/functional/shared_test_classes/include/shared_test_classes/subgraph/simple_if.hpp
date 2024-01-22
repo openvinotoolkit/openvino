@@ -39,7 +39,7 @@ protected:
 
 class SimpleIfNotConstConditionTest : public SimpleIfTest {
 public:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 protected:
     void SetUp() override;

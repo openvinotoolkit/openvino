@@ -116,14 +116,14 @@ namespace LayerTestsDefinitions {
 
         auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0], params[1], seq_lengths_node, W, R, B, hidden_size, direction,
                                                                 activations, activations_alpha, activations_beta, clip, linear_before_reset);
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
                                      std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};
-        function = std::make_shared<ngraph::Function>(results, params, "gru_sequence");
+        function = std::make_shared<ov::Model>(results, params, "gru_sequence");
         bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
         if (!is_pure_sequence) {
-            ngraph::pass::Manager manager;
+            ov::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();

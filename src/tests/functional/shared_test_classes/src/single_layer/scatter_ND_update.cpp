@@ -61,16 +61,16 @@ void ScatterNDUpdateLayerTest::SetUp() {
     std::tie(inShape, indicesShape, indicesValue, updateShape) = shapeDescript;
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
-    ngraph::ParameterVector paramVector;
-    auto inputParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(inShape));
+    ov::ParameterVector paramVector;
+    auto inputParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape));
     paramVector.push_back(inputParams);
-    auto updateParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(updateShape));
+    auto updateParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(updateShape));
     paramVector.push_back(updateParams);
 
     auto indicesNode = std::make_shared<ov::op::v0::Constant>(idxPrc, ov::Shape(indicesShape), indicesValue);
     auto s2d = std::make_shared<ov::op::v3::ScatterNDUpdate>(paramVector[0], indicesNode, paramVector[1]);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(s2d)};
-    function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterNDUpdate");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(s2d)};
+    function = std::make_shared<ov::Model>(results, paramVector, "ScatterNDUpdate");
 }
 }  // namespace LayerTestsDefinitions

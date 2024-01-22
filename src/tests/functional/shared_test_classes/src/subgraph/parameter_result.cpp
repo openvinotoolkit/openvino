@@ -24,8 +24,8 @@ std::string ParameterResultSubgraphTest::getTestCaseName(const testing::TestPara
 
 std::shared_ptr<ov::Model> ParameterResultSubgraphTest::createModel(const ov::PartialShape& shape) {
     auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(parameter)};
-    ngraph::ParameterVector params = {parameter};
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(parameter)};
+    ov::ParameterVector params = {parameter};
     auto model = std::make_shared<ov::Model>(results, params, "ParameterResult");
     return model;
 }

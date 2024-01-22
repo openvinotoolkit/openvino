@@ -70,7 +70,7 @@ void EyeLayerTest::SetUp() {
     }
     // Without this call the eye operation will be calculated by CPU and substituted by Constant operator
     ov::pass::disable_constant_folding(eye_operation);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eye_operation)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "eye");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye_operation)};
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{}, "eye");
 }
 }  // namespace LayerTestsDefinitions

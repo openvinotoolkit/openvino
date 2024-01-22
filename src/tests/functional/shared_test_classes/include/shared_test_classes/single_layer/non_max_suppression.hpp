@@ -38,14 +38,14 @@ using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st an
                              float,             // Soft NMS sigma
                              ov::op::v5::NonMaxSuppression::BoxEncodingType,  // Box encoding
                              bool,                                                // Sort result descending
-                             ngraph::element::Type,                               // Output type
+                             ov::element::Type,                               // Output type
                              std::string>;                                        // Device name
 
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
     void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
 
 protected:
@@ -53,7 +53,7 @@ protected:
     InputShapeParams inShapeParams;
 
 private:
-    void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    void CompareBBoxes(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                        const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs);
 };
 

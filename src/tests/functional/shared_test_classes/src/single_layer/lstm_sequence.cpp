@@ -5,7 +5,6 @@
 #include "shared_test_classes/single_layer/lstm_sequence.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
@@ -117,15 +116,15 @@ namespace LayerTestsDefinitions {
 
         auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], seq_lengths_node, W, R, B, hidden_size, direction,
                 std::vector<float>{}, std::vector<float>{}, activations, clip);
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
                                      std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),
                                      std::make_shared<ov::op::v0::Result>(lstm_sequence->output(2))};
-        function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
+        function = std::make_shared<ov::Model>(results, params, "lstm_sequence");
         bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
         if (!is_pure_sequence) {
-            ngraph::pass::Manager manager;
+            ov::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();

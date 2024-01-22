@@ -39,7 +39,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    std::shared_ptr<ngraph::Node> op;
+    std::shared_ptr<ov::Node> op;
 
     if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {
         op = std::make_shared<ov::op::v0::Squeeze>(params.front());
@@ -49,7 +49,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
-    function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    function = std::make_shared<ov::Model>(results, params, "Squeeze");
 }
 } // namespace LayerTestsDefinitions

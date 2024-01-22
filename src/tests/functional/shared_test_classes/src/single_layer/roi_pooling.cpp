@@ -80,7 +80,7 @@ namespace LayerTestsDefinitions {
         } else {
             roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
         }
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
-        function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
+        function = std::make_shared<ov::Model>(results, params, "roi_pooling");
     }
 }  // namespace LayerTestsDefinitions

@@ -70,7 +70,7 @@ void GRUCellTest::SetUp() {
             {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                     {3 * hidden_size, hidden_size}, {(linear_before_reset? 4 : 3) * hidden_size}},
     };
-    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
@@ -106,10 +106,10 @@ void GRUCellTest::SetUp() {
     auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0], params[1], W, R, B, hidden_size, activations,
                                                           activations_alpha, activations_beta, clip,
                                                           linear_before_reset);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
-    function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
+    function = std::make_shared<ov::Model>(results, params, "gru_cell");
     if (should_decompose) {
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::GRUCellDecomposition>();
         m.run_passes(function);
     }

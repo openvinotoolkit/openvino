@@ -38,8 +38,8 @@ void TileLayerTest::SetUp() {
     auto repeatsNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tileParams.size()}, tileParams);
     auto tile = std::make_shared<ov::op::v0::Tile>(params[0], repeatsNode);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(tile)};
-    function = std::make_shared<ngraph::Function>(results, params, "tile");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(tile)};
+    function = std::make_shared<ov::Model>(results, params, "tile");
 }
 
 }  // namespace LayerTestsDefinitions

@@ -48,10 +48,10 @@ void SplitLayerTest::SetUp() {
     auto split = std::dynamic_pointer_cast<ov::op::v1::Split>(ngraph::builder::makeSplit(params[0],
                                                                                              ngPrc, numSplits, axis));
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (int i = 0; i < outIndices.size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(split->output(outIndices[i])));
     }
-    function = std::make_shared<ngraph::Function>(results, params, "split");
+    function = std::make_shared<ov::Model>(results, params, "split");
 }
 }  // namespace LayerTestsDefinitions

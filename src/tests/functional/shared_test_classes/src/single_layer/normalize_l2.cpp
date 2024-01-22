@@ -51,8 +51,8 @@ void NormalizeL2LayerTest::SetUp() {
     auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
     auto norm = std::make_shared<ov::op::v0::NormalizeL2>(data_input, normAxes, eps, epsMode);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(norm)};
-    function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(norm)};
+    function = std::make_shared<ov::Model>(results, params, "NormalizeL2");
 }
 
 }  // namespace LayerTestsDefinitions

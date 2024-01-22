@@ -62,7 +62,7 @@ void RNNCellTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
-    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     std::shared_ptr<ov::Node> W;
     if (WType == InputLayerType::PARAMETER) {
@@ -93,10 +93,10 @@ void RNNCellTest::SetUp() {
 
     auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1], W, R, B, hidden_size, activations,
                                                          activations_alpha, activations_beta, clip);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell)};
-    function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell)};
+    function = std::make_shared<ov::Model>(results, params, "rnn_cell");
     if (should_decompose) {
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::RNNCellDecomposition>();
         m.run_passes(function);
     }

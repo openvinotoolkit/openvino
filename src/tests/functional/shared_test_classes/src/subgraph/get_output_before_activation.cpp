@@ -59,8 +59,8 @@ void OutputBeforeActivation::SetUp() {
     auto input0 = input_parameter[0];
     auto input1 = input_parameter[1];
 
-    ngraph::OutputVector outputs;
-    std::shared_ptr<ngraph::Node> midLayer;
+    ov::OutputVector outputs;
+    std::shared_ptr<ov::Node> midLayer;
     switch (outputType) {
     case ov::test::midOutputType::Sum: {
         midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
@@ -80,7 +80,7 @@ void OutputBeforeActivation::SetUp() {
 
     auto act = ov::test::utils::make_activation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
-    function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
+    function = std::make_shared<ov::Model>(outputs, input_parameter, "output_before_activation");
 }
 
 // void OutputBeforeActivation::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

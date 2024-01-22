@@ -70,15 +70,15 @@ namespace SubgraphTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::vector<float> scale, shift;
         std::tie(inputShapes, netPrecision, targetDevice, scale, shift) = this->GetParam();
-        auto paramsShape = ngraph::Shape{1};
+        auto paramsShape = ov::Shape{1};
         if (inputShapes.size() > 1)
-            paramsShape = ngraph::Shape(inputShapes[1]);
+            paramsShape = ov::Shape(inputShapes[1]);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
         auto mul_const = std::make_shared<ov::op::v0::Constant>(ngPrc, paramsShape, scale);
         auto mul = std::make_shared<ov::op::v1::Multiply>(paramsIn[0], mul_const);
         auto add_const = std::make_shared<ov::op::v0::Constant>(ngPrc, paramsShape, shift);
         auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
-        function = std::make_shared<ngraph::Function>(add, paramsIn, "scale_shift");
+        function = std::make_shared<ov::Model>(add, paramsIn, "scale_shift");
     }
 } // namespace SubgraphTestsDefinitions

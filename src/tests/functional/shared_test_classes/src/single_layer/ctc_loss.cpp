@@ -57,7 +57,7 @@ void CTCLossLayerTest::SetUp() {
                 ngFpPrc, ngIntPrc, preprocessCollapseRepeated, ctcMergeRepeated, unique));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcLoss)};
-    function = std::make_shared<ngraph::Function>(results, params, "CTCLoss");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ctcLoss)};
+    function = std::make_shared<ov::Model>(results, params, "CTCLoss");
 }
 }  // namespace LayerTestsDefinitions

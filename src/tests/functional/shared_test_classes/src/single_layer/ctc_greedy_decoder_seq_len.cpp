@@ -87,10 +87,10 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
                                                         blankIndex, mergeRepeated, ngIdxPrc));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
+    function = std::make_shared<ov::Model>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }
 }  // namespace LayerTestsDefinitions

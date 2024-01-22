@@ -40,7 +40,7 @@ void ConcatLayerTest::SetUp() {
         paramsOuts.push_back(param);
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(paramsOuts, axis);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, params, "concat");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    function = std::make_shared<ov::Model>(results, params, "concat");
 }
 }  // namespace LayerTestsDefinitions
