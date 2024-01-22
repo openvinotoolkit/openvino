@@ -516,7 +516,7 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     }
 }
 
-#ifdef SNIPPETS_DEBUG_CAPS
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 void Snippet::SnippetJitExecutor::segfault_detector() {
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippetAttrs.snippet->get_generator()->get_target_machine());
     if (target && target->debug_config.enable_segfault_detector) {
