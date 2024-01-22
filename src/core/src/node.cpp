@@ -301,7 +301,6 @@ const std::string& ov::Node::get_name() const {
 }
 
 void ov::Node::set_friendly_name(const string& name) {
-    AtomicGuard lock(m_name_changing);
     m_friendly_name = name;
 }
 
