@@ -7,8 +7,8 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>` article. 
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>` article.
+
 By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
 It results in creating a "compressed ``FP16`` model", which occupies about half of
 the original space in the file system. The compression may introduce a minor drop in accuracy,
@@ -37,7 +37,7 @@ To disable compression, use the ``compress_to_fp16=False`` option:
 
 
 For details on how plugins handle compressed ``FP16`` models, see
-:doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
+:doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 
 .. note::
 
