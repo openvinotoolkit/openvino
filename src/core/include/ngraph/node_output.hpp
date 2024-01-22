@@ -18,9 +18,9 @@
 #include <map>
 #include <unordered_set>
 
-#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type/element_type.hpp"
 

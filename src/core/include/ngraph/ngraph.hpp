@@ -50,9 +50,6 @@
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/output.hpp"
-#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
@@ -64,6 +61,9 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/descriptor/output.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 // nGraph opsets

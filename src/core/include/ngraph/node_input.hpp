@@ -17,9 +17,9 @@
 #include <cstring>
 #include <map>
 
-#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/type/element_type.hpp"
 
