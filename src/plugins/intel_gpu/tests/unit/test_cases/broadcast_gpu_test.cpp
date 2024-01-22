@@ -2383,3 +2383,11 @@ TEST(broadcast_gpu_opt_fp16, bfyx_21x2x1x1_to_21x2x3x1_axis_Y_13) {
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x5_to_21x1x2x15x5_axis_Y_15) {
     run_broadcast_gpu_opt_y_axis({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
 }
+
+TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
+    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,6,1},{1,1,6,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
+    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+}

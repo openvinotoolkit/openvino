@@ -7,17 +7,31 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+
+// Tune params to the specific platform.
+#define VEC_SIZE 2
+#define Y_BLOCKS 4
+
+static bool is_same_planar_format(kernel_selector::Tensor::DataLayout in_layout, kernel_selector::Tensor::DataLayout out_layout) {
+    return ((out_layout == DataLayout::bfyx && in_layout == DataLayout::bfyx)
+            || (out_layout == DataLayout::bfzyx && in_layout == DataLayout::bfzyx)
+            || (out_layout == DataLayout::bfwzyx && in_layout == DataLayout::bfwzyx));
+}
+
 JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params) const {
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
+
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("BROADCAST_ORDER", params.input_order)});
-    jit.AddConstants({MakeJitConstant("VEC_SIZE", vec_size)});
-    jit.AddConstants({MakeJitConstant("Y_BLOCKS", y_blocks)});
-
+    jit.AddConstants({MakeJitConstant("VEC_SIZE", VEC_SIZE)});
+    jit.AddConstants({MakeJitConstant("Y_BLOCKS", Y_BLOCKS)});
+    jit.AddConstants({MakeJitConstant("SAME_RANK_PLAIN_FORMAT", is_same_planar_format(in_layout, out_layout))});
     return jit;
 }
 
-BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcast_params& params) const {
+BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcast_params& params) {
     const auto& output = params.outputs[0];
     const auto& input = params.inputs[0];
 
@@ -25,19 +39,21 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
+    auto is_broadcast_per_y_axis = [&]() {
+        return is_same_planar_format(in_layout, out_layout)
+            && (input.X().v == output.X().v) && (input.Y().v != output.Y().v)
+            && (input.Batch().v == output.Batch().v) && (input.Feature().v == output.Feature().v)
+            && (input.W().v == output.W().v) && (input.Z().v == output.Z().v);
+    };
+
     // Use block calculation only when y is broadcast axis ans x dim is bigger than vec_size
-    if (((out_layout == DataLayout::bfyx && in_layout == DataLayout::bfyx)
-            || (out_layout == DataLayout::bfzyx && in_layout == DataLayout::bfzyx)
-            || (out_layout == DataLayout::bfwzyx && in_layout == DataLayout::bfwzyx))
-        && (input.X().v == output.X().v) && (input.Y().v != output.Y().v)
-        && (input.Batch().v == output.Batch().v) && (input.Feature().v == output.Feature().v)
-        && (input.W().v == output.W().v) && (input.Z().v == output.Z().v)) {
+    if (is_broadcast_per_y_axis()) {
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
                                                                         { Tensor::DataChannelName::Y },
                                                                         { Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
                                                                         Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-        dispatchData.gws = { ((output.X().v > vec_size)? (output.X().v / vec_size) : 1),
-                             ((output.Y().v > y_blocks)? (output.Y().v / y_blocks) : 1),
+        dispatchData.gws = { ((output.X().v > VEC_SIZE)? (output.X().v / VEC_SIZE) : 1),
+                             ((output.Y().v > Y_BLOCKS)? (output.Y().v / Y_BLOCKS) : 1),
                                 output.Z().v * output.W().v * output.Feature().v * output.Batch().v };
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     } else {
@@ -98,7 +114,7 @@ static std::string GetInputBlockND(const broadcast_params& params) {
 }
 
 void BroadcastKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const broadcast_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

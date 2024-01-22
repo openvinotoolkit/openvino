@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,12 +35,8 @@ public:
 
 protected:
     JitConstants GetJitConstants(const broadcast_params& params) const;
-    DispatchData SetDefault(const broadcast_params& params) const;
+    static DispatchData SetDefault(const broadcast_params& params);
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
-
-    // Tune params to the specific platform.
-    const size_t vec_size = 2;
-    const size_t y_blocks = 4;
 };
 }  // namespace kernel_selector

@@ -150,7 +150,7 @@ KERNEL(broadcast_gpu_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output)
 {
-#if ((OUTPUT_LAYOUT_BFYX && INPUT0_LAYOUT_BFYX) || (OUTPUT_LAYOUT_BFZYX && INPUT0_LAYOUT_BFZYX) || (OUTPUT_LAYOUT_BFWZYX && INPUT0_LAYOUT_BFWZYX))
+#if SAME_RANK_PLAIN_FORMAT == 1
     const bool use_opt_code = INPUT0_SIZE_X == OUTPUT_SIZE_X && INPUT0_SIZE_Y != OUTPUT_SIZE_Y
                         && INPUT0_BATCH_NUM == OUTPUT_BATCH_NUM && INPUT0_FEATURE_NUM == OUTPUT_FEATURE_NUM
                         && INPUT0_SIZE_W == OUTPUT_SIZE_W && INPUT0_SIZE_Z == OUTPUT_SIZE_Z;
@@ -171,33 +171,32 @@ KERNEL(broadcast_gpu_ref)(
         const uint y_leftovers = OUTPUT_SIZE_Y % y_stride;
         const uint y_offset = min(y_leftovers, gdim1);
         const uint out_y  = (uint) (gdim1 * y_stride + y_offset);
+
 #if OUTPUT_DIMS == 6
         const uint out_bfwz = (uint) get_global_id(2);
         const uint out_z  = (out_bfwz % OUTPUT_SIZE_Z);
         const uint out_w  = (out_bfwz / OUTPUT_SIZE_Z) % OUTPUT_SIZE_W;
         const uint out_f  = (out_bfwz / OUTPUT_SIZE_Z / OUTPUT_SIZE_W) % OUTPUT_FEATURE_NUM;
         const uint out_b  = (out_bfwz / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_FEATURE_NUM);
+
+        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_w, out_z, out_y, out_x);
+        const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
 #elif OUTPUT_DIMS == 5
         const uint out_bfwz = (uint) get_global_id(2);
         const uint out_z  = (out_bfwz % OUTPUT_SIZE_Z);
         const uint out_w  = 0;
         const uint out_f  = (out_bfwz / OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM;
         const uint out_b  = (out_bfwz / OUTPUT_SIZE_Z / OUTPUT_FEATURE_NUM);
+
+        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_z, out_y, out_x);
+        const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_z, out_y, out_x);
 #else
         const uint out_bfwz = (uint) get_global_id(2);
         const uint out_z  = 0;
         const uint out_w  = 0;
         const uint out_f  = (out_bfwz % OUTPUT_FEATURE_NUM);
         const uint out_b  = (out_bfwz / OUTPUT_FEATURE_NUM);
-#endif
 
-#if OUTPUT_DIMS == 6
-        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_w, out_z, out_y, out_x);
-        const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
-#elif OUTPUT_DIMS == 5
-        const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_z, out_y, out_x);
-        const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_z, out_y, out_x);
-#else
         const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
         const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_y, out_x);
 #endif
@@ -205,6 +204,10 @@ KERNEL(broadcast_gpu_ref)(
         uint y_nums = y_stride;
         if (gdim1 < y_leftovers)
             y_nums += 1;
+
+        uint remained_y = OUTPUT_SIZE_Y - (out_y + y_nums);
+        if (remained_y < y_stride)
+            y_nums += remained_y;
 
         if (OUTPUT_SIZE_X < VEC_SIZE) {
             uint output_idx = out_pos;
