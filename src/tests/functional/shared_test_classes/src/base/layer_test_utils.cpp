@@ -79,33 +79,6 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize(ov::pass::Serialize::Version ir_version) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    std::string output_name = ov::test::utils::generateTestFilePrefix();
-
-    std::string out_xml_path = output_name + ".xml";
-    std::string out_bin_path = output_name + ".bin";
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
-    manager.run_passes(function);
-    function->validate_nodes_and_infer_types();
-
-    auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-            compare_functions(result.getFunction(), function, false, false, false,
-                              true,     // precision
-                              true);    // attributes
-
-    EXPECT_TRUE(success) << message;
-
-    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
-}
-
 void LayerTestsCommon::QueryNetwork() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 

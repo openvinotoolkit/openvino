@@ -43,8 +43,6 @@ public:
 
     virtual void Run();
 
-    virtual void Serialize(ov::pass::Serialize::Version ir_version = ov::pass::Serialize::Version::UNSPECIFIED);
-
     virtual void QueryNetwork();
 
     static void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expected,
