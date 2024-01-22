@@ -221,7 +221,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     for (std::shared_ptr<Node> node : func.get_results()) {
         auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result) {
-            OPENVINO_THROW("Results should be of type op::Result");
+            OPENVINO_THROW("Results should be of type ov::op::v0::Result");
         }
         cloned_results.push_back(result);
     }
@@ -556,7 +556,7 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
 
     // Add res node
     // Add [4], [5], [6], [7]
-    std::shared_ptr<op::Result> res_node = std::make_shared<op::Result>(src_node);
+    std::shared_ptr<ov::op::v0::Result> res_node = std::make_shared<ov::op::v0::Result>(src_node);
 
     return make_pair(res_node, par_node);
 }

@@ -183,10 +183,6 @@ Engine::~Engine() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (config.count(InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS))
-        return true;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return config.count(ov::num_streams.name());
 }
 
@@ -297,14 +293,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = latency_hints;
     } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = tput_hints.first;
         config[ov::threading::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
         config[ov::threading::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
@@ -333,10 +323,6 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     } else {
         config.streamExecutorConfig.set_config_zero_stream();
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
@@ -625,24 +611,7 @@ bool Engine::is_legacy_api() const {
     return !get_core()->is_new_api();
 }
 
-ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& options) const {
-    ov::Any result;
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        result = option->second;
-    } else {
-        return get_metric_legacy(name, options);
-    }
-    return result;
-}
-
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
-    if (is_legacy_api()) {
-        auto ret = get_property_legacy(name, options);
-        if (!ret.empty())
-            return ret;
-    }
-
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
@@ -717,71 +686,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     return get_ro_property(name, options);
 }
 
-ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& options) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics = {
-            METRIC_KEY(AVAILABLE_DEVICES),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-            METRIC_KEY(RANGE_FOR_STREAMS),
-            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-        };
-        return metrics;
-    } else if (name == ov::device::full_name.name()) {
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
-    } else if (name == ov::available_devices.name()) {
-        std::vector<std::string> availableDevices = {""};
-        return decltype(ov::available_devices)::value_type(std::move(availableDevices));
-    } else if (name == ov::device::capabilities.name()) {
-        std::vector<std::string> capabilities;
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
-            capabilities.push_back(METRIC_VALUE(BF16));
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            capabilities.push_back(METRIC_VALUE(WINOGRAD));
-        capabilities.push_back(METRIC_VALUE(FP32));
-        capabilities.push_back(METRIC_VALUE(FP16));
-        capabilities.push_back(METRIC_VALUE(INT8));
-        capabilities.push_back(METRIC_VALUE(BIN));
-        return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        for (auto&& opt : engConfig._config)
-            configKeys.push_back(opt.first);
-        return configKeys;
-    } else if (name == ov::range_for_async_infer_requests.name()) {
-        std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
-        return decltype(ov::range_for_async_infer_requests)::value_type(range);
-    } else if (name == ov::range_for_streams.name()) {
-        std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
-        return decltype(ov::range_for_streams)::value_type(range);
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        return true;
-    } else if (ov::internal::supported_properties.name() == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
-    } else if (name == ov::internal::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
-        return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
-    }
-
-    return {};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
-    if (is_legacy_api()) {
-        ov::Any ret = get_metric_legacy(name, options);
-        if (!ret.empty())
-            return ret;
-    }
-
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -858,11 +763,6 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     }
-    /* Internally legacy parameters are used with new API as part of migration procedure.
-     * This fallback can be removed as soon as migration completed */
-    auto ret = get_metric_legacy(name, options);
-    if(!ret.empty())
-        return ret;
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);
 }

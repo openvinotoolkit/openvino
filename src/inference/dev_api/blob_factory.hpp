@@ -16,6 +16,8 @@
 #include "ie_blob.h"
 #include "ie_data.h"
 #include "ie_memcpy.h"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 /**
@@ -137,4 +139,15 @@ void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::ve
         IE_THROW() << "Element size mismatch between blob and vector";
     ie_memcpy(outputBlob->buffer().as<T*>(), outputBlob->byteSize(), &inputVector[0], inputVector.size() * sizeof(T));
 }
+
+namespace ov {
+
+ov::SoPtr<ov::ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor, bool unwrap = false);
+
+OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const ov::SoPtr<ov::ITensor>& tensor,
+                                                                           bool unwrap = true,
+                                                                           InferenceEngine::TensorDesc desc = {});
+
+}  // namespace ov
+
 IE_SUPPRESS_DEPRECATED_END

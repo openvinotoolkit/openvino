@@ -120,7 +120,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install build dependencies
         run: choco install --no-progress ninja
@@ -280,26 +280,39 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'true'
 
+      # Test with the short names of the arguments
       - name: Build cpp samples
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
+      # Test with the full names of the arguments
       - name: Build c samples
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       - name: Samples tests
         run: |
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
           SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
           WORKSPACE: ${{ env.INSTALL_DIR }}
+
+      # Test .bat scripts for samples building
+      - name: Build cpp samples (bat)
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/cpp_samples_bat
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      - name: Build c samples (bat)
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -429,6 +442,12 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+          
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd
@@ -473,7 +492,7 @@ jobs:
         run: |
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -n logical -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -552,7 +571,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
@@ -605,156 +624,156 @@ jobs:
       - name: OpenVINO Core unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NGraphUT.xml
 
       - name: OpenVINO Inference functional tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
 
       - name: OpenVINO Inference unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests # Disabled because of CVS-95904
         if: ${{ 'false' }}
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           # Skip ticket: 126320
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_filter=-*test_decode_convert_equal_convert*:*test_convert_partially_equal_convert* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-commonUtilsTests.xml
 
       - name: Snippets func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_subgraphs_dumper_tests --gtest_print_time=1 --device=TEMPLATE --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SubgraphsDumperTests.xml
 
       - name: Template OpImpl tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
       - name: OpenVINO C API tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).PROXY.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
       - name: Hetero Unit Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero Func Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
@@ -830,7 +849,7 @@ jobs:
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*
         timeout-minutes: 60
 
