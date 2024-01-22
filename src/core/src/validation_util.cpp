@@ -10,10 +10,10 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
-#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
@@ -22,6 +22,12 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
 using ov::Dimension;
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
+using ov::op::v0::Negative;
+}  // namespace v0
+}  // namespace op
 
 Strides conv_default_strides(const Node* /* node */,
                              const PartialShape& data_batch_shape,
@@ -882,35 +888,6 @@ std::pair<bool, uint64_t> maximum_value(const Output<Node>& value) {
     return std::pair<bool, uint64_t>(val.m_value < std::numeric_limits<uint64_t>::max(), val.m_value);
 }
 
-void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                    std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                    const OutputVector& outputs,
-                    const EvaluationContext& evaluation_context) {
-    Evaluator<HostTensorPtr> evaluator({}, value_map);
-    evaluator.set_universal_handler(
-        [&output_tensor_map, &evaluation_context](Node* node,
-                                                  const HostTensorVector& input_tensors) -> HostTensorVector {
-            HostTensorVector output_tensors;
-            for (const auto& v : node->outputs()) {
-                auto it = output_tensor_map.find(v);
-                if (it == output_tensor_map.end()) {
-                    auto c = std::make_shared<HostTensor>(v);
-                    output_tensors.push_back(c);
-                } else {
-                    output_tensors.push_back(it->second);
-                }
-            }
-            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
-                return output_tensors;
-            } else {
-                OPENVINO_THROW("Evaluation failed on ", node);
-            }
-        });
-    for (const auto& value : outputs) {
-        evaluator.evaluate(value);
-    }
-}
-
 std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
     auto tensor = ov::util::make_tensor_of_max_value(t);
     return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
@@ -950,15 +927,6 @@ std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t)
     default:
         return nullptr;
     }
-}
-
-bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
-    return (tensor_vector.size() == size) &&
-           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
-}
-
-std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
-    return std::make_shared<op::Negative>(arg0);
 }
 }  // namespace ngraph
 

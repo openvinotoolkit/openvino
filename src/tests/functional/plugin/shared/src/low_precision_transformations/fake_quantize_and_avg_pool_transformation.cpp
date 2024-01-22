@@ -8,32 +8,34 @@
 #include <tuple>
 #include <vector>
 #include <string>
-//#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/avg_pool.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
-    threshold = 0.5f;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    rel_threshold = 0.5f;
+    abs_threshold = 1.0;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
         precision,
@@ -44,7 +46,7 @@ void FakeQuantizeAndAvgPoolTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndAvgPoolTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -12,7 +12,7 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            template_extension
+            openvino_template_extension
         LINK_LIBRARIES
             unit_test_utils
         ADD_CLANG_FORMAT

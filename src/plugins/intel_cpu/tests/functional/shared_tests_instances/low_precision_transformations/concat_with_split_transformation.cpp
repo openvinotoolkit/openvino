@@ -10,9 +10,8 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -25,30 +24,30 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 const std::vector<ConcatWithSplitTransformationParam> testValues = {
     // U8
     {
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} }
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} }
     },
     // I8
     {
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
     },
     // mixed: U8 + I8
     {
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
     },
     // mixed: I8 + U8
     {
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 6, 10, 10 })),
+        ::testing::Values(ov::PartialShape({ 1, 6, 10, 10 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues)),

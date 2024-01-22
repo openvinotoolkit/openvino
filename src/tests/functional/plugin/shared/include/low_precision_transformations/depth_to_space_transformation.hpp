@@ -8,12 +8,13 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::op::v0::DepthToSpace::DepthToSpaceMode,
     size_t> DepthToSpaceTransformationParams;

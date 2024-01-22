@@ -116,7 +116,7 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
