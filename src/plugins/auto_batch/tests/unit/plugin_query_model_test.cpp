@@ -2,26 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
 #include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using query_model_params = std::tuple<ov::AnyMap,  // Set Property
                                       bool>;
@@ -81,9 +65,9 @@ TEST_P(QueryModelTest, QueryModelTestCase) {
 
 const std::vector<query_model_params> query_model_params_test = {
     query_model_params{{{}}, true},
-    query_model_params{{{"AUTO_BATCH_TIMEOUT", "200"}}, true},
-    query_model_params{{{"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
-    query_model_params{{{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
+    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, true},
+    query_model_params{{{ov::device::priorities("CPU(4)")}}, false},
+    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

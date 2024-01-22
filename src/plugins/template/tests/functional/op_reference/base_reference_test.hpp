@@ -6,6 +6,7 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"

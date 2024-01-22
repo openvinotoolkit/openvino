@@ -418,9 +418,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
     ),
     (
         xfail_issue_99950,

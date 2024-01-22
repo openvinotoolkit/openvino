@@ -87,6 +87,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                         if aggregated_device_results is None:
                             aggregated_results.append(xml_device_entry)
                             aggregated_device_results = aggregated_results.find(device_name)
+                            break
                         else:
                             aggregated_device_results.append(xml_results_entry)
                         continue

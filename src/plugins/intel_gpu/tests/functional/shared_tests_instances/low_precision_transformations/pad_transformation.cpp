@@ -12,12 +12,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 16, 16},
 };
 
@@ -37,7 +37,7 @@ const std::vector<ov::op::PadMode> padModes = {
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
     },
@@ -45,7 +45,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     {
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { -127.f, 0.f, 128.f / 2.f },
             { 128.f / 4.f, 128.f / 2.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -72,17 +72,17 @@ namespace testCasesForConstantMode {
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
     },
     {
-            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 256ul, ov::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
             { 0, 0, -1, 1 },
             { 0, 0, 1, -1 },
     },
     {
-            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 256ul, ov::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
             { 0, 0, -1, -1 },
             { 0, 0, -1, -1 },
     },
@@ -110,7 +110,7 @@ const std::vector<ov::op::PadMode> modesWithoutConstant = {
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
     },

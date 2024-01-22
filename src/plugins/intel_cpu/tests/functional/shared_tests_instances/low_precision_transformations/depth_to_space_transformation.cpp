@@ -8,12 +8,10 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
@@ -21,7 +19,7 @@ const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
         ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<ngraph::PartialShape> inputShapesBS2 = {
+const std::vector<ov::PartialShape> inputShapesBS2 = {
         {1, 4, 3, 3}, {2, 16, 5, 4}
 };
 
@@ -35,7 +33,7 @@ const auto DepthToSpaceBS2 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
 
-const std::vector<ngraph::PartialShape> inputShapesBS3 = {
+const std::vector<ov::PartialShape> inputShapesBS3 = {
         {1, 9, 3, 3}, {2, 27, 5, 4}
  };
 
