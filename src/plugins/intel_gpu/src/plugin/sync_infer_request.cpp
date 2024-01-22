@@ -590,7 +590,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std
         tmp_shape[0] = user_tensors.size();
         std::shared_ptr<ov::ITensor> merged_tensor = nullptr;
         if (is_host) {
-            merged_tensor = m_context->create_host_tensor(tmp_et, tmp_shape)._ptr;
+            merged_tensor = m_context->create_host_tensor(cldnn::element_type_to_data_type(tmp_et), tmp_shape)._ptr;
             auto ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);

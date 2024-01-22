@@ -143,7 +143,11 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
+        m_memory_object = engine.allocate_memory(cldnn::layout{
+                                                    ov::PartialShape{m_shape},
+                                                    m_element_type,
+                                                    cldnn::format::get_default_format(m_shape.size())
+                                                }, cldnn::allocation_type::usm_host, reset);
         break;
     }
     case TensorType::BT_USM_DEVICE_INTERNAL: {
