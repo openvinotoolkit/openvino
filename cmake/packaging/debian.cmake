@@ -307,8 +307,6 @@ macro(ov_cpack_settings)
         ov_debian_add_lintian_suppression(${python_component}
             # usr/lib/python3/dist-packages/requirements.txt
             "unknown-file-in-python-module-directory"
-            # usr/lib/python3/dist-packages/openvino/inference_engine/__init__.py
-            "executable-not-elf-or-script"
             # all directories
             "non-standard-dir-perm"
             # usr/bin/benchmark_app

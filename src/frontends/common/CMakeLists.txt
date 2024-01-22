@@ -73,7 +73,7 @@ ov_abi_free_target(${TARGET_NAME}_obj)
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Installation rules header files
 

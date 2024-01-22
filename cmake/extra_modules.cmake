@@ -177,9 +177,9 @@ endfunction()
 # since it's generated after modules are configured
 ov_generate_dev_package_config()
 
-# extra modules must be registered after inference_engine library
+# extra modules must be registered after openvino_runtime library
 # and all other OpenVINO Core libraries are creared
-# because '_ov_register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
+# because '_ov_register_extra_modules' creates fake OpenVINODeveloperPackageConfig.cmake
 # with all imported developer targets
 _ov_register_extra_modules()
 

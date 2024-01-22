@@ -62,14 +62,12 @@ endif()
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
-                                             inference_engine
                                              OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags
                                              common_test_utils
                                              openvino::reference
-                                             inference_engine_transformations
                                              gmock)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
