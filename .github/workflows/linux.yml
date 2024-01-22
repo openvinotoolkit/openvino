@@ -114,7 +114,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -407,14 +407,16 @@ jobs:
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
-    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    # Enable back once https://github.com/microsoft/onnxruntime/pull/19184 is merged
+    if: ${{ 'false' }}
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+    #     fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
   ONNX_Models:
     name: ONNX Models Tests
@@ -563,7 +565,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install CUDA
         run: |

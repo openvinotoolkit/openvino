@@ -12,7 +12,8 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "ngraph/util.hpp"
+#include "openvino/core/rtti.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #    undef IN_OV_COMPONENT
@@ -399,11 +400,6 @@ public:
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ov::AlignedBuffer> legacy_to_ov_aligned_buffer(
-        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
