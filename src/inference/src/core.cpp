@@ -146,42 +146,23 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
-    OV_CORE_CALL_STATEMENT(_impl->AddExtension(extension););
-}
-
 void Core::add_extension(const std::string& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
-    } catch (const std::runtime_error&) {
-        try {
-            // Try to load legacy extension
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            add_extension(extension_ptr);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        } catch (const std::runtime_error& e) {
-            OPENVINO_THROW(
-                std::string(
-                    "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
-                e.what());
-        }
+    } catch (const std::runtime_error& e) {
+        OPENVINO_THROW(
+            std::string(
+                "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
+            e.what());
     }
 }
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error&) {
-        try {
-            // Try to load legacy extension
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            add_extension(extension_ptr);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        } catch (const std::runtime_error&) {
-            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
-        }
+        OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
     }
 }
 #endif
