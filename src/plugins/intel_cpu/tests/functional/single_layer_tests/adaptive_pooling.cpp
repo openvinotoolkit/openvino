@@ -105,10 +105,10 @@ protected:
         params.front()->set_friendly_name("ParamsInput");
         std::shared_ptr<ov::Node> secondInput;
         if (secondInputConst) {
-            secondInput = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pooledVector.size()}, pooledVector);
+            secondInput = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{pooledVector.size()}, pooledVector);
         } else {
             auto pooledParam =
-                std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{pooledVector.size()});
+                std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{pooledVector.size()});
             pooledParam->set_friendly_name("ParamSecondInput");
             params.push_back(pooledParam);
             secondInput = pooledParam;
@@ -154,9 +154,9 @@ protected:
 
             if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                auto* dataPtr = tensor.data<int64_t>();
+                auto* dataPtr = tensor.data<int32_t>();
                 for (size_t i = 0; i < pooledVector.size(); i++) {
-                    dataPtr[i] = static_cast<int64_t>(pooledVector[i]);
+                    dataPtr[i] = pooledVector[i];
                 }
             } else {
                 ov::test::utils::InputGenerateData in_data;
