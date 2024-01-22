@@ -66,10 +66,7 @@ bool ov::op::v0::SquaredDifference::evaluate(TensorVector& outputs, const Tensor
 
 bool ov::op::v0::SquaredDifference::has_evaluate() const {
     OV_OP_SCOPE(v0_SquaredDifference_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::f32:
+    if (get_input_element_type(0) == element::f32)
         return true;
-    default:
-        return false;
-    }
+    return false;
 }
