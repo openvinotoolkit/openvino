@@ -71,11 +71,10 @@ function(ov_add_plugin)
             ov_add_version_defines(${OV_PLUGIN_VERSION_DEFINES_FOR} ${OV_PLUGIN_NAME})
         endif()
 
-        target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+        target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
         if(NOT BUILD_SHARED_LIBS)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                IE_CREATE_PLUGIN=CreatePluginEngine${OV_PLUGIN_DEVICE_NAME}
                 OV_CREATE_PLUGIN=CreatePluginEngine${OV_PLUGIN_DEVICE_NAME})
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects

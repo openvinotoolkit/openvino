@@ -15,25 +15,25 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/visibility.hpp"
 
-#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)
+#ifdef OPENVINO_STATIC_LIBRARY
 #    define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C __VA_ARGS__
 #    define OPENVINO_RUNTIME_API
 #else
-#    ifdef IMPLEMENT_INFERENCE_ENGINE_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
+#    ifdef IMPLEMENT_OPENVINO_RUNTIME_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
 #        define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #        define OPENVINO_RUNTIME_API        OPENVINO_CORE_EXPORTS
 #    else
 #        define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
 #        define OPENVINO_RUNTIME_API        OPENVINO_CORE_IMPORTS
-#    endif  // IMPLEMENT_INFERENCE_ENGINE_API
-#endif      // OPENVINO_STATIC_LIBRARY || USE_STATIC_IE
+#    endif  // IMPLEMENT_OPENVINO_RUNTIME_API
+#endif      // OPENVINO_STATIC_LIBRARY
 
 /**
  * @def OPENVINO_PLUGIN_API
  * @brief Defines the OpenVINO Runtime Plugin API method.
  */
 
-#if defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+#if defined(IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #else
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C

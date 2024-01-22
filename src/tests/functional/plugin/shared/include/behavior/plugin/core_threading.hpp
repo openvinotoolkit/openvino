@@ -4,7 +4,6 @@
 
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
-#include <ie_extension.h>
 #include <cpp/ie_cnn_network.h>
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>

@@ -44,7 +44,6 @@ InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPa
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from file");
     return InferenceEngine::details::ReadNetwork(modelPath,
                                                  binPath,
-                                                 extensions,
                                                  isNewAPI(),
                                                  coreConfig.get_enable_mmap());
 }
@@ -53,7 +52,7 @@ InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,
                                                       const InferenceEngine::Blob::CPtr& weights,
                                                       bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from memory");
-    return InferenceEngine::details::ReadNetwork(model, weights, extensions, isNewAPI(), frontendMode);
+    return InferenceEngine::details::ReadNetwork(model, weights, isNewAPI(), frontendMode);
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(

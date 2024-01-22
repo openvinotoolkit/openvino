@@ -99,7 +99,7 @@ ov_build_target_faster(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-    IMPLEMENT_INFERENCE_ENGINE_API
+    IMPLEMENT_OPENVINO_RUNTIME_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
@@ -159,7 +159,7 @@ endif()
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
     openvino::runtime::dev openvino::pugixml)
 
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+target_compile_definitions(${TARGET_NAME}_s PUBLIC OPENVINO_STATIC_LIBRARY)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON

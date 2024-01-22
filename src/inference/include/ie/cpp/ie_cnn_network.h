@@ -33,8 +33,6 @@
 
 namespace InferenceEngine {
 
-class IExtension;
-
 /**
  * @brief This class contains all the information about the Neural Network and the related binary information
  */
@@ -62,8 +60,7 @@ public:
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
-    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
-                        const std::vector<std::shared_ptr<IExtension>>& exts = {});
+    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);
     IE_SUPPRESS_DEPRECATED_END
 
     /**

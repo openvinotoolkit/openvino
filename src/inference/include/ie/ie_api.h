@@ -19,13 +19,13 @@
 #    endif
 #endif
 
-#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE) || (defined(__GNUC__) && (__GNUC__ < 4))
+#if defined(OPENVINO_STATIC_LIBRARY) || (defined(__GNUC__) && (__GNUC__ < 4))
 #    define INFERENCE_ENGINE_API(...)       extern "C" __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CPP(...)   __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CLASS(...) __VA_ARGS__
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
-#        ifdef IMPLEMENT_INFERENCE_ENGINE_API
+#        ifdef IMPLEMENT_OPENVINO_RUNTIME_API
 #            define INFERENCE_ENGINE_API(...)       extern "C" __declspec(dllexport) __VA_ARGS__ __cdecl
 #            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllexport) __VA_ARGS__
 #            define INFERENCE_ENGINE_API_CLASS(...) __declspec(dllexport) __VA_ARGS__
@@ -43,24 +43,12 @@
 
 #if defined(__GNUC__)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
-#    if __GNUC__ >= 6 || defined(__clang__)
-#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) INFERENCE_ENGINE_DEPRECATED(msg)
-#    else
-#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
-#    endif
 #elif defined(_MSC_VER)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __declspec(deprecated(msg))
-#    if _MSC_VER >= 1900 /* VS2015 */
-#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
-#    else
-#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
-#    endif
 #elif defined(__INTEL_COMPILER)
 #    define INFERENCE_ENGINE_DEPRECATED(msg)      __attribute__((deprecated(msg)))
-#    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) INFERENCE_ENGINE_DEPRECATED(msg)
 #else
 #    define INFERENCE_ENGINE_DEPRECATED(msg)
-#    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
 #endif
 
 #define INFERENCE_ENGINE_1_0_DEPRECATED                                                                              \
@@ -117,22 +105,4 @@
 #    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2))
 #        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
-#endif
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    ifndef ENABLE_UNICODE_PATH_SUPPORT
-#        define ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
-
-/**
- * @def INFERENCE_PLUGIN_API(type)
- * @brief Defines Inference Engine Plugin API method
- * @param type A plugin type
- */
-
-#if (defined(_WIN32) || defined(__CYGWIN__)) && defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-#    define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
-#else
-#    define INFERENCE_PLUGIN_API(type) INFERENCE_ENGINE_API(type)
 #endif

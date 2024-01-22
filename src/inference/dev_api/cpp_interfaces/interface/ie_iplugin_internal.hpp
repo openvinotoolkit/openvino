@@ -16,9 +16,9 @@
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "ie_version.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -312,44 +312,7 @@ protected:
     bool _isNewAPI;                                                    //!< A flag which shows used API
 };
 
-/**
- * @def IE_CREATE_PLUGIN
- * @brief Defines a name of a function creating plugin instance
- * @ingroup ie_dev_api_plugin_api
- */
-#ifndef IE_CREATE_PLUGIN
-#    define IE_CREATE_PLUGIN CreatePluginEngine
-#endif
-
-/**
- * @private
- */
-constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
-
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
 convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
 
 }  // namespace InferenceEngine
-
-/**
- * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
- * @brief Defines the exported `IE_CREATE_PLUGIN` function which is used to create a plugin instance
- * @ingroup ie_dev_api_plugin_api
- */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                    \
-    INFERENCE_PLUGIN_API(void)                                                        \
-    IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false);       \
-    void IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false) { \
-        std::shared_ptr<::InferenceEngine::IInferencePlugin> ie_plugin;               \
-        try {                                                                         \
-            ie_plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                  \
-        } catch (const InferenceEngine::Exception&) {                                 \
-            throw;                                                                    \
-        } catch (const std::exception& ex) {                                          \
-            IE_THROW() << ex.what();                                                  \
-        } catch (...) {                                                               \
-            IE_THROW(Unexpected);                                                     \
-        }                                                                             \
-        ie_plugin->SetVersion(version);                                               \
-        plugin = convert_plugin(ie_plugin);                                           \
-    }

@@ -23,8 +23,8 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_extension.h"
 #include "ie_input_info.hpp"
+#include "ie_version.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
@@ -42,9 +42,7 @@ IE_SUPPRESS_DEPRECATED_START
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
-    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
-                         const std::vector<IExtensionPtr>& exts = {},
-                         bool newAPI = false);
+    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph, bool newAPI = false);
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -90,10 +88,6 @@ public:
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
         noexcept override;
 
-    const std::vector<IExtensionPtr> getExtensions() const {
-        return _ie_extensions;
-    }
-
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 
@@ -103,7 +97,6 @@ protected:
 private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
-    const std::vector<IExtensionPtr> _ie_extensions;
     std::unordered_map<std::string, std::string> _tensorNames;
     bool _new_api = false;
 
