@@ -36,20 +36,20 @@ public:
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
-                const float alpha = 0.f,
+                //const float alpha = 0.f,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
                 Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                alpha(alpha), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
+                alpha(0.f), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
     }
 
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 const std::shared_ptr<ngraph::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
-                const float alpha = 0.f,
+                //const float alpha = 0.f,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
                 Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                alpha(alpha), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
+                alpha(0.f), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
     }
 
     void emit_code(

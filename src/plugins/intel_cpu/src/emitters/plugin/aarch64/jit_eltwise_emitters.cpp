@@ -36,15 +36,13 @@ ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov:
 /// ADD ///
 jit_add_emitter::jit_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                 const std::shared_ptr<ov::Node>& node,
-                                 const float alpha)
-                                 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+                                 const std::shared_ptr<ov::Node>& node)
+                                 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
 }
 
 jit_add_emitter::jit_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc,
-                                 const float alpha) : jit_emitter(host, host_isa, exec_prc, alpha) {
+                                 const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
 }
 
 size_t jit_add_emitter::get_inputs_count() const { return 2; }
@@ -78,16 +76,14 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                         const std::shared_ptr<ov::Node>& node,
-                                         const float alpha)
-                                         : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+                                         const std::shared_ptr<ov::Node>& node)
+                                         : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
 }
 
 jit_mul_add_emitter::jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                         const ov::element::Type exec_prc,
-                                         const float alpha)
-                                         : jit_emitter(host, host_isa, exec_prc, alpha) {
+                                         const ov::element::Type exec_prc)
+                                         : jit_emitter(host, host_isa, exec_prc) {
 }
 
 size_t jit_mul_add_emitter::get_inputs_count() const { return 3; }
@@ -125,15 +121,13 @@ std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisio
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const std::shared_ptr<ov::Node>& node,
-                                           const float alpha)
-                                           : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {}
+                                           const std::shared_ptr<ov::Node>& node)
+                                           : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
 
 jit_multiply_emitter::jit_multiply_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc,
-                                           const float alpha)
-                                           : jit_emitter(host, host_isa, exec_prc, alpha) {}
+                                           const ov::element::Type exec_prc)
+                                           : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_multiply_emitter::get_inputs_count() const { return 2; }
 
@@ -196,7 +190,7 @@ jit_power_static_emitter::jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit
 
 size_t jit_power_static_emitter::get_inputs_count() const { return 1; }
 
-size_t jit_power_static_emitter::get_aux_vecs_count() const { return 2; }
+size_t jit_power_static_emitter::get_aux_vecs_count() const { return 1; }
 
 size_t jit_power_static_emitter::get_aux_gprs_count() const { return 2; }
 
@@ -225,14 +219,19 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg aux = TReg(aux_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
+
+    if (power == 0.f) {
+        h->fmov(dst.s, 1.);
+        return;
+    }
 
     bool get_from_dst = false;
     const auto src = [&in_vec_idxs, &out_vec_idxs, &get_from_dst]() -> TReg {
         return get_from_dst ? TReg(out_vec_idxs[0]) : TReg(in_vec_idxs[0]);
     };
 
+    TReg aux = TReg(aux_vec_idxs[0]);
     if (scale != 1.f) {
         auto adr = table_val2("scale");
         h->ld1r(aux.s, adr);
@@ -245,11 +244,6 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         h->ld1r(aux.s, adr);
         h->fadd(dst.s, src().s, aux.s);
         get_from_dst = true;
-    }
-
-    if (power == 0.f) {
-        h->fmov(dst.s, 1.);
-        return;
     }
 
     if (power == 1.f) {
@@ -283,19 +277,18 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         Xbyak_aarch64::SReg s1(1);
 
         for (auto i = 0; i < 4; i++) {
-            store_context();
+            //store_context();
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
 
-            const int32_t qreg_len = 16;
-            h->str(Xbyak_aarch64::QReg(dst.getIdx()), pre_ptr(h->sp, -qreg_len * 2));
+            h->str(Xbyak_aarch64::QReg(dst.getIdx()), pre_ptr(h->sp, -16));
             h->blr(func_reg);
-            h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, qreg_len * 2));
+            h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
 
             Xbyak_aarch64::WReg w0(0);
             h->fmov(w0, s0);
             h->mov(dst.s[i], w0);
-            restore_context();
+            //restore_context();
         }
     }
 }
@@ -303,16 +296,14 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 /// RELU ///
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   const std::shared_ptr<ov::Node>& node,
-                                   const float alpha)
-                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node), alpha) {
+                                   const std::shared_ptr<ov::Node>& node)
+                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
 }
 
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   const ov::element::Type exec_prc,
-                                   const float alpha)
-                                   : jit_emitter(host, host_isa, exec_prc, alpha) {
+                                   const ov::element::Type exec_prc)
+                                   : jit_emitter(host, host_isa, exec_prc) {
 }
 
 size_t jit_relu_emitter::get_inputs_count() const { return 1; }
