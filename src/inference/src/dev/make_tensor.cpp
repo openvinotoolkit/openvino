@@ -179,7 +179,7 @@ public:
  *
  * @param element_type Tensor element type
  * @param shape Tensor shape
- * @param ptr pointer to external memoty
+ * @param ptr pointer to external memory
  * @param byte_strides Tensor strides
  *
  * @return Shared pointer to tensor interface
@@ -293,11 +293,10 @@ public:
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{
-              std::inner_product(begin.begin(), begin.end(), owner->get_strides().begin(), static_cast<size_t>(0))} {
-        OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
+          m_offset{std::inner_product(begin.begin(), begin.end(), get_strides().begin(), static_cast<size_t>(0))} {
+        OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
-                        owner->get_element_type());
+                        get_element_type());
     }
 
     const element::Type& get_element_type() const override {
@@ -314,7 +313,6 @@ public:
 
     void set_shape(ov::Shape new_shape) override {
         OPENVINO_ASSERT(new_shape.size() == m_shape.size());
-
         for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
              ++max_dim, ++new_dim) {
             OPENVINO_ASSERT(*new_dim <= *max_dim,
