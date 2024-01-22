@@ -25,16 +25,22 @@ inline std::string jit_emitter_pretty_name(const std::string &pretty_func) {
     //      begin := -----------|
     //      end := ---------------------------------------------------|
     //      result := ov::intel_cpu::jit_load_memory_emitter
-    auto find_3th = [](const std::string &pretty_func, size_t begin) {
-        const auto nested_namespaces = 3; // ov, intel_cpu, class_name
-        size_t end = begin;
-        for (size_t i = 0; i < nested_namespaces; i++)
-            end = pretty_func.find("::", end + 1);
-        return end;
-    };
-    const auto scope_op = pretty_func.find("::");
-    const auto begin = pretty_func.substr(0, scope_op).rfind(" ") + 1;
-    const auto end = find_3th(pretty_func, begin);
+    // Signatures:
+    //      GCC:   void foo() [with T = {type}]
+    //      clang: void foo() [T = {type}]
+    //      MSVC:  void __cdecl foo<{type}>(void)
+    auto parenthesis = pretty_func.find("(");
+    if (pretty_func[parenthesis - 1] == '>') { // To cover template on MSVC
+        parenthesis--;
+        size_t counter = 1;
+        while (counter != 0 && parenthesis > 0) {
+            parenthesis--;
+            if (pretty_func[parenthesis] == '>') counter++;
+            if (pretty_func[parenthesis] == '<') counter--;
+        }
+    }
+    const auto end = pretty_func.substr(0, parenthesis).rfind("::");
+    const auto begin = pretty_func.substr(0, end).rfind(" ") + 1;
     return pretty_func.substr(begin, end - begin);
 }
 
