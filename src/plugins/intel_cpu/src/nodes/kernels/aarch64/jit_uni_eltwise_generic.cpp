@@ -253,18 +253,18 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const ov::element::Type& src_prc,
                                                const ov::element::Type& dst_prc,
                                                const bool broadcast,
-                                               const int32_t offset) {
+                                               const int32_t ptr_offset) {
     switch (src_prc) {
         case ov::element::f16: {
             if (broadcast) {
-                if (offset == 0) {
+                if (ptr_offset == 0) {
                     ld1r(data.h, ptr(ptr_reg));
                 } else {
-                    add_imm(X_DEFAULT_ADDR, ptr_reg, offset, X_TMP_0);
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
                     ld1r(data.h, ptr(X_DEFAULT_ADDR));
                 }
             } else {
-                ldr(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr_reg, offset));
+                ldr(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr_reg, ptr_offset));
             }
             break;
         }
@@ -272,9 +272,9 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
         case ov::element::i32:
         case ov::element::u32: {
             if (broadcast) {
-                jit_generator::uni_ld1rw(data.s, ptr_reg, offset);
+                jit_generator::uni_ld1rw(data.s, ptr_reg, ptr_offset);
             } else {
-                jit_generator::uni_ldr(data, ptr_reg, offset);
+                jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
             }
             break;
         }
@@ -314,16 +314,16 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                                                const XReg& ptr,
                                                const ov::element::Type& src_prc,
                                                const ov::element::Type& dst_prc,
-                                               const int32_t offset) {
+                                               const int32_t ptr_offset) {
     switch (src_prc) {
         case ov::element::f16: {
-            ldr(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
+            ldr(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         case ov::element::f32:
         case ov::element::i32:
         case ov::element::u32: {
-            ldr(data, Xbyak_aarch64::ptr(ptr, offset));
+            ldr(data, Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         default: {
@@ -362,7 +362,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                                 const TReg& data,
                                                 const ov::element::Type& src_prc,
                                                 const ov::element::Type& dst_prc,
-                                                const int32_t offset) {
+                                                const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
         switch (src_prc) {
             case ov::element::f32: {
@@ -393,13 +393,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
 
     switch (dst_prc) {
         case ov::element::f16: {
-            str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
+            str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         case ov::element::f32:
         case ov::element::i32:
         case ov::element::u32: {
-            str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
+            str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         default: {
@@ -413,7 +413,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                                                 const SReg& data,
                                                 const ov::element::Type& src_prc,
                                                 const ov::element::Type& dst_prc,
-                                                const int32_t offset) {
+                                                const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
         switch (src_prc) {
             case ov::element::f32: {
@@ -444,13 +444,13 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
 
     switch (dst_prc) {
         case ov::element::f16: {
-            str(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, offset));
+            str(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         case ov::element::i32:
         case ov::element::u32:
         case ov::element::f32: {
-            str(data, Xbyak_aarch64::ptr(ptr, offset));
+            str(data, Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         default: {
@@ -470,7 +470,7 @@ struct EltwiseEmitterContext {
 template<typename T>
 struct EltwiseEmitter {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc, ctx.opData.alpha);
+        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc);
     }
 };
 
@@ -525,7 +525,7 @@ void jit_uni_eltwise_generic<isa>::compute_eltwise_op() {
     out_idxs.push_back(vmm_dst.getIdx());
 
     std::vector<size_t> gpr_idxs;
-    for (size_t i = 0; i < eltwise_emitter->get_aux_vecs_count(); i++) {
+    for (size_t i = 0; i < eltwise_emitter->get_aux_gprs_count(); i++) {
         gpr_idxs.push_back(get_aux_gpr(i).getIdx());
     }
 

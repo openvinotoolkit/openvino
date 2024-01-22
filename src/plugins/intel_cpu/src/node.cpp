@@ -1015,10 +1015,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,
         impl_desc_type::gemm_sse42,
-#if defined(OV_CPU_WITH_ACL)
         impl_desc_type::gemm_acl,
         impl_desc_type::acl,
-#endif
         impl_desc_type::jit_gemm,
         impl_desc_type::ref_any,
         impl_desc_type::ref,
