@@ -89,7 +89,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -118,7 +118,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     const auto partially_converted = convert_partially(model);
 
     const auto error_message = ngraph::onnx_import::common::collect_translation_exceptions(partially_converted);
@@ -130,11 +130,11 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
-    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    ngraph::onnx_import::detail::convert_decoded_model(partially_converted);
     normalize(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();

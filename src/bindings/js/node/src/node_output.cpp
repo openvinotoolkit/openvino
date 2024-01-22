@@ -9,7 +9,7 @@
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 
-Napi::Function Output<ov::Node>::get_class_constructor(Napi::Env env) {
+Napi::Function Output<ov::Node>::get_class(Napi::Env env) {
     return Output::DefineClass(
         env,
         "Output",
@@ -21,28 +21,16 @@ Napi::Function Output<ov::Node>::get_class_constructor(Napi::Env env) {
          Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<ov::Node>::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->output_prototype = ref;
-
-    exports.Set("Output", prototype);
-    return exports;
-}
-
 ov::Output<ov::Node> Output<ov::Node>::get_output() const {
     return _output;
 }
 
 Napi::Object Output<ov::Node>::wrap(Napi::Env env, ov::Output<ov::Node> output) {
-    const auto prototype = env.GetInstanceData<AddonData>()->output_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->output;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Output prototype.");
     }
-    const auto& obj = prototype->New({});
+    const auto& obj = prototype.New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;
@@ -64,7 +52,7 @@ Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<Output<const ov::Node>>(info),
       _output{} {}
 
-Napi::Function Output<const ov::Node>::get_class_constructor(Napi::Env env) {
+Napi::Function Output<const ov::Node>::get_class(Napi::Env env) {
     return Output::DefineClass(
         env,
         "ConstOutput",
@@ -76,28 +64,16 @@ Napi::Function Output<const ov::Node>::get_class_constructor(Napi::Env env) {
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
 }
 
-Napi::Object Output<const ov::Node>::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->const_output_prototype = ref;
-
-    exports.Set("ConstOutput", prototype);
-    return exports;
-}
-
 ov::Output<const ov::Node> Output<const ov::Node>::get_output() const {
     return _output;
 }
 
 Napi::Object Output<const ov::Node>::wrap(Napi::Env env, ov::Output<const ov::Node> output) {
-    const auto prototype = env.GetInstanceData<AddonData>()->const_output_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->const_output;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to ConstOutput prototype.");
     }
-    const auto& obj = prototype->New({});
+    const auto& obj = prototype.New({});
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;

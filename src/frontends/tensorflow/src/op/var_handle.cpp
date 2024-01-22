@@ -4,9 +4,9 @@
 
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -15,6 +15,7 @@
 using namespace std;
 using namespace ov::opset8;
 using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -199,16 +200,12 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
         "[TensorFlow Frontend] internal error: cannot cast a pointer to ov::frontend::tensorflow::InputModel*");
     auto var_index = model->get_variables_index();
 
-    auto string_constant_node = dynamic_pointer_cast<StringConstant>(node.get_input(1).get_node_shared_ptr());
+    auto string_constant_node = as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr());
     TENSORFLOW_OP_VALIDATION(
         node,
-        string_constant_node,
-        "[TensorFlow Frontend] internal error: cannot cast a node pointer to StringConstant pointer");
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        string_constant_node->get_data().is<std::vector<std::string>>(),
-        "[TensorFlow Frontend] internal error: cannot cast data of StringConstant into std::vector<std::string>");
-    auto tensor_names = string_constant_node->get_data().as<std::vector<std::string>>();
+        string_constant_node && string_constant_node->get_output_element_type(0) == element::string,
+        "[TensorFlow Frontend] internal error: cannot cast a node pointer to string Constant pointer");
+    auto tensor_names = string_constant_node->get_vector<std::string>();
 
     auto tensor_types = node.get_attribute<std::vector<ov::element::Type>>("dtypes");
 

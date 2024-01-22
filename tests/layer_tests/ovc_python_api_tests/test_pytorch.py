@@ -467,6 +467,27 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
                                  'compress_to_fp16': True, 'use_convert_model_from_mo': True}
 
 
+def create_pytorch_nn_module_with_compressed_constants(tmp_dir):
+    import torch
+
+    class NeuralNetwork(torch.nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.y = torch.arange(10, dtype=torch.float16)
+
+        def forward(self, x):
+            return x + self.y.to(torch.float32)
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+
+    ov_model_ref = Model([add_1], [param_1], "test")
+    fw_model = NeuralNetwork()
+    return fw_model, ov_model_ref, {'input': [([10], np.float32)]}
+
+
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
@@ -1020,6 +1041,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_scale_list_compression_default,
         create_pytorch_nn_module_scale_list_compression_disabled,
         create_pytorch_nn_module_scale_list_compression_enabled,
+        create_pytorch_nn_module_with_compressed_constants,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_static_via_input,
         create_pytorch_nn_module_shapes_list_dynamic,
@@ -1055,7 +1077,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_new_frontend, use_old_api):
+                                   temp_dir, use_new_frontend):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1209,7 +1231,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']

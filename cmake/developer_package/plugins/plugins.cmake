@@ -80,7 +80,7 @@ function(ov_add_plugin)
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                    IE_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
+                    OV_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
             endif()
         endif()
 

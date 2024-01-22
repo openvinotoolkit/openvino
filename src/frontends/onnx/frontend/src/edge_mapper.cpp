@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/frontend/exception.hpp"
 
 using namespace ov;

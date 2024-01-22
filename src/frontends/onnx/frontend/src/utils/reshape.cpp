@@ -9,11 +9,17 @@
 #include <iterator>
 #include <numeric>
 
-#include "default_opset.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/shape.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -64,7 +70,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     return inferred_dims;
 }
 
-Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
+Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
     Shape node_shape = node.get_shape();
 
     // If node is already a scalar, return original
@@ -77,27 +83,27 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
                             node_shape);
 
     // If node is a Constant, recreate as Constant with Shape{}
-    if (ngraph::op::is_constant(node.get_node())) {
-        const auto value = ov::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
-        return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
+    if (ov::op::util::is_constant(node.get_node())) {
+        const auto value = ov::as_type_ptr<v0::Constant>(node.get_node_shared_ptr())->get_data_ptr();
+        return std::make_shared<v0::Constant>(node.get_element_type(), ov::Shape{}, value);
     }
 
     return ov::op::util::reshape(node, Shape{});
 }
 
-Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                         const Output<ngraph::Node>& expected_rank) {
+Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
+                                                     const Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
-    const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
-    const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
-    const auto tail_shape_rank = std::make_shared<default_opset::Subtract>(expected_rank, two_const);
-    const auto tail_shape = std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+    const auto one_const = v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto two_const = v0::Constant::create(element::i64, Shape{1}, {2});
+    const auto tail_shape_rank = std::make_shared<v1::Subtract>(expected_rank, two_const);
+    const auto tail_shape = std::make_shared<v3::Broadcast>(one_const, tail_shape_rank);
 
     // Construct new bias shape: [1, C, 1, 1, ... ]
-    const auto C_dim = std::make_shared<default_opset::ShapeOf>(node);
-    const auto new_shape = std::make_shared<default_opset::Concat>(OutputVector{one_const, C_dim, tail_shape}, 0);
+    const auto C_dim = std::make_shared<v3::ShapeOf>(node);
+    const auto new_shape = std::make_shared<v0::Concat>(OutputVector{one_const, C_dim, tail_shape}, 0);
 
-    return std::make_shared<default_opset::Reshape>(node, new_shape, false);
+    return std::make_shared<v1::Reshape>(node, new_shape, false);
 }
 
 }  // namespace  reshape

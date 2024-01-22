@@ -16,7 +16,6 @@
 #include "blob_transform.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ie_compound_blob.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/common.hpp"
 #include "precision_utils.h"
@@ -675,7 +674,6 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 enum class BlobType {
     Memory,
-    Batched,
     Compound,
     Remote,
 };
@@ -684,40 +682,10 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
     switch (type) {
     case BlobType::Memory:
         return os << "Memory";
-    case BlobType::Batched:
-        return os << "Batched";
-    case BlobType::Compound:
-        return os << "Compound";
     case BlobType::Remote:
         return os << "Remote";
     default:
         IE_THROW() << "Not supported blob type";
-    }
-}
-
-inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType blobType) {
-    switch (blobType) {
-    case BlobType::Memory:
-        return createAndFillBlob(td);
-    case BlobType::Batched:
-    case BlobType::Compound: {
-        auto dims = td.getDims();
-        const size_t subBlobsNum = dims.front();
-        dims[0] = 1;
-        std::vector<InferenceEngine::Blob::Ptr> subBlobs;
-        InferenceEngine::TensorDesc subBlobDesc(td.getPrecision(), dims, td.getLayout());
-        for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(createAndFillBlob(subBlobDesc));
-        }
-        return blobType == BlobType::Batched
-                   ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs)
-                   : InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
-    }
-        // TODO: ocl + remote
-        //    case BlobType::Remote:
-        //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
-    default:
-        IE_THROW() << "Test does not support the blob kind";
     }
 }
 

@@ -9,9 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph/opsets/opset6.hpp"
-#include "ngraph/opsets/opset3.hpp"
-
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {

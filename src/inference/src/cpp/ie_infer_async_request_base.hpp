@@ -12,7 +12,6 @@
 #include "cpp_interfaces/plugin_itt.hpp"
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
-#include "ie_preprocess.hpp"
 
 namespace InferenceEngine {
 
@@ -136,10 +135,6 @@ public:
 
     StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept override {
         TO_STATUS(data = _impl->GetBlob(name));
-    }
-
-    StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc *resp) const noexcept override {
-        TO_STATUS(*info = &(_impl->GetPreProcess(name)));
     }
 
     StatusCode StartAsync(ResponseDesc* resp) noexcept override {

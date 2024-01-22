@@ -7,7 +7,7 @@
 namespace ov {
 namespace test {
 
-std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
+std::string ParameterResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
     ov::test::InputShape inShape;
     std::string targetDevice;
     std::tie(inShape, targetDevice) = obj.param;
@@ -22,7 +22,7 @@ std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::Test
     return result.str();
 }
 
-std::shared_ptr<ov::Model> ParameterResultSubgraphTestBase::createModel(const ov::PartialShape& shape) {
+std::shared_ptr<ov::Model> ParameterResultSubgraphTest::createModel(const ov::PartialShape& shape) {
     auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(parameter)};
     ngraph::ParameterVector params = {parameter};
@@ -41,15 +41,3 @@ void ParameterResultSubgraphTest::SetUp() {
 
 }  // namespace test
 }  // namespace ov
-
-namespace SubgraphTestsDefinitions {
-void ParameterResultSubgraphTestLegacyApi::SetUp() {
-    ov::test::InputShape inShape;
-    std::tie(inShape, targetDevice) = this->GetParam();
-
-    OPENVINO_ASSERT(inShape.first.is_static());
-
-    function = createModel(inShape.first);
-}
-
-}  // namespace SubgraphTestsDefinitions

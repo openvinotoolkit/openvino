@@ -154,7 +154,7 @@ def visit_showcase(self, node):
     self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")
     self.body.append("<img " + (" class='" + (node["img-class"] + " showcase-img' ") if 'img-class' in node is not None else " class='showcase-img'"))
     self.body.append("src='" + node["img"] + "' alt='"+os.path.basename(node["img"]) + "' /></a></div>") if "img" in node is not None else ""
-    
+
     self.body.append("<div class='showcase-content'><div class='showcase-content-container'>")
 
 
@@ -164,7 +164,7 @@ def depart_showcase(self, node):
     notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/"
     git_badge = "<img class='showcase-badge' src='https://badgen.net/badge/icon/github?icon=github&amp;label' alt='Github'>"
     binder_badge = "<img class='showcase-badge' src='https://mybinder.org/badge_logo.svg' alt='Binder'>"
-    colab_badge = "<img class='showcase-badge' src='https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667' alt='Colab'>"
+    colab_badge = "<img class='showcase-badge' src='https://colab.research.google.com/assets/colab-badge.svg' alt='Colab'>"
     binder_list_file = Path('../../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
     colab_list_file = Path('../../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
     openvino_notebooks_repo_listing = Path('../../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)

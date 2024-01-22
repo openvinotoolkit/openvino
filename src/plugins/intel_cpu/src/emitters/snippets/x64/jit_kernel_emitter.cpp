@@ -12,9 +12,16 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
-    regs.resize(idxs.size());
+inline static std::vector<Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
+    std::vector<Reg64> regs(idxs.size());
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
+    return regs;
+}
+
+inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
+    std::vector<size_t> idxs(regs.size());
+    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) { return reg.idx; });
+    return idxs;
 }
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
@@ -228,16 +235,16 @@ void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, con
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     h->preamble();
 
-    Reg64 reg_indexes = Reg64(static_cast<int>(reg_indexes_idx));
-    Reg64 reg_const_params = Reg64(static_cast<int>(reg_const_params_idx));
-    std::vector<Reg64> data_ptr_regs;
-    transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
+    auto reg_indexes = Reg64(static_cast<int>(reg_indexes_idx));
+    auto reg_const_params = Reg64(static_cast<int>(reg_const_params_idx));
+    auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(reg_indexes, reg_const_params, data_ptr_regs);
     for (const auto& expression : body) {
+        const auto reg_info = expression->get_reg_info();
+        const auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
+        const auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
         const auto& emitter = expression->get_emitter();
-        std::vector<size_t> in_regs, out_regs;
-        std::tie(in_regs, out_regs) = expression->get_reg_info();
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();
