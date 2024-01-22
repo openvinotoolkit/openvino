@@ -16,7 +16,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using adaptive_pooling_node = typed_program_node<adaptive_pooling>;
