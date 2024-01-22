@@ -8,9 +8,8 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/subtract_multiply_to_multiply_add.hpp"
 
 namespace LayerTestsDefinitions {
@@ -33,6 +32,8 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
@@ -40,7 +41,7 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
 }
 
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

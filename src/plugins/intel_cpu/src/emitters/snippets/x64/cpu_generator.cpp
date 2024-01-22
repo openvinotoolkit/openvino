@@ -34,10 +34,62 @@
 #include "emitters/snippets/x64/jit_perf_count_chrono_emitters.hpp"
 #include "emitters/snippets/x64/jit_perf_count_rdtsc_emitters.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#include "emitters/snippets/x64/jit_debug_emitter.hpp"
+#include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
+#include "emitters/snippets/x64/verbose.hpp"
 #endif
 
 namespace ov {
 
+#ifdef SNIPPETS_DEBUG_CAPS
+static bool is_load_emitter(const intel_cpu::jit_emitter *emitter) {
+    bool ret = false;
+    if (dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) ||
+        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter) ||
+        dynamic_cast<const intel_cpu::jit_load_convert_emitter*>(emitter)) {
+        return true;
+    }
+    return ret;
+}
+
+static bool is_store_emitter(const intel_cpu::jit_emitter *emitter) {
+    bool ret = false;
+    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter) ||
+        dynamic_cast<const intel_cpu::jit_store_convert_emitter*>(emitter)) {
+        return true;
+    }
+    return ret;
+}
+
+static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter *emitter) {
+    // default active for typical tensor memory access emitters
+    bool ret = false;
+    ret = is_load_emitter(emitter) ||
+        is_store_emitter(emitter) ||
+        dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) ||
+        dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) ||
+        dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter);
+    return ret;
+    // use below code to active all emitters for extend usage
+    // return !dynamic_cast<const jit_nop_emitter*>(emitter);
+}
+
+#define CREATE_SNIPPETS_EMITTER(e_type) { \
+    [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+        auto emitter = std::make_shared<e_type>(h.get(), isa, expr); \
+        if (debug_config.enable_segfault_detector && is_segfault_detector_emitter(emitter.get())) { \
+            auto segfault_emitter = std::make_shared<jit_uni_segfault_detector_emitter>(h.get(), isa, emitter.get(), \
+                is_load_emitter(emitter.get()), is_store_emitter(emitter.get()), expr->get_node()->get_friendly_name()); \
+            return std::make_shared<jit_debug_emitter>(emitter, segfault_emitter, jit_debug_emitter::EmissionLocation::preamble); \
+        } else { \
+            return emitter; \
+        } \
+    }, \
+    [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+}
+#else
 #define CREATE_SNIPPETS_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, expr); \
@@ -46,6 +98,7 @@ namespace ov {
         return e_type::get_supported_precisions(n); \
     } \
 }
+#endif
 
 #define CREATE_CPU_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -227,7 +280,8 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
-    need = need ||
+    const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||

@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "ie_blob.h"
-#include "ie_remote_blob.hpp"
+#include "blob_factory.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_utils.hpp"
@@ -354,8 +354,6 @@ public:
     std::shared_ptr<InferenceEngine::Blob> blob;
 
     BlobTensor(const InferenceEngine::Blob::Ptr& blob) : blob{blob} {
-        auto remote_impl = dynamic_cast<InferenceEngine::RemoteBlob*>(blob.get());
-        OPENVINO_ASSERT(!remote_impl);
         OPENVINO_ASSERT(blob);
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
         update_strides();
@@ -460,10 +458,6 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blo
         return {};
     } else if (unwrap && std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob) != nullptr) {
         return std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob)->get_tensor();
-    } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
-        return remote_blob->get_tensor();
-    } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
-        return {std::make_shared<RemoteBlobTensor>(remote_blob), nullptr};
     }
     ELSE_IF(float)
     ELSE_IF(double)
@@ -482,36 +476,6 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blo
         return {std::make_shared<BlobTensor>(blob), nullptr};
     }
 #undef IF
-}
-
-InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob) {
-#ifdef PROXY_PLUGIN_ENABLED
-    if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
-        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        }
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-#endif
-    return blob;
-}
-
-const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob) {
-#ifdef PROXY_PLUGIN_ENABLED
-    if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
-        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        }
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-#endif
-    return blob;
 }
 
 InferenceEngine::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor,
@@ -559,10 +523,6 @@ InferenceEngine::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor,
         return {};
     } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-        return blob_tensor->blob;
-    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
-        return std::make_shared<TensorRemoteBlob>(tensor, create_desc(tensor, desc));
     } else {
 #define CASE(precision, T)   \
     case element::precision: \

@@ -11,7 +11,6 @@
 #include <tuple>
 #include <vector>
 
-#include "exec_graph_info.hpp"
 #include "ie_blob.h"
 #include "ie_extension.h"
 #include "ie_iextension.h"

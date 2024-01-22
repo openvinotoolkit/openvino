@@ -6219,3 +6219,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
+    auto model = convert_model("bitwise_not.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
+
+    test_case.run();
+}

@@ -3,11 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
-
-using namespace std;
-using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {

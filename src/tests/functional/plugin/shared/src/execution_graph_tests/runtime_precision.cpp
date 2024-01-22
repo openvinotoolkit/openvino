@@ -2,28 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <tuple>
-#include <vector>
-#include <unordered_set>
-#include <string>
-#include <functional>
-
-#include "exec_graph_info.hpp"
+#include "execution_graph_tests/runtime_precision.hpp"
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/binary_convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/node_builders/binary_convolution.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
-#include "execution_graph_tests/runtime_precision.hpp"
+#include <functional>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_set>
+#include <vector>
 
 namespace ExecutionGraphTests {
 
 std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Type>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 2);
+    OPENVINO_ASSERT(inputPrecisions.size() == 2);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0],
                                                                        ov::Shape{1, 16, 5, 4}),
@@ -38,7 +37,7 @@ std::shared_ptr<ov::Model> makeEltwiseFunction(const std::vector<ov::element::Ty
 }
 
 std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::element::Type>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
@@ -56,7 +55,7 @@ std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::el
 }
 
 std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<ov::element::Type> &inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
     auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});

@@ -57,12 +57,11 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
 
     // 1. some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
     // 2. perf count node as field of emitter should be alive at runtime.
-    if (linear_ir.get_config().m_save_expressions) {
-        for (const auto& expr : linear_ir) {
-            const auto& emitter = expr->get_emitter();
-            if (uses_precompiled_kernel(emitter))
-                result.m_saved_emitters.emplace_back(emitter);
-        }
+    // 3. Emitters with segfault detector debug capabilty also need to be accessible at runtime.
+    for (const auto& expr : linear_ir) {
+        const auto& emitter = expr->get_emitter();
+        if (uses_precompiled_kernel(emitter))
+            result.m_saved_emitters.emplace_back(emitter);
     }
     result.compiled_snippet = target->get_snippet();
 }
