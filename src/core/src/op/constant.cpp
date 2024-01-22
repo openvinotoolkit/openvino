@@ -12,13 +12,12 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {

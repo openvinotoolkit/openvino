@@ -49,7 +49,7 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricN
         ov::Any heteroConfigValue = heteroExeNetwork.get_property(deviceConf);
         ov::Any deviceConfigValue = deviceExeNetwork.get_property(deviceConf);
 
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf &&
+        if (ov::internal::exclusive_async_requests.name() != deviceConf &&
             ov::supported_properties.name() != deviceConf) {
             std::stringstream strm;
             deviceConfigValue.print(strm);

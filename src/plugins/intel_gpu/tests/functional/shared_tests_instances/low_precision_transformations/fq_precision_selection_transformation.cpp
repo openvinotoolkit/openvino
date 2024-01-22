@@ -23,7 +23,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testValues = {
     {
-        { ov::element::u8, ngraph::element::i8 },
+        { ov::element::u8, ov::element::i8 },
         { ov::element::u8 },
         true,
         {
@@ -37,7 +37,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
         },
     },
     {
-        { ov::element::u8, ngraph::element::i8 },
+        { ov::element::u8, ov::element::i8 },
         { ov::element::i8 },
         // INT8 is not available for limited operation (Convolution)
         false,
