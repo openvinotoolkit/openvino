@@ -373,7 +373,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 
     priorities.erase(std::remove_if(priorities.begin(),
                                     priorities.end(),
-                                    [](impl_desc_type type) {
+                                    [&](impl_desc_type type) {
                                         return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
                                     }),
                      priorities.end());
@@ -382,8 +382,13 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
+    const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                    inputDataType == memory::data_type::f32;
+    const bool diableBrgConv = (((IC == 1 && groupOC * groupNum == 1) || isDepthWise()) && isAvx2FP32);
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                           !diableBrgConv;
     return isBrgConvAvailable;
 }
 
@@ -1147,6 +1152,9 @@ bool Convolution::isNspcAvailable() const {
     auto ndims = inpDims.size();
 
     if (isDepthWise()) {
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+            return false;
         // 1d equivalent cases are painfully slow
         if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
             return false;
