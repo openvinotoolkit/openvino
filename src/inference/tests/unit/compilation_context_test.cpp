@@ -374,7 +374,6 @@ TEST(NetworkContext, HashOfSameModelWithClone) {
         const auto& item = inputs[i];
         auto& in = preproc.input(item.get_any_name());
         in.tensor().set_element_type(output_precision);
-        // preproc.output(i).tensor().set_element_type(output_precision);
     }
     // SET OUTPUT PRECISION
     const auto& outs = model2->outputs();
