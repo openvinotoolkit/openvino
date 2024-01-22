@@ -16,26 +16,56 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+void AssignRegisters::set_reg_types(LinearIR& linear_ir) {
+    for (const auto& expr : linear_ir) {
+        const auto op = expr->get_node();
+        if (ov::is_type<op::LoopEnd>(op) ||
+            ov::is_type<ov::op::v0::Result>(op)
+#ifdef SNIPPETS_DEBUG_CAPS
+        || ov::is_type<op::PerfCountBeginBase>(op)
+        || ov::is_type<op::PerfCountEndBase>(op)
+#endif
+        )
+        continue;
+
+        OPENVINO_ASSERT(expr->get_output_count() == op->get_output_size(), "Incorrect count of output port descriptors!");
+        for (size_t i = 0; i < expr->get_output_count(); ++i) {
+            const auto reg_type = m_reg_type_mapper(op->output(i));
+            expr->get_output_port_descriptor(i)->set_reg_type(reg_type);
+            // propogate to consumers
+            for (const auto& consumer : expr->get_output_port_connector(i)->get_consumers()) {
+                consumer.get_descriptor_ptr()->set_reg_type(reg_type);
+            }
+        }
+    }
+}
+
 bool AssignRegisters::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters")
     using Reg = size_t;
     using tensor = PortConnectorPtr;
-    const auto& expressions = linear_ir.get_ops();
 
-    std::vector<std::pair<Generator::opRegType, ExpressionPtr>> typed_ops;
-    NodeVector ops;
+    set_reg_types(linear_ir);
+    const auto& exprs = linear_ir.get_ops();
+    const auto& io_exprs = linear_ir.get_IO_ops();
+    Reg num_expressions = exprs.size();
     Reg num_parameters = 0;
     Reg num_results = 0;
-    Reg num_expressions = 0;
-    for (auto& expr : expressions) {
-        auto op = expr->get_node();
-        auto reg_type = m_reg_type_mapper(op);
-        typed_ops.emplace_back(reg_type, expr);
-        num_parameters += is_type<ov::op::v0::Parameter>(op);
-        num_results += is_type<ov::op::v0::Result>(op);
-        ops.push_back(op);
-        num_expressions++;
+    for (const auto& expr : io_exprs) {
+        switch (expr->get_type()) {
+            case snippets::lowered::IOExpression::io_type::INPUT: {
+                num_parameters++;
+                break;
+            }
+            case snippets::lowered::IOExpression::io_type::OUTPUT: {
+                num_results++;
+                break;
+            } default : {
+                OPENVINO_THROW("Kernel detected unsupported io_type");
+            }
+        }
     }
+
     size_t counter_vec = 0;
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
@@ -43,7 +73,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     auto accumulator_reg = 0lu;
-    for (const auto& expr : expressions) {
+    for (const auto& expr : exprs) {
         auto op = expr->get_node();
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT) {
@@ -80,67 +110,51 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             for (const auto& tensor : input_expr_input_tensors) {
                 const auto parent_expr = tensor->get_source().get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
                     if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                        manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
                         manually_assigned_vecs[parent_expr->get_input_port_connector(0)] = static_cast<Reg>(accumulator_reg);
-                }
+                    }
                 }
             }
-            const auto& output_tensor = expr->get_output_port_connector(0);
             manually_assigned_vecs[input_tensor] = static_cast<Reg>(accumulator_reg);
-            manually_assigned_vecs[output_tensor] = static_cast<Reg>(accumulator_reg);
-            for (const auto& child_expr_input : output_tensor->get_consumers()) {
-                if (ov::is_type<op::BroadcastMove>(child_expr_input.get_expr()->get_node())) {
-                    manually_assigned_vecs[child_expr_input.get_expr()->get_output_port_connector(0)] =
-                            static_cast<Reg>(accumulator_reg);
-                }
-            }
-
-            // TODO: Fix via common pipeline using LoopEnd:
-            //       All operations `outside loop` after Horizon ops should have the same register to avoid using it in the next Loop
-            const auto& current_loops_ids = expr->get_loop_ids();
-            auto next_expr = output_tensor->get_consumers().begin()->get_expr();
-            while (next_expr->get_loop_ids() == current_loops_ids) {
-                manually_assigned_vecs[next_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(accumulator_reg);
-                next_expr = next_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-            }
-
             accumulator_reg++;
         }
     }
     // Note: have to specify default capture "=" due to MSVC bug (it doesn't capture const expressions implicitly)
     // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default capture mode has been specified"
     // the same problem with all the other lambdas in this file
-    auto enumerate_out_tensors = [=] (const ExpressionPtr& expr,
-                                      decltype(regs_vec)& reg_map,
-                                      const std::map<tensor, Reg>& manually_assigned_regs,
-                                      size_t& counter) {
-        for (const auto& out_tensor : expr->get_output_port_connectors()) {
-            // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
-            // so we have to check that the tensor has not been enumerated already
-            if (reg_map.count(out_tensor) == 0) {
-                reg_map[out_tensor] = manually_assigned_regs.count(out_tensor) == 0 ? counter++ : IS_MANUALLY_ALLOCATED_REG;
-            }
+    auto enumerate_out_tensor = [=] (const tensor& out_tensor,
+                                     decltype(regs_vec)& reg_map,
+                                     const std::map<tensor, Reg>& manually_assigned_regs,
+                                     size_t& counter) {
+        // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
+        // so we have to check that the tensor has not been enumerated already
+        if (reg_map.count(out_tensor) == 0) {
+            reg_map[out_tensor] = manually_assigned_regs.count(out_tensor) == 0 ? counter++ : IS_MANUALLY_ALLOCATED_REG;
         }
     };
-    for (const auto& t_op : typed_ops) {
-        switch (t_op.first) {
-            case Generator::opRegType::vec2vec:
-            case Generator::opRegType::gpr2vec:
-                enumerate_out_tensors(t_op.second, regs_vec, manually_assigned_vecs, counter_vec);
-                break;
-            case Generator::opRegType::gpr2gpr:
-            case Generator::opRegType::vec2gpr:
-                enumerate_out_tensors(t_op.second, regs_gpr, manually_assigned_gprs, counter_gpr);
-                break;
+    for (const auto& expr : exprs) {
+        for (size_t i = 0; i < expr->get_output_count(); ++i) {
+            const auto& out = expr->get_output_port(i);
+            switch (out.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
+                    enumerate_out_tensor(out.get_port_connector_ptr(), regs_vec, manually_assigned_vecs, counter_vec);
+                    break;
+                case RegType::gpr:
+                    enumerate_out_tensor(out.get_port_connector_ptr(), regs_gpr, manually_assigned_gprs, counter_gpr);
+                    break;
+                default:
+                    OPENVINO_THROW("Unsupported reg type detected");
+            }
         }
     }
     // todo: make one for gpr and one for vector
-    std::vector<std::set<Reg>> used_gpr(num_expressions, std::set<Reg>()); // used = used as an input
-    std::vector<std::set<Reg>> defined_gpr(num_expressions, std::set<Reg>()); // defined = used as output
-    std::vector<std::set<Reg>> used_vec(num_expressions, std::set<Reg>());
-    std::vector<std::set<Reg>> defined_vec(num_expressions, std::set<Reg>());
+    std::vector<std::set<Reg>> used_gpr, used_vec; // used = used as an input
+    std::vector<std::set<Reg>> defined_gpr, defined_vec; // defined = used as output
+    used_gpr.reserve(num_expressions);
+    used_vec.reserve(num_expressions);
+    defined_gpr.reserve(num_expressions);
+    defined_vec.reserve(num_expressions);
 
     auto tensor2reg = [=] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
@@ -153,44 +167,52 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         return result;
     };
-    for (size_t i = 0; i < typed_ops.size(); i++) {
-        const auto& t_op = typed_ops[i];
-        std::vector<tensor> used_tensors, defined_tensors;
-        for (const auto& in : t_op.second->get_input_port_connectors())
-            used_tensors.push_back(in);
-        for (const auto& out : t_op.second->get_output_port_connectors())
-            defined_tensors.push_back(out);
-        switch (t_op.first) {
-            case Generator::opRegType::vec2vec:
-                used_vec[i] = tensor2reg(used_tensors, regs_vec);
-                defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
-                break;
-            case Generator::opRegType::gpr2gpr:
-                used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
-                defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
-                break;
-            case Generator::opRegType::gpr2vec:
-                used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
-                defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
-                break;
-            case Generator::opRegType::vec2gpr:
-                used_vec[i] = tensor2reg(used_tensors, regs_vec);
-                defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
-                break;
+
+    for (const auto& expr : exprs) {
+        std::vector<tensor> used_gpr_tensors, used_vec_tensors, defined_gpr_tensors, defined_vec_tensors;
+        for (size_t i = 0; i < expr->get_input_count(); ++i) {
+            const auto& in = expr->get_input_port(i);
+            switch (in.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
+                    used_vec_tensors.push_back(in.get_port_connector_ptr());
+                    break;
+                case RegType::gpr:
+                    used_gpr_tensors.push_back(in.get_port_connector_ptr());
+                    break;
+                default:
+                    OPENVINO_THROW("Unsupported reg type detected");
+            }
         }
+        for (size_t i = 0; i < expr->get_output_count(); ++i) {
+            const auto& out = expr->get_output_port(i);
+            switch (out.get_descriptor_ptr()->get_reg().type) {
+                case RegType::vec:
+                    defined_vec_tensors.push_back(out.get_port_connector_ptr());
+                    break;
+                case RegType::gpr:
+                    defined_gpr_tensors.push_back(out.get_port_connector_ptr());
+                    break;
+                default:
+                    OPENVINO_THROW("Unsupported reg type detected");
+            }
+        }
+        used_vec.emplace_back(tensor2reg(used_vec_tensors, regs_vec));
+        used_gpr.emplace_back(tensor2reg(used_gpr_tensors, regs_gpr));
+        defined_vec.emplace_back(tensor2reg(defined_vec_tensors, regs_vec));
+        defined_gpr.emplace_back(tensor2reg(defined_gpr_tensors, regs_gpr));
     }
 
     // define life intervals
     // liveOut[i] - regs that are live on exit from i-th (topologically ordered) operation
     // liveIn[i] - regs that are live on entering the i-th (topologically ordered) operation
-    std::vector<std::set<Reg>> life_in_vec(std::move(used_vec));
-    std::vector<std::set<Reg>> life_out_vec(typed_ops.size(), std::set<Reg>());
-    std::vector<std::set<Reg>> life_in_gpr(std::move(used_gpr));
-    std::vector<std::set<Reg>> life_out_gpr(typed_ops.size(), std::set<Reg>());
+    std::vector<std::set<Reg>> life_in_vec(std::move(used_vec)),
+                               life_in_gpr(std::move(used_gpr));
+    std::vector<std::set<Reg>> life_out_vec(num_expressions, std::set<Reg>()),
+                               life_out_gpr(num_expressions, std::set<Reg>());
 
     // todo: this part if O(N*N), so it's slow for large subgraphs. Can we simplify it? At least add an early stopping criteria
-    for (size_t i = 0; i < typed_ops.size(); i++) {
-        for (size_t n = 0; n < typed_ops.size(); n++) {
+    for (size_t i = 0; i < num_expressions; i++) {
+        for (size_t n = 0; n < num_expressions; n++) {
             // Regs that are live on entering the operation = regs used by the op + (all other regs alive - regs defined by the op)
             // copy regs from lifeOut to lifeIn while ignoring regs in def
             std::set_difference(life_out_gpr[n].begin(), life_out_gpr[n].end(),
@@ -200,9 +222,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                                 defined_vec[n].begin(), defined_vec[n].end(),
                                 std::inserter(life_in_vec[n], life_in_vec[n].begin()));
         }
-        for (size_t n = 0; n < typed_ops.size(); n++) {
-            const auto& expr = typed_ops[n].second;
-            if (is_type<op::LoopEnd>(expr->get_node()) || is_type<ov::op::v0::Result>(expr->get_node()))
+        size_t n = 0;
+        for (const auto& expr : exprs) {
+            if (is_type<ov::op::v0::Result>(expr->get_node()))
                 continue;
             for (const auto& out : expr->get_output_port_connectors()) {
                 for (const auto& child_expr_input : out->get_consumers()) {
@@ -214,20 +236,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                         child_it++;
                         k++;
                     }
-                    if (k == typed_ops.size())
+                    if (k == num_expressions)
                         OPENVINO_THROW("assign registers can't find target op in the body");
-                    switch (typed_ops[k].first) {
-                        case Generator::opRegType::vec2vec:
-                        case Generator::opRegType::vec2gpr:
-                            life_out_vec[n].insert(life_in_vec[k].begin(), life_in_vec[k].end());
-                            break;
-                        case Generator::opRegType::gpr2gpr:
-                        case Generator::opRegType::gpr2vec:
-                            life_out_gpr[n].insert(life_in_gpr[k].begin(), life_in_gpr[k].end());
-                            break;
-                    }
+                    life_out_vec[n].insert(life_in_vec[k].begin(), life_in_vec[k].end());
+                    life_out_gpr[n].insert(life_in_gpr[k].begin(), life_in_gpr[k].end());
                 }
             }
+            n++;
         }
     }
     struct by_starting {
@@ -257,7 +272,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         return i;
     };
-    for (int i = 0; i < static_cast<int>(typed_ops.size()); i++) {
+    for (int i = 0; i < static_cast<int>(num_expressions); i++) {
         for (const auto& def : defined_vec[i])
             live_intervals_vec[std::make_pair(i, find_last_use(life_in_vec, static_cast<int>(def)))] = def;
         for (const auto& def : defined_gpr[i])
@@ -329,16 +344,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     register_assigned_regs(regs_vec, unique2reused_map_vec);
     register_assigned_regs(regs_gpr, unique2reused_map_gpr);
 
-    for (auto& t_op : typed_ops) {
-        RegInfo rinfo;
-        const auto& expr = t_op.second;
-        for (const auto& in : expr->get_input_port_connectors()) {
-            rinfo.first.push_back(assigned_regs[in]);
+    for (const auto& expr : exprs) {
+        for (size_t i = 0; i < expr->get_input_count(); ++i) {
+            expr->get_input_port_descriptor(i)->set_reg_idx(assigned_regs[expr->get_input_port_connector(i)]);
         }
-        for (const auto& out : expr->get_output_port_connectors()) {
-            rinfo.second.push_back(assigned_regs[out]);
+        for (size_t i = 0; i < expr->get_output_count(); ++i) {
+            expr->get_output_port_descriptor(i)->set_reg_idx(assigned_regs[expr->get_output_port_connector(i)]);
         }
-        t_op.second->set_reg_info(rinfo);
     }
     return false;
 }

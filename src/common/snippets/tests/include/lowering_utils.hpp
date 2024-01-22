@@ -46,7 +46,7 @@ public:
     std::shared_ptr<Generator> clone() const override { return std::make_shared<DummyGenerator>(target); }
 
 protected:
-    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
+    ov::snippets::RegType get_op_out_reg_type(const ov::Output<ov::Node>& out) const override { return ov::snippets::RegType::vec; };
 };
 
 class LoweringTests : public TransformationTestsF {

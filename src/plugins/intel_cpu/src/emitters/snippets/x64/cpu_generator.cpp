@@ -265,17 +265,19 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
     return std::make_shared<CPUGenerator>(cpu_target_machine->get_isa());
 }
 
-snippets::Generator::opRegType intel_cpu::CPUGenerator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
+ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
+    const auto op = out.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<intel_cpu::BrgemmCPU>(op) ||
         std::dynamic_pointer_cast<intel_cpu::BrgemmCopyB>(op))
-        return gpr2gpr;
+        return ov::snippets::RegType::gpr;
     else if (
         std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op) ||
         std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
-        return vec2vec;
+        return ov::snippets::RegType::vec;
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
+
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);

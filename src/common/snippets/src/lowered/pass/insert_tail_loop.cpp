@@ -24,7 +24,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
     // First step: set new dim value to the corresponding entry_points' dimensions
     if (new_dim_value != existing_subtensor_value) {
         for (const auto& port : loop_info->get_entry_points()) {
-            if (port.is_incremented) {
+            const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
+            if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
                 const auto& expr = port.expr_port->get_expr();
                 const auto node = expr->get_node();
                 auto desc = port.expr_port->get_descriptor_ptr();
@@ -48,7 +49,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
     }
 
     auto update_only_dim_idx_with_subtensor_value = [&](const LinearIR::LoopManager::LoopPort& port) {
-        if (port.is_incremented) {
+        const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
+         if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
             auto desc = port.expr_port->get_descriptor_ptr();
             const auto expr = port.expr_port->get_expr();
             const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
