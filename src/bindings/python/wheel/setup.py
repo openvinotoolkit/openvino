@@ -423,12 +423,10 @@ def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
     if dry_run:
         log.info(f"DRY RUN: Would copy '{src}' to '{dst}'")
-        return
-
-    shutil.copyfile(src, dst)
-
-    if verbose:
-        log.info(f"Copied '{src}' to '{dst}'")
+    else:
+        shutil.copyfile(src, dst)
+        if verbose:
+            log.info(f"Copied '{src}' to '{dst}'")
 
 
 class CopyExt(build_ext):
