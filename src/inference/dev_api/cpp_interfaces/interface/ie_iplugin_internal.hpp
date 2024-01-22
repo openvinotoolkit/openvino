@@ -19,6 +19,7 @@
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 #include "ie_version.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -111,7 +112,7 @@ GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
 INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
 GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
                   std::function<void(std::shared_ptr<ov::Model>&)> transform,
-                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+                  std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
 /**
  * @interface IInferencePlugin
