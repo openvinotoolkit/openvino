@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "inference_engine_transformations")
+set(TARGET_NAME "openvino_transformations")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 

@@ -3934,6 +3934,24 @@ TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
     EXPECT_NO_THROW(run_constant_folding(model));
 }
 
+TEST(constant_folding, sq_diff) {
+    auto const_0 = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{4});
+    auto const_1 = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{2});
+    auto sq_diff = std::make_shared<ov::op::v0::SquaredDifference>(const_0, const_1);
+    auto res = std::make_shared<ov::op::v0::Result>(sq_diff);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{});
+    auto ops = model->get_ops();
+    ASSERT_GT(ops.size(), 2);
+    EXPECT_NO_THROW(run_constant_folding(model));
+    ops = model->get_ordered_ops();
+    // constant + result
+    ASSERT_EQ(ops.size(), 2);
+    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(ops.front());
+    ASSERT_NE(const_node, nullptr);
+    auto res_node = std::dynamic_pointer_cast<ov::op::v0::Result>(ops.back());
+    ASSERT_NE(res_node, nullptr);
+}
+
 class unsupported_types : public testing::TestWithParam<element::Type> {};
 
 TEST_P(unsupported_types, add_multiply) {

@@ -28,7 +28,7 @@ class GenerateProposalsLayerTest :
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
 public:
