@@ -49,8 +49,7 @@ ov_add_test_target(
             OV UNIT CORE
 )
 
-get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
-target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME}

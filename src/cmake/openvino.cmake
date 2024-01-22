@@ -19,8 +19,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 add_library(${TARGET_NAME}
-    $<TARGET_OBJECTS:ngraph_obj>
-    $<TARGET_OBJECTS:ngraph_obj_version>
+    $<TARGET_OBJECTS:openvino_core_obj>
+    $<TARGET_OBJECTS:openvino_core_obj_version>
     $<TARGET_OBJECTS:openvino_frontend_common_obj>
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_obj_version>

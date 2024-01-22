@@ -77,37 +77,37 @@ endif()
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
 
-add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(openvino_core_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(ENABLE_SYSTEM_PUGIXML)
     # system pugixml has /usr/include as include directories
     # we cannot use them as system ones, leads to compilation errors
-    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+    set_target_properties(openvino_core_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
-target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
+target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ov_build_target_faster(ngraph_obj
+ov_build_target_faster(openvino_core_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-ov_add_version_defines(src/version.cpp ngraph_obj)
+ov_add_version_defines(src/version.cpp openvino_core_obj)
 
-target_link_libraries(ngraph_obj PRIVATE openvino::reference openvino::util
+target_link_libraries(openvino_core_obj PRIVATE openvino::reference openvino::util
                                          openvino::pugixml openvino::shape_inference openvino::core::dev)
 
-ov_mark_target_as_cc(ngraph_obj)
+ov_mark_target_as_cc(openvino_core_obj)
 
 # ngraph is public API => need to mark this library as important for ABI free
-ov_abi_free_target(ngraph_obj)
+ov_abi_free_target(openvino_core_obj)
 
-ov_ncc_naming_style(FOR_TARGET ngraph_obj
+ov_ncc_naming_style(FOR_TARGET openvino_core_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 ov_add_clang_format_target(ngraph_clang FOR_SOURCES ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${DEV_HEADERS})
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+    target_compile_definitions(openvino_core_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -125,7 +125,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(link_type PUBLIC)
     endif()
 
-    target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
+    target_link_options(openvino_core_obj ${link_type} "/IGNORE:4217,4286")
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
@@ -142,7 +142,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                       PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ngraph INTERFACE)
