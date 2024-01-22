@@ -14,17 +14,17 @@
 #    endif
 #endif
 
-#include <map>
 #include <memory>
+#include <vector>
 
-#include "ngraph/descriptor/tensor.hpp"
-#include "openvino/core/descriptor/input.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
+#include "ngraph/pass/pass.hpp"
+#include "openvino/pass/low_latency.hpp"
 
 namespace ngraph {
-using ov::Node;
-namespace descriptor {
+namespace pass {
 
-// Describes a tensor that is an input to an op, directly or indirectly via a tuple
-using ov::descriptor::Input;
-}  // namespace descriptor
+using ov::pass::LowLatency2;
+
+}  // namespace pass
 }  // namespace ngraph

@@ -14,21 +14,16 @@
 #    endif
 #endif
 
-#include <map>
 #include <memory>
-#include <string>
-#include <unordered_set>
 #include <vector>
 
-#include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/tensor.hpp"
-#include "ngraph/node_output.hpp"
-#include "openvino/core/descriptor/output.hpp"
+#include "ngraph/node.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ngraph {
-using ov::Node;
-namespace descriptor {
-// Describes an output tensor of an op
-using ov::descriptor::Output;
-}  // namespace descriptor
+namespace op {
+namespace v1 {
+using ov::op::v1::Split;
+}  // namespace v1
+}  // namespace op
 }  // namespace ngraph

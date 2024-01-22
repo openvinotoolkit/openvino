@@ -14,22 +14,17 @@
 #    endif
 #endif
 
-#include <atomic>
+#include <list>
 #include <memory>
-#include <mutex>
-#include <string>
-#include <unordered_set>
+#include <typeinfo>
+#include <vector>
 
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
+#include "ngraph/pass/pass.hpp"
+#include "ngraph/pass/validate.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ngraph {
-using ov::TensorLabel;
-using ov::TensorLabelVector;
-namespace descriptor {
-/// \brief Compile-time descriptor of a first-class value that is a tensor.
-using ov::descriptor::Tensor;
-}  // namespace descriptor
+namespace pass {
+using ov::pass::Manager;
+}  // namespace pass
 }  // namespace ngraph
