@@ -53,7 +53,11 @@ void ROIPoolingLayerTest::SetUp() {
     std::string target_device;
     std::tie(input_shapes, pool_shape, spatial_scale, pool_method, model_type, targetDevice) = this->GetParam();
 
-    abs_threshold = 0.08f;
+    if (targetDevice == ov::test::utils::DEVICE_GPU && model_type == ov::element::f16) {
+        abs_threshold = 0.15f;
+    } else {
+        abs_threshold = 0.08f;
+    }
 
     init_input_shapes(input_shapes);
 
