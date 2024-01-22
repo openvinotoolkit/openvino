@@ -26,6 +26,8 @@ TF_OP_CONVERTER(translate_assign_op);
 TF_OP_CONVERTER(translate_assign_add_op);
 TF_OP_CONVERTER(translate_assign_sub_op);
 TF_OP_CONVERTER(translate_assignvariable_op);
+TF_OP_CONVERTER(translate_add_variable_op);
+TF_OP_CONVERTER(translate_sub_variable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
 TF_OP_CONVERTER(translate_enter_op);
 TF_OP_CONVERTER(translate_exit_op);
@@ -350,6 +352,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignAdd", CreatorFunction(translate_assign_add_op)},
         {"AssignSub", CreatorFunction(translate_assign_sub_op)},
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
+        {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
+        {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},

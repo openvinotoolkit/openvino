@@ -146,49 +146,6 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
     return {const_node};
 }
 
-OutputVector translate_readvariable_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"ReadVariableOp"});
-
-    // Documentation says it should return only one tensor with dtype, but
-    // _output_shapes is a vector of shapes and it means it may have multiple outputs
-    // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
-    auto tmp_output_shapes = node.get_attribute_as_any("_output_shapes");
-
-    if (tmp_output_shapes.empty() || !tmp_output_shapes.is<std::vector<::ov::PartialShape>>()) {
-        return {node.get_input(0).get_node_shared_ptr()};
-    }
-
-    auto output_shapes = tmp_output_shapes.as<std::vector<::ov::PartialShape>>();
-
-    OutputVector outs = {};
-
-    for (size_t i = 0; i < output_shapes.size(); ++i) {
-        std::shared_ptr<ov::Node> output_node;
-        if (node.get_input(0).get_partial_shape().is_static() &&
-            output_shapes[i].get_shape() != node.get_input(0).get_shape()) {
-            auto reshape_shape = make_shared<v0::Constant>(ov::element::i32, output_shapes[i].get_shape());
-            output_node = make_shared<v1::Reshape>(node.get_input(0), reshape_shape, false);
-        } else {
-            output_node = node.get_input(0).get_node_shared_ptr();
-        }
-        if (i == 0) {
-            set_out_name(node.get_name(), output_node);
-            set_out_name(node.get_name() + ":" + "0", output_node);
-        } else {
-            set_node_name(node.get_name() + ":" + std::to_string(i), output_node);
-        }
-        outs.push_back(output_node);
-    }
-    return outs;
-}
-
-OutputVector translate_assignvariable_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"AssignVariableOp"});
-    auto assignvariableop_node = std::make_shared<UnsupportedConstant>();
-    set_node_name(node.get_name(), assignvariableop_node);
-    return {assignvariableop_node};
-}
-
 OutputVector translate_restorev2_op(const NodeContext& node) {
     default_op_checks(node, 3, {"RestoreV2"});
     auto translate_session = node.get_translate_session();
