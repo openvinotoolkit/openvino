@@ -19,31 +19,6 @@
 
 namespace LayerTestsUtils {
 
-namespace {
-std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> getConstData(
-    const std::shared_ptr<ov::Model>& function) {
-    size_t numOutputs = function->get_output_size();
-    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
-    auto funcResults = function->get_results();
-    for (size_t i = 0; i < numOutputs; i++) {
-        outputs[i].first = funcResults[i]->get_element_type();
-        const auto& output = function->output(i).get_node_shared_ptr();
-        OPENVINO_ASSERT(output->inputs().size() == 1);
-        auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        OPENVINO_ASSERT(ov::op::util::is_constant(parrentNode),
-                        "Function was not fully folded to constant state!\n",
-                        "Parent node of one of results is not constant and has type ",
-                        parrentNode->get_type_name());
-
-        const auto data = std::dynamic_pointer_cast<ov::op::v0::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
-        const auto dataSize = ov::shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
-        outputs[i].second.resize(dataSize);
-        std::copy(data, data + dataSize, outputs[i].second.data());
-    }
-    return outputs;
-}
-}  // namespace
-
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
 }
@@ -495,54 +470,7 @@ void LayerTestsCommon::ConvertRefsParams() {
 }
 
 std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    ConvertRefsParams();
-    functionRefs->validate_nodes_and_infer_types();
-
-    auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-    auto refInputsTypes = std::vector<ov::element::Type>(inputs.size());
-    for (std::size_t i = 0; i < inputs.size(); ++i) {
-        const auto &input = inputs[i];
-        const auto inputSize = input->byteSize();
-
-        auto &referenceInput = referenceInputs[i];
-        referenceInput.resize(inputSize);
-
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
-        const auto buffer = lockedMemory.as<const std::uint8_t *>();
-        std::copy(buffer, buffer + inputSize, referenceInput.data());
-
-        refInputsTypes[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(memory->getTensorDesc().getPrecision());
-    }
-
-    const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
-    std::vector<ov::element::Type_t> convertType;
-    convertType.reserve(outputsInfo.size());
-    for (const auto &output : outputsInfo) {
-        convertType.push_back(
-            FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                output.second->getTensorDesc().getPrecision()));
-    }
-
-    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
-    switch (refMode) {
-        case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
-            break;
-        }
-        case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
-            expectedOutputs = getConstData(foldedFunc);
-            break;
-        }
-        case IE: {
-            // reference inference on device with other options and nGraph function has to be implemented here
-            break;
-        }
-    }
-
-    return expectedOutputs;
+    return {};
 }
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
@@ -684,10 +612,6 @@ void LayerTestsCommon::showRuntimePrecisions() {
     }
 }
 #endif
-
-void LayerTestsCommon::SetRefMode(RefMode mode) {
-    refMode = mode;
-}
 
 std::shared_ptr<ov::Model> LayerTestsCommon::GetFunction() {
     return function;

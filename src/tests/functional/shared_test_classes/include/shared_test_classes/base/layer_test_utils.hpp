@@ -66,8 +66,6 @@ public:
 
     virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
 
-    virtual void SetRefMode(RefMode mode);
-
     std::shared_ptr<ov::Model> GetFunction();
 
     std::map<std::string, std::string>& GetConfiguration();
