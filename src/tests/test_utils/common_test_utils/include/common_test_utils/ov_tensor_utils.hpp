@@ -71,6 +71,12 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(const ov::element::Type 
                                                         const int32_t start_from,
                                                         const int32_t resolution);
 
+ov::runtime::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type element_type,
+                                                             const ov::Shape& shape,
+                                                             const float min,
+                                                             const float max,
+                                                             const int seed);
+
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold = std::numeric_limits<double>::max(),

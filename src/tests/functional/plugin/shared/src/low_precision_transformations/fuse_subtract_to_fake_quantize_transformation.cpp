@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/fuse_subtract_to_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
@@ -30,6 +30,8 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
     FuseSubtractToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.fakeQuantizeOnData,
@@ -39,7 +41,7 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
 }
 
 TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

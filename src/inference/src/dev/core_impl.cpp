@@ -31,9 +31,9 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
-#include "xml_parse_utils.h"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -483,19 +483,19 @@ void ov::CoreImpl::register_compile_time_plugins() {
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto parse_result = ParseXml(xml_config_file.c_str());
+    using namespace ov::util;
+    auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
         OPENVINO_THROW(parse_result.error_msg);
     }
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace pugixml::utils;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
-        std::string deviceName = GetStrAttr(pluginNode, "name");
+        std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
         if (pluginRegistry.find(deviceName) != pluginRegistry.end()) {
             OPENVINO_THROW("Device with \"", deviceName, "\"  is already registered in the OpenVINO Runtime");
         }
@@ -504,7 +504,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         }
 
         ov::util::FilePath pluginPath =
-            ov::util::get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
+            ov::util::get_plugin_path(pugixml::get_str_attr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -512,8 +512,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
         if (propertiesNode) {
             FOREACH_CHILD (propertyNode, propertiesNode, "property") {
-                std::string key = GetStrAttr(propertyNode, "key");
-                std::string value = GetStrAttr(propertyNode, "value");
+                std::string key = pugixml::get_str_attr(propertyNode, "key");
+                std::string value = pugixml::get_str_attr(propertyNode, "value");
                 config[key] = value;
             }
         }
@@ -525,7 +525,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         if (extensionsNode) {
             FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
                 ov::util::FilePath extensionLocation =
-                    ov::util::to_file_path(GetStrAttr(extensionNode, "location").c_str());
+                    ov::util::to_file_path(pugixml::get_str_attr(extensionNode, "location").c_str());
                 listOfExtentions.push_back(extensionLocation);
             }
         }
@@ -1526,11 +1526,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
 
-    // 0. Move ov::device::priorities / TARGET_FALLBACK key to property_config
-    auto device_priorities_it = user_config.find("TARGET_FALLBACK");
-    if (device_priorities_it == user_config.end()) {
-        device_priorities_it = user_config.find(ov::device::priorities.name());
-    }
+    // 0. Move ov::device::priorities key to property_config
+    auto device_priorities_it = user_config.find(ov::device::priorities.name());
     if (device_priorities_it != user_config.end()) {
         property_config[device_priorities_it->first] = device_priorities_it->second.as<std::string>();
     }

@@ -261,6 +261,9 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
 
     for (size_t input_idx = 0; input_idx < gmm_params.inputs.size(); ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
+        if (!Tensor::SimpleLayout(input.GetLayout())) {
+            return false;
+        }
         // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
         // in case of shape agnostic kernel
         bool proper_pad_f = input.Feature().pad.is_dynamic ? false : input.Feature().pad.Total() == 0;

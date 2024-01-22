@@ -11,7 +11,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/less.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {

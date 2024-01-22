@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
 #include "async_infer_request.h"
@@ -164,35 +163,6 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph()._graph.dump();
 }
 
-ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(NETWORK_NAME));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        for (auto&& key : graph.getConfig()._config) {
-            configKeys.push_back(key.first);
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graph.getConfig();
-        auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        OPENVINO_ASSERT(option != engConfig._config.end());
-        auto streams = std::stoi(option->second);
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
-    } else {
-        OPENVINO_THROW("Unsupported property: ", name);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
@@ -298,9 +268,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
     }
-    /* Internally legacy parameters are used with new API as part of migration procedure.
-     * This fallback can be removed as soon as migration completed */
-    return get_metric_legacy(name, graph);
+    OPENVINO_THROW("Unsupported property: ", name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {

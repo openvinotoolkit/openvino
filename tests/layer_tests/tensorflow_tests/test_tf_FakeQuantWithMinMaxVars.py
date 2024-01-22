@@ -9,6 +9,12 @@ import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
+OPS = {
+    'tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel': tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel,
+    'tf.raw_ops.FakeQuantWithMinMaxVars':  tf.raw_ops.FakeQuantWithMinMaxVars,
+    'tf.raw_ops.FakeQuantWithMinMaxArgs': tf.raw_ops.FakeQuantWithMinMaxArgs
+}
+
 class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
@@ -32,38 +38,36 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
 
     test_basic = [
         # test FakeQuantWithMinMaxVars
-        dict(inputs_shape=[2, 6, 4], min_value=-3, max_value=4, num_bits=None, narrow_range=None),
-        dict(inputs_shape=[3, 2, 1, 5], min_value=-4, max_value=5, num_bits=14, narrow_range=True),
-        dict(inputs_shape=[3, 2, 4], min_value=2, max_value=4, num_bits=10, narrow_range=False),
-        dict(inputs_shape=[1, 2, 3], min_value=-6, max_value=-3, num_bits=8, narrow_range=True),
+        [[2, 6, 4], -3, 4, None, None],
+        [[3, 2, 1, 5], -4, 5, 14, True],
+        [[3, 2, 4], 2, 4, 10, False],
+        [[1, 2, 3], -6, -3, 8, True],
     ]
 
-    @pytest.mark.parametrize("params", test_basic)
+    @pytest.mark.parametrize("inputs_shape, min_value, max_value, num_bits, narrow_range", test_basic)
     @pytest.mark.parametrize("fake_quant_op", [
-        tf.raw_ops.FakeQuantWithMinMaxVars, tf.raw_ops.FakeQuantWithMinMaxArgs
+        'tf.raw_ops.FakeQuantWithMinMaxVars', 'tf.raw_ops.FakeQuantWithMinMaxArgs'
     ])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_fake_quant_with_min_max_vars_basic(self, params, fake_quant_op, ie_device, precision, ir_version, temp_dir,
-                                                use_new_frontend):
-        self._test(*self.create_fake_quant_with_min_max_vars_net(**params, fake_quant_op=fake_quant_op),
+    def test_fake_quant_with_min_max_vars_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        params = dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range)
+        self._test(*self.create_fake_quant_with_min_max_vars_net(**params, fake_quant_op=OPS[fake_quant_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
 
     test_per_channel_basic = [
-        dict(inputs_shape=[2, 6, 4], min_value=[-4, -3, -5, -8], max_value=[4, 7, 9, 5], num_bits=None,
-             narrow_range=None,
-             fake_quant_op=tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel),
+        [[2, 6, 4], [-4, -3, -5, -8], [4, 7, 9, 5], None, None, 'tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel'],
     ]
 
-    @pytest.mark.parametrize("params", test_per_channel_basic)
+    @pytest.mark.parametrize("inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op", test_per_channel_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
-    def test_fake_quant_with_min_max_vars_per_channel_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                                            use_new_frontend):
+    def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        params=dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range, fake_quant_op=OPS[fake_quant_op])
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
