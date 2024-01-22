@@ -102,12 +102,13 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto squeeze_2 = std::make_shared<op::v0::Squeeze>(lstm_sequence_2->output(0), axis_1_1);
 
         auto abs = std::make_shared<op::v0::Abs>(squeeze_2->output(0));
-        std::cout << "ONE\n";
+        //std::cout << "ONE\n";
         ParameterVector params = {X, H, C, W, R, B, X_2, H_2, C_2, W_2, R_2, B_2};
         model = std::make_shared<Model>(NodeVector{abs}, params);
         pass::VisualizeTree(std::string("/home/pwysocki/") + "multi.svg").run_on_model(model);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        std::cout << "TWO\n";
+        pass::VisualizeTree(std::string("/home/pwysocki/") + "pleasework.svg").run_on_model(model);
+        //std::cout << "TWO\n";
     }
 
     {
@@ -151,11 +152,11 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
                                                          hidden_size,
                                                          op::RecurrentSequenceDirection::FORWARD);
         auto abs = std::make_shared<op::v0::Abs>(multi_lstm_sequence->output(0));
-        std::cout << "THREE\n";
+        //std::cout << "THREE\n";
         model_ref = std::make_shared<Model>(NodeVector{abs}, ParameterVector{X, H, C, W, R, B, A});
         pass::VisualizeTree(std::string("/home/pwysocki/") + "model_ref.svg").run_on_model(model_ref);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        std::cout << "FOUR\n";
+        //std::cout << "FOUR\n";
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
