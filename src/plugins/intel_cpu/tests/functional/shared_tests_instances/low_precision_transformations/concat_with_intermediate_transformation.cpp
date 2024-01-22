@@ -8,12 +8,10 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -26,7 +24,7 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };

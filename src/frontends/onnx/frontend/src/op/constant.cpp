@@ -9,10 +9,11 @@
 #include "core/attribute.hpp"
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
-#include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -36,24 +37,24 @@ std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<
 }
 
 template <typename T>
-std::shared_ptr<default_opset::Constant> make_dense_tensor_as_constant(const std::vector<int64_t>& indices,
-                                                                       const Tensor& values_tensor,
-                                                                       const Shape& shape) {
+std::shared_ptr<v0::Constant> make_dense_tensor_as_constant(const std::vector<int64_t>& indices,
+                                                            const Tensor& values_tensor,
+                                                            const Shape& shape) {
     auto values = values_tensor.get_data<T>();
     auto dense_vector = get_dense_vector<T>(values, indices, shape_size(shape));
-    return default_opset::Constant::create(values_tensor.get_ov_type(), shape, dense_vector);
+    return v0::Constant::create(values_tensor.get_ov_type(), shape, dense_vector);
 }
 
-std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std::vector<int64_t>& absolute_indices,
-                                                                      const Tensor& values_tensor,
-                                                                      const Shape& shape) {
+std::shared_ptr<v0::Constant> get_dense_tensor_as_constant(const std::vector<int64_t>& absolute_indices,
+                                                           const Tensor& values_tensor,
+                                                           const Shape& shape) {
     switch (values_tensor.get_ov_type()) {
     case element::boolean:
         return make_dense_tensor_as_constant<char>(absolute_indices, values_tensor, shape);
     case element::f32:
         return make_dense_tensor_as_constant<float>(absolute_indices, values_tensor, shape);
     case element::f16:
-        return make_dense_tensor_as_constant<ngraph::float16>(absolute_indices, values_tensor, shape);
+        return make_dense_tensor_as_constant<ov::float16>(absolute_indices, values_tensor, shape);
     case element::f64:
         return make_dense_tensor_as_constant<double>(absolute_indices, values_tensor, shape);
     case element::i8:
@@ -73,7 +74,7 @@ std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std:
     case element::u64:
         return make_dense_tensor_as_constant<uint64_t>(absolute_indices, values_tensor, shape);
     case element::bf16:
-        return make_dense_tensor_as_constant<ngraph::bfloat16>(absolute_indices, values_tensor, shape);
+        return make_dense_tensor_as_constant<ov::bfloat16>(absolute_indices, values_tensor, shape);
     default:
         FRONT_END_THROW("Tensor has an unsupported data type");
     }
@@ -124,15 +125,15 @@ OutputVector constant(const onnx_import::Node& node) {
     auto& attribute = node.get_attribute(attributes_names[0]);
 
     if (attribute.is_float()) {
-        return {default_opset::Constant::create(element::f32, ngraph::Shape{}, {attribute.get_float()})};
+        return {v0::Constant::create(element::f32, ov::Shape{}, {attribute.get_float()})};
     } else if (attribute.is_float_array()) {
         auto values = attribute.get_float_array();
-        return {default_opset::Constant::create(element::f32, ngraph::Shape{values.size()}, values)};
+        return {v0::Constant::create(element::f32, ov::Shape{values.size()}, values)};
     } else if (attribute.is_integer()) {
-        return {default_opset::Constant::create(element::i64, ngraph::Shape{}, {attribute.get_integer()})};
+        return {v0::Constant::create(element::i64, ov::Shape{}, {attribute.get_integer()})};
     } else if (attribute.is_integer_array()) {
         auto values = attribute.get_integer_array();
-        return {default_opset::Constant::create(element::i64, ngraph::Shape{values.size()}, values)};
+        return {v0::Constant::create(element::i64, ov::Shape{values.size()}, values)};
     } else if (attribute.is_sparse_tensor()) {
         auto sparse_tensor = attribute.get_sparse_tensor();
         const Tensor& values_tensor = sparse_tensor.get_values();

@@ -8,3 +8,4 @@ Use the following cmake option to enable snippets debug capabilities:
 `-DENABLE_DEBUG_CAPS=ON`
 
 * [Performance counters](perf_count.md)
+* [Snippets segfault detector](snippets_segfault_detector.md)

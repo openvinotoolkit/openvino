@@ -103,4 +103,4 @@ jobs:
           python3 -m pip install pytest-xdist[psutil] pytest-forked
 
       - name: ONNX Models Tests
-        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 12 --forked -k 'not _cuda' --model_zoo_xfail
+        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
