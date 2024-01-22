@@ -7,10 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 

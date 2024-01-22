@@ -4,7 +4,9 @@
 
 #include "op/is_nan.hpp"
 
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/is_nan.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,7 +16,7 @@ namespace set_1 {
 
 OutputVector is_nan(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<ov::opset10::IsNaN>(data)};
+    return {std::make_shared<v10::IsNaN>(data)};
 }
 
 }  // namespace set_1

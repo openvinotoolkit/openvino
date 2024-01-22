@@ -6,6 +6,8 @@
 
 #include "openvino/opsets/opset10.hpp"
 
+using namespace ov::op;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
@@ -18,7 +20,7 @@ OutputVector is_inf(const Node& node) {
     attributes.detect_negative = node.get_attribute_value<int64_t>("detect_negative", 1);
     attributes.detect_positive = node.get_attribute_value<int64_t>("detect_positive", 1);
 
-    return {std::make_shared<ov::opset10::IsInf>(data, attributes)};
+    return {std::make_shared<v10::IsInf>(data, attributes)};
 }
 }  // namespace set_1
 }  // namespace op
