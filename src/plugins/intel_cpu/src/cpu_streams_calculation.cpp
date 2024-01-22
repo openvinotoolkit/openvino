@@ -158,9 +158,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     stream_info[PROC_TYPE] = ALL_PROC;
                 }
             }
-        } else if (((input_streams_changed == false) &&
+        } else if ((((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
                     (latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM)) ||
-                   (proc_type_table.size() == 1) || ((input_streams_changed == true) && (input_streams == 1))) {
+                   (proc_type_table.size() == 1)) {
             n_streams = 1;
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 stream_info[NUMBER_OF_STREAMS] = n_streams;
@@ -183,7 +183,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             } else {
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
-        } else if ((input_streams_changed == false) &&
+        } else if (((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
                    (latencyThreadingMode == Config::LatencyThreadingMode::PER_SOCKET)) {
             for (auto& row : proc_socket_table) {
                 n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
