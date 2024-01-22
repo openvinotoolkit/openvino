@@ -20,11 +20,11 @@ namespace LayerTestsDefinitions {
 class MatMulWithConstantTransformationTestValues {
 public:
     ov::PartialShape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
 
-    ngraph::builder::subgraph::Constant weights;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations deqOnWeights;
+    ov::builder::subgraph::Constant weights;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
+    ov::builder::subgraph::DequantizationOperations deqOnWeights;
 
     std::string layerName;
     std::string expectedKernelType;
