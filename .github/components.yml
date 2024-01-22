@@ -49,19 +49,19 @@ GPU:
 HETERO:
   revalidate:
     - HETERO
-    - TEMPLATE
     - C_API
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 AUTO_BATCH:
   revalidate:
     - AUTO_BATCH
-    - TEMPLATE
     - C_API
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 TEMPLATE:
@@ -84,6 +84,7 @@ AUTO:
     - C_API
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 PROXY:
