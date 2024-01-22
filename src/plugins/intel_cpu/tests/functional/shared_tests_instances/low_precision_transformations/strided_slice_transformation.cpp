@@ -23,7 +23,7 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params = {
     // channel slice, tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         { 0, 0, 0, 0 }, // begin
         { 1, 2, 1, 1 }, // end
         { 1, 1, 1, 1 }, // strided
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
     },
     // special dimension slice, tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         { 0, 0, 0, 0 },
         { 1, 3, 20, 24 },
         { 1, 1, 1, 1 },
@@ -49,7 +49,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
     {
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f },
             { 0.f, 0.f, 0.f },
@@ -68,7 +68,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
     {
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f },
             { 0.f, 0.f, 0.f },
@@ -87,7 +87,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
     {
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f },
             { 0.f, 0.f, 0.f },
@@ -107,7 +107,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, StridedSliceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 24, 24 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 24, 24 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),

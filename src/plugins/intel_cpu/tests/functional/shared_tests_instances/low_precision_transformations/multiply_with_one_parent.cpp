@@ -16,14 +16,14 @@ const std::vector<ov::element::Type> netPrecisions = {
 
 const std::vector<MultiplyWithOneParentTransformationValues> values = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } }
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } }
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyWithOneParentTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(values)),
     MultiplyWithOneParentTransformation::getTestCaseName);

@@ -75,28 +75,28 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
     // with zero point
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { -12.7f }, { 12.8f }},
-        {{ov::element::f32}, { {12.f}, ngraph::element::f32, {}, false }, { {4.f}, ngraph::element::f32, {}, false }},
+        {{ov::element::f32}, { {12.f}, ov::element::f32, {}, false }, { {4.f}, ov::element::f32, {}, false }},
         "",
         ""
     },
     // without zero point
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f }},
-        {{ov::element::f32}, {}, { {4.f}, ngraph::element::f32, {}, false }},
+        {{ov::element::f32}, {}, { {4.f}, ov::element::f32, {}, false }},
         "",
         ""
     },
     // with incorrect zero point on activations
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { 5.f }, { 6.f }, { 5.f }, { 6.f }},
-        {{ov::element::f32}, { {12.f}, ngraph::element::f32, {}, false }, { {4.f}, ngraph::element::f32, {}, false }},
+        {{ov::element::f32}, { {12.f}, ov::element::f32, {}, false }, { {4.f}, ov::element::f32, {}, false }},
         "",
         ""
     },
     // with incorrect zero point on weights
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { -12.7f }, { 12.8f }},
-        {{ov::element::f32}, { {1000.f}, ngraph::element::f32, {}, false }, { {4.f}, ngraph::element::f32, {}, false }},
+        {{ov::element::f32}, { {1000.f}, ov::element::f32, {}, false }, { {4.f}, ov::element::f32, {}, false }},
         "",
         ""
     }

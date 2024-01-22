@@ -18,7 +18,7 @@ const std::vector<SpaceToBatchTransformationParam> params = {
     {
         { 1, 3, 100, 171 },
         { 1, 1, 2, 2 }, { 0, 0, 2, 2 }, { 0, 0, 2, 3 },
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         "SpaceToBatch",
         "u8"
     },
@@ -27,7 +27,7 @@ const std::vector<SpaceToBatchTransformationParam> params = {
         { 1, 1, 2, 2 }, { 0, 0, 2, 2 }, { 0, 0, 2, 3 },
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f/2.f, 255.f/3.f },
             { 0.f, 0.f, 0.f },
