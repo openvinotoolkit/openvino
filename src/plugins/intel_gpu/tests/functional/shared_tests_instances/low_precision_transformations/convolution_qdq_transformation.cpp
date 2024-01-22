@@ -61,7 +61,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         { ov::element::u8, false },
         {
             {ov::element::f32},
-            { {128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::u8, true },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
             { {0.1f}, ov::element::f32, {}, false }
         },
         { std::vector<float>{ 15.f }, ov::element::f32},
@@ -69,7 +69,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         { ov::element::i8, false },
         {
             { ov::element::f32, false },
-            { {-128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
@@ -166,7 +166,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         { ov::element::u8, false },
         {
             { ov::element::f32, false },
-            { {128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::u8, true },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
             { {0.1f}, ov::element::f32, {}, false }
         },
         {{0.5f}, ov::element::i8},
@@ -174,7 +174,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         {},
         {
             { ov::element::f32, false },
-            { {128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::u8, true },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
@@ -217,7 +217,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         { ov::element::u8, false },
         {
             { ov::element::f32, false },
-            { {128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::u8, true },
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
             { {0.1f}, ov::element::f32, {}, false }
         },
         {{0.5f}, ov::element::i8},
