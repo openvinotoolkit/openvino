@@ -172,21 +172,21 @@ public:
     static constexpr ov::float8_e5m2 lowest() noexcept {
         return ov::float8_e5m2::from_bits(0b11111011);
     }
-    // static constexpr int digits = TODO;
+    static constexpr int digits = 3;
     // static constexpr int digits10 = TODO;
 
     static constexpr bool is_signed = true;
     static constexpr bool is_integer = false;
     static constexpr bool is_exact = false;
 
-    // static constexpr int radix = TODO;
+    static constexpr int radix = 2;
 
     // static constexpr ov::float8_e5m2 epsilon() noexcept {
     //     return ov::float8_e5m2::from_bits(TODO);
     // }
-    // static constexpr ov::float8_e5m2 round_error() noexcept {
-    //     return ov::float8_e5m2::from_bits(TODO);
-    // }
+    static constexpr ov::float8_e5m2 round_error() noexcept {
+        return ov::float8_e5m2::from_bits(0b00111000);
+    }
 
     static constexpr int min_exponent = -13;
     // static constexpr int min_exponent10 = TODO;
@@ -197,7 +197,7 @@ public:
     static constexpr bool has_quiet_NaN = true;
     static constexpr bool has_signaling_NaN = true;
 
-    // static constexpr float_denorm_style has_denorm = TODO;
+    static constexpr float_denorm_style has_denorm = denorm_present;
     static constexpr bool has_denorm_loss = false;
 
     static constexpr ov::float8_e5m2 infinity() noexcept {
