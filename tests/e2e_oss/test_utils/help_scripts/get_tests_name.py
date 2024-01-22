@@ -12,7 +12,7 @@ Options[*]:
 
 import os
 import pytest
-pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
+pytest_plugins = ('e2e_oss.common.plugins.e2e_test.conftest',)
 
 
 @pytest.fixture(scope="session")

@@ -17,7 +17,7 @@ import os
 from e2e_oss.common.parsers import pipeline_cfg_to_string
 from e2e_oss.common.common.pipeline import Pipeline
 
-pytest_plugins = ('e2e_oss.plugins.ref_collect.conftest', )
+pytest_plugins = ('e2e_oss.common.plugins.ref_collect.conftest', )
 
 
 def save_reference(refs, path, use_torch_to_save):

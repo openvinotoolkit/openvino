@@ -15,7 +15,7 @@ import pytest
 import yaml
 from _pytest.runner import show_test_item, call_runtest_hook, check_interactive_exception
 
-import e2e_oss.plugins.common.base_conftest as base
+import e2e_oss.common.plugins.common.base_conftest as base
 
 from e2e_oss.test_utils.path_utils import DirLockingHandler
 from e2e_oss.test_utils.test_utils import class_factory, BrokenTest, BrokenTestException

@@ -11,12 +11,12 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-import e2e_oss.plugins.common.base_conftest as base
+import e2e_oss.common.plugins.common.base_conftest as base
 from e2e_oss.test_utils.reshape_tests_utils import should_run_reshape, get_reshape_configurations, \
     get_reshape_pipeline_pairs, batch_was_changed
 from e2e_oss.test_utils.test_utils import class_factory, BrokenTest, BrokenTestException
 from e2e_oss.common.env_utils import fix_env_conf
-from e2e_oss.plugins.e2e_test.conftest import satisfies_all_rules, unwrap_rules
+from e2e_oss.common.plugins.e2e_test.conftest import satisfies_all_rules, unwrap_rules
 from e2e_oss.test_utils.env_tools import Environment
 
 

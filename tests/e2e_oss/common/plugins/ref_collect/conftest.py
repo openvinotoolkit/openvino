@@ -3,7 +3,7 @@ import logging as log
 
 import yaml
 
-import e2e_oss.plugins.common.base_conftest as base
+import e2e_oss.common.plugins.common.base_conftest as base
 
 from e2e_oss.common.env_utils import fix_env_conf
 from e2e_oss.test_utils.env_tools import Environment
