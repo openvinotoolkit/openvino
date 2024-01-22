@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_plugin/core_integration_sw.hpp"
+#include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
 
 using namespace ov::test::behavior;
