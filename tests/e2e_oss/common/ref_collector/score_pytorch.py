@@ -3,7 +3,7 @@ import os
 import sys
 
 from utils.path_utils import resolve_dir_path
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 
 
 class PytorchBaseRunner:

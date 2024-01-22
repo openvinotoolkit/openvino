@@ -1,6 +1,6 @@
 import torch
 
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 from e2e_oss.test_utils.path_utils import resolve_file_path
 import numpy as np
 import logging as log

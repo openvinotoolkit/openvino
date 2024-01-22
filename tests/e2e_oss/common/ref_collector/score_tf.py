@@ -1,4 +1,4 @@
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 from e2e_oss.utils.path_utils import resolve_file_path, resolve_dir_path
 import os
 import re

@@ -1,5 +1,4 @@
-from e2e_oss.utils.path_utils import resolve_file_path
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 
 
 class ScoreTensorFLowLite(ClassProvider):

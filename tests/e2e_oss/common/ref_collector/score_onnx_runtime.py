@@ -2,7 +2,7 @@ import logging as log
 import sys
 
 from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 
 
 class ONNXRuntimeRunner(ClassProvider):

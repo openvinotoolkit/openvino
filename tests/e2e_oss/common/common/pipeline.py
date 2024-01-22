@@ -1,12 +1,12 @@
-import utils.e2e.readers
-import utils.e2e.preprocessors
-import utils.e2e.preprocessors_tf_hub
-import utils.e2e.ir_provider
-import utils.e2e.infer
-import utils.e2e.postprocessors
-import utils.e2e.ref_collector
-import utils.e2e.model_loader
-from utils.e2e.common.base_provider import BaseStepProvider
+import e2e_oss.common.readers
+import e2e_oss.common.preprocessors
+import e2e_oss.common.preprocessors_tf_hub
+import e2e_oss.common.ir_provider
+import e2e_oss.common.infer
+import e2e_oss.common.postprocessors
+import e2e_oss.common.ref_collector
+import e2e_oss.common.model_loader
+from e2e_oss.common.common.base_provider import BaseStepProvider
 from types import SimpleNamespace
 
 

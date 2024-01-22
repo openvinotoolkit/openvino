@@ -6,7 +6,7 @@ from distutils.version import LooseVersion
 from pathlib import Path
 
 from utils.path_utils import resolve_dir_path
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 from .score_tf import ScoreTensorFlowBase
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'

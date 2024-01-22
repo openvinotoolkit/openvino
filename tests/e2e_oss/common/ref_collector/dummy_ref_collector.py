@@ -6,7 +6,7 @@ tests. Tensorflow reference collector is substituted by the dummy so that no
 error occurs during pytest test collection/run. If user try to run
 tensorflow-related tests, the execution fails due to error specified.
 """
-from .provider import ClassProvider
+from e2e_oss.common.ref_collector.provider import ClassProvider
 
 
 def use_dummy(name, error_message):
