@@ -43,8 +43,6 @@ public:
 
     virtual void Run();
 
-    virtual void QueryNetwork();
-
     static void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
                         float threshold,
