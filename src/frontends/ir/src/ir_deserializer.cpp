@@ -513,7 +513,9 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         }
 
         if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
-            func_nodes.sinks.emplace_back(sink);
+            if (!std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                func_nodes.sinks.emplace_back(sink);
+            }
         }
 
         if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
