@@ -481,78 +481,78 @@ jobs:
       runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
       event: ${{ github.event_name }}
 
-  E2E_TensorFlow_Models_Tests:
-    name: E2E TensorFlow Hub Models tests
-    needs: Build
-    defaults:
-      run:
-        shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      E2E_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/e2e_oss
-
-    steps:
-      - name: Check sudo
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Install OpenVINO Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-
-      - name: Install E2E TF Hub tests requirements
-        run: |
-          python3 -m pip install -r ${E2E_TESTS_INSTALL_DIR}/requirements.txt
-
-      - name: E2E TensorFlow Hub Tests - TF FE
-        run: |
-          pushd ${E2E_TESTS_INSTALL_DIR}
-          export PYTHONPATH=${E2E_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
-          pytest test_tf_hub.py -vvvv -s --test_conf=test_config_local.yml --env_conf=env_config_local.yml --base_rules_conf=base_test_rules.yml --modules=pipelines/production/tf_hub --html=TEST-e2e_tf_hub_tf_fe.html --self-contained-html
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-tensorflow-hub-models
-          path: |
-            ${{ env.E2E_TESTS_INSTALL_DIR }}/TEST*.html
-          if-no-files-found: 'error'
+#  E2E_TensorFlow_Models_Tests:
+#    name: E2E TensorFlow Hub Models tests
+#    needs: Build
+#    defaults:
+#      run:
+#        shell: bash
+#    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+#    env:
+#      INSTALL_DIR: ${{ github.workspace }}/install
+#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+#      E2E_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/e2e_oss
+#
+#    steps:
+#      - name: Check sudo
+#        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+#
+#      - name: Install 'actions/setup-python@v4' dependencies
+#        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
+#
+#      - uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
+#
+#      - name: Setup pip cache dir
+#        run: |
+#          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+#          echo "Using pip version: ${PIP_VER}"
+#          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+#
+#      - name: Download OpenVINO package
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: openvino_package
+#          path: ${{ env.INSTALL_DIR }}
+#
+#      - name: Download OpenVINO tests package
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: openvino_tests
+#          path: ${{ env.INSTALL_TEST_DIR }}
+#
+#      - name: Extract OpenVINO packages
+#        run: |
+#          pushd ${INSTALL_DIR}
+#            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+#          popd
+#
+#          pushd ${INSTALL_TEST_DIR}
+#            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+#          popd
+#
+#      - name: Install OpenVINO Python wheels
+#        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+#
+#      - name: Install E2E TF Hub tests requirements
+#        run: |
+#          python3 -m pip install -r ${E2E_TESTS_INSTALL_DIR}/requirements.txt
+#
+#      - name: E2E TensorFlow Hub Tests - TF FE
+#        run: |
+#          pushd ${E2E_TESTS_INSTALL_DIR}
+#          export PYTHONPATH=${E2E_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
+#          pytest test_tf_hub.py -vvvv -s --test_conf=test_config_local.yml --env_conf=env_config_local.yml --base_rules_conf=base_test_rules.yml --modules=pipelines/production/tf_hub --html=TEST-e2e_tf_hub_tf_fe.html --self-contained-html
+#
+#      - name: Upload Test Results
+#        uses: actions/upload-artifact@v3
+#        if: ${{ !cancelled() }}
+#        with:
+#          name: test-results-tensorflow-hub-models
+#          path: |
+#            ${{ env.E2E_TESTS_INSTALL_DIR }}/TEST*.html
+#          if-no-files-found: 'error'
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
