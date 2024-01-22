@@ -18,71 +18,71 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     // U8
     {
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {},
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {}
     },
     // I8
     {
         {},
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         {},
         {},
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         {}
     },
     // mixed: U8 + I8
     {
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {},
         {},
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         {}
     },
     // mixed: I8 + U8
     {
         {},
-        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         {},
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {}
     },
     // FQ with unexpected quantizationLevels
     {
         {},
-        { 14ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 14ul, ov::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         {},
         {},
-        { 14ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 14ul, ov::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         {}
     },
     // FQ with INT4 quantizationLevels
     {
         {},
-        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ov::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         {},
         {},
-        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ov::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         {}
     },
     // FQ with INT4+INT8 quantizationLevels
     {
         {},
-        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ov::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         {},
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {}
     },
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
-    ngraph::Shape({ 1, 3, 16, 16 }),
-    ngraph::Shape({ 4, 3, 16, 16 })
+const std::vector<ov::PartialShape> shapes = {
+    ov::Shape({ 1, 3, 16, 16 }),
+    ov::Shape({ 4, 3, 16, 16 })
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
@@ -96,15 +96,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
 
 namespace concat_transformation_mixed {
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f16
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
     // mixed dequantization: FP32 & FP16
     {
         {},
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         {},
         std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{1, 3, 16, 16}, std::vector<float>(3 * 16 * 16, 1.0)),
         {},
@@ -119,7 +119,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);

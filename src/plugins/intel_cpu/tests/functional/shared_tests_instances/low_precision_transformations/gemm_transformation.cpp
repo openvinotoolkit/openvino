@@ -15,7 +15,7 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ngraph::PartialShape> dimensions = {
+const std::vector<ov::PartialShape> dimensions = {
     { 1, 3, 16, 16 }
 };
 
