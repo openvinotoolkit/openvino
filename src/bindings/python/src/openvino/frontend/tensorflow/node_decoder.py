@@ -36,7 +36,11 @@ def tf_attr_to_numpy(attr):
         return tf_type_to_ov_type(attr.type)
     if attr_type == "list":
         list_value = attr.list
-        return list(list_value.ListFields()[0][1])
+        fields = list_value.ListFields()
+        if fields and len(fields) > 0 and len(fields[0]) > 1:
+            return list(fields[0][1])
+        else:
+            return
     if attr_type is None:
         return None
     return getattr(attr, attr.WhichOneof("value"))
