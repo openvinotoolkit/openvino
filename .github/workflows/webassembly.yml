@@ -69,7 +69,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: emcmake cmake - configure
         run: |

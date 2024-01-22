@@ -11,28 +11,28 @@ const std::vector<ov::element::Type> precisions = {
         ov::element::f32
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> shapes = {
+const std::vector<std::pair<ov::PartialShape, ov::Shape>> shapes = {
     {{1, 4, 16, 16}, {32, 32}},
     {{1, 2, 48, 80}, {50, 60}},
 };
 
 const std::vector<interpAttributes> interpAttrs = {
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
             {0},
             {0}),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             true,
             {0},
             {0}),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "linear",
             false,
             false,

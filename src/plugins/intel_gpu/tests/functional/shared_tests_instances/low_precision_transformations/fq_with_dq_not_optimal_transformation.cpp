@@ -28,7 +28,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         { ov::element::i8, false },
         {
             { ov::element::f32, false },
-            { {-128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
             { {0.1f}, ov::element::f32, {}, false }
         },
         {{5.f}, ov::element::i8},
@@ -36,7 +36,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         {},
         {
             { ov::element::f32, false },
-            { {127.f}, ov::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
@@ -74,7 +74,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         {},
         {
             { ov::element::f32, false },
-            { {127.f}, ov::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
@@ -85,7 +85,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         { ov::element::i8, false },
         {
             { ov::element::f32, false },
-            { {-128.f}, ov::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
             { {0.1f}, ov::element::f32, {}, false }
         },
         {{5.f}, ov::element::i8},
