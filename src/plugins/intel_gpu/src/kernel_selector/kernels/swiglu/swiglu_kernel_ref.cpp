@@ -28,6 +28,7 @@ JitConstants SwiGLUKernelRef::GetJitConstants(const swiglu_params& params) const
 
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
     jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
 }
@@ -85,6 +86,17 @@ KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params, const optional
 
 KernelsPriority SwiGLUKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
+Datatype SwiGLUKernelRef::GetAccumulatorType(const swiglu_params& params) const {
+    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+
+    for (Datatype type : types)
+        for (auto& in : params.inputs)
+            if (in.GetDType() == type)
+                return type;
+
+    return Datatype::F32;
 }
 
 bool SwiGLUKernelRef::Validate(const Params& params, const optional_params& options) const {

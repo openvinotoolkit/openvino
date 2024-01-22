@@ -25,13 +25,14 @@ struct swiglu_optional_params : optional_params {
 
 class SwiGLUKernelRef : public KernelBaseOpenCL {
 public:
-    SwiGLUKernelRef() : KernelBaseOpenCL("swiglu_ref") {}
+    SwiGLUKernelRef() : KernelBaseOpenCL("swiglu_gpu_ref") {}
     virtual ~SwiGLUKernelRef() {}
 
     virtual JitConstants GetJitConstants(const swiglu_params& params) const;
     virtual CommonDispatchData SetDefault(const swiglu_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    Datatype GetAccumulatorType(const swiglu_params& params) const;
     ParamsKey GetSupportedKey() const override;
 
 protected:
