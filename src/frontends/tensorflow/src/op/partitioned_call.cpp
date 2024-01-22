@@ -4,8 +4,8 @@
 
 #include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "tf_utils.hpp"
 #include "tf_framework_node.hpp"
+#include "tf_utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -66,7 +66,7 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     // pass Sink ops to outer graph
     for (auto node : body_model->get_sinks()) {
         ov_outputs.push_back(node->outputs()[0]);
-    } 
+    }
 
     return ov_outputs;
 }

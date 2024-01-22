@@ -3,8 +3,8 @@
 //
 
 #include "common_op_table.hpp"
-#include "utils.hpp"
 #include "openvino/op/util/keep_in_graph_op.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::op;

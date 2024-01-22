@@ -18,9 +18,10 @@ public:
 
     KeepInGraphOp() = default;
 
-    //explicit KeepInGraphOp(const OutputVector& inputs) : FrameworkNode(inputs) {};
+    // explicit KeepInGraphOp(const OutputVector& inputs) : FrameworkNode(inputs) {};
     KeepInGraphOp(const OutputVector& inputs, size_t num_outputs, const std::string& op_type_name)
-        : ov::op::util::FrameworkNode(inputs, std::max(num_outputs, size_t(1))), m_op_type(op_type_name) {}
+        : ov::op::util::FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
+          m_op_type(op_type_name) {}
 
     std::string get_op_type() const {
         return m_op_type;
@@ -32,4 +33,3 @@ protected:
 }  // namespace util
 }  // namespace op
 }  // namespace ov
-

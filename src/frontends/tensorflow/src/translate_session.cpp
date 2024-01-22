@@ -549,11 +549,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                         sinks.push_back(sink_op);
                     }
                     auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
-                    if (multi_subgraph)
-                    {
+                    if (multi_subgraph) {
                         bool has_sinks = false;
-                        for (const auto& body_model:multi_subgraph->get_functions()) {
-                            
+                        for (const auto& body_model : multi_subgraph->get_functions()) {
                             if (body_model->get_sinks().size()) {
                                 has_sinks = true;
                             }
@@ -562,9 +560,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                             sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
                         }
                     }
-                
-
-            }   
+                }
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
