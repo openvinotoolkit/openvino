@@ -262,7 +262,7 @@ void parse_version_string(std::string version, size_t& major, size_t& minor, siz
 }
 }  // namespace ngraph
 
-std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<float> read_float_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<float> float_vec;
     ov::element::Type element_type = tv->get_element_type();
 
@@ -338,7 +338,7 @@ std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv
     return float_vec;
 }
 
-std::vector<int64_t> read_index_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<int64_t> read_index_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<int64_t> index_vec;
     ov::element::Type element_type = tv->get_element_type();
 
