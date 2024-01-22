@@ -12,7 +12,8 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "ngraph/util.hpp"
+#include "openvino/core/rtti.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #    undef IN_OV_COMPONENT
@@ -35,27 +36,6 @@ public:
     OPENVINO_OP("Constant", "opset1");
 
     Constant() = default;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /// \brief Initialize a constant from tensor
-    /// \param tensor The tensor with data
-    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
-    Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
-
-    /// \brief Constructs a tensor constant with the supplied data
-    ///
-    /// \param type The element type of the tensor constant.
-    /// \param shape The shape of the tensor constant.
-    /// \param data A pointer to pre-allocated shared data.
-    template <typename T>
-    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
-    Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
-        : m_element_type(type),
-          m_shape(shape) {
-        m_data = legacy_to_ov_aligned_buffer(data);
-        constructor_validate_and_infer_types();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// \brief Initialize a constant from ov::Tensor
     /// \param tensor The ov::Tensor with data
@@ -163,6 +143,12 @@ public:
             break;
         case Type_t::nf4:
             fill_data<Type_t::nf4>(value);
+            break;
+        case Type_t::f8e4m3:
+            fill_data<Type_t::f8e4m3>(value);
+            break;
+        case Type_t::f8e5m2:
+            fill_data<Type_t::f8e5m2>(value);
             break;
         case Type_t::string:
             fill_data<Type_t::string>(value);
@@ -414,11 +400,6 @@ public:
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ov::AlignedBuffer> legacy_to_ov_aligned_buffer(
-        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
@@ -881,6 +862,12 @@ private:
             break;
         case Type_t::nf4:
             write_buffer<Type_t::nf4>(source);
+            break;
+        case Type_t::f8e4m3:
+            write_buffer<Type_t::f8e4m3>(source);
+            break;
+        case Type_t::f8e5m2:
+            write_buffer<Type_t::f8e5m2>(source);
             break;
         case Type_t::string:
             write_buffer<Type_t::string>(source);

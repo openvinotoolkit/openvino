@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include "cpu/x64/jit_generator.hpp"
 
 #include "snippets/snippets_isa.hpp"
@@ -12,6 +11,10 @@
 #include <node.h>
 
 #include <set>
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "emitters/snippets/x64/verbose.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -50,6 +53,14 @@ public:
      * Empty collection means the emitter supports any input precisions.
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char *info() const {
+        if (!info_.is_initialized())
+            info_.init(this);
+        return info_.c_str();
+    }
+#endif
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -138,6 +149,11 @@ protected:
     // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    mutable jit_emitter_info_t info_;
+    friend class jit_debug_emitter;
+#endif
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;

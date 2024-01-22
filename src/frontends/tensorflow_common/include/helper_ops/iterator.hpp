@@ -34,6 +34,13 @@ public:
         set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto iterator_node =
+            std::make_shared<Iterator>(m_shared_name, m_container, m_output_types, m_output_shapes, m_decoder);
+        iterator_node->set_attrs(get_attrs());
+        return iterator_node;
+    }
+
 private:
     const std::string m_shared_name;
     const std::string m_container;

@@ -33,7 +33,9 @@
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    if !defined(__MINGW32__) && !defined(__MINGW64__)
+#        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    endif
 #else
 #    include <dirent.h>
 #    include <dlfcn.h>
@@ -146,7 +148,11 @@ std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
         } else if (s1.size() > 0) {
             rc = s1;
             if (rc[rc.size() - 1] != '/') {
+#    ifndef _WIN32
                 rc += '/';
+#    else
+                rc += '\\';
+#    endif
             }
             rc += s2;
         } else {

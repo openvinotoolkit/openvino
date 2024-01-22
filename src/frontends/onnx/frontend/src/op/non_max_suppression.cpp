@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/non_max_suppression.hpp"
+#include "op/non_max_suppression.hpp"
 
 #include <memory>
 
@@ -10,7 +10,6 @@
 #include "exceptions.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "op/non_max_suppression.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -19,7 +18,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector non_max_suppression(const Node& node) {
-    using ngraph::op::is_null;
+    using ov::op::util::is_null;
     // TODO: this op will not be tested until at least
     //       a reference implementation is added
 

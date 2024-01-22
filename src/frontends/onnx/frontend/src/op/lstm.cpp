@@ -14,11 +14,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/enum_names.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"
@@ -59,18 +55,18 @@ struct LSTMNgInputMap {
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(1),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(1),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // The recurrence weight tensor.
         // Shape: [num_directions, 4*hidden_size, hidden_size]
         m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(2),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(2),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<default_opset::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
@@ -98,16 +94,16 @@ struct LSTMNgInputMap {
         // `B` - The bias tensor for input gate.
         // ONNX Shape: [num_directions, 8*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
-        if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3))) {
+        if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
             auto bias = ng_inputs.at(3);
             auto split_bias = ov::op::util::split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
-                ngraph::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
-                                                           ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                           ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                           1);
+                ov::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
+                                                       ov::op::util::LSTMWeightsFormat::IOFC,
+                                                       ov::op::util::LSTMWeightsFormat::FICO,
+                                                       1);
         } else {
             auto b_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{num_directions_node,
@@ -121,7 +117,7 @@ struct LSTMNgInputMap {
         }
         // `sequence_lens`- The lengths of the sequences in a batch.
         // Shape: [batch_size]
-        if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4))) {
+        if (ng_inputs.size() > 4 && !ov::op::util::is_null(ng_inputs.at(4))) {
             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
         } else {
             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
@@ -130,7 +126,7 @@ struct LSTMNgInputMap {
         // `initial_h` - The initial value of the hidden.
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-        if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5))) {
+        if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
         } else {
             auto init_h_shape = std::make_shared<default_opset::Concat>(
@@ -143,7 +139,7 @@ struct LSTMNgInputMap {
         // `initial_c` - The initial value of the cell.
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-        if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6))) {
+        if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = ov::op::util::reorder_axes(ng_inputs.at(6), {1, 0, 2});
         } else {
             auto init_c_shape = std::make_shared<default_opset::Concat>(
@@ -156,7 +152,7 @@ struct LSTMNgInputMap {
         // `P` - The weight tensor for peepholes.
         // ONNX Shape: [num_directions, 3*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
-        if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7))) {
+        if (ng_inputs.size() > 7 && !ov::op::util::is_null(ng_inputs.at(7))) {
             m_input_map[LSTMInput::LSTM_INPUT_P] =
                 ov::op::util::convert_lstm_peepholes_format(ng_inputs.at(7),
                                                             ov::op::util::LSTMPeepholesFormat::IOF,

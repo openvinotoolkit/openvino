@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/pad.hpp"
+#include "op/pad.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/convert.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "op/pad.hpp"
 #include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
@@ -74,7 +71,7 @@ OutputVector pad(const Node& node) {
     Output<ngraph::Node> padding_begin;
     Output<ngraph::Node> padding_end;
 
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+    if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
@@ -82,7 +79,7 @@ OutputVector pad(const Node& node) {
 
     if (ngraph::op::is_constant(pads.get_node())) {
         std::vector<std::int64_t> pads_vector =
-            ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
+            ov::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
         std::size_t const half_size = pads_vector.size() / 2;
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);

@@ -106,6 +106,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BitwiseAnd", CreatorFunction(translate_binary_op<opset13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<opset13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<opset13::BitwiseXor>)},
+        {"Div", CreatorFunction(translate_div_op)},
         {"Equal", CreatorFunction(translate_binary_op<opset8::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<opset8::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<opset8::Greater>)},

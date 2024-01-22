@@ -53,26 +53,6 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
 
     auto boxesShape = op->get_input_partial_shape(0);
     size_t num_outputs = op->get_output_size();
-
-    auto get_output_paddings = [&]() {
-        std::vector<cldnn::padding> output_paddings;
-        for (size_t i = 0; i < num_outputs; i++)
-            output_paddings.push_back(cldnn::padding());
-        return output_paddings;
-    };
-    auto get_output_data_types = [&]() {
-        std::vector<cldnn::optional_data_type> output_data_types;
-        for (size_t i = 0; i < num_outputs; i++) {
-            auto type = op->get_output_element_type(i);
-            // GPU primitive supports only i32 as output data type
-            if (type == ov::element::i64) {
-                type = ov::element::i32;
-            }
-            output_data_types.push_back(cldnn::element_type_to_data_type(type));
-        }
-        return output_data_types;
-    };
-
     if (p.use_new_shape_infer()) {
         auto nonMaxSuppressionLayerName = layer_type_name_ID(op);
         auto prim = cldnn::non_max_suppression(
@@ -84,8 +64,8 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                 op->m_sort_result_descending,
                 "", "", "", "", "", "", num_outputs);
 
-        prim.output_paddings = get_output_paddings();
-        prim.output_data_types = get_output_data_types();
+        prim.output_paddings = get_output_paddings(op);
+        prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
         prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {
@@ -153,7 +133,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                 op->m_sort_result_descending,
                 "", "", "", "", "", "");
 
-        prim.output_data_types = get_output_data_types();
+        prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
         prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {

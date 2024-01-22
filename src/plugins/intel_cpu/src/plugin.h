@@ -43,17 +43,11 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented get_default_context  is not supported by CPU plugin!");
     };
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
 private:
     bool is_legacy_api() const;
 
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
-    ov::Any get_metric_legacy(const std::string& name, const ov::AnyMap& options) const;
 
-    ov::Any get_property_legacy(const std::string& name, const ov::AnyMap& options) const;
     void apply_performance_hints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
     void get_performance_streams(Config &config, const std::shared_ptr<ov::Model>& model) const;
     StreamCfg get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -62,7 +56,6 @@ private:
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     Config engConfig;
-    ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;

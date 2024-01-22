@@ -112,7 +112,6 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "INT8" - device can support models with INT8 layers
  *  - "BIN" - device can support models with BIN layers
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
- *  - "BATCHED_BLOB" - device can support BatchedBlob
  */
 INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
@@ -129,8 +128,6 @@ INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(BIN);
 INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(WINOGRAD);
-INFERENCE_ENGINE_1_0_DEPRECATED
-DECLARE_METRIC_VALUE(BATCHED_BLOB);
 
 /**
  * @brief Metric to provide information about a range for streams on platforms where streams are supported.
@@ -531,6 +528,5 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
 
-#include "gpu/gpu_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "multi-device/multi_device_config.hpp"

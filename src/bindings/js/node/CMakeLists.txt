@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(WIN32)
-    return()
-endif()
-
 if(CMAKE_VERSION VERSION_LESS 3.14)
     message(WARNING "JS API is not available with CMake version less than 3.14, skipping")
     return()
@@ -88,6 +84,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 ov_set_install_rpath(${PROJECT_NAME}
     ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
+
+ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${PROJECT_NAME} ${OV_CPACK_COMP_NPM_EXCLUDE_ALL}

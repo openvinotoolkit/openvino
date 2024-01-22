@@ -117,7 +117,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape) {
     } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. First input rank: 5 (should be 4)"));
     } catch (...) {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+        FAIL() << "Expected ov::Exception exception was not thrown";
     }
 }
 
@@ -128,7 +128,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
     } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. Second input rank: 5 (should be 4)"));
     } catch (...) {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+        FAIL() << "Expected ov::Exception exception was not thrown";
     }
 }
 

@@ -110,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_test,
         {
             layout{ov::PartialShape{10, 1024}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{1000, 1024}, data_types::f32, format::bfyx},
-            data_types::i32, false, false,
+            data_types::f32, false, false,
             layout{ov::PartialShape{10, 1000}, data_types::f32, format::bfyx}
         },
         {

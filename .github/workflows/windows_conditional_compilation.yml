@@ -37,6 +37,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -181,7 +182,7 @@ jobs:
 
       - name: Build C samples - OpenVINO install tree
         run: |
-          & ${{ env.INSTALL_DIR }}/samples/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
@@ -221,7 +222,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
@@ -336,7 +337,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [Build, Smart_CI]
-    timeout-minutes: 70
+    timeout-minutes: 85
     defaults:
       run:
         shell: pwsh
@@ -390,7 +391,7 @@ jobs:
         run: |
           set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 45
+        timeout-minutes: 60
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

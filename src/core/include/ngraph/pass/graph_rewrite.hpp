@@ -16,11 +16,9 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
 #include <set>
 
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pattern/matcher.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ngraph {

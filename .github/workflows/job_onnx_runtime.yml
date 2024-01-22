@@ -80,7 +80,10 @@ jobs:
           popd
 
       - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: |
+          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+          # since we are on Ubuntu 22.04, but compiled OpenVINO on Ubuntu 20.04, we need to install `libtbb2`
+          apt-get install --assume-yes --no-install-recommends libtbb2
 
       - name: Clone ONNX Runtime
         run: |
@@ -97,7 +100,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Build Lin ONNX Runtime
         run: |
@@ -138,13 +141,6 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_global_thread_pools_test
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
-
-#      Test removed in onnxruntime 1.16.2 
-#      - name: Run onnxruntime_api_tests_without_env
-#        run: |
-#          source ${INSTALL_DIR}/setupvars.sh
-#          ./onnxruntime_api_tests_without_env
-#        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
         run: |
