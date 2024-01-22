@@ -464,11 +464,6 @@ void LayerTestsCommon::Infer() {
     inferRequest.Infer();
 }
 
-void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ov::element::Type_t::f16, ov::element::Type_t::f32>().run_on_model(functionRefs);
-    ngraph::pass::ConvertPrecision<ov::element::Type_t::bf16, ov::element::Type_t::f32>().run_on_model(functionRefs);
-}
-
 std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
     return {};
 }
