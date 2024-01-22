@@ -521,12 +521,12 @@ TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
 TEST_P(OVClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
     ov::Core ie = createCoreWithTemplate();
     bool value = false;
-    ASSERT_NO_THROW(ie.set_property({ov::force_tbb_terminate(true)}));
-    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_NO_THROW(ie.set_property(target_device, {ov::force_tbb_terminate(true)}));
+    ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
     ASSERT_TRUE(value);
 
-    ASSERT_NO_THROW(ie.set_property({{ov::force_tbb_terminate(false)}}));
-    ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    ASSERT_NO_THROW(ie.set_property(target_device, {ov::force_tbb_terminate(false)}));
+    ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
     ASSERT_FALSE(value);
 }
 

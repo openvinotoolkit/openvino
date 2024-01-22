@@ -197,11 +197,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::internal::exclusive_async_requests.name(),
                                ". Expected only true/false");
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
-            // empty string means that dumping is switched off
-            dumpToDot = val.as<std::string>();
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
             try {
                 lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
@@ -217,29 +212,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (!device_id.empty()) {
                 OPENVINO_THROW("CPU plugin supports only '' as device id");
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) {
-            bool enable;
-            try {
-                enable = val.as<bool>();
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               key,
-                               ". Expected only true/false");
-            }
-            if (enable) {
-                if (hasHardwareSupport(ov::element::bf16)) {
-                    inferencePrecision = ov::element::bf16;
-                } else {
-                    OPENVINO_THROW("Platform doesn't support BF16 format");
-                }
-            } else {
-                inferencePrecision = ov::element::f32;
-            }
-            inferencePrecisionSetExplicitly = true;
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::inference_precision.name()) {
             try {
                 auto const prec = val.as<ov::element::Type>();
@@ -391,21 +363,6 @@ void Config::updateProperties() {
 
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (inferencePrecision == ov::element::bf16) {
-        _config.insert(
-            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES});
-    } else {
-        _config.insert(
-            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
-    _config.insert({InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-                    std::to_string(streamExecutorConfig._streams)});
-    _config.insert(
-        {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads)});
-    _config.insert({InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace intel_cpu
