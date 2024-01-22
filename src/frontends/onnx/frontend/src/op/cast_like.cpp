@@ -4,11 +4,9 @@
 
 #include "op/cast_like.hpp"
 
-#include <memory>
+#include "openvino/op/convert_like.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "utils/common.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,7 +16,7 @@ namespace set_1 {
 
 OutputVector cast_like(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    return {std::make_shared<default_opset::ConvertLike>(inputs.at(0), inputs.at(1))};
+    return {std::make_shared<v1::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
 }  // namespace set_1

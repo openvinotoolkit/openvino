@@ -83,7 +83,7 @@ void ConvolutionLayerCPUTest::checkBiasFusing(ov::CompiledModel& execNet) const 
             return it->second.as<std::string>();
         };
 
-        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Convolution") {
+        if (getExecValue(ov::exec_model_info::LAYER_TYPE) == "Convolution") {
             foundConv = true;
             ASSERT_EQ(3, node->inputs().size());
             break;

@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/squeeze.hpp"
+#include "op/squeeze.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
-#include "op/squeeze.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

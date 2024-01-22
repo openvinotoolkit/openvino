@@ -10,7 +10,7 @@ add_library(cpuSpecificRtInfo STATIC
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
-set(DEPENDENCIES openvino_intel_cpu_plugin template_extension)
+set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)

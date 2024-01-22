@@ -25,7 +25,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const bool loaded_from_cache = false);
+                  const bool loaded_from_cache);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -73,8 +73,6 @@ private:
      *       even from main thread
      */
     GraphGuard::Lock get_graph() const;
-
-    ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
 };
 
 }   // namespace intel_cpu

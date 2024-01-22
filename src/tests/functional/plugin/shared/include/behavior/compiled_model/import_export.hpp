@@ -4,15 +4,14 @@
 
 #include <fstream>
 
-#include <exec_graph_info.hpp>
-#include <openvino/pass/serialize.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-
-#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace ov {
 namespace test {
@@ -49,9 +48,9 @@ class OVCompiledGraphImportExportTest : public testing::WithParamInterface<OVCom
     }
 
     void SetUp() override {
-        std::tie(elementType, target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(elementType, target_device, configuration) = this->GetParam();
         APIBaseTest::SetUp();
     }
 
@@ -316,6 +315,75 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
     OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
     OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
 }
+
+//
+// GetRuntimeModel
+//
+typedef std::tuple<ov::element::Type,  // Element type
+                   ov::Shape,          // Shape
+                   std::string         // Device name
+                   >
+    OVCompiledModelGraphUniqueNodeNamesTestParams;
+
+class OVCompiledModelGraphUniqueNodeNamesTest
+    : public testing::WithParamInterface<OVCompiledModelGraphUniqueNodeNamesTestParams>,
+      public OVCompiledNetworkTestBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<OVCompiledModelGraphUniqueNodeNamesTestParams> obj) {
+        ov::element::Type netPrecision;
+        ov::Shape inputShapes;
+        std::string targetDevice;
+        std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+        result << "netPRC=" << netPrecision.to_string() << "_";
+        result << "targetDevice=" << targetDevice;
+        return result.str();
+    }
+
+    void SetUp() override {
+        ov::Shape inputShape;
+        ov::element::Type netPrecision;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+
+        APIBaseTest::SetUp();
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShape))};
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
+
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+        model = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> model;
+};
+
+TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    auto compiled_model = core->compile_model(model, target_device);
+    auto exec_graph = compiled_model.get_runtime_model();
+
+    std::unordered_set<std::string> names;
+    ASSERT_NE(exec_graph, nullptr);
+
+    for (const auto& op : exec_graph->get_ops()) {
+        ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end())
+            << "Node with name " << op->get_friendly_name() << "already exists";
+        names.insert(op->get_friendly_name());
+
+        const auto& rtInfo = op->get_rt_info();
+        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
+        ASSERT_NE(rtInfo.end(), it);
+    }
+};
 
 }  // namespace behavior
 }  // namespace test
