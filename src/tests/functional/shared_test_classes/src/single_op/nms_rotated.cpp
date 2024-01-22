@@ -132,6 +132,111 @@ void NmsRotatedOpTest::SetUp() {
     function = std::make_shared<ov::Model>(results, in_params, "NMSRotated");
 }
 
+void NmsRotatedOpTest::compare(const std::vector<ov::Tensor> &expectedOutputs, const std::vector<ov::Tensor> &actualOutputs) {
+    const auto& params         = this->GetParam();
+    const auto& in_shapes      = std::get<0>(params);
+    const size_t& num_boxes     = in_shapes.at(0).second.at(0).at(0);
+    const size_t& num_classes   = in_shapes.at(1).second.at(0).at(0);
+
+    struct OutBox {
+        OutBox() = default;
+
+        OutBox(int32_t batchId, int32_t classId, int32_t boxId, float score) {
+            this->batchId = batchId;
+            this->classId = classId;
+            this->boxId = boxId;
+            this->score = score;
+        }
+
+        bool operator==(const OutBox& rhs) const {
+            return batchId == rhs.batchId && classId == rhs.classId && boxId == rhs.boxId;
+        }
+
+        int32_t batchId;
+        int32_t classId;
+        int32_t boxId;
+        float score;
+    };
+
+    std::vector<OutBox> expected;
+    {
+        const auto selected_indices_size = expectedOutputs[0].get_size();
+        const auto selected_scores_size = expectedOutputs[1].get_size();
+
+        ASSERT_EQ(selected_indices_size, selected_scores_size);
+
+        const auto boxes_count = selected_indices_size / 3;
+        expected.resize(boxes_count);
+
+        if (expectedOutputs[0].get_element_type().bitwidth() == 32) {
+            auto selected_indices_data = reinterpret_cast<const int32_t*>(expectedOutputs[0].data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expected[i / 3].batchId = selected_indices_data[i + 0];
+                expected[i / 3].classId = selected_indices_data[i + 1];
+                expected[i / 3].boxId = selected_indices_data[i + 2];
+            }
+        } else {
+            auto selected_indices_data = reinterpret_cast<const int64_t*>(expectedOutputs[0].data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expected[i / 3].batchId = static_cast<int32_t>(selected_indices_data[i + 0]);
+                expected[i / 3].classId = static_cast<int32_t>(selected_indices_data[i + 1]);
+                expected[i / 3].boxId = static_cast<int32_t>(selected_indices_data[i + 2]);
+            }
+        }
+
+        if (expectedOutputs[1].get_element_type().bitwidth() == 32) {
+            auto selected_scores_data = reinterpret_cast<const float*>(expectedOutputs[1].data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expected[i / 3].score = selected_scores_data[i + 2];
+            }
+        } else {
+            auto selected_scores_data = reinterpret_cast<const double*>(expectedOutputs[1].data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expected[i / 3].score = static_cast<float>(selected_scores_data[i + 2]);
+            }
+        }
+    }
+
+    std::vector<OutBox> actual;
+    {
+        const auto selected_indices_size = actualOutputs[0].get_size();
+        const auto selected_scores_data = reinterpret_cast<const float*>(actualOutputs[1].data());
+        if (actualOutputs[0].get_element_type().bitwidth() == 32) {
+            const auto selected_indices_data = reinterpret_cast<const int32_t*>(actualOutputs[0].data());
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                const int32_t batchId = selected_indices_data[i + 0];
+                const int32_t classId = selected_indices_data[i + 1];
+                const int32_t boxId = selected_indices_data[i + 2];
+                const float score = selected_scores_data[i + 2];
+                if (batchId == -1 || classId == -1 || boxId == -1)
+                    break;
+
+                actual.emplace_back(batchId, classId, boxId, score);
+            }
+        } else {
+            const auto selected_indices_data = reinterpret_cast<const int64_t*>(actualOutputs[0].data());
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                const int64_t batchId = selected_indices_data[i + 0];
+                const int64_t classId = selected_indices_data[i + 1];
+                const int64_t boxId = selected_indices_data[i + 2];
+                const float score = selected_scores_data[i + 2];
+                if (batchId == -1 || classId == -1 || boxId == -1)
+                    break;
+
+                actual.emplace_back(batchId, classId, boxId, score);
+            }
+        }
+    }
+
+    ASSERT_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], actual[i]) << ", i=" << i;
+        ASSERT_NEAR(expected[i].score, actual[i].score, abs_threshold) << ", i=" << i;
+    }
+}
+
 template<typename TD, typename TS>
 void fill_data(TD* dst, const TS* src, size_t len) {
     for (size_t i = 0llu; i < len; i++) {
