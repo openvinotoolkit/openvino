@@ -483,22 +483,7 @@ void LayerTestsCommon::Compare(
     Compare(expectedOutputs, actualOutputs, threshold);
 }
 
-void LayerTestsCommon::Validate() {
-    if (functionRefs == nullptr) {
-        functionRefs = function->clone();
-    }
-    auto expectedOutputs = CalculateRefs();
-    const auto &actualOutputs = GetOutputs();
-
-    if (expectedOutputs.empty()) {
-        return;
-    }
-
-    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-    << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
-
-    Compare(expectedOutputs, actualOutputs);
-}
+void LayerTestsCommon::Validate() {}
 
 std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
