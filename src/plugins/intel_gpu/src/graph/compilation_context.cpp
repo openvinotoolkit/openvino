@@ -62,6 +62,14 @@ public:
             return;
 
         _stop_compilation = true;
+
+        // Flush all remaining tasks.
+        for (auto&& future : futures) {
+            if (future.valid()) {
+                future.wait();
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(_mutex);
             if (_task_executor != nullptr)
