@@ -5,7 +5,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/edge_replace.hpp"
 #include "subgraph_simple.hpp"
-#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
