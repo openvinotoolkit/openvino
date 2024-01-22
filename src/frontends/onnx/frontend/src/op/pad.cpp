@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/pad.hpp"
+#include "op/pad.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/convert.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "op/pad.hpp"
 #include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"

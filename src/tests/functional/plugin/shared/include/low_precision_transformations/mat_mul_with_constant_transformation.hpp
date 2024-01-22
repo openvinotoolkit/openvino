@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 
 class MatMulWithConstantTransformationTestValues {
 public:
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
 
     ngraph::builder::subgraph::Constant weights;
@@ -31,7 +31,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     MatMulWithConstantTransformationTestValues> MatMulWithConstantTransformationParams;
 
@@ -40,12 +40,11 @@ class MatMulWithConstantTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

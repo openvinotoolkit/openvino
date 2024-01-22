@@ -22,7 +22,6 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
-list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
 list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 

@@ -50,8 +50,8 @@ inline std::ostream& operator<<(std::ostream& out, const GroupConvolutionQDqTran
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     GroupConvolutionQDqTransformationParam
@@ -66,7 +66,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

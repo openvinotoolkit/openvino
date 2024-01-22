@@ -6,6 +6,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/reference/mvn.hpp"
 
 // ------------------------------ V0 ------------------------------

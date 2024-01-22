@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple <
-    ngraph::element::Type,
-    std::pair<ngraph::PartialShape, ngraph::Shape>,
+    ov::element::Type,
+    std::pair<ov::PartialShape, ov::Shape>,
     std::string,
     std::vector<uint64_t>,
     bool,
