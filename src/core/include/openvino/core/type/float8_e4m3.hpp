@@ -157,8 +157,6 @@ float8_e4m3 float8_e4m3::operator/=(const T& other) {
 }  // namespace ov
 
 namespace std {
-// bool OPENVINO_API isnan(ov::float8_e4m3 x); // TODO
-
 template <>
 class numeric_limits<ov::float8_e4m3> {
 public:
@@ -201,13 +199,13 @@ public:
     static constexpr bool has_denorm_loss = false;
 
     static constexpr ov::float8_e4m3 infinity() noexcept {
-        return ov::float8_e4m3::from_bits(0); // no infinity
+        return ov::float8_e4m3::from_bits(0);  // no infinity
     }
     static constexpr ov::float8_e4m3 quiet_NaN() noexcept {
         return ov::float8_e4m3::from_bits(0b01111111);
     }
     static constexpr ov::float8_e4m3 signaling_NaN() noexcept {
-        return ov::float8_e4m3::from_bits(0); // no signaling NaN
+        return ov::float8_e4m3::from_bits(0);  // no signaling NaN
     }
 
     static constexpr ov::float8_e4m3 denorm_min() noexcept {

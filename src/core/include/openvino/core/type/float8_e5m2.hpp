@@ -157,8 +157,6 @@ float8_e5m2 float8_e5m2::operator/=(const T& other) {
 }  // namespace ov
 
 namespace std {
-// bool OPENVINO_API isnan(ov::float8_e5m2 x); // TODO
-
 template <>
 class numeric_limits<ov::float8_e5m2> {
 public:
@@ -181,8 +179,8 @@ public:
 
     static constexpr int radix = 2;
 
-    static constexpr ov::float8_e4m3 epsilon() noexcept {
-        return ov::float8_e4m3::from_bits(0b00000001);
+    static constexpr ov::float8_e5m2 epsilon() noexcept {
+        return ov::float8_e5m2::from_bits(0b00000001);
     }
     static constexpr ov::float8_e5m2 round_error() noexcept {
         return ov::float8_e5m2::from_bits(0b00111000);
