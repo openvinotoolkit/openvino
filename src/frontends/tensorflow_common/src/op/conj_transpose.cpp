@@ -16,7 +16,7 @@ using namespace ov::op;
 
 std::shared_ptr<ov::op::v0::Concat> get_conj_ptr(const ov::Output<ov::Node>& node) {
     auto real_index = make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
-    auto imag_index = make_shared<v0::Constant>(ov::element::i32, ov::Shape::Shape{1}, 1);
+    auto imag_index = make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
 
     auto gather_axis = make_shared<v0::Constant>(ov::element::i32, ov::Shape::Shape{1}, -1);
 
