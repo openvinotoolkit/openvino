@@ -293,14 +293,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = latency_hints;
     } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = tput_hints.first;
         config[ov::threading::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
         config[ov::threading::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
@@ -329,10 +323,6 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     } else {
         config.streamExecutorConfig.set_config_zero_stream();
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
