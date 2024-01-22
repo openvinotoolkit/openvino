@@ -46,7 +46,7 @@
 #elif defined(_MSC_VER)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __declspec(deprecated(msg))
 #elif defined(__INTEL_COMPILER)
-#    define INFERENCE_ENGINE_DEPRECATED(msg)      __attribute__((deprecated(msg)))
+#    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #else
 #    define INFERENCE_ENGINE_DEPRECATED(msg)
 #endif

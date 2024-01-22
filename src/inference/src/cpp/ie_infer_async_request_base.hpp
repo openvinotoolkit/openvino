@@ -9,7 +9,6 @@
 #include <string>
 
 #include "cpp/exception2status.hpp"
-#include "cpp_interfaces/plugin_itt.hpp"
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 
@@ -115,12 +114,10 @@ public:
     explicit InferRequestBase(std::shared_ptr<IInferRequestInternal> impl): _impl(impl) {}
 
     StatusCode Infer(ResponseDesc* resp) noexcept override {
-        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Infer");
         TO_STATUS(_impl->Infer());
     }
 
     StatusCode Cancel(ResponseDesc* resp) noexcept override {
-        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Cancel");
         TO_STATUS(_impl->Cancel());
     }
 
@@ -138,12 +135,10 @@ public:
     }
 
     StatusCode StartAsync(ResponseDesc* resp) noexcept override {
-        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "StartAsync");
         TO_STATUS(_impl->StartAsync());
     }
 
     StatusCode Wait(int64_t millis_timeout, ResponseDesc* resp) noexcept override {
-        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Wait");
         NO_EXCEPT_CALL_RETURN_STATUS(_impl->Wait(millis_timeout));
     }
 

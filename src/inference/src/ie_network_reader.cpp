@@ -36,9 +36,7 @@ namespace InferenceEngine {
 
 namespace {
 
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
-                                 bool is_new_api,
-                                 bool frontendMode = false) {
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function, bool is_new_api, bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps
     if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11 && !is_new_api) {
         IR_READER_SCOPE(ir11_old_api);

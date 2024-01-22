@@ -41,10 +41,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from file");
-    return InferenceEngine::details::ReadNetwork(modelPath,
-                                                 binPath,
-                                                 isNewAPI(),
-                                                 coreConfig.get_enable_mmap());
+    return InferenceEngine::details::ReadNetwork(modelPath, binPath, isNewAPI(), coreConfig.get_enable_mmap());
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,

@@ -7,7 +7,6 @@
 #include <functional>
 #include <string>
 
-#include "openvino/opsets/opset.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 

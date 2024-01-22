@@ -10,7 +10,6 @@
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "cpp_interfaces/plugin_itt.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
@@ -105,7 +104,6 @@ std::shared_ptr<const ov::Node> IInferRequestInternal::findOutputByNodeName(cons
 }
 
 void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& userBlob) {
-    OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
@@ -168,7 +166,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
 }
 
 Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
-    OV_ITT_SCOPED_TASK(itt::domains::Plugin, "GetBlob");
     Blob::Ptr data;
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;

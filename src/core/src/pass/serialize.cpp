@@ -608,19 +608,11 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body,
-                            *adapter.get(),
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(xml_body, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node,
-                            *adapter.get(),
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(m_xml_node, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
         } else {
             OPENVINO_THROW("Unsupported Model name.");
         }
@@ -1200,18 +1192,14 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-pass::Serialize::Serialize(std::ostream& xmlFile,
-                           std::ostream& binFile,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
       m_version{version} {}
 
-pass::Serialize::Serialize(const std::string& xmlPath,
-                           const std::string& binPath,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},

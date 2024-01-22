@@ -21,10 +21,7 @@ namespace details {
  * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& modelPath,
-                       const std::string& binPath,
-                       bool is_new_api,
-                       bool enable_mmap);
+CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath, bool is_new_api, bool enable_mmap);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR
@@ -32,10 +29,7 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
  * @param frontendMode read network without post-processing or other transformations
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& model,
-                       const Blob::CPtr& weights,
-                       bool is_new_api,
-                       bool frontendMode = false);
+CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, bool is_new_api, bool frontendMode = false);
 
 }  // namespace details
 }  // namespace InferenceEngine

@@ -44,7 +44,7 @@ static constexpr char pcSimpleSort[] = "simple_sort";
 /**
  * @brief Unicode string wrappers
  */
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT& defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 #    define tchar                wchar_t
 #    define tstring              std::wstring
 #    define tmain                wmain

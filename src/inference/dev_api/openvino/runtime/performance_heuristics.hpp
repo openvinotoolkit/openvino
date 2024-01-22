@@ -1,7 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
+
+/**
+ * @brief Performance heuristics for OpenVINO runtime
+ * @file openvino/runtime/performance_heuristics.hpp
+ */
 
 #include <cfloat>
 #include <memory>

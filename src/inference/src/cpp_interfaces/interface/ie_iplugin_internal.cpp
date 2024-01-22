@@ -25,11 +25,11 @@
 #include "dev/converter_utils.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
-#include "ie_version.hpp"
 #include "ie_input_info.hpp"
 #include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include "ie_version.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -140,8 +140,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            auto new_impl =
-                std::make_shared<details::CNNNetworkNGraphImpl>(function, IsNewAPI());
+            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function, IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
