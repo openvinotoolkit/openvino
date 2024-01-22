@@ -178,23 +178,23 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_cv;
     size_t m_count;
-    size_t m_expected;
-    size_t m_gen;
+    const size_t m_expected;
+    size_t m_wait_id;
 
 public:
-    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_gen{} {}
+    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_wait_id{} {}
 
     void arrive_and_wait() {
         std::unique_lock<std::mutex> lock(m_mutex);
-        auto gen = m_gen;
 
-        if (!--m_count) {
-            ++m_gen;
+        if (--m_count == 0) {
+            ++m_wait_id;
             m_count = m_expected;
             m_cv.notify_all();
         } else {
-            m_cv.wait(lock, [this, gen] {
-                return gen != m_gen;
+            const auto wait_id = m_wait_id;
+            m_cv.wait(lock, [this, wait_id] {
+                return wait_id != m_wait_id;
             });
         }
     }
@@ -221,6 +221,9 @@ TEST_F(CoreThreadingTests, ReadModel) {
             // to be added in frontend.
             sync_point.arrive_and_wait();
             std::ignore = core.read_model(modelName, weightsName);
+
+            // sync before next iteration (modification of extensions vector)
+            sync_point.arrive_and_wait();
         },
         100,
         threads_num);
