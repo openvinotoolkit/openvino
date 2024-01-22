@@ -27,7 +27,6 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
 ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto serializeInfo = [&](std::ostream& stream) {
         const std::string name = "cnndata";
         pugi::xml_document xml_doc;
@@ -41,9 +40,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    // Serialize to old representation in case of old API
     ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
@@ -64,7 +61,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
@@ -75,7 +71,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // read blob content
     _istream.seekg(hdr.consts_offset);
