@@ -173,7 +173,7 @@ public:
         return ov::float8_e5m2::from_bits(0b11111011);
     }
     static constexpr int digits = 3;
-    // static constexpr int digits10 = TODO;
+    static constexpr int digits10 = 0;
 
     static constexpr bool is_signed = true;
     static constexpr bool is_integer = false;
@@ -181,17 +181,17 @@ public:
 
     static constexpr int radix = 2;
 
-    // static constexpr ov::float8_e5m2 epsilon() noexcept {
-    //     return ov::float8_e5m2::from_bits(TODO);
-    // }
+    static constexpr ov::float8_e4m3 epsilon() noexcept {
+        return ov::float8_e4m3::from_bits(0b00000001);
+    }
     static constexpr ov::float8_e5m2 round_error() noexcept {
         return ov::float8_e5m2::from_bits(0b00111000);
     }
 
     static constexpr int min_exponent = -13;
-    // static constexpr int min_exponent10 = TODO;
+    static constexpr int min_exponent10 = -4;
     static constexpr int max_exponent = 16;
-    // static constexpr int max_exponent10 = TODO;
+    static constexpr int max_exponent10 = 4;
 
     static constexpr bool has_infinity = true;
     static constexpr bool has_quiet_NaN = true;
