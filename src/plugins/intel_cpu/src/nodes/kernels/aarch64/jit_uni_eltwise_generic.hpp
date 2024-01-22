@@ -217,25 +217,25 @@ private:
                      const ov::element::Type& src_prc,
                      const ov::element::Type& dst_prc,
                      const bool broadcast,
-                     const int32_t offset = 0);
+                     const int32_t ptr_offset = 0);
 
     void load_scalar(const SReg& data,
                      const XReg& ptr,
                      const ov::element::Type& src_prc,
                      const ov::element::Type& dst_prc,
-                     const int32_t offset = 0);
+                     const int32_t ptr_offset = 0);
 
     void store_vector(const XReg& ptr,
                  const TReg& data,
                  const ov::element::Type& src_prc,
                  const ov::element::Type& dst_prc,
-                 const int32_t offset = 0);
+                 const int32_t ptr_offset = 0);
 
     void store_scalar(const XReg& ptr,
                       const SReg& data,
                       const ov::element::Type& src_prc,
                       const ov::element::Type& dst_prc,
-                      const int32_t offset = 0);
+                      const int32_t ptr_offset = 0);
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec);
 
