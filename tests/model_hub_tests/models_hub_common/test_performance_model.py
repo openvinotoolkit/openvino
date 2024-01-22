@@ -120,14 +120,12 @@ class TestModelPerformance:
         core = ov.Core()
         return core.read_model(model=model_path)
 
-    def heat_hardware(self, ov_model, inputs) -> None:
-        _, heat_n_repeats, _ = utils.measure(utils.nano_secs(const.runtime_heat_duration), ov_model, (inputs,))
+    def heat_hardware(self, ov_model, inputs, conf) -> None:
+        _, heat_n_repeats, _ = utils.measure(conf.runtime_heat_duration, ov_model, (inputs,))
         print('heat done in {} repeats'.format(heat_n_repeats))
 
-    def measure_inference(self, ov_model, inputs) -> ModelResults:
-        time_slices, infer_n_repeats, real_runtime = utils.measure(utils.nano_secs(const.runtime_measure_duration),
-                                                                   ov_model,
-                                                                   (inputs,))
+    def measure_inference(self, ov_model, inputs, conf) -> ModelResults:
+        time_slices, infer_n_repeats, real_runtime = utils.measure(conf.runtime_measure_duration, ov_model, (inputs,))
         print('measurement done in {} repeats'.format(infer_n_repeats))
         infer_throughput = float(infer_n_repeats * (10 ** 9)) / real_runtime
         infer_mean_time_ns = np.mean(time_slices)
@@ -141,15 +139,15 @@ class TestModelPerformance:
         results.infer_variance = infer_variance
         return results
 
-    def infer_model(self, ov_model, inputs) -> ModelResults:
-        self.heat_hardware(ov_model, inputs)
-        return self.measure_inference(ov_model, inputs)
+    def infer_model(self, ov_model, inputs, conf) -> ModelResults:
+        self.heat_hardware(ov_model, inputs, conf)
+        return self.measure_inference(ov_model, inputs, conf)
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
         return core.compile_model(model, ie_device)
 
-    def __run(self, model_name, model_link, ie_device):
+    def __run(self, model_name, model_link, ie_device, conf):
         results = Results()
         results.status = None
         try:
@@ -168,11 +166,11 @@ class TestModelPerformance:
             results.status = Status.INFER_CONVERTED_MODEL
             results.converted_model_results = utils.call_with_timer('Infer converted model',
                                                                     self.infer_model,
-                                                                    (converted_model, inputs))
+                                                                    (converted_model, inputs, conf))
             results.status = Status.INFER_READ_MODEL
             results.read_model_results = utils.call_with_timer('Infer read model',
                                                                self.infer_model,
-                                                               (read_model, inputs))
+                                                               (read_model, inputs, conf))
 
             infer_time_ratio = (results.converted_model_results.infer_mean_time /
                                 results.read_model_results.infer_mean_time)
@@ -196,10 +194,10 @@ class TestModelPerformance:
                                                                          ex_type=ex_type.__name__, ex_value=ex_value)
         return results
 
-    def run(self, model_name, model_link, ie_device):
+    def run(self, model_name, model_link, ie_device, conf):
         self.result = Results()
         t0 = time.time()
-        self.result = multiprocessing_run(self.__run, [model_name, model_link, ie_device], model_name,
+        self.result = multiprocessing_run(self.__run, [model_name, model_link, ie_device, conf], model_name,
                                           self.infer_timeout)
         t1 = time.time()
         utils.print_stat('test run time {} secs', (t1 - t0))
