@@ -16,6 +16,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -47,7 +48,7 @@ void parse_pre_process(pugi::xml_node& root,
     std::string inputName;
     std::shared_ptr<ov::Node> input_node;
 
-    inputName = pugixml::utils::get_str_attr(ppNode, "reference-layer-name", "");
+    inputName = ov::util::pugixml::get_str_attr(ppNode, "reference-layer-name", "");
     inputName = ov::util::trim(inputName);
 
     if (inputName.empty()) {
@@ -108,7 +109,7 @@ void parse_pre_process(pugi::xml_node& root,
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        auto chanNo = pugixml::utils::get_uint64_attr(chan, "id", next_channel_id++);
+        auto chanNo = ov::util::pugixml::get_uint64_attr(chan, "id", next_channel_id++);
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -116,11 +117,11 @@ void parse_pre_process(pugi::xml_node& root,
                 OPENVINO_THROW("mean should have at least one of the following attribute: value, size");
             }
             if (meanNode.attribute("value")) {
-                mean_scalar_values.insert({chanNo, pugixml::utils::get_float_attr(meanNode, "value")});
+                mean_scalar_values.insert({chanNo, ov::util::pugixml::get_float_attr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
-                auto const_size = pugixml::utils::get_uint64_attr(meanNode, "size");
-                auto const_offset = pugixml::utils::get_uint64_attr(meanNode, "offset");
+                auto const_size = ov::util::pugixml::get_uint64_attr(meanNode, "size");
+                auto const_offset = ov::util::pugixml::get_uint64_attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
                     OPENVINO_THROW("mean blob size mismatch expected input, got: ",
                                    const_size,
@@ -239,7 +240,7 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
 
     // Load default opsets
-    size_t version = static_cast<size_t>(pugixml::utils::get_uint64_attr(m_root, "version", 0));
+    size_t version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(m_root, "version", 0));
     ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
