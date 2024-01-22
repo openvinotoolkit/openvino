@@ -48,8 +48,8 @@ public:
     std::shared_ptr<Generator> clone() const override;
 
 protected:
+    ov::snippets::RegType get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const override;
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;
-    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override;
 };
 
 }   // namespace intel_cpu

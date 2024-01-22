@@ -34,6 +34,7 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                     is_modified = true;
                 }
                 if (auto outer_loop_end = as_type_ptr<op::LoopEnd>(next_node)) {
+                    const auto& is_incremented = loop_end->get_is_incremented();
                     auto fin_offsets = loop_end->get_finalization_offsets();
                     std::unordered_map<PortConnectorPtr, size_t> per_port_connector_offset;
                     const auto& loop_inputs = expr_it->get()->get_input_port_connectors();
@@ -41,12 +42,17 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                         per_port_connector_offset[loop_inputs[i]] = i;
 
                     const auto outer_increment = static_cast<int64_t>(outer_loop_end->get_increment());
+                    const auto& outer_is_incremented = outer_loop_end->get_is_incremented();
                     auto outer_ptr_increments = outer_loop_end->get_ptr_increments();
                     const auto& outer_loop_inputs = next_expr_it->get()->get_input_port_connectors();
                     for (size_t i = 0; i < outer_ptr_increments.size(); i++) {
+                        if (!outer_is_incremented[i])
+                            continue;
                         const auto& managed_connector = outer_loop_inputs[i];
                         const auto& found = per_port_connector_offset.find(managed_connector);
                         if (found != per_port_connector_offset.end()) {
+                            if (!is_incremented[found->second])
+                                continue;
                             // Since data ptr is incremented on [ptr_increment x increment],
                             // we should guarantee proportionality of ptr shifts.
                             // If the data ptr can't be proportionally shifted, the optimization is not applied
