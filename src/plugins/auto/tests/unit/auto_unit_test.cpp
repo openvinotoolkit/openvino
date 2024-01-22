@@ -123,7 +123,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     core = std::make_shared<NiceMock<MockICore>>();
     // replace core with mock Icore
     plugin->set_core(core);
-    std::vector<std::string> supportConfigs = {"NUM_STREAMS"};
+    std::vector<std::string> supportConfigs = {ov::supported_properties.name(), ov::num_streams.name()};
     std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
     ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
