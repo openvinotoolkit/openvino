@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine")
+set (TARGET_NAME "openvino_runtime")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    # TODO: Add IMPLEMENT_OPENVINO_API to openvino_runtime_obj
     ov_add_compiler_flags(/wd4273)
 endif()
 
@@ -100,18 +100,17 @@ ov_build_target_faster(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
-    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>
-    $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
-    $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
-    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/dev_api"
+    $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/ie" # TODO: remove in 2024.0
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>)
 
@@ -137,7 +136,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${OV_STATIC_DEPENDEN
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
-                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Static library used for unit tests which are always built
 

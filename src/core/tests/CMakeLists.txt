@@ -13,7 +13,7 @@ add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
