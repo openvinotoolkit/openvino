@@ -61,6 +61,12 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
+    // check if model header contains valid data
+    bool isValidModel = (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset);
+    if (!isValidModel) {
+        OPENVINO_THROW("import_model only accepts model saved from export_model");
+    }
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 
