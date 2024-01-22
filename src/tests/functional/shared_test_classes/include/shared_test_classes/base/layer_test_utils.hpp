@@ -70,21 +70,6 @@ public:
 
     std::map<std::string, std::string>& GetConfiguration();
 
-    // get runtime precision by operation friendly name
-    std::string getRuntimePrecision(const std::string& layerName);
-
-    // get runtime precision by operation type
-    std::string getRuntimePrecisionByType(const std::string& layerType);
-
-    // get runtime precision by operation friendly name which can be fused
-    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
-
-    std::map<std::string, ov::Node::RTMap> getRuntimeInfo();
-
-#ifndef NDEBUG
-    void showRuntimePrecisions();
-#endif
-
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
         for (std::size_t i = 0; i < size; ++i) {
