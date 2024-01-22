@@ -373,7 +373,7 @@ public:
         Export(ostream);
     }
 
-    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override {
+    std::shared_ptr<ov::Model> GetExecGraphInfo() override {
         return m_model->get_runtime_model()->clone();
     }
 

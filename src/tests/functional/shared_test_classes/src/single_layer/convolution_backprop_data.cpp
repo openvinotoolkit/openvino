@@ -65,7 +65,7 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
         ngraph::builder::makeConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels));
     }
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
-    function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
+    function = std::make_shared<ov::Model>(results, params, "convolutionBackpropData");
 }
 }  // namespace LayerTestsDefinitions
