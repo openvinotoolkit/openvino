@@ -103,7 +103,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_performance.html --self-contained-html -v
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'nightly'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
