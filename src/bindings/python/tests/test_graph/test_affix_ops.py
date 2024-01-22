@@ -50,7 +50,7 @@ def test_fake_quantize_affix(prefix_string, suffix_string):
         prefix=prefix_string,
         suffix=suffix_string,
     )
-    
+
     # Check if node was created correctly
     assert model.get_type_name() == "FakeQuantize"
     assert model.get_output_size() == 1
