@@ -21,8 +21,6 @@
 #include "ie_input_info.hpp"
 #include "itt.hpp"
 #include "legacy_op_extension.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -38,7 +36,7 @@ namespace InferenceEngine {
 
 namespace {
 
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
                                  bool is_new_api,
                                  bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps

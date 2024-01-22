@@ -278,7 +278,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     }
     int constCnt = 0;
 
-    std::shared_ptr<const ngraph::Function> getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    std::shared_ptr<const ov::Model> getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     EXPECT_NE(getFunction, nullptr);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -329,7 +329,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     int constCnt = 0;
     // Store all the layers from the executable graph information represented as CNNNetwork
     bool hasOpWithValidTime = false;
-    auto getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    auto getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     EXPECT_NE(nullptr, getFunction);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -581,10 +581,10 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -592,7 +592,7 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleConcat");
     }
@@ -604,10 +604,10 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -615,7 +615,7 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleConcat");
     }

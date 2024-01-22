@@ -13,7 +13,6 @@
 
 #include "ie_blob.h"
 #include "ie_parameter.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/exception.hpp"
 
