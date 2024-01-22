@@ -71,7 +71,7 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL inference_engine_plugin_api)
+target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

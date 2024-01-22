@@ -80,29 +80,6 @@ file (GLOB_RECURSE PUBLIC_HEADERS
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
-# Plugin API library
-
-add_library(${TARGET_NAME}_plugin_api INTERFACE)
-
-target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
-    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
-    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
-
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
-
-ov_set_threading_interface_for(${TARGET_NAME}_plugin_api)
-
-file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
-                                 "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
-
-ov_add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
-
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
-                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
-                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
-
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
@@ -134,12 +111,9 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dev_api"
     # for ov_plugins.hpp
-    $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
-    # for ie_ir_version.hpp
-    "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
-    $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
@@ -177,7 +151,6 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
-    $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 
 if(WIN32)
@@ -201,11 +174,8 @@ set_target_properties(${TARGET_NAME}_obj
 # Export for developer package
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}_s)
-ov_developer_package_export_targets(TARGET ${TARGET_NAME}_plugin_api)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
-
-ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
