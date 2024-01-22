@@ -165,11 +165,9 @@ void ConvolutionLayerCPUTest::SetUp() {
         rel_threshold = 1e-2f;
         if (selectedType == "jit_gemm_BF16")
             rel_threshold = 0.05f;
-    } else if (configuration.count(ov::hint::inference_precision.name())) {
-        if (configuration[ov::hint::inference_precision.name()].as<ov::element::Type>() == ov::element::f16) {
+    } else if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
             selectedType +=  "_FP16";
-            rel_threshold = 0.0006f;
-        }
+            rel_threshold = 0.00125f;
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }

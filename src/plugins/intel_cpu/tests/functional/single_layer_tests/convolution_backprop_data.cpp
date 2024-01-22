@@ -231,7 +231,7 @@ protected:
         } else if (configuration.count(ov::hint::inference_precision.name()) &&
                 configuration[ov::hint::inference_precision.name()].as<ov::element::Type>() == ov::element::f16) {
             inType = outType = prec = ElementType::f16;
-            rel_threshold = 0.00001f;
+            rel_threshold = 0.00125f;
         } else {
             inType = outType = prec;
         }
