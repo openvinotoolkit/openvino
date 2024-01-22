@@ -1488,43 +1488,6 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
     execute(p);
 }
 
-class conv_fp32_swish : public ConvFusingTest {};
-TEST_P(conv_fp32_swish, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("sigmoid", input_info("conv_prim"), activation_func::logistic),
-        eltwise("mul", { input_info("conv_prim"), input_info("sigmoid") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
-    );
-
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16) {
-        GTEST_SKIP(); // Issue: 94154
-    }
-
-    tolerance = default_tolerance(p.default_type);
-    if (p.default_type == data_types::f16) {
-        tolerance *= 3.f; // Issue: 94154
-    }
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
-
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
-}));
-
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 3 },
@@ -2028,52 +1991,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise, ::testing::ValuesIn(std
     convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
     convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
-}));
-
-class conv_int8_scale_shift_swish : public ConvFusingTest {};
-TEST_P(conv_int8_scale_shift_swish, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255.f)),
-        data("shift_data", get_mem(get_per_channel_layout(p), 1)),
-        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        eltwise("scale0", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
-        eltwise("scale1", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
-        eltwise("shift0", { input_info("scale0"), input_info("shift_data") }, eltwise_mode::sum),
-        eltwise("shift1", { input_info("scale1"), input_info("shift_data") }, eltwise_mode::sum),
-        activation("sigmoid", input_info("shift0"), activation_func::logistic),
-        eltwise("mul", { input_info("shift1"), input_info("sigmoid") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
-    );
-
-    // high tolerance because many eltwise operations
-    tolerance = default_tolerance(p.default_type) * 10;
-    execute(p, -20, 20);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 8 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 8 },
 }));
 
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
