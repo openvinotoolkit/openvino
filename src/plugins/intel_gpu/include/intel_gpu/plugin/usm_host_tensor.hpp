@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/runtime/itensor.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
+
 #include <memory>
 
 namespace ov {
@@ -16,8 +16,7 @@ class RemoteTensorImpl;
 
 class USMHostTensor : public ov::ITensor {
 public:
-    USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type, const Shape& shape,
-                  const intel_gpu::TensorType tensor_type = TensorType::BT_USM_HOST_INTERNAL);
+    USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type, const Shape& shape);
     explicit USMHostTensor(std::shared_ptr<RemoteTensorImpl> tensor);
 
     ~USMHostTensor() override = default;

@@ -35,7 +35,6 @@ public:
 
     const ov::AnyMap& get_property() const override;
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
-    ov::SoPtr<ov::ITensor> create_user_tensor(const ov::element::Type type, const ov::Shape& shape) override;
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
 

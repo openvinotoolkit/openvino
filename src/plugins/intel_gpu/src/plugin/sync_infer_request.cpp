@@ -437,11 +437,6 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::Part
     return m_context->create_host_tensor(port_element_type, get_tensor_shape(port_shape))._ptr;
 }
 
-std::shared_ptr<ov::ITensor> SyncInferRequest::create_user_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::create_host_tensor");
-    return m_context->create_user_tensor(port_element_type, get_tensor_shape(port_shape))._ptr;
-}
-
 std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::PartialShape& port_shape, ov::element::Type element_type,
                                                                     bool need_lockable_memory) const {
     TensorType tensor_type = TensorType::BT_EMPTY;
@@ -529,7 +524,7 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, c
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
 
-    m_user_outputs[name] = { create_user_tensor(shape, element_type), TensorOwner::PLUGIN };
+    m_user_outputs[name] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
     ov::ISyncInferRequest::set_tensor(port, m_user_outputs.at(name).ptr);
 }
 

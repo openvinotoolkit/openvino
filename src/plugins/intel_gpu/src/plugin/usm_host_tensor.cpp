@@ -11,9 +11,8 @@
 namespace ov {
 namespace intel_gpu {
 
-USMHostTensor::USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type,
-                             const Shape& shape, const intel_gpu::TensorType tensor_type)
-    : m_impl(std::make_shared<RemoteTensorImpl>(context, shape, element_type, tensor_type)) {}
+USMHostTensor::USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type, const Shape& shape)
+    : m_impl(std::make_shared<RemoteTensorImpl>(context, shape, element_type, TensorType::BT_USM_HOST_INTERNAL)) {}
 
 USMHostTensor::USMHostTensor(std::shared_ptr<RemoteTensorImpl> tensor)
     : m_impl(tensor) {}

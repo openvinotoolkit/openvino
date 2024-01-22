@@ -117,14 +117,6 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
     }
 }
 
-ov::SoPtr<ov::ITensor> RemoteContextImpl::create_user_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    if (m_engine->use_unified_shared_memory()) {
-        return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape, intel_gpu::TensorType::BT_USM_USER_INTERNAL), nullptr };
-    } else {
-        return { ov::make_tensor(type, shape), nullptr };
-    }
-}
-
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
     if (params.empty()) {
         // user wants plugin to allocate tensor by itself and return handle

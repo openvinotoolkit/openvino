@@ -9,7 +9,3 @@
 ov::SoPtr<ov::ITensor> ov::IRemoteContext::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
     return ov::SoPtr<ov::ITensor>(ov::make_tensor(type, shape), nullptr);
 }
-
-ov::SoPtr<ov::ITensor> ov::IRemoteContext::create_user_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    return create_host_tensor(type, shape);
-}

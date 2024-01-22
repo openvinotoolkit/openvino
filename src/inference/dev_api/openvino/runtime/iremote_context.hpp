@@ -64,7 +64,6 @@ public:
      * @return A tensor instance with device friendly memory.
      */
     virtual ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape);
-    virtual ov::SoPtr<ov::ITensor> create_user_tensor(const ov::element::Type type, const ov::Shape& shape);
 };
 
 }  // namespace ov

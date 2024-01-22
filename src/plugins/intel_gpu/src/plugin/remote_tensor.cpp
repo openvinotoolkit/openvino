@@ -146,12 +146,6 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
         break;
     }
-    case TensorType::BT_USM_USER_INTERNAL: {
-        auto layout = m_layout;
-        layout.data_type = m_element_type;
-        m_memory_object = engine.allocate_memory(layout, cldnn::allocation_type::usm_host, reset);
-        break;
-    }
     case TensorType::BT_USM_DEVICE_INTERNAL: {
         m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
         break;
@@ -275,13 +269,6 @@ void RemoteTensorImpl::update_properties() {
         };
         break;
     case TensorType::BT_USM_HOST_INTERNAL:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_USER_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
             ov::intel_gpu::ocl_context(params.context),
