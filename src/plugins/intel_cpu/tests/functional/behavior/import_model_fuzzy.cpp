@@ -14,7 +14,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/serialize.hpp"
 
-TEST(CompiledModel, Import) {
+TEST(CPUImportModel, Fuzzy) {
     auto type = ov::element::f32;
     auto input = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{16, 8});
     auto tensor = ov::test::utils::create_and_fill_tensor(type, ov::Shape{8, 16});
