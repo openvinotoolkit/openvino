@@ -45,11 +45,11 @@ namespace intel_cpu {
 enum class ExecutorType {
     Undefined,
     Common,
-    x64,
+    jit_x64,
     Dnnl,
     Acl,
     Mlas,
-    Jit
+    jit_aarch64
 };
 
 class ExecutorContext {
