@@ -442,6 +442,12 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+          
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd

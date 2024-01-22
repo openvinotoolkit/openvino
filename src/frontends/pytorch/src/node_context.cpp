@@ -43,7 +43,6 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
-        c_outs[0].get_node_shared_ptr()->set_friendly_name(m_decoder->get_output_debug_name(0));
         return c_outs;
     }
 }

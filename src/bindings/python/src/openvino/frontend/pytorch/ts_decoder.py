@@ -64,6 +64,7 @@ class TorchScriptPythonDecoder (Decoder):
             self._transform_tensor_list_constants_to_listconstruct(
                 self.graph_element)
             self._transform_optional_constants(self.graph_element)
+        self.out_debug_name_overwrites = {}
 
     @staticmethod
     def _get_preserved_attributes(model) -> list:
@@ -165,6 +166,8 @@ class TorchScriptPythonDecoder (Decoder):
         return self.get_type_for_value(raw_input)
 
     def get_output_debug_name(self, index: int) -> str:
+        if index in self.out_debug_name_overwrites:
+            return self.out_debug_name_overwrites[index]
         return self._raw_output(index).debugName()
 
     def get_output_shape(self, index: int):
@@ -283,7 +286,7 @@ class TorchScriptPythonDecoder (Decoder):
         return node
 
     def try_decode_get_attr(self):
-        pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
+        pt_value, name = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
         if isinstance(pt_value, torch.ScriptObject):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
@@ -313,7 +316,12 @@ class TorchScriptPythonDecoder (Decoder):
                 pass
             return res
         elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
-            return ivalue_to_constant(pt_value, shared_memory=self._shared_memory)
+            const = ivalue_to_constant(pt_value, shared_memory=self._shared_memory)
+            if len(const) > 0:
+                # set name corresponding to state_dict name
+                const[0].get_node().set_friendly_name(name)
+                self.out_debug_name_overwrites[0] = name
+            return const
         else:
             return []
 
@@ -328,7 +336,11 @@ class TorchScriptPythonDecoder (Decoder):
             return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
-        return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
+        const = ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
+        if len(const) > 0:
+            # set name corresponding to state_dict name
+            const[0].get_node().set_friendly_name(self.get_output_debug_name(0))
+        return const
 
     def as_string(self):
         if self.get_op_type() == "prim::Constant":
@@ -377,7 +389,7 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 in_node = r_input.node()
                 if in_node.kind() == "prim::GetAttr":
-                    pt_value = get_value_from_getattr(in_node, self.pt_module)
+                    pt_value, _ = get_value_from_getattr(in_node, self.pt_module)
                     return pt_value is None
         return False
 
