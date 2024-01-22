@@ -5,9 +5,8 @@
 #pragma once
 
 #include "cpu_types.h"
-#include "../executor.hpp"
-#include "../eltwise.hpp"
-#include <node.h>
+#include "nodes/executors/eltwise.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
