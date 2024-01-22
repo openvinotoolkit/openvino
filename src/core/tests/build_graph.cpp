@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/node_builders/broadcast.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "ov_models/ov_builders/broadcast.hpp"
 
 using namespace std;
 using namespace ov;

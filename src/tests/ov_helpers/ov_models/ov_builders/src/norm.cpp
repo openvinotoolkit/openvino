@@ -50,7 +50,7 @@ std::shared_ptr<ov::Node> lp_norm(const Output<ov::Node>& value,
     std::shared_ptr<ov::Node> inv_p_node =
         ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {1.f / p_norm});
 
-    return {std::make_shared<ov::op::v1::Power>(values, inv_p_node)};
+    return std::make_shared<ov::op::v1::Power>(values, inv_p_node);
 }
 
 /// \brief      Calculates L-0 norm of input tensor.
@@ -126,17 +126,14 @@ std::shared_ptr<ov::Node> l2_norm(const Output<ov::Node>& value,
     std::shared_ptr<ov::Node> values{std::make_shared<ov::op::v1::ReduceSum>(pow, reduction_axes, keep_dims)};
 
     std::shared_ptr<ov::Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
-    std::shared_ptr<ov::Node> result;
     switch (bias_mode) {
     case BiasMode::MAX: {
-        result = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Maximum>(values, bias_node));
-        break;
+        return std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Maximum>(values, bias_node));
     }
     case BiasMode::ADD:
     default:
-        result = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(values, bias_node));
+        return std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(values, bias_node));
     }
-    return result;
 }
 }  // namespace
 

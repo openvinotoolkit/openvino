@@ -56,7 +56,7 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
     // ------ Optional inputs ------
     if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
         auto bias = ng_inputs.at(3);
-        auto split_bias = ov::op::util::split(bias, 2, 1);
+        auto split_bias = ov::op::util::make_split(bias, 2, 1);
         m_map[OpInput::B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
     } else {
         auto b_shape = std::make_shared<v0::Concat>(

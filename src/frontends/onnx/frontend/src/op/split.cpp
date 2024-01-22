@@ -21,10 +21,10 @@ ov::OutputVector split(const Node& node) {
 
     if (node.has_attribute("split")) {
         const auto splits = node.get_attribute_value<std::vector<int64_t>>("split");
-        return ov::op::util::split(input, splits, axis);
+        return ov::op::util::make_split(input, splits, axis);
     } else {
         const auto outputs_number = node.get_output_names().size();
-        return ov::op::util::split(input, outputs_number, axis);
+        return ov::op::util::make_split(input, outputs_number, axis);
     }
 }
 
@@ -37,7 +37,7 @@ ov::OutputVector split(const Node& node) {
 
     if (inputs.size() < 2) {
         const auto outputs_number = node.get_output_names().size();
-        return ov::op::util::split(inputs.at(0), outputs_number, axis);
+        return ov::op::util::make_split(inputs.at(0), outputs_number, axis);
     } else {
         const auto axis_node = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{}, {axis});
         return {std::make_shared<v1::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
