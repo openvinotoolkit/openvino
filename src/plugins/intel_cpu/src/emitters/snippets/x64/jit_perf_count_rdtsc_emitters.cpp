@@ -73,9 +73,7 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t> &in_i
 
     // iteration++
     h->mov(h->rax, reinterpret_cast<size_t>(&m_end_node->iteration));
-    h->mov(h->rdx, qword[h->rax]);
-    h->add(h->rdx, 0x01);
-    h->mov(qword[h->rax], h->rdx);
+    h->inc(qword[h->rax]);
 
     h->pop(h->rdx);
     h->pop(h->rax);

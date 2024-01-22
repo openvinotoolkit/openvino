@@ -117,6 +117,31 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     return expr;
 }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::PerfCountBeginBase>& n,
+                                                  const std::vector<PortConnectorPtr>& inputs,
+                                                  const LinearIR& linear_ir) {
+    OPENVINO_ASSERT(inputs.empty(), "PerfCountBegin factory do not accept any input connectors");
+    return create_without_connections(n, linear_ir);
+}
+
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::PerfCountEndBase>& n,
+                                                  const std::vector<PortConnectorPtr>& inputs,
+                                                  const LinearIR& linear_ir) {
+    OPENVINO_ASSERT(inputs.empty(), "PerfCountEnd factory do not accept any input connectors");
+    return create_without_connections(n, linear_ir);
+}
+
+ExpressionPtr LinearIR::ExpressionFactory::create_without_connections(const std::shared_ptr<ov::Node>& n,
+                                                                      const LinearIR& linear_ir) {
+    auto expr = std::shared_ptr<Expression>(new Expression(n, linear_ir.m_shape_infer_factory));
+    expr->m_input_port_descriptors.clear();
+    expr->m_output_port_descriptors.clear();
+    expr->validate();
+    return expr;
+}
+#endif
+
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n,
                                                   const std::vector<PortConnectorPtr>& inputs,
                                                   const LinearIR& linear_ir) {
