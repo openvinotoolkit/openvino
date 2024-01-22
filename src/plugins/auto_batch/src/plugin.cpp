@@ -16,7 +16,6 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace ov {
 namespace autobatch_plugin {
 
