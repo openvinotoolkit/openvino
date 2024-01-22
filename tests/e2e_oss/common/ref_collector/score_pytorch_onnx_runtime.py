@@ -2,7 +2,7 @@ import logging as log
 import os
 import sys
 
-from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
+from e2e_oss.common.multiprocessing_utils import multiprocessing_run
 from utils.path_utils import resolve_dir_path
 from e2e_oss.common.ref_collector.score_onnx_runtime import ONNXRuntimeRunner
 from e2e_oss.common.ref_collector.provider import ClassProvider

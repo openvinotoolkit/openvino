@@ -6,7 +6,7 @@ from collections import OrderedDict
 import numpy as np
 
 from .threshold_utils import get_default_thresholds, get_default_iou_threshold
-from e2e_oss.common_utils.table_utils import make_table
+from e2e_oss.common.table_utils import make_table
 from .provider import ClassProvider
 
 
