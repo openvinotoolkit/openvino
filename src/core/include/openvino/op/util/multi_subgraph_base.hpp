@@ -7,6 +7,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/sink.hpp"
 
 namespace ov {
 namespace op {
@@ -14,7 +15,7 @@ namespace util {
 /// \brief Abstract base class for sub-graph based ops, i.e ops that have some
 /// sub-graphs
 ///
-class OPENVINO_API MultiSubGraphOp : public Op {
+class OPENVINO_API MultiSubGraphOp : public ov::op::Sink {
 public:
     OPENVINO_OP("MultiSubGraphOp", "util");
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and

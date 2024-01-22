@@ -22,6 +22,7 @@
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/keep_in_graph_op.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -82,6 +83,9 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
             auto op_type = std::string(fw_node->get_type_name());
             auto fw_node_attrs = fw_node->get_attrs();
             update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::KeepInGraphOp>(node)) {
+            // handle auxiliary operations from common frontend like ComplexTypeMark
+        update_failures_unsupported_ops(fw_node->get_op_type(), {}, unsupported_operations, failures);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());

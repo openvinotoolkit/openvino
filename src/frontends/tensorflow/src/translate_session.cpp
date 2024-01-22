@@ -10,7 +10,9 @@
 #include "helper_ops/next_iteration.hpp"
 #include "helper_ops/switch.hpp"
 #include "input_model.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/keep_in_graph_op.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
@@ -404,6 +406,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     ov::ParameterVector params;
     ov::ResultVector results;
+    ov::SinkVector sinks;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
@@ -537,6 +540,31 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
                 NodeContext node_context(operation_decoder, ov_inputs, this);
                 ov_outputs = translator(node_context);
+
+                for (auto output : ov_outputs) {
+                    auto node = output.port.get_node_shared_ptr();
+                    auto kept_in_graph_op = std::dynamic_pointer_cast<ov::op::util::KeepInGraphOp>(node);
+                    if (kept_in_graph_op) {
+                        auto sink_op = std::dynamic_pointer_cast<ov::op::Sink>(node);
+                        sinks.push_back(sink_op);
+                    }
+                    auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+                    if (multi_subgraph)
+                    {
+                        bool has_sinks = false;
+                        for (const auto& body_model:multi_subgraph->get_functions()) {
+                            
+                            if (body_model->get_sinks().size()) {
+                                has_sinks = true;
+                            }
+                        }
+                        if (has_sinks) {
+                            sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                        }
+                    }
+                
+
+            }   
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
@@ -743,8 +771,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (auto& loop_cond_op : loop_cond_ops) {
         fuse_loop_cond(loop_cond_op, ng_op_map, enter_ops);
     }
-
-    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, sinks, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,

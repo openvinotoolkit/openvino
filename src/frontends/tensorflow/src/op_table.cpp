@@ -375,6 +375,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Exit", CreatorFunction(translate_exit_op)},
         {"LoopCond", CreatorFunction(translate_loop_cond_op)},
         {"NextIteration", CreatorFunction(translate_next_iteration_op)},
+
+        // Unsupported operations, which should be kept in Graph
+        {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
 }  // namespace op

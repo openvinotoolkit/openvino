@@ -170,6 +170,7 @@ OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_unravel_index_op);
 OP_CONVERTER(translate_unsorted_segment_sum_op);
 OP_CONVERTER(translate_where_op);
+OP_CONVERTER(translate_write_file);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_xlog1py_op);
 OP_CONVERTER(translate_xlogy_op);
