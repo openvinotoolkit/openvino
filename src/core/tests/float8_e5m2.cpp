@@ -196,9 +196,9 @@ TEST(F8E5M2Test, f32_ge_f8_max_round_to_lowest) {
 }
 
 template <class TContainer>
-std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TContainer& values) {
-    std::vector<std::tuple<int, typename TContainer::value_type>> enum_values;
-    int i = 0;
+std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enumerate(const TContainer& values) {
+    std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enum_values;
+    uint8_t i = 0;
     for (const auto& v : values) {
         enum_values.emplace_back(i, v);
         ++i;
@@ -207,6 +207,7 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
 }
 
 constexpr auto f32_qnan = std::numeric_limits<float>::quiet_NaN();
+constexpr auto f32_signan = std::numeric_limits<float>::signaling_NaN();
 constexpr auto f32_inf = std::numeric_limits<float>::infinity();
 
 // clang-format off
@@ -242,7 +243,7 @@ const auto exp_floats = std::vector<float>{
     8192.0f,            10240.0f,               12288.0f,               14336.0f,
     16384.0f,           20480.0f,               24576.0f,               28672.0f,
     32768.0f,           40960.0f,               49152.0f,               57344.0f,
-    f32_inf,            f32_qnan,               f32_qnan,               f32_qnan,
+    f32_inf,            f32_signan,             f32_qnan,               f32_qnan,
     -0.0f,              -1.52587890625e-05f,    -3.0517578125e-05f,     -4.57763671875e-05f,
     -6.103515625e-05f,  -7.62939453125e-05f,    -9.1552734375e-05f,     -0.0001068115234375f,
     -0.0001220703125f,  -0.000152587890625f,    -0.00018310546875f,     -0.000213623046875f,
@@ -274,10 +275,10 @@ const auto exp_floats = std::vector<float>{
     -8192.0f,           -10240.0f,              -12288.0f,              -14336.0f,
     -16384.0f,          -20480.0f,              -24576.0f,              -28672.0f,
     -32768.0f,          -40960.0f,              -49152.0f,              -57344.0f,
-    -f32_inf,           -f32_qnan,              -f32_qnan,              -f32_qnan};
+    -f32_inf,           -f32_signan,            -f32_qnan,              -f32_qnan};
 // clang-format on
 
-using f8m5e2_params = std::tuple<int, float>;
+using f8m5e2_params = std::tuple<uint8_t, float>;
 class F8E5M2PTest : public testing::TestWithParam<f8m5e2_params> {};
 
 INSTANTIATE_TEST_SUITE_P(convert,
@@ -300,7 +301,10 @@ TEST_P(F8E5M2PTest, f8_bits_to_f32) {
 TEST_P(F8E5M2PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& value = std::get<1>(params);
-    const auto& exp_value = std::isnan(value) ? (std::signbit(value) ? 0xfe : 0x7e) : std::get<0>(params);
+    auto exp_value = std::get<0>(params);
+    if (exp_value == 0xFF || exp_value == 0x7F) {  // quiet NaN
+        exp_value--;
+    }
     const auto f8 = ov::float8_e5m2(value);
 
     EXPECT_EQ(f8.to_bits(), exp_value);
