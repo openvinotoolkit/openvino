@@ -38,12 +38,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj);
 
 protected:
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
     void SetUp() override;
-    void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
-    ov::op::util::MulticlassNmsBase::Attributes m_attrs;
     bool use_op_v8 = false;
 };
 

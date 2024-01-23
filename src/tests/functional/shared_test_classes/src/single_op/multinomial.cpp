@@ -106,6 +106,7 @@ void MultinomialLayerTest::SetUp() {
 }
 
 void MultinomialLayerTest::generate_inputs(const std::vector<ov::Shape>& target_shapes) {
+    std::cout << "generate_inputs" << std::endl;
     inputs.clear();
     const auto& func_inputs = function->inputs();
 
@@ -114,5 +115,6 @@ void MultinomialLayerTest::generate_inputs(const std::vector<ov::Shape>& target_
     auto& num_samples = func_inputs[1];
     inputs.insert({num_samples.get_node_shared_ptr(), m_num_samples});
 }
+
 }  // namespace test
 }  // namespace ov
