@@ -37,12 +37,12 @@ void ExtractImagePatchesTest::SetUp() {
     std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto inputNode = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(inputShape));
-    ngraph::ParameterVector params = {inputNode};
+    auto inputNode = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
+    ov::ParameterVector params = {inputNode};
 
     auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(
-        inputNode, ngraph::Shape(kernel), ngraph::Strides(strides), ngraph::Shape(rates), pad_type);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(extImgPatches)};
-    function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
+        inputNode, ov::Shape(kernel), ngraph::Strides(strides), ov::Shape(rates), pad_type);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(extImgPatches)};
+    function = std::make_shared<ov::Model>(results, params, "ExtractImagePatches");
 }
 }  // namespace LayerTestsDefinitions

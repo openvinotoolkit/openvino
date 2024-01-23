@@ -41,7 +41,7 @@ public:
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     std::shared_ptr<InferenceEngine::Core> ie;
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     std::map<std::string, std::string> configuration;
 };
 
