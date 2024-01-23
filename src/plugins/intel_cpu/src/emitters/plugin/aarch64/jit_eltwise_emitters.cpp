@@ -277,7 +277,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         Xbyak_aarch64::SReg s1(1);
 
         for (auto i = 0; i < 4; i++) {
-            //store_context();
+            store_context();
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
 
@@ -288,7 +288,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
             Xbyak_aarch64::WReg w0(0);
             h->fmov(w0, s0);
             h->mov(dst.s[i], w0);
-            //restore_context();
+            restore_context();
         }
     }
 }
