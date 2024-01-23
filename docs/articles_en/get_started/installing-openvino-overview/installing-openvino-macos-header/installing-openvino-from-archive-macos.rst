@@ -72,6 +72,7 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
+
             curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/macos/m_openvino_toolkit_macos_10_15_2023.3.0.13775.ceeafaf64f3_x86_64.tgz --output openvino_2023.3.0.tgz
             tar -xf openvino_2023.3.0.tgz
             sudo mv m_openvino_toolkit_macos_10_15_2023.3.0.13775.ceeafaf64f3_x86_64 /opt/intel/openvino_2023.3.0
@@ -81,9 +82,11 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
+
             curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/macos/m_openvino_toolkit_macos_11_0_2023.3.0.13775.ceeafaf64f3_arm64.tgz --output openvino_2023.3.0.tgz
             tar -xf openvino_2023.3.0.tgz
             sudo mv m_openvino_toolkit_macos_11_0_2023.3.0.13775.ceeafaf64f3_arm64 /opt/intel/openvino_2023.3.0
+
 
 5. (Optional) Install *numpy* Python Library:
 
@@ -101,6 +104,7 @@ Step 1: Install OpenVINO Core Components
 6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
+
 
       sudo ln -s /opt/intel/openvino_2023.3.0 /opt/intel/openvino_2023
 
@@ -174,7 +178,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
       * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
-      * `Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition.html>`_
+      * `Object classification sample <openvino_sample_hello_classification.html>`_
 
 Uninstalling Intel® Distribution of OpenVINO™ Toolkit
 #####################################################

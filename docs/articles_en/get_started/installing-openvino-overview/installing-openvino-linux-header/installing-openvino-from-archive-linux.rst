@@ -135,6 +135,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
                .. code-block:: sh
 
+
                   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/linux/l_openvino_toolkit_ubuntu22_2023.3.0.13775.ceeafaf64f3_x86_64.tgz --output openvino_2023.3.0.tgz
                   tar -xf openvino_2023.3.0.tgz
                   sudo mv l_openvino_toolkit_ubuntu22_2023.3.0.13775.ceeafaf64f3_x86_64 /opt/intel/openvino_2023.3.0
@@ -144,14 +145,17 @@ Step 1: Download and Install the OpenVINO Core Components
 
                .. code-block:: sh
 
+
                   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/linux/l_openvino_toolkit_ubuntu20_2023.3.0.13775.ceeafaf64f3_x86_64.tgz --output openvino_2023.3.0.tgz
                   tar -xf openvino_2023.3.0.tgz
                   sudo mv l_openvino_toolkit_ubuntu20_2023.3.0.13775.ceeafaf64f3_x86_64 /opt/intel/openvino_2023.3.0
+                  
 
             .. tab-item:: Ubuntu 18.04
                :sync: ubuntu-18
 
                .. code-block:: sh
+
 
                   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/linux/l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_x86_64.tgz --output openvino_2023.3.0.tgz
                   tar -xf openvino_2023.3.0.tgz
@@ -161,6 +165,7 @@ Step 1: Download and Install the OpenVINO Core Components
                :sync: rhel-8
 
                .. code-block:: sh
+
 
                   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/linux/l_openvino_toolkit_rhel8_2023.3.0.13775.ceeafaf64f3_x86_64.tgz --output openvino_2023.3.0.tgz
                   tar -xf openvino_2023.3.0.tgz
@@ -175,10 +180,12 @@ Step 1: Download and Install the OpenVINO Core Components
                   tar -xf openvino_2023.3.0.tgz
                   sudo mv l_openvino_toolkit_centos7_2023.3.0.13775.ceeafaf64f3_x86_64 /opt/intel/openvino_2023.3.0
 
+
       .. tab-item:: ARM 64-bit
          :sync: arm-64
 
          .. code-block:: sh
+
 
             curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/2024.0.0-13770-9b52171d290/l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_arm64.tgz -O openvino_2023.3.0.tgz
             tar -xf openvino_2023.3.0.tgz
@@ -219,6 +226,7 @@ Step 1: Download and Install the OpenVINO Core Components
    .. code-block:: sh
 
       cd /opt/intel
+
       sudo ln -s openvino_2023.3.0 openvino_2023
 
    .. note::
@@ -300,7 +308,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
       Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
       * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`__
-      * `Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition.html>`__
+      * `Object classification sample <openvino_sample_hello_classification.html>`__
 
 
 

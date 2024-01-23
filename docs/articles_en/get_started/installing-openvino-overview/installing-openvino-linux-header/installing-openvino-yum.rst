@@ -127,6 +127,7 @@ Install OpenVINO Runtime
 
       .. code-block:: sh
 
+
          sudo yum install openvino-2023.3.0
 
 
@@ -202,6 +203,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
 
 
+
 What's Next?
 #############
 
@@ -217,7 +219,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
-  * `Automatic speech recognition C++ sample <openvino_sample_automatic_speech_recognition.html>`_
+  * `Object classification sample <openvino_sample_hello_classification.html>`_
 
 You can also try the following things:
 
