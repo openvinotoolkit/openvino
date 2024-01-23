@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -391,3 +391,164 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+using CompressWeightsWithFakeConvertParams = std::tuple<bool,          // zero_point_absent
+                                                        std::string>;  // float8 type
+
+class CompressWeightsNoZeroPoint : public TransformationTestsF,
+                                   public testing::WithParamInterface<CompressWeightsWithFakeConvertParams> {};
+
+TEST_P(CompressWeightsNoZeroPoint, FakeConvert) {
+    const auto& param = GetParam();
+    bool zero_point_absent = std::get<0>(param);
+    std::string destination_type = std::get<1>(param);
+
+    {
+        auto weights = op::v0::Constant::create(element::f32,
+                                                Shape{3, 1, 2, 2},
+                                                {-0.01448f,
+                                                 -0.02314f,
+                                                 -0.02244f,
+                                                 -0.00090f,
+                                                 0.024261f,
+                                                 0.031921f,
+                                                 0.034088f,
+                                                 -0.0497f,
+                                                 -0.0588f,
+                                                 -0.04541f,
+                                                 -0.01281f,
+                                                 0.009109f});
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {54.50976f});
+        std::shared_ptr<op::v13::FakeConvert> fake_convert;
+        if (zero_point_absent) {
+            fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, destination_type);
+        } else {
+            auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.0f});
+            fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, shift, destination_type);
+        }
+        model = std::make_shared<Model>(fake_convert, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        // TODO: change when it's allowed to create a fp8 constant from fp32 values
+        std::vector<uint8_t> weights_data = destination_type == "f8e4m3" ? std::vector<uint8_t>{0xb5,  // -0.8125
+                                                                                                0xba,  // -1.25
+                                                                                                0xba,  // -1.25
+                                                                                                0x95,  // -0.0507812
+                                                                                                0x3b,  // 1.375
+                                                                                                0x3e,  // 1.75
+                                                                                                0x3f,  // 1.875
+                                                                                                0xc3,  // -2.75
+                                                                                                0xc5,  // -3.25
+                                                                                                0xc2,  // -2.5
+                                                                                                0xb3,  // -0.6875
+                                                                                                0x30}  // 0.5
+                                                                         :
+
+                                                                         std::vector<uint8_t>{0xba,   // -0.75
+                                                                                              0xbd,   // -1.25
+                                                                                              0xbd,   // -1.25
+                                                                                              0xaa,   // -0.046875
+                                                                                              0x3d,   // 1.25
+                                                                                              0x3f,   // 1.75
+                                                                                              0x3f,   // 1.75
+                                                                                              0xc1,   // -2.5
+                                                                                              0xc2,   // -3
+                                                                                              0xc1,   // -2.5
+                                                                                              0xba,   // -0.75
+                                                                                              0x38};  // 0.5
+
+        auto weights =
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data.data());
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.01834533});
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
+        model_ref = std::make_shared<Model>(multiply, ParameterVector{});
+    }
+
+    m_abs_threshold = 1e-6f;
+    m_rel_threshold = 1e-6f;
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(CompressQuantizeWeights,
+                         CompressWeightsNoZeroPoint,
+                         testing::Combine(testing::Values(false, true), testing::Values("f8e4m3", "f8e5m2")));
+
+class CompressWeightsWithZeroPoint : public TransformationTestsF, public testing::WithParamInterface<std::string> {};
+
+TEST_P(CompressWeightsWithZeroPoint, FakeConvert) {
+    const auto& destination_type = GetParam();
+
+    {
+        auto weights = op::v0::Constant::create(element::f32,
+                                                Shape{3, 1, 2, 2},
+                                                {-0.01448f,
+                                                 -0.02314f,
+                                                 -0.02244f,
+                                                 -0.00090f,
+                                                 0.024261f,
+                                                 0.031921f,
+                                                 0.034088f,
+                                                 -0.0497f,
+                                                 -0.0588f,
+                                                 -0.04541f,
+                                                 -0.01281f,
+                                                 0.009109f});
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {54.50976f});
+        auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.7f, -0.0304f, -0.012f});
+        auto fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, shift, destination_type);
+        model = std::make_shared<Model>(fake_convert, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        // TODO: change when it's allowed to create a fp8 constant from fp32 values
+        std::vector<uint8_t> weights_data = destination_type == "f8e4m3" ? std::vector<uint8_t>{0xbc,   // -1.5
+                                                                                                0xc0,   // -2
+                                                                                                0xbf,   // -1.875
+                                                                                                0xb4,   // -0.75
+                                                                                                0x3b,   // 1.375
+                                                                                                0x3e,   // 1.75
+                                                                                                0x3f,   // 1.875
+                                                                                                0xc3,   // -2.75
+                                                                                                0xc5,   // -3.25
+                                                                                                0xc2,   // -2.5
+                                                                                                0xb3,   // -0.6875
+                                                                                                0x30}   // 0.5
+                                                                         : std::vector<uint8_t>{0xbe,   // -1.5
+                                                                                                0xc0,   // -2
+                                                                                                0xc0,   // -2
+                                                                                                0xba,   // -0.75
+                                                                                                0x3d,   // 1.25
+                                                                                                0x3f,   // 1.75
+                                                                                                0x40,   // 2
+                                                                                                0xc1,   // -2.5
+                                                                                                0xc2,   // -3
+                                                                                                0xc1,   // -2.5
+                                                                                                0xb9,   // -0.625
+                                                                                                0x38};  // 0.5
+
+        auto weights =
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data.data());
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.7f, 0.0304f, 0.012f});
+        auto subtract = std::make_shared<op::v1::Subtract>(convert, shift);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {1.0f / 54.50976f});
+        auto multiply = std::make_shared<op::v1::Multiply>(subtract, scale);
+        model_ref = std::make_shared<Model>(multiply, ParameterVector{});
+    }
+
+    m_abs_threshold = 1e-6f;
+    m_rel_threshold = 1e-6f;
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(CompressQuantizeWeights, CompressWeightsWithZeroPoint, testing::Values("f8e4m3", "f8e5m2"));
