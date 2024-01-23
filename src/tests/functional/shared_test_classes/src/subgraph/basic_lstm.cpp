@@ -125,7 +125,7 @@ std::shared_ptr<ov::Model> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
 
 void Basic_LSTM_S::GenerateInputs() {
     // Generate inputs can be called before actual network loading in case lf LowLatencyTransformation
-    auto inputs_function = ngraph::clone_function(*function);
+    auto inputs_function = function->clone();
     auto inputsCnnNetwork = InferenceEngine::CNNNetwork{ inputs_function };
     auto inputsExecutableNetwork = core->LoadNetwork(inputsCnnNetwork, targetDevice);
     const auto& inputsInfo = inputsExecutableNetwork.GetInputsInfo();
@@ -143,7 +143,7 @@ void Basic_LSTM_S::GenerateInputs() {
 
 void Basic_LSTM_S::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
 
     LoadNetwork();
     GenerateInputs();

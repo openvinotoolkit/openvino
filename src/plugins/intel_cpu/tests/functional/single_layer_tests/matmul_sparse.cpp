@@ -196,7 +196,7 @@ protected:
 
         checkFusingPosition = false;
 
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
         convert_precisions.insert({ov::element::i8, ov::element::f32});
         convert_precisions.insert({ov::element::u8, ov::element::f32});
     }

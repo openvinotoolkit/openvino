@@ -44,7 +44,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // Generate inputs
     GenerateInputs();
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
     LoadNetwork();
     auto referenceOutputs = CalculateRefs();
     auto states = inferRequest.QueryState();
