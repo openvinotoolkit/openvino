@@ -29,7 +29,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
-        OPENVINO_THROW("jit_brgemm_copy_b_emitters expects BrgemmCopyB node");
+        OV_CPU_JIT_EMITTER_THROW("expects BrgemmCopyB node");
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
     m_brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
@@ -102,7 +102,7 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
 
     auto status = matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf);
     if (status != dnnl_success)
-        OPENVINO_THROW("jit_brgemm_copy_b_emitter cannot create kernel due to invalid params");
+        OV_CPU_JIT_EMITTER_THROW("cannot create kernel due to invalid params");
 }
 
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in,
@@ -113,7 +113,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in,
         Xbyak::Reg64 comp(static_cast<int>(0));  // Compensations. Default reg idx is 0 if there aren't the compensations
         if (m_with_comp) {
             if (out.size() != 2) {
-                OPENVINO_THROW("jit_brgemm_copy_b_emitter with compensations requires separate register for them");
+                OV_CPU_JIT_EMITTER_THROW("with compensations requires separate register for them");
             }
             comp = Xbyak::Reg64(static_cast<int>(out[1]));
         }
@@ -130,7 +130,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in,
             emit_kernel_call(m_kernel.get(), src, dst, comp, current_N_blk, m_K, offset_in, offset_out, offset_comp);
         }
     } else {
-        OPENVINO_THROW("jit_brgemm_copy_b_emitter requires at least avx512_core instruction set");
+        OV_CPU_JIT_EMITTER_THROW("requires at least avx512_core instruction set");
     }
 }
 
@@ -253,7 +253,7 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
 void jit_brgemm_copy_b_emitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
                                  const void *dst, const void *comp, size_t N, size_t K) {
     if (!kernel)
-        OPENVINO_THROW("Kernel for jit_brgemm_copy_b_emitter hasn't been created");
+        OV_CPU_JIT_EMITTER_THROW("Kernel hasn't been created");
 
     auto ctx = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;

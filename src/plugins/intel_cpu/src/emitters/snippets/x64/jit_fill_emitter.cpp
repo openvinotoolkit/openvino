@@ -18,7 +18,7 @@ jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
-        OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());
+        OV_CPU_JIT_EMITTER_THROW("supports only 4 Byte element types but gets: ", fill->get_element_type());
     }
 
     offset = fill->get_offset();
@@ -47,7 +47,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("Fill emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 

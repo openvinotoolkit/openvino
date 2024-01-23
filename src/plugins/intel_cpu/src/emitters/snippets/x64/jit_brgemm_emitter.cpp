@@ -29,8 +29,8 @@ size_t jit_brgemm_emitter::get_in_leading_dim(const VectorDims& shape, const std
     //      Layout (transpose order) = [2, 0, 1, 3]
     //      Transposed shape = [2, 1, 49, 23]
     //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
-    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                    "jit_brgemm_emitter detected invalid layout values: check that this shape + layout combination is schedulable");
+    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                              "detected invalid layout values: check that this shape + layout combination is schedulable");
     const auto idx = layout[layout.size() - 2];  // `1` in example
     return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1, std::multiplies<size_t>());
 }
@@ -42,8 +42,8 @@ size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const st
     //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
     //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
     //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
-    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                    "jit_brgemm_emitter detected invalid layout values: check that this shape + layout combination is schedulable");
+    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                              "detected invalid layout values: check that this shape + layout combination is schedulable");
     const auto idx = layout.size() - 2; // 2 in the example
     const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx)); // 0 in the example: shape[0] = 49
     return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1, std::multiplies<size_t>()); // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
@@ -52,7 +52,7 @@ size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const st
 jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
+    OV_CPU_JIT_EMITTER_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 
     std::vector<size_t> leading_dimensions;
      auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
@@ -101,12 +101,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
     const auto& input_0_subtensor = input_0_desc->get_subtensor();
     const auto& input_1_subtensor = input_1_desc->get_subtensor();
 
-    OPENVINO_ASSERT(*(output_subtensor.rbegin() + 1) == *(input_0_subtensor.rbegin() + 1),
-                    "Brgemm has different M dimension subtensors on input0 and output");
-    OPENVINO_ASSERT(*output_subtensor.rbegin() == *input_1_subtensor.rbegin(),
-                    "Brgemm has different N dimension subtensors on input1 and output");
-    OPENVINO_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
-                    "Brgemm has different K dimension subtensors on input0 and input1");
+    OV_CPU_JIT_EMITTER_ASSERT(*(output_subtensor.rbegin() + 1) == *(input_0_subtensor.rbegin() + 1),
+                              "Brgemm has different M dimension subtensors on input0 and output");
+    OV_CPU_JIT_EMITTER_ASSERT(*output_subtensor.rbegin() == *input_1_subtensor.rbegin(),
+                              "Brgemm has different N dimension subtensors on input1 and output");
+    OV_CPU_JIT_EMITTER_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
+                              "Brgemm has different K dimension subtensors on input0 and input1");
 
     m_ctx.M = *(output_subtensor.rbegin() + 1);
     m_ctx.N = *output_subtensor.rbegin();
@@ -129,7 +129,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
-    OPENVINO_ASSERT(brgemm, "jit_brgemm_emitter::get_supported_precisions() expects BrgemmCPU node");
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     switch (brgemm->get_type()) {
         case BrgemmCPU::Type::Floating:
             return {{element::f32, element::f32}};
@@ -143,7 +143,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
                     {element::u8, element::i8, element::u8},
                     {element::bf16, element::bf16, element::u8}};
         default:
-            OPENVINO_THROW("jit_brgemm_emitter got BrgemmCPU node with unsupported type");
+            OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }
 }
 
@@ -155,7 +155,7 @@ void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brge
     auto status = brgemm_desc_init(&desc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
     if (status != dnnl_success)
-        OPENVINO_THROW("BrgemmEmitter cannot initialize brgemm descriptor due to invalid params");
+        OV_CPU_JIT_EMITTER_THROW("cannot initialize brgemm descriptor due to invalid params");
 
     ctx.is_with_amx = use_amx;
     status = brgemm_init_tiles(desc, ctx.palette);
@@ -167,13 +167,13 @@ void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brge
     brgemm_kernel_t* kernel_ = nullptr;
     status = brgemm_kernel_create(&kernel_, desc);
     if (status != dnnl_success)
-        OPENVINO_THROW("BrgemmEmitter cannot create brgemm kernel due to invalid params");
+        OV_CPU_JIT_EMITTER_THROW("cannot create brgemm kernel due to invalid params");
     kernel.reset(kernel_);
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OPENVINO_ASSERT((m_with_scratch && in.size() == 3) || (!m_with_scratch && in.size() == 2),
-                    "BRGEMM Emitter expects 3 inputs if there are compensations/wsp");
+    OV_CPU_JIT_EMITTER_ASSERT((m_with_scratch && in.size() == 3) || (!m_with_scratch && in.size() == 2),
+                              "expects 3 inputs if there are compensations/wsp");
 }
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -194,7 +194,7 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
                                 m_load_offset_scratch,
                                 m_store_offset_c);
     } else {
-        OPENVINO_THROW("BrgemmEmitter requires at least avx512_core instruction set");
+        OV_CPU_JIT_EMITTER_THROW("requires at least avx512_core instruction set");
     }
 }
 
@@ -311,7 +311,7 @@ void jit_brgemm_emitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const
     brgemm_p.do_apply_comp = static_cast<size_t>(with_comp);
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
-    OPENVINO_ASSERT(brg_kernel != nullptr, "jit_brgemm_emitter has nullptr kernel");
+    OV_CPU_JIT_EMITTER_ASSERT(brg_kernel != nullptr, "has nullptr kernel");
     (*brg_kernel)(&brgemm_p);
 }
 

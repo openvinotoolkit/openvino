@@ -32,10 +32,10 @@ jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
-        OPENVINO_THROW("jit_broadcast_move_emitter supports only equal input and output types but gets: ",
-                       n->get_input_element_type(0),
-                       " and ",
-                       n->get_output_element_type(0));
+        OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
+                              n->get_input_element_type(0),
+                              " and ",
+                              n->get_output_element_type(0));
     byte_size = n->get_input_element_type(0).size();
 }
 
@@ -48,7 +48,7 @@ void jit_broadcast_move_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("BroadcastMove emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -63,7 +63,7 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t> &in, const s
         case 4: h->uni_vbroadcastss(vmm_dst, xmm_src0); break;
         case 2: h->vpbroadcastw(vmm_dst, xmm_src0); break;
         case 1: h->vpbroadcastb(vmm_dst, xmm_src0); break;
-        default: OPENVINO_THROW("unsupported data type");
+        default: OV_CPU_JIT_EMITTER_THROW("unsupported data type");
     }
 }
 
@@ -80,7 +80,7 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const Ex
             break;
         }
         default: {
-            OPENVINO_THROW("Scalar emitter doesn't support ", precision);
+            OV_CPU_JIT_EMITTER_THROW("doesn't support ", precision);
         }
     }
     push_arg_entry_of("scalar", value, true);
@@ -95,7 +95,7 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("Scalar emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported isa ", host_isa_);
     }
 }
 
