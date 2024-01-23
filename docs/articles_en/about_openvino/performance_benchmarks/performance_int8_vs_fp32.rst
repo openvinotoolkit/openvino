@@ -14,6 +14,7 @@ the table for more information.
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32
 * C - Intel(R) Xeon 8490H (VNNI, AMX), INT8, BF16, FP32
 * D - Intel® Flex-170, INT8 and FP16
+
 .. list-table:: Model Accuracy for INT8
    :header-rows: 1
    * - OpenVINO™  Model name
