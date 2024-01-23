@@ -90,13 +90,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         hw_device = temp_device.substr(++pos, std::string::npos);
     }
 
-    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
-        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
-        target_device == std::string(ov::test::utils::DEVICE_HETERO) ||
-        target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
-        compileModelProperties = {ov::device::priorities(hw_device)};
-    }
-
     model = ov::test::utils::make_split_concat();
 
     APIBaseTest::SetUp();
