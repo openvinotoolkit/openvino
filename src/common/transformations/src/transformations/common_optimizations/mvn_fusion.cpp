@@ -62,7 +62,8 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
     auto cast = pattern::wrap_type<ov::op::v0::Convert>({reuseSub1OrNot});
-    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
+
+    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(cast);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'

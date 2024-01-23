@@ -3,6 +3,7 @@
 //
 
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/pass/pattern/matcher.hpp"
 
@@ -14,33 +15,35 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
     const auto p_value = input_value(0);
-    auto g_value = graph_value;
-    auto saved = matcher->start_match();
+    const auto p_node = p_value.get_node_shared_ptr();
     auto& pattern_map = matcher->get_pattern_value_map();
-
-    auto p_node = p_value.get_node_shared_ptr();
-    if (matcher->match_value(p_value, g_value)) {
-        pattern_map[p_node] = g_value;
-        return saved.finish(true);
+    if (matcher->match_value(p_value, graph_value)) {
+        pattern_map[p_node] = graph_value;
+        return true;
     }
-    auto g_node = g_value.get_node_shared_ptr();
-    if (g_node->get_input_size() != 1) {
+
+    auto wrap_type_op = std::dynamic_pointer_cast<ov::pass::pattern::op::WrapType>(p_node);
+    if (wrap_type_op != nullptr) {
+        for (const auto& wrapped_type : wrap_type_op->get_wrapped_types()) {
+            if (!optional_types.count(wrapped_type)) {
+                return false;
+            }
+        }
+    } else if (!std::any_of(optional_types.begin(),
+                            optional_types.end(),
+                            [&](const NodeTypeInfo& type_info) {
+                                return p_node->get_type_info().is_castable(type_info);
+                            }) &&
+               m_predicate(graph_value)) {
         return false;
     }
 
-    auto g_type_info = g_node->get_type_info();
-
-    if (!std::any_of(optional_types.begin(), optional_types.end(), [&](const NodeTypeInfo& type_info) {
-            return g_type_info.is_castable(type_info);
-        })) {
-        return false;
-    }
-
-    pattern_map[g_node] = g_value;
-    g_value = g_node->input_value(0);
-    if (matcher->match_value(p_value, g_value)) {
-        pattern_map[p_node] = g_value;
-        return saved.finish(true);
+    for (const auto& input_value : p_node->input_values()) {
+        auto in_node = input_value.get_node_shared_ptr();
+        if (matcher->match_value(in_node, graph_value)) {
+            pattern_map[in_node] = graph_value;
+            return true;
+        }
     }
     return false;
 }

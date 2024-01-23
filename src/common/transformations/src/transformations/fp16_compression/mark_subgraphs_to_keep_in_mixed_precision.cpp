@@ -300,17 +300,20 @@ public:
         auto input_2 = pattern::any_input();
 
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-        auto eps_const_or_convert = pattern::optional<ov::op::v0::Convert>(eps_const_pattern);
+        auto convert_eps_pattern = pattern::wrap_type<ov::op::v0::Convert>({eps_const_pattern});
+        auto eps_const_or_convert = pattern::optional<ov::op::v0::Convert>(convert_eps_pattern);
 
         auto max_or_add =
             pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_or_convert});
 
-        auto sqrt_or_max_add = pattern::optional<ov::op::v0::Sqrt>(max_or_add);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
+        auto sqrt_or_max_add = pattern::optional<ov::op::v0::Sqrt>(sqrt);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
         auto divide = std::make_shared<ov::op::v1::Divide>(input_1, sqrt_or_max_add);
 
         auto pow_exp = pattern::wrap_type<ov::op::v0::Constant>();
-        auto pow_exp_or_convert = pattern::optional<ov::op::v0::Convert>(pow_exp);
+        auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>({pow_exp});
+        auto pow_exp_or_convert = pattern::optional<ov::op::v0::Convert>(convert_pattern);
 
         auto pow_pattern = std::make_shared<ov::op::v1::Power>(max_or_add, pow_exp_or_convert);
         auto mul_pattern = std::make_shared<ov::op::v1::Multiply>(input_1, pow_pattern);

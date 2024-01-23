@@ -13,6 +13,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "validation_util.hpp"
@@ -27,12 +28,8 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         pattern::consumers_count(1));
     const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    // TODO: replace by `pattern::optional<ov::op::v0::Convert>` in the future.
-    // Impossible now because we try to find `convert` node in `pattern_value_map`
-    // `optional op` is not added to `pattern_value_map`
     const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
-    const auto random_uniform_or_convert_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
+    const auto random_uniform_or_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(convert_pattern);
 
     const auto mul_add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
         {random_uniform_or_convert_pattern, const_pattern});
