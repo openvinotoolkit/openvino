@@ -440,20 +440,6 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
                                             {variance_element_type, variance_shape, "variance"}});
 }
 
-std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               const PartialShape& input_shape,
-                                                                               const PartialShape& gamma_shape,
-                                                                               const PartialShape& beta_shape) {
-    return infer_batch_norm_forward_helper(
-        node,
-        input_element_type,
-        input_shape,
-        {{gamma_element_type, gamma_shape, "gamma"}, {beta_element_type, beta_shape, "beta"}});
-}
-
 PartialShape infer_slice_shape(const Node* node,
                                const PartialShape& input_shape,
                                const std::vector<int64_t>& begin,

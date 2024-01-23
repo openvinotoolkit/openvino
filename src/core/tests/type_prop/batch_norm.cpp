@@ -373,8 +373,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_epsilon) {
         auto bn = makeBatchNormOp<TypeParam>(params);
         FAIL() << "Invalid 'epsilon' attribute value not detected";
     } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Attribute 'epsilon' must be a floating-point value greater than or equal to zero.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'epsilon' must be non negative value.");
     } catch (...) {
         FAIL() << "Non-negative 'epsilon' attribute value check failed for unexpected reason";
     }

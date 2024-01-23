@@ -89,16 +89,6 @@ std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(c
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               const PartialShape& input_shape,
-                                                                               const PartialShape& gamma_shape,
-                                                                               const PartialShape& beta_shape);
-
-NGRAPH_API_DEPRECATED
-NGRAPH_API
 PartialShape infer_slice_shape(const Node* node,
                                const PartialShape& input_shape,
                                const std::vector<int64_t>& begin,
