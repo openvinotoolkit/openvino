@@ -4,11 +4,11 @@
 
 #include "op/max_pool.hpp"
 
-#include <memory>
-
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/util/log.hpp"
 #include "utils/pooling_factory.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
