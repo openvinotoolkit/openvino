@@ -20,7 +20,6 @@ OutputVector translate_readvariable_op(const NodeContext& node) {
 
     // get_input will care of reading variable value
     auto variable_value = node.get_input(0);
-    set_node_name(node.get_name(), variable_value.get_node_shared_ptr());
     return {variable_value};
 }
 
