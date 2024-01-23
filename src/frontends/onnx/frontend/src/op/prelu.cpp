@@ -4,9 +4,9 @@
 
 #include "op/prelu.hpp"
 
-#include <memory>
+#include "openvino/op/prelu.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -17,7 +17,7 @@ OutputVector prelu(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
     const auto& data = ng_inputs.at(0);
     const auto& slope = ng_inputs.at(1);
-    return {std::make_shared<default_opset::PRelu>(data, slope)};
+    return {std::make_shared<v0::PRelu>(data, slope)};
 }
 
 }  // namespace set_1
