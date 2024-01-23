@@ -1,16 +1,26 @@
 {
   "name": "openvinojs-node",
-  "version": "2023.3-preview",
+  "version": "2024.0.0-dev20240123",
   "description": "OpenVINO™ utils for using from Node.js environment",
+  "repository": {
+    "url": "https://github.com/openvinotoolkit/openvino.git",
+    "type": "git"
+  },
   "license": "Apache-2.0",
   "main": "./dist/index.js",
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
   "types": "./types/index.d.ts",
   "scripts": {
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
     "test": "node --test ./tests/",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "install": "node-pre-gyp install"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
@@ -22,5 +32,15 @@
   },
   "engines": {
     "node": ">=18.16.0"
+  },
+  "dependencies": {
+    "@mapbox/node-pre-gyp": "^1.0.11"
+  },
+  "binary": {
+    "module_name": "ov_nodejs_bindings",
+    "module_path": "./bin/",
+    "remote_path": "./repositories/openvino/build_artifacts/{version}/{platform}/",
+    "package_name": "{module_name}_{platform}_{version}_{arch}.tgz",
+    "host": "https://storage.openvinotoolkit.org"
   }
 }
