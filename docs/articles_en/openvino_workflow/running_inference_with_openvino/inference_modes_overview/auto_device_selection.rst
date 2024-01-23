@@ -309,7 +309,7 @@ The ``ov::hint::performance_mode`` property enables you to specify a performance
 
 The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :doc:`Async API documentation <openvino_docs_OV_UG_Infer_request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
 
-* :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* :doc:`Image Classification Async Sample <openvino_sample_image_classification_async>`
 * `Notebook - Asynchronous Inference with OpenVINO™ <notebooks/115-async-api-with-output.html>`__
 * `Notebook - Automatic Device Selection with OpenVINO <notebooks/106-auto-device-with-output.html>`__
 
@@ -492,7 +492,7 @@ For limited device choice:
 
    benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
 
-For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
+For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
 
 .. note::
 

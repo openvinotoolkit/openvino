@@ -214,7 +214,8 @@ IE_Tests:
 
 MO:
   revalidate:
-    - POT
+    - PyTorch_FE
+    - TF_FE
   build:
     - Python_API
 

@@ -266,5 +266,5 @@ Additional Resources
 ####################
 
 - :doc:`Preprocessing details <openvino_docs_OV_UG_Preprocessing_Details>`
-- :doc:`NV12 classification sample <openvino_inference_engine_samples_hello_nv12_input_classification_README>`
+- :doc:`NV12 classification sample <openvino_sample_hello_nv12_input_classification>`
 

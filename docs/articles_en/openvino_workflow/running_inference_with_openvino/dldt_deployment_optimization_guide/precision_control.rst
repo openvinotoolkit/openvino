@@ -9,9 +9,8 @@ The choice of data types is essential to the inference runtime, which can have a
 1. Model storage precision (IR precision),
 2. Model inference precision.
 
-Previously, these 2 precisions were interrelated, and model storage precision could affect the inference precision in some devices (e.g. GPU did ``f16`` inference only for ``f16`` IRs).
-
-With the ``2023.0`` release this behavior has been changed and the inference precision no longer depends on the precision of IR. Now users have several knobs to find the balance between model performance and accuracy.
+Inference precision no longer depends on the precision of IR, which means that users
+have several options to find the balance between model performance and accuracy.
 
 Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different. 
 
