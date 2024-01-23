@@ -1,0 +1,46 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/op/op.hpp"
+
+namespace ov {
+namespace intel_gpu {
+namespace op {
+
+class SwiGLU : public ov::op::Op {
+public:
+    OPENVINO_OP("SwiGLU", "gpu_opset");
+
+    SwiGLU() = default;
+
+    SwiGLU(const Output<Node>& data,
+           const std::vector<int64_t>& axis,
+           const std::vector<int64_t>& split_lengths,
+           const ov::element::Type output_type = ov::element::undefined);
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+
+    void validate_and_infer_types() override;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    const std::vector<int64_t>& get_axis() const { return m_axis; }
+    const std::vector<int64_t>& get_split_lengths() const { return m_split_lengths; }
+
+    void set_axis(const std::vector<int64_t>& axis) { m_axis = axis; }
+    void set_split_lengths(const std::vector<int64_t>& split_lengths) { m_split_lengths = split_lengths; }
+
+private:
+    std::vector<int64_t> m_axis;
+    std::vector<int64_t> m_split_lengths;
+    ov::element::Type m_output_type;
+};
+
+std::vector<ov::PartialShape> shape_infer(const SwiGLU* op, std::vector<ov::PartialShape> input_shapes);
+
+}   // namespace op
+}   // namespace intel_gpu
+}   // namespace ov

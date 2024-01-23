@@ -46,9 +46,11 @@ void swiglu_ref(const memory::ptr input, memory::ptr output, int32_t split_lengt
      }
 }
 
-TEST(swiglu_gpu_test, swiglu_test_bfyx) {
+TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
     auto& engine = get_test_engine();
 
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 6},
+                                       data_types::f32, format::bfyx};
     auto input_mem = engine.allocate_memory({ov::PartialShape{2, 1, 6}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 3}, data_types::f32, format::bfyx});
 
@@ -60,12 +62,20 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx) {
     swiglu_ref<float>(input_mem, output_ref, 3);
 
     topology topology;
-    topology.add(input_layout("input", input_mem->get_layout()));
-    topology.add(swiglu("swiglu", input_info("input"), 2, 3, tensor(2, 1, 1, 3)));
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(swiglu("swiglu", input_info("input"), {-1}, {3, -1}, tensor()));
 
-    network network(engine, topology, get_test_default_config(engine));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
+
+    auto inst = network.get_primitive("swiglu");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));

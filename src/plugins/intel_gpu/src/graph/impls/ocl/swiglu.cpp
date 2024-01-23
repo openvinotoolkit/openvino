@@ -11,6 +11,12 @@
 namespace cldnn {
 namespace ocl {
 
+namespace {
+inline int64_t normalize(const int64_t& value, const int64_t& max) {
+    return (value < 0) ? value + max : value;
+}
+}  // namespace
+
 struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
     using parent = typed_primitive_impl_ocl<swiglu>;
     using parent::parent;
@@ -28,8 +34,9 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         auto params = get_default_params<kernel_selector::swiglu_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::swiglu_optional_params>(impl_param.get_program());
 
-        params.axis = primitive->axis;
-        params.split_length = primitive->split_length;
+        auto rank = impl_param.get_input_layout(0).get_partial_shape().rank();
+        params.axis = normalize(primitive->axis[0], rank.get_length());
+        params.split_length = primitive->split_lengths[0];
 
         return {params, optional_params};
     }

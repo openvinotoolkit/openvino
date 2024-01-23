@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/op/swiglu.hpp"
 #include "swiglu_inst.h"
 
 #include "primitive_type_base.h"
@@ -27,10 +28,19 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     auto output_type = impl_param.desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
 
-    auto out_shape = input_layout.get<ShapeType>();
-    out_shape[desc->axis] = desc->split_length;
+    ov::intel_gpu::op::SwiGLU op;
+    op.set_axis(desc->axis);
+    op.set_split_lengths(desc->split_lengths);
 
-    return { layout(out_shape, output_type, output_format) };
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        ShapeType(ov::Shape({})),
+        ShapeType(ov::Shape{desc->split_lengths.size()})
+    };
+
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+
+    return { layout(output_shapes[0], output_type, output_format) };
 }
 
 template std::vector<layout> swiglu_inst::calc_output_layouts<ov::PartialShape>(swiglu_node const& node,
@@ -46,7 +56,7 @@ std::string swiglu_inst::to_string(swiglu_node const& node) {
     json_composite swiglu_info;
     swiglu_info.add("input_id", input.id());
     swiglu_info.add("axis", desc->axis);
-    swiglu_info.add("split_length", desc->split_length);
+    swiglu_info.add("split_lengths", desc->split_lengths);
 
     node_info->add("swiglu_info", swiglu_info);
     node_info->dump(primitive_description);
