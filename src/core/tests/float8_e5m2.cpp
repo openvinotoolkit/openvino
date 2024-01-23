@@ -41,27 +41,27 @@ TEST(F8E5M2Test, f32_minus_inf) {
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_is_specialized) {
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::is_specialized);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::is_specialized);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_is_signed) {
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::is_signed);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::is_signed);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_is_integer) {
-    EXPECT_FALSE(std::numeric_limits<ov::float8_e5m2>::is_integer);
+    static_assert(!std::numeric_limits<ov::float8_e5m2>::is_integer);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_is_exact) {
-    EXPECT_FALSE(std::numeric_limits<ov::float8_e5m2>::is_exact);
+    static_assert(!std::numeric_limits<ov::float8_e5m2>::is_exact);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_radix) {
-    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::radix, 2);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::radix == 2);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_digits) {
-    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::digits, 3);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::digits == 3);
 }
 
 TEST(F8E5M2Test, f8e5m2_num_limits_digits10) {
@@ -95,7 +95,7 @@ TEST(F8E5M2Test, f8e5m2_quiet_nan) {
 
     EXPECT_TRUE(std::isnan(f8));
     EXPECT_EQ(f8.to_bits(), 0b01111111);
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_quiet_NaN);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::has_quiet_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::quiet_NaN().to_bits(), 0b01111111);
 }
 
@@ -104,7 +104,7 @@ TEST(F8E5M2Test, f8e5m2_sig_nan) {
 
     EXPECT_TRUE(std::isnan(f8));
     EXPECT_EQ(f8.to_bits(), 0b01111101);
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN);
+    static_assert(std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
 }
 
@@ -113,7 +113,6 @@ TEST(F8E5M2Test, f16_quiet_nan) {
 
     EXPECT_TRUE(std::isnan(f8));
     EXPECT_EQ(f8.to_bits(), 0b01111111);
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_quiet_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::quiet_NaN().to_bits(), 0b01111111);
 }
 
@@ -122,7 +121,6 @@ TEST(F8E5M2Test, f16_sig_nan) {
 
     EXPECT_TRUE(std::isnan(f8));
     EXPECT_EQ(f8.to_bits(), 0b01111101);
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
 }
 
@@ -142,7 +140,6 @@ TEST(F8E5M2Test, f32_sig_nan) {
     EXPECT_TRUE(allowed_nan);
 
     EXPECT_TRUE(std::isnan(f8));
-    EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
 }
 
