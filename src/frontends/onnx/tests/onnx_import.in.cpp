@@ -6220,6 +6220,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
+    auto model = convert_model("bitwise_not.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
     auto model = convert_model("celu_float.onnx");
 
@@ -6236,13 +6246,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_int) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(Shape{4}, {-5, -4, -10, 7});
     test_case.add_expected_output<float>(Shape{4}, {-0.99326205, -0.98168436, -0.9999546, 7.});
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
-    auto model = convert_model("bitwise_not.onnx");
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
-    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
 
     test_case.run();
 }
