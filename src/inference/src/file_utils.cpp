@@ -83,7 +83,7 @@ std::string getIELibraryPathA() {
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
 #elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
-#    ifdef OPENVINO_STATIC_LIBRARY
+#    ifdef USE_STATIC_IE
 #        ifdef __APPLE__
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
@@ -99,7 +99,7 @@ std::string getIELibraryPathA() {
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     std::string path = FileUtils::absoluteFilePath(info.dli_fname);
     return getPathName(path);
-#    endif  // OPENVINO_STATIC_LIBRARY
+#    endif  // USE_STATIC_IE
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32

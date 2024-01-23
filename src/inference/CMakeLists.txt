@@ -159,7 +159,7 @@ endif()
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
     openvino::runtime::dev openvino::pugixml)
 
-target_compile_definitions(${TARGET_NAME}_s PUBLIC OPENVINO_STATIC_LIBRARY)
+target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON

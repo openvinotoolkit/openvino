@@ -49,7 +49,7 @@ function(add_common_utils ADD_TARGET_NAME)
         target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ENABLE_CONFORMANCE_PGQL)
     endif()
 
-    # OPENVINO_STATIC_LIBRARY is passed
+    # USE_STATIC_IE is passed
     if(ARGN)
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE openvino_runtime_s)
     endif()
@@ -74,7 +74,7 @@ set(TARGET_NAME commonTestUtils)
 set(NEW_TARGET_NAME common_test_utils)
 
 add_common_utils(${TARGET_NAME})
-add_common_utils(${TARGET_NAME}_s OPENVINO_STATIC_LIBRARY)
+add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
 
 # Add new names to use them from openvino repo
 add_library(${NEW_TARGET_NAME} ALIAS ${TARGET_NAME})
