@@ -3,9 +3,9 @@
 //
 
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 std::unordered_set<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_types() const {
     return optional_types;

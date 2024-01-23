@@ -58,14 +58,17 @@ void collect_type_info(std::unordered_set<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(
-    const Output<Node>& input,
-    const pattern::op::ValuePredicate& pred = [](const Output<Node>& output) {
-        return true;
-    }) {
+std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred) {
     std::unordered_set<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
     return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
+}
+
+template <class... NodeTypes>
+std::shared_ptr<Node> optional(const Output<Node>& input) {
+    return optional<NodeTypes...>(input, [](const Output<Node>& output) {
+        return true;
+    });
 }
 
 }  // namespace pattern
