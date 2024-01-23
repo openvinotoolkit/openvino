@@ -87,7 +87,7 @@ imagenet/efficientnet_v2_imagenet21k_ft1k_m/feature_vector,https://www.kaggle.co
 imagenet/inception_v1/classification,https://www.kaggle.com/models/google/inception-v1/frameworks/tensorFlow2/variations/classification/versions/2
 bit/m-r50x1,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x1/versions/1
 progan-128,https://www.kaggle.com/models/google/progan-128/frameworks/tensorFlow1/variations/progan-128/versions/1
-biggan-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/256/versions/2,129232 IndexError list index out of range for Squeeze
+biggan-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/256/versions/2
 nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/efficientnet_v2_imagenet21k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b0-feature-vector/versions/1
 bert_multi_cased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/multi-cased-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
