@@ -273,14 +273,14 @@ class TestLoop(OnnxRuntimeLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, use_old_api=use_old_api)
+                   infer_timeout=150)
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail("Program doesn't contain primitive: constant:res/10/M_2 that is input to: loop")
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150, use_old_api=use_old_api)
+                   infer_timeout=150)

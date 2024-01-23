@@ -11,16 +11,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
-#ifdef _WIN32
-#    include "gpu/gpu_context_api_dx.hpp"
-#elif defined ENABLE_LIBVA
-#    include <gpu/gpu_context_api_va.hpp>
-#endif
-#include "gpu/gpu_config.hpp"
-#include "gpu/gpu_context_api_ocl.hpp"
-
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 
@@ -117,12 +108,12 @@ TEST_P(OVGetMetricPropsTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::device_total_mem_size.name()));
     auto t = p.as<uint64_t>();
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::device_total_mem_size.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -134,11 +125,11 @@ TEST_P(OVGetMetricPropsTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(UARCH_VERSION)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::uarch_version.name()));
     auto t = p.as<std::string>();
 
     std::cout << "GPU device uarch: " << t << std::endl;
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::uarch_version.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -150,12 +141,12 @@ TEST_P(OVGetMetricPropsTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::execution_units_count.name()));
     auto t = p.as<int>();
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::execution_units_count.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -353,12 +344,10 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto forced_precision_deprecated = ov::element::f16;
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::inference_precision(forced_precision_deprecated)));
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision_deprecated);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {

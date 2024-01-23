@@ -4,7 +4,14 @@
 
 #include "generate_proposals.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/generate_proposals.hpp"
+#include "openvino/op/shape_of.hpp"
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -36,7 +43,7 @@ OutputVector generate_proposals(const Node& node) {
     const auto& im_info = inputs[2];  // shape [N, 3] or [N, 4]
     const auto& anchors = inputs[3];  // shape [A, 4]
 
-    ov::op::v9::GenerateProposals::Attributes attrs;
+    v9::GenerateProposals::Attributes attrs;
     attrs.min_size = node.get_attribute_value<float>("min_size", 1.f);
     attrs.nms_threshold = node.get_attribute_value<float>("nms_thresh", 0.7f);
     attrs.pre_nms_count = node.get_attribute_value<int64_t>("pre_nms_topN", 6000);
@@ -44,16 +51,16 @@ OutputVector generate_proposals(const Node& node) {
     attrs.normalized = !node.get_attribute_value<int64_t>("legacy_plus_one", true);
 
     // Broadcast anchors from [A, 4] to [H, W, A, 4] where [H, W] is taken from scores shape.
-    const auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
-    const auto scores_shape = std::make_shared<default_opset::ShapeOf>(scores);
-    const auto anchors_shape = std::make_shared<default_opset::ShapeOf>(anchors);
-    const auto scores_shape_tail = default_opset::Constant::create(element::i64, Shape{2}, {2, 3});
-    const auto new_anchors_shape_front = std::make_shared<default_opset::Gather>(scores_shape, scores_shape_tail, zero);
+    const auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+    const auto scores_shape = std::make_shared<v3::ShapeOf>(scores);
+    const auto anchors_shape = std::make_shared<v3::ShapeOf>(anchors);
+    const auto scores_shape_tail = v0::Constant::create(element::i64, Shape{2}, {2, 3});
+    const auto new_anchors_shape_front = std::make_shared<v8::Gather>(scores_shape, scores_shape_tail, zero);
     const auto new_anchors_shape =
-        std::make_shared<default_opset::Concat>(OutputVector{new_anchors_shape_front, anchors_shape}, 0);
-    const auto new_anchors = std::make_shared<default_opset::Broadcast>(anchors, new_anchors_shape);
+        std::make_shared<v0::Concat>(OutputVector{new_anchors_shape_front, anchors_shape}, 0);
+    const auto new_anchors = std::make_shared<v3::Broadcast>(anchors, new_anchors_shape);
 
-    const auto proposals = std::make_shared<ov::op::v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);
+    const auto proposals = std::make_shared<v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);
 
     return proposals->outputs();
 }

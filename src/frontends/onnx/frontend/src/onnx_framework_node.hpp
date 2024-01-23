@@ -16,12 +16,10 @@
 
 #pragma once
 
-#include <core/graph.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/visibility.hpp>
-#include <onnx_import/core/node.hpp>
-#include <openvino/op/util/framework_node.hpp>
+#include "core/graph.hpp"
+#include "onnx_import/core/node.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 namespace ONNX_NAMESPACE {
 // forward declaration
@@ -50,12 +48,12 @@ public:
         set_attrs(attrs);
     }
 
-    OutputVector get_ng_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
-        OutputVector ng_nodes{graph->make_ng_nodes(m_node)};
-        if (ng_nodes.size() > get_output_size()) {
-            ng_nodes.resize(get_output_size());
+    OutputVector get_ov_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
+        OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
+        if (ov_nodes.size() > get_output_size()) {
+            ov_nodes.resize(get_output_size());
         }
-        return ng_nodes;
+        return ov_nodes;
     }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -78,24 +76,24 @@ public:
     OPENVINO_OP("ONNXSubgraphFrameworkNode", "util", ONNXFrameworkNode);
 
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
-                              const std::vector<std::shared_ptr<Function>>& functions,
+                              const std::vector<std::shared_ptr<ov::Model>>& models,
                               const OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
-          m_functions(functions) {}
+          m_models(models) {}
 
     void infer_inputs_from_parent() {
         for (auto& subgraph : m_node.get_subgraphs())
             subgraph.second->infer_inputs_from_parent();
     }
 
-    const std::vector<std::shared_ptr<Function>>& get_subgraph_functions() const {
-        return m_functions;
+    const std::vector<std::shared_ptr<ov::Model>>& get_subgraph_models() const {
+        return m_models;
     }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
 private:
-    std::vector<std::shared_ptr<Function>> m_functions;
+    std::vector<std::shared_ptr<ov::Model>> m_models;
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 

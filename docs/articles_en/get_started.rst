@@ -123,7 +123,7 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
 * :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
 * :doc:`Performance Hints <openvino_docs_OV_UG_Performance_Hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
 * :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
-* :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>` characterizes model performance in various hardware and pipeline configurations
+* :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` characterizes model performance in various hardware and pipeline configurations
    
 .. _additional-resources:
 

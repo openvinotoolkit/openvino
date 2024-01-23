@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "ngraph/enum_names.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/core/attribute_adapter.hpp"
 
 ///

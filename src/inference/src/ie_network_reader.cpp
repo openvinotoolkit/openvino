@@ -21,16 +21,14 @@
 #include "ie_input_info.hpp"
 #include "itt.hpp"
 #include "legacy_op_extension.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -38,7 +36,7 @@ namespace InferenceEngine {
 
 namespace {
 
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
                                  const std::vector<IExtensionPtr>& exts,
                                  bool is_new_api,
                                  bool frontendMode = false) {

@@ -26,6 +26,7 @@ public:
         : InternalOperation(decoder, OutputVector{}, 1, "FIFOQueue"),
           m_component_types(component_types),
           m_shapes(shapes),
+          m_capacity(capacity),
           m_container(container),
           m_shared_name(shared_name) {
         validate_and_infer_types();
@@ -43,9 +44,17 @@ public:
         set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto fifo_queue_node =
+            std::make_shared<FIFOQueue>(m_component_types, m_shapes, m_capacity, m_container, m_shared_name, m_decoder);
+        fifo_queue_node->set_attrs(get_attrs());
+        return fifo_queue_node;
+    }
+
 private:
     std::vector<ov::element::Type> m_component_types;
     std::vector<ov::PartialShape> m_shapes;
+    int64_t m_capacity;
     std::string m_container;
     std::string m_shared_name;
 };

@@ -17,7 +17,7 @@ This tutorial shows how to convert a TensorFlow `Faster R-CNN with
 Resnet-50
 V1 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__
 object detection model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+Representation <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 (OpenVINO IR) format, using Model Converter. After creating the OpenVINO
 IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
@@ -189,9 +189,9 @@ or saved on disk using the ``save_model`` function to reduce loading
 time when the model is run in the future.
 
 See the `Model Converter Developer
-Guide <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+Guide <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 for more information about Model Converter and TensorFlow `models
-support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+support <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 .. code:: ipython3
 
@@ -709,4 +709,4 @@ utilization.
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
 and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__.

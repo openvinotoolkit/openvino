@@ -17,6 +17,8 @@
 #include "utils/legacy_conversion_extension.hpp"
 #include "utils/onnx_internal.hpp"
 
+using namespace ov::frontend::onnx::common;
+
 namespace {
 const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
 }  // namespace
@@ -26,7 +28,7 @@ namespace onnx_import {
 std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                             const std::string& model_path,
                                             const bool enable_mmap) {
-    const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
+    const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -37,7 +39,7 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
         std::move(extensions));
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto error_message = common::collect_translation_exceptions(model);
-    NGRAPH_CHECK(error_message.empty(), error_message);
+    OPENVINO_ASSERT(error_message.empty(), error_message);
     return model;
 }
 
@@ -52,7 +54,7 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const 
     const auto model = import_onnx_model(model_stream, file_path, enable_mmap);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const auto error_message = common::collect_translation_exceptions(model);
-    NGRAPH_CHECK(error_message.empty(), error_message);
+    OPENVINO_ASSERT(error_message.empty(), error_message);
     return model;
 }
 

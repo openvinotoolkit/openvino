@@ -40,7 +40,7 @@ class TestAtan2(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_atan2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         self._test(*self.create_atan2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

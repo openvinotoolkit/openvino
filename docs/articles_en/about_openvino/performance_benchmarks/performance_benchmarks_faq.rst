@@ -31,10 +31,8 @@ Performance Information F.A.Q.
 
    All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
-   called ``benchmark_app``. This tool is available 
-   :doc:`for C++ apps <openvino_inference_engine_samples_benchmark_app_README>`.
-   as well as 
-   :doc:`for Python apps <openvino_inference_engine_tools_benchmark_tool_README>`.
+   called :doc:`benchmark_app <openvino_sample_benchmark_tool>`.
+   This tool is available for Python and C++ apps.
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
 

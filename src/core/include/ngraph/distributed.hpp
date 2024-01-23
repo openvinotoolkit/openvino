@@ -20,7 +20,6 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {

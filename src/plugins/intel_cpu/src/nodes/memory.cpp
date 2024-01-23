@@ -462,10 +462,10 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     return &holder;
 }
 
-void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
+void MemoryNodeVirtualEdge::remove(MemoryNode* node, Holder* holder) {
     std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
+        ov::util::erase_if(*holder, [&](const Holder::value_type& it) {
             return it.second == node;
         });
     }

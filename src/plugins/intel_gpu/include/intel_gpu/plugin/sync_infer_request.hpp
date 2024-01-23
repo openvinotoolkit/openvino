@@ -112,7 +112,7 @@ private:
     void allocate_output(const ov::Output<const ov::Node>& port, const std::string& name);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const;
 
-    void init_mappings(bool is_legacy_api);
+    void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
 };
 

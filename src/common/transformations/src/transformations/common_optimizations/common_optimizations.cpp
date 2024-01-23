@@ -89,6 +89,7 @@
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -122,7 +123,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-
+    // MOCTransformations contain StridedSliceOptimization transformation,
+    // so we must call SliceToStridedSlice before MOCTransformations call
+    REGISTER_PASS(manager, SliceToStridedSlice, true)
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)

@@ -22,3 +22,5 @@ film,https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations
 planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v2/frameworks/tensorFlow1/variations/planet-vision-classifier-planet-v2/versions/1
 # TF1 models in .pb format
 i3d-rgb,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/i3d-rgb-tf/rgb.frozen.pb
+# Model with SentencePiece tokenizer, use openvino-tokenizers package
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2,skip, 129480 - Add openvino-tokenizers wheel build to OpenVINO GHA Workflow

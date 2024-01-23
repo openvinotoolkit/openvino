@@ -8,12 +8,20 @@
 #include <cstdlib>
 #include <vector>
 
-#include "default_opset.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/enum_names.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/util/common_util.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "ov_models/ov_builders/split.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -31,67 +39,58 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
     const auto r_pshape = m_map[OpInput::R].get_partial_shape();
 
     // Get dimensions needed for default inputs creation
-    auto shape_of_x = std::make_shared<default_opset::ShapeOf>(m_map[OpInput::X]);
-    auto axes = default_opset::Constant::create(element::i32, Shape{1}, {0});
+    auto shape_of_x = std::make_shared<v3::ShapeOf>(m_map[OpInput::X]);
+    auto axes = v0::Constant::create(element::i32, Shape{1}, {0});
     auto batch_size_node =
-        std::make_shared<default_opset::Gather>(shape_of_x,
-                                                default_opset::Constant::create(element::i32, Shape{1}, {0}),
-                                                axes);
+        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::i32, Shape{1}, {0}), axes);
     auto seq_length_node =
-        std::make_shared<default_opset::Gather>(shape_of_x,
-                                                default_opset::Constant::create(element::i32, Shape{1}, {1}),
-                                                axes);
+        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::i32, Shape{1}, {1}), axes);
 
-    auto shape_of_r = std::make_shared<default_opset::ShapeOf>(m_map[OpInput::R]);
+    auto shape_of_r = std::make_shared<v3::ShapeOf>(m_map[OpInput::R]);
     auto num_directions_node =
-        std::make_shared<default_opset::Gather>(shape_of_r,
-                                                default_opset::Constant::create(element::i32, Shape{1}, {0}),
-                                                axes);
+        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::i32, Shape{1}, {0}), axes);
     auto hidden_size_node =
-        std::make_shared<default_opset::Gather>(shape_of_r,
-                                                default_opset::Constant::create(element::i32, Shape{1}, {2}),
-                                                axes);
+        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::i32, Shape{1}, {2}), axes);
 
     // ------ Optional inputs ------
-    if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3))) {
+    if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
         auto bias = ng_inputs.at(3);
         auto split_bias = ov::op::util::split(bias, 2, 1);
-        m_map[OpInput::B] = std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
+        m_map[OpInput::B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
     } else {
-        auto b_shape = std::make_shared<default_opset::Concat>(
-            OutputVector{num_directions_node,
-                         std::make_shared<default_opset::Multiply>(
-                             default_opset::Constant::create(element::Type_t::i64, Shape{1}, {gates_count}),
-                             hidden_size_node)},
+        auto b_shape = std::make_shared<v0::Concat>(
+            OutputVector{
+                num_directions_node,
+                std::make_shared<v1::Multiply>(v0::Constant::create(element::Type_t::i64, Shape{1}, {gates_count}),
+                                               hidden_size_node)},
             0);
-        m_map[OpInput::B] = std::make_shared<default_opset::Broadcast>(
-            default_opset::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
-            b_shape);
+        m_map[OpInput::B] =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
+                                            b_shape);
     }
-    if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4))) {
+    if (ng_inputs.size() > 4 && !ov::op::util::is_null(ng_inputs.at(4))) {
         m_map[OpInput::SEQ_LENGTHS] = ng_inputs.at(4);
     } else {
-        m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Broadcast>(seq_length_node, batch_size_node);
+        m_map[OpInput::SEQ_LENGTHS] = std::make_shared<v3::Broadcast>(seq_length_node, batch_size_node);
     }
     // The initial value of the hidden.
-    if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5))) {
+    if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
         m_map[OpInput::INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
     } else {
-        auto init_h_shape = std::make_shared<default_opset::Concat>(
-            OutputVector{batch_size_node, num_directions_node, hidden_size_node},
-            0);
-        m_map[OpInput::INIT_H] = std::make_shared<default_opset::Broadcast>(
-            default_opset::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
-            init_h_shape);
+        auto init_h_shape =
+            std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
+        m_map[OpInput::INIT_H] =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
+                                            init_h_shape);
     }
 }
 
 OpInputMap::OpInputMap(container_type&& map) : m_map(std::move(map)) {}
 
-Output<ngraph::Node>& OpInputMap::at(const OpInput& key) {
+Output<ov::Node>& OpInputMap::at(const OpInput& key) {
     return m_map.at(key);
 }
-const Output<ngraph::Node>& OpInputMap::at(const OpInput& key) const {
+const Output<ov::Node>& OpInputMap::at(const OpInput& key) const {
     return m_map.at(key);
 }
 
@@ -110,10 +109,8 @@ OpAttributes::OpAttributes(const Node& node)
       m_activations_alpha{node.get_attribute_value<std::vector<float>>("activation_alpha", std::vector<float>{})},
       m_activations_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})} {
     m_clip_threshold = std::abs(m_clip_threshold);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::string direction = ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+    std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
+    m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
 }
 
 }  // namespace recurrent

@@ -10,7 +10,6 @@
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 
@@ -91,10 +90,6 @@ Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), {_so}});
-}
-
-RemoteContext::Ptr ExecutableNetwork::GetContext() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
 }
 
 bool ExecutableNetwork::operator!() const noexcept {
