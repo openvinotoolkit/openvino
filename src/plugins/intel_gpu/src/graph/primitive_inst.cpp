@@ -544,7 +544,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
 
     // If we allocated too large memory, reclaim the memory.
-    if (updated_layout.count() * 10 < _max_output_layout_count) {
+    if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;
@@ -584,6 +584,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
         if (need_reset_output_memory() && !can_be_optimized()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
             ev = _outputs[0]->fill(_network.get_stream());
         }
     } else {
@@ -1098,6 +1099,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    for (size_t i = 0; i < _deps.size(); ++i) {
+        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     bool need_args_update = false;
     _mem_changed = false;
     const auto orig_outputs = _outputs;
