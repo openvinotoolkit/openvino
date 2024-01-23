@@ -7,7 +7,7 @@ graph {
     op_type: "Celu"
     attribute {
       name: "alpha"
-      i: 1.0
+      f: 1.0
       type: FLOAT
     }
   }
