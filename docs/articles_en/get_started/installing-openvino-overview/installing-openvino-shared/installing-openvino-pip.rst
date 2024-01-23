@@ -16,7 +16,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
    * offers the Python API only
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
-   * Windows and Linux do not offer support for NPU inference
+   * Windows and Linux do not offer support for GNA and NPU inference
    * macOS offers support only for CPU inference
 
 .. tab-set::
@@ -26,7 +26,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
-      | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
+      | `PyPI OpenVINO page <https://pypi.org/project/openvino/>`__
 
 
    .. tab-item:: Processor Notes
