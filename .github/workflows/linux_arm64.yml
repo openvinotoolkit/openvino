@@ -64,6 +64,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
@@ -114,7 +115,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python

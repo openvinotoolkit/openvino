@@ -29,7 +29,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_icnn_network.hpp"
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 
 namespace InferenceEngine {
 
@@ -62,7 +62,7 @@ public:
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
-    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
+    explicit CNNNetwork(const std::shared_ptr<ov::Model>& network,
                         const std::vector<std::shared_ptr<IExtension>>& exts = {});
     IE_SUPPRESS_DEPRECATED_END
 
@@ -167,13 +167,13 @@ public:
      * @brief Returns constant nGraph function
      * @return constant nGraph function
      */
-    std::shared_ptr<ngraph::Function> getFunction();
+    std::shared_ptr<ov::Model> getFunction();
 
     /**
      * @brief Returns constant nGraph function
      * @return constant nGraph function
      */
-    std::shared_ptr<const ngraph::Function> getFunction() const;
+    std::shared_ptr<const ov::Model> getFunction() const;
 
     /**
      * @brief Adds output to the layer

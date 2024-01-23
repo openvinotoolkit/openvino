@@ -15,7 +15,6 @@
 #include "ie_extension.h"
 #include "ie_iextension.h"
 #include "ie_parameter.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/exception.hpp"
 
