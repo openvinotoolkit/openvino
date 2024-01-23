@@ -133,10 +133,10 @@ void NmsRotatedOpTest::SetUp() {
 }
 
 void NmsRotatedOpTest::compare(const std::vector<ov::Tensor> &expectedOutputs, const std::vector<ov::Tensor> &actualOutputs) {
-    const auto& params         = this->GetParam();
-    const auto& in_shapes      = std::get<0>(params);
-    const size_t& num_boxes     = in_shapes.at(0).second.at(0).at(0);
-    const size_t& num_classes   = in_shapes.at(1).second.at(0).at(0);
+    if (targetDevice != ov::test::utils::DEVICE_GPU) {
+        SubgraphBaseTest::compare(expectedOutputs, actualOutputs);
+        return;
+    }
 
     struct OutBox {
         OutBox() = default;
