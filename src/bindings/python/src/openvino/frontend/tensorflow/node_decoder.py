@@ -40,7 +40,7 @@ def tf_attr_to_numpy(attr):
         if fields and len(fields) > 0 and len(fields[0]) > 1:
             return list(fields[0][1])
         else:
-            return
+            return None
     if attr_type is None:
         return None
     return getattr(attr, attr.WhichOneof("value"))
