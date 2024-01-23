@@ -93,6 +93,7 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
 
     if (new_params.mode == PoolType::MAX) {
         if (new_params.outputs_num == 1) {
+            // Legacy code of mutable data
             cldnn_jit.Merge(MakeTypeJitConstants(new_params.poolIndexElementType, "INDICES"));
         }
     }
@@ -115,6 +116,7 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
         if (new_params.outputs_num == 2) {
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});     // second output
         } else {
+            // Legacy code of mutable data
             arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});     // indices
         }
     }

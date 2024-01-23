@@ -39,6 +39,7 @@ static void CreateAdaptiveMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
     auto inputs = p.GetInputInfo(op);
     const auto layer_type_name = layer_type_name_ID(op);
+
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 

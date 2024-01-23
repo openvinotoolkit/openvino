@@ -49,10 +49,10 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
               indices_output{indices_output},
               index_element_type{index_element_type} {}
 
-    /// @brief Constructs AdaptiveAvgPooling primitive.
+    /// @brief Constructs AdaptiveAvgPooling primitive for dynamic shape.
     /// @param id This primitive id.
     /// @param input Input primitive id.
-    /// @param output_size Output data size of the primitive
+    /// @param output_shape Output shape (pooled vector) primitive id.
     adaptive_pooling(const primitive_id &id,
                      const input_info &input,
                      const input_info &output_shape)
@@ -60,12 +60,10 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
               mode{adaptive_pooling_mode::average},
               output_size{tensor(0)} {}
 
-    /// @brief Constructs AdaptiveMaxPooling primitive.
+    /// @brief Constructs AdaptiveMaxPooling primitive for dynamic shape.
     /// @param id This primitive id.
     /// @param input Input primitive id.
-    /// @param output_shape Output shape primitive id.
-    /// @param output_size Output data size of the primitive
-    /// @param indices_output Indices output primitive id.
+    /// @param output_shape Output shape (pooled vector) primitive id.
     /// @param index_element_type Data type of indices output.
     adaptive_pooling(const primitive_id &id,
                      const input_info &input,
