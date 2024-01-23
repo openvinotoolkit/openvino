@@ -9,8 +9,6 @@ Intermediate values from each iteration will not be available. To enable you to 
 special LowLatency2 and MakeStateful transformations were introduced.
 
 ### How to get TensorIterator/Loop operations from different frameworks via ModelOptimizer.
-**MXNet:** *LSTM, RNN, GRU* original layers are converted to TensorIterator operation, TensorIterator body contains LSTM/RNN/GRU Cell operations.
-
 **ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the GRU/RNN/LSTM Sequence operations.
 *ONNX Loop* layer is converted to the OpenVINO Loop operation.
 
@@ -18,8 +16,6 @@ special LowLatency2 and MakeStateful transformations were introduced.
 *While* layer is converted to TensorIterator, TensorIterator body can contain any supported operations, but dynamic cases, when count of iterations cannot be calculated in shape inference (ModelOptimizer conversion) time, are not supported.
 
 **TensorFlow2:** *While* layer is converted to Loop operation. Loop body can contain any supported operations.
-
-**Kaldi:** Kaldi models already contain Assign/ReadValue (Memory) operations after model conversion. TensorIterator/Loop operations are not generated.
 
 ## LowLatencу2
 
@@ -204,4 +200,3 @@ Let's build the following graph using C++ OpenVINO API:
 In this example, `ov::SinkVector` is used to create `ov::Model`. For model with states, except inputs and outputs,  `Assign` nodes should also point to `Model` 
 to avoid deleting it during graph transformations. You can do it with the constructor, as shown in the example, or with the special method `add_sinks(const SinkVector& sinks)`. Also, you can delete 
 sink from `ov::Model` after deleting the node from graph with the `delete_sink()` method.
-This model 
