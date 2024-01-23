@@ -27,8 +27,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MultinomialTestParams>& obj);
 
 protected:
-    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
 
 private:
     ov::Tensor m_probs;
