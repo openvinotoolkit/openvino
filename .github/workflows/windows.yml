@@ -50,8 +50,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      #CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      #CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
