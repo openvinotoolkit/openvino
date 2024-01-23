@@ -30,12 +30,12 @@ brgemmExecutor::brgemmExecutor(size_t M,
       lda(lda),
       ldb(ldb),
       ldc(ldc),
-      b_transposed(b_transposed) {
+      b_transposed(b_transposed),
+      inType(ov::element::bf16) {
     // blocking M
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
-    ov::element::Type brgPrc = ov::element::bf16;
-    brgVnniFactor = 4 / brgPrc.size();
+    brgVnniFactor = 4 / inType.size();
     bool isAMXSupported = mayiuse(avx512_core_amx);
     // blocing N
     N_tail = N % N_blk;
@@ -47,9 +47,8 @@ brgemmExecutor::brgemmExecutor(size_t M,
         K_tail = rnd_up(K_tail, 2);
     }
     size_t vlen = cpu_isa_traits<avx512_core>::vlen;
-    // copied K must be round up by vlen / brgPrc.size(), otherwise copy B kernel may access wrong memory
-    packedBSize = rnd_up(K, vlen / brgPrc.size()) * rnd_up(N, N_blk) * brgPrc.size();
-    packedASize = M_blk * rnd_up(K, K_blk) * brgPrc.size();
+    // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
+    packedBSize = rnd_up(K, vlen / inType.size()) * rnd_up(N, N_blk) * inType.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
@@ -67,8 +66,8 @@ brgemmExecutor::brgemmExecutor(size_t M,
                 brgemmCtx.LDA = k ? K_blk : lda;
                 brgemmCtx.LDB = rnd_up(N, N_blk);  // B is copied with bf16
                 brgemmCtx.LDC = ldc;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgPrc));
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -84,16 +83,17 @@ brgemmExecutor::brgemmExecutor(size_t M,
     auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
 
     if (brgemmCtx0.is_with_amx && K_tail) {
-        init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, K_blk, brgemmCtx0.dt_in0, false, lda * brgPrc.size());
+        init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, K_blk, brgemmCtx0.dt_in0, false, lda * inType.size());
+        packedASize = M_blk * rnd_up(K, K_blk) * inType.size();
     }
 
-    if (brgemmCtx0.is_with_amx || brgPrc == ov::element::bf16) {
+    if (brgemmCtx0.is_with_amx || inType == ov::element::bf16) {
         size_t b_stride = 0;
         // must set actual stride when stride is not K/N
         if (b_transposed) {
-            b_stride = ldb == K ? 0 : ldb * brgPrc.size();
+            b_stride = ldb == K ? 0 : ldb * inType.size();
         } else {
-            b_stride = ldb == N ? 0 : ldb * brgPrc.size();
+            b_stride = ldb == N ? 0 : ldb * inType.size();
         }
         // K should use the original K
         init_brgemm_copy_b(brgCopyBKernel,
@@ -257,12 +257,11 @@ void brgemmExecutor::init_brgemm_copy_b(
 void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
     auto ptr_b = reinterpret_cast<uint8_t*>(b);
     auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
-    auto dataType = ov::element::bf16;
     if (brgCopyBKernel) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
-            auto pCopyKernel0In = ptr_b + nb * N_blk * dataType.size() * N_stride;
-            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * dataType.size();
+            auto pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
+            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * inType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -280,22 +279,20 @@ void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
+void brgemmExecutor::executeGemmPackedB(bool is_M_tail, void* a, void* repacked_b, void* c, void* wsp, void* scratch_a) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
     auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
-    auto dataType = ov::element::bf16;
+    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(repacked_b);
     uint8_t* ptr_a_tail = nullptr;
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
     size_t K0_step0 = brgCtxs[brgIdx0].K;
-    bool is_M_tail = m_blk < M_blk;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
         // only copy tailed data;
-        size_t K_offset = K < K_blk ? 0 : K0_step0 * dataType.size();
+        size_t K_offset = K < K_blk ? 0 : K0_step0 * inType.size();
         auto pCopyKernelIn = ptr_A + K_offset;
         auto pCopyKernelOut = ptr_scartch_a;
 
@@ -323,7 +320,7 @@ void brgemmExecutor::executeGemm(size_t m_blk, void* a, void* b, void* c, void* 
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                 auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
-                auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * dataType.size();
+                auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * inType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
@@ -349,16 +346,14 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* wsp, void* scr
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_B = reinterpret_cast<uint8_t*>(b);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
-    auto dataType = ov::element::bf16;
 
     copy_buffer_b(ptr_B, scratch_b);
 
     for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
         const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto cur_M_blk = is_M_tail ? M_tail : M_blk;
-        auto ptr_a = ptr_A + (mb * M_blk * lda) * dataType.size();
-        auto ptr_c = ptr_C + (mb * M_blk * ldc) * dataType.size();
-        executeGemm(cur_M_blk, ptr_a, b, wsp, ptr_c, scratch_a, scratch_b);
+        auto ptr_a = ptr_A + (mb * M_blk * lda) * inType.size();
+        auto ptr_c = ptr_C + (mb * M_blk * ldc) * inType.size();
+        executeGemmPackedB(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
     }
 }
 void brgemmExecutor::callBrgemm(brgemmCtx& ctx,

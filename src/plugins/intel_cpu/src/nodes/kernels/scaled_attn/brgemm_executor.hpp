@@ -17,9 +17,9 @@ class brgemmExecutor {
 public:
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
-    // lda is the first dimension for A matrix
-    // ldb is the first dimension for B matrix
-    // ldc is the first dimension for C matrix
+    // lda is the leading dimension for A matrix
+    // ldb is the leading dimension for B matrix
+    // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
     brgemmExecutor(size_t M,
                    size_t N,
@@ -31,9 +31,8 @@ public:
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute m_blk
-    void executeGemm(size_t m_blk, void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
+    void executeGemmPackedB(bool is_M_tail, void* a, void* repacked_b, void* c, void* wsp, void* scratch_a);
 
-    void copy_buffer_a();
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
     const size_t get_scratch_a_size() const;
@@ -57,6 +56,7 @@ private:
     size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
+    ov::element::Type inType;
     static constexpr size_t N_blk = 32;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <cassert>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -121,8 +122,9 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
     }
 
     inline __m256 mm256_uni_loadu_tail_ps(const ov::bfloat16* a, const size_t count) {
+        assert("AVX2 version of bfloat16 tail load is just for compilation pass");
         ov::bfloat16 tmp_values[8] = {0};
-        std::memcpy(tmp_values, a, count * sizeof(uint16_t));
+        std::memcpy(tmp_values, a, count * sizeof(ov::bfloat16));
         return mm256_uni_loadu_ps(tmp_values);
     }
 

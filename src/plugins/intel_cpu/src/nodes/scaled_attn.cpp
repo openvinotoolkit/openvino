@@ -316,15 +316,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         wsp_size_per_thread = wv_gemm_ptr->get_wsp_size();
         wsp.resize(nthr * wsp_size_per_thread);
 
-        if (head_size % qk_gemm_ptr->get_k_blk() != 0) {
-            qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / 2});
-        }
+        // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
+        size_t data_size = sizeof(T);
+        qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / data_size});
+        wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size() / data_size});
 
-        if (kv_len % wv_gemm_ptr->get_k_blk() != 0) {
-            wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size() / 2});
-        }
-        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / 2});
-        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / 2});
+        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
+        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
@@ -411,15 +409,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
-            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* c_ptr = &score.at<float>({b, h, m_start, 0});
-            qk_gemm_ptr->executeGemm(m_cnt,
-                                     q_ptr,
-                                     k_ptr,
-                                     c_ptr,
-                                     wsp.data() + tid * wsp_size_per_thread,
-                                     qk_scratch_a ? &qk_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
-                                     &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
+            qk_gemm_ptr->executeGemmPackedB(m_cnt < m_block_size,
+                                            q_ptr,
+                                            &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}),
+                                            c_ptr,
+                                            wsp.data() + tid * wsp_size_per_thread,
+                                            qk_scratch_a ? &qk_scratch_a.at<bfloat16>({tid, 0}) : nullptr);
             float* alibi_ptr = nullptr;
             auto alibi_stride = 0;
             if (alibi_mask) {
@@ -458,16 +454,14 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value);
             }
             bfloat16* w_ptr = &weight.at<bfloat16>({b, h, m_start, 0});
-            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h / h_each_group_len, 0, 0});
             float* fp32_out_ptr =
                 has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
-            wv_gemm_ptr->executeGemm(m_cnt,
-                                     w_ptr,
-                                     v_ptr,
-                                     fp32_out_ptr,
-                                     wsp.data() + tid * wsp_size_per_thread,
-                                     wv_scratch_a ? &wv_scratch_a.at<bfloat16>({tid, 0}) : nullptr,
-                                     &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}));
+            wv_gemm_ptr->executeGemmPackedB(m_cnt < m_block_size,
+                                            w_ptr,
+                                            &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}),
+                                            fp32_out_ptr,
+                                            wsp.data() + tid * wsp_size_per_thread,
+                                            wv_scratch_a ? &wv_scratch_a.at<bfloat16>({tid, 0}) : nullptr);
         });
         cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}),
                     &output_emb.at<bfloat16>({0, 0, 0, 0}),
