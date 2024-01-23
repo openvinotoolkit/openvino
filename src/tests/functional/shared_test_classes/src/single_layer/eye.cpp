@@ -1,14 +1,12 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/single_layer/eye.hpp"
-
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/eye.hpp"
 
 namespace LayerTestsDefinitions {
 

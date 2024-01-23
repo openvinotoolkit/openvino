@@ -45,9 +45,6 @@
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
 #include "dft_inst.h"
-#include "lstm_inst.h"
-#include "lstm_elt_inst.h"
-#include "lstm_gemm_inst.h"
 #include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
@@ -56,7 +53,6 @@
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
-#include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
 #include "adaptive_pooling_inst.h"
@@ -216,6 +212,7 @@ program::~program() {
 }
 
 void program::init_program() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -228,7 +225,13 @@ void program::init_program() {
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
-    _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
+
+    size_t impls_cache_capacity = _impls_cache_capacity;
+    GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
+        impls_cache_capacity = debug_config->impls_cache_capacity;
+    }
+
+    _impls_cache = cldnn::make_unique<ImplementationsCache>(impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
@@ -416,7 +419,6 @@ void program::prepare_nodes(topology const& topology) {
     for (const auto& prim : topo_map) {
         get_or_create(prim.second);
     }
-    add_split_outputs();
     for (const auto& node : nodes_map) {
         auto node_ptr = node.second.get();
         if (node_ptr == nullptr)
@@ -527,8 +529,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
-    apply_opt_pass<reverse_optional_nodes_outputs>();
-
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
@@ -575,8 +575,6 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<concat_input_order>();
     }
 
-    apply_opt_pass<strided_slice_optimize>();
-
     apply_opt_pass<handle_reshape>();
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
@@ -591,10 +589,6 @@ void program::pre_optimize_graph(bool is_internal) {
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
-    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
-    // Currently, 'gemm-softmax' case is applied for clamping
-    apply_opt_pass<clamp_fp16_output>();
-
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
 
@@ -602,8 +596,8 @@ void program::pre_optimize_graph(bool is_internal) {
     // optimization passes
     apply_opt_pass<mark_shape_of_subgraphs>(true);
 
-    // Set gathers that might be skipped at runtime as can_be_optimized.
-    apply_opt_pass<dynamic_shape_gather_opts>();
+    // Mark operations that might be skipped at runtime as can_be_optimized.
+    apply_opt_pass<mark_runtime_skippable_nodes>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -710,30 +704,6 @@ void program::transfer_memory_to_device() {
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
-            }
-        }
-    }
-}
-
-void program::add_split_outputs() {
-    auto itr = nodes_map.begin();
-    while (itr != nodes_map.end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr).second;
-
-        if (node->is_type<split>()) {
-            auto split_prim = node->as<split>().typed_desc();
-            input_info input(split_prim->input[0]);
-            auto split_num = split_prim->output_offsets.size();
-
-            // create crop for each split output provided
-            for (decltype(split_num) i = 0; i < split_num; i++) {
-                primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
-
-                // create dummy crop primitive and add it to nodes map
-                auto crop_prim =
-                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
-                get_or_create(crop_prim);
             }
         }
     }

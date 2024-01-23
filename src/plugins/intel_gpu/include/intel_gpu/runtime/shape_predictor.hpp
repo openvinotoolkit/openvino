@@ -51,8 +51,14 @@ public:
     std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
                                                            const ov::Shape& current_shape,
                                                            size_t dt_bitwidth,
-                                                           bool can_reuse_buffer);
+                                                           bool can_reuse_buffer,
+                                                           int32_t next_iters_prealloc_count = -1);
+
     bool can_preallocate(size_t desired_buffer_size);
+
+    void reset() {
+        _shapes_info.clear();
+    }
 
 private:
     void add_shape(const std::string& id, const ov::Shape& shape);

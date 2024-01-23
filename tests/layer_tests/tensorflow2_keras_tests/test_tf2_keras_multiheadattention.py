@@ -80,9 +80,9 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     def test_keras_multiheadattention(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_old_api, use_new_frontend):
+                                      use_new_frontend):
         self._test(*self.create_keras_multiheadattention_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests to cover no bias cases
@@ -108,7 +108,7 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_no_bias)
     @pytest.mark.nightly
     def test_keras_multiheadattention_no_bias(self, params, ie_device, precision, ir_version,
-                                              temp_dir, use_old_api, use_new_frontend):
+                                              temp_dir, use_new_frontend):
         self._test(*self.create_keras_multiheadattention_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

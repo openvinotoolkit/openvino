@@ -338,6 +338,10 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     if (get_tensor_data()->is_element_type_set()) {
         context.target_element_type() = get_tensor_data()->get_element_type();
     }
+    if (get_model_data()->is_color_format_set()) {
+        context.color_format() = get_model_data()->get_color_format();
+    }
+
     // Apply post-processing
     node = result->get_input_source_output(0);
     bool post_processing_applied = false;

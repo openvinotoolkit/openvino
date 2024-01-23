@@ -406,7 +406,7 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3

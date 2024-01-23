@@ -470,7 +470,8 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
-    CompareSubGraphs(Comparator::CmpValues flags) : sub_comparator{flags} {};
+    CompareSubGraphs(Comparator::CmpValues flags, float m_abs_threshold, float m_rel_threshold)
+        : sub_comparator{flags, m_abs_threshold, m_rel_threshold} {};
 
     Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
@@ -706,7 +707,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, cons
         return msg.empty() ? Result::ok() : Result::error(msg);
 
     } else if (should_compare(CmpValues::ACCURACY)) {
-        auto status = accuracy_check(f_ref, f);
+        auto status = accuracy_check(f_ref, f, m_abs_threshold, m_rel_threshold);
         return status.status ? Result::ok() : Result::error(status.message);
 
     } else {
@@ -729,10 +730,8 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::detail::CompareSubGraphs{get_comparison_flags()}.compare(
-            subgraph1,
-            subgraph2,
-            should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
+        const auto result = subgraph::detail::CompareSubGraphs{get_comparison_flags(), m_abs_threshold, m_rel_threshold}
+                                .compare(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
@@ -870,7 +869,8 @@ void Comparator::add_nodes_inputs_to_queue(ov::Node* node1, ov::Node* node2) {
 
 FunctionsComparator::Result FunctionsComparator::compare(const std::shared_ptr<ov::Model>& f,
                                                          const std::shared_ptr<ov::Model>& f_ref) const {
-    return Comparator(m_comparison_flags).compare(f, f_ref);
+    auto comparator = Comparator(m_comparison_flags, m_abs_threshold, m_rel_threshold);
+    return comparator.compare(f, f_ref);
 }
 
 void check_rt_info(const std::shared_ptr<ov::Model>& f) {
@@ -1017,7 +1017,9 @@ Comparator::Result compare(ov::Node* node1, ov::Node* node2, Comparator::CmpValu
 }  // namespace attributes
 
 AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
-                                   const std::shared_ptr<ov::Model>& cur_function) {
+                                   const std::shared_ptr<ov::Model>& cur_function,
+                                   float abs_threshold,
+                                   float rel_threshold) {
     if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
         return AccuracyCheckResult{true, ""};
     }
@@ -1039,7 +1041,7 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {
-            ov::test::utils::compare(ref_outputs[i], outputs[i], 5e-4, 1e-3);
+            ov::test::utils::compare(ref_outputs[i], outputs[i], abs_threshold, rel_threshold);
         }
     } catch (const std::runtime_error& re) {
         return AccuracyCheckResult{false, re.what()};

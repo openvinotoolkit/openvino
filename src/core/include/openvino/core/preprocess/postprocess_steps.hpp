@@ -93,6 +93,14 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PostProcessSteps& custom(const CustomPostprocessOp& postprocess_cb);
+
+    /// \brief Converts color format for user's output tensor. Requires destinantion color format to be specified by
+    /// OutputTensorInfo::set_color_format.
+    ///
+    /// \param dst_format Destination color format of input image
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& convert_color(const ov::preprocess::ColorFormat& dst_format);
 };
 
 }  // namespace preprocess

@@ -738,7 +738,7 @@ IV. Compare performance of INT8 model and FP32 model in OpenVINO
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and

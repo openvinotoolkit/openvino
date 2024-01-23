@@ -118,52 +118,6 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     ASSERT_EQ(out_mem->get_layout().get_partial_shape(), expected_shape);
 }
 
-TEST(prepare_buffer_fusing, propagate_data_padding) {
-    auto& engine = get_test_engine();
-
-    auto in_layout = layout{ ov::PartialShape{1, 4, 3, 3}, data_types::f32, format::bfyx };
-
-    std::vector<std::pair<primitive_id, tensor>> offsets;
-    std::vector<input_info> inputs;
-    for (int i = 0; i < 2; i++) {
-        auto id = "crop_" + std::to_string(i);
-        inputs.push_back(input_info("split:" + id));
-        offsets.push_back({ id, {0, (i * 2), 0, 0} });
-    }
-
-    topology topology;
-    topology.add(input_layout("input", in_layout));
-    topology.add(split("split", input_info("input"), offsets));
-    topology.add(reorder("crop_0_reorder", inputs[0], format::bfzyx, data_types::f32));
-    topology.add(reorder("crop_1_reorder", inputs[1], format::bfzyx, data_types::f32));
-    topology.add(concatenation("concat", {input_info("crop_0_reorder"), input_info("crop_1_reorder")}, 1));
-    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    cldnn::network net(engine, topology, config);
-
-    auto in_mem = engine.allocate_memory(in_layout);
-    tests::set_random_values<float>(in_mem);
-
-    net.set_input_data("input", in_mem);
-    std::map<cldnn::primitive_id, cldnn::network_output> output;
-    ASSERT_NO_THROW(output = net.execute());
-
-    auto out_mem = output.at("output").get_memory();
-
-    ASSERT_NE(out_mem, nullptr);
-    cldnn::mem_lock<int64_t> output_ptr(out_mem, get_test_stream());
-    cldnn::mem_lock<int64_t> input_ptr(in_mem, get_test_stream());
-
-    ASSERT_EQ(input_ptr.size(), output_ptr.size());
-    for (size_t i = 0; i < input_ptr.size(); ++i)
-    {
-        ASSERT_EQ(output_ptr[i], input_ptr[i]);
-    }
-}
-
 TEST(prepare_buffer_fusing, in_place_concat_static) {
     auto& engine = get_test_engine();
     auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx }; // => {1, 4, 3, 2}
@@ -884,6 +838,79 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
 
     auto& concat = program->get_node("concat");
     ASSERT_EQ(concat.can_be_optimized(), false);
+}
+
+TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_dynamic) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                             data_types::f16, format::bfyx};
+
+    auto begin = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{4}, data_types::i64, format::bfyx });
+    set_values<int64_t>(begin, {0, 0, 0, 0});
+    set_values<int64_t>(end, {0, 0, 0, 9223372036854775807 });
+    set_values<int64_t>(strides, {1, 1, 1, 2});
+
+    auto concat_padding = padding({0,0,1,1}, {0,0,1,1});
+
+
+    auto in_static_layout = layout{ ov::PartialShape{1, 3, 320, 640}, data_types::f16, format::bfyx};
+    auto input1_mem = engine.allocate_memory(in_static_layout);
+    auto input2_mem = engine.allocate_memory(in_static_layout);
+    auto input3_mem = engine.allocate_memory(in_static_layout);
+    auto input4_mem = engine.allocate_memory(in_static_layout);
+
+    auto in1 = rg.generate_random_1d<ov::float16>(input1_mem->count(), 0, 1);
+    auto in2 = rg.generate_random_1d<ov::float16>(input2_mem->count(), 0, 1);
+    auto in3 = rg.generate_random_1d<ov::float16>(input3_mem->count(), 0, 1);
+    auto in4 = rg.generate_random_1d<ov::float16>(input4_mem->count(), 0, 1);
+
+    set_values<ov::float16>(input1_mem, in1);
+    set_values<ov::float16>(input2_mem, in2);
+    set_values<ov::float16>(input3_mem, in3);
+    set_values<ov::float16>(input4_mem, in4);
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        input_layout("input3", in_layout),
+        input_layout("input4", in_layout),
+        data("begin", begin),
+        data("end", end),
+        data("strides", strides),
+        strided_slice("strided_slice1", input_info("input1"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice2", input_info("input2"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice3", input_info("input3"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        strided_slice("strided_slice4", input_info("input4"), input_info("begin"),
+                               input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
+        concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1, concat_padding),
+        reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*program);
+    ASSERT_NE(program, nullptr);
+
+    auto& concat = program->get_node("concat");
+    ASSERT_EQ(concat.can_be_optimized(), false);
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1_mem);
+    network.set_input_data("input2", input2_mem);
+    network.set_input_data("input3", input3_mem);
+    network.set_input_data("input4", input4_mem);
+    auto outputs = network.execute();
+
+    const auto& concat_inst = network.get_primitive("concat");
+    ASSERT_EQ(concat_inst->can_be_optimized(), false);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

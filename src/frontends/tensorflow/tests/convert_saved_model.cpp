@@ -178,7 +178,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
         auto z = make_shared<Parameter>(element::f32, Shape{1});
         z->output(0).set_names({"2"});
         auto add = make_shared<Add>(x, y);
-        add->output(0).set_names({"3", "3:0"});
+        add->output(0).set_names({"3:0"});
         auto sub = make_shared<Subtract>(add, z);
         sub->output(0).set_names({"4"});
         auto result = make_shared<Result>(sub);

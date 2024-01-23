@@ -73,7 +73,7 @@ private:
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
             std::shared_ptr<IShapeInfer> shapeInference = nullptr;
@@ -81,14 +81,13 @@ private:
         protected:
             SnippetAttrs snippetAttrs;
             bool is_dynamic = false;
-            bool enforceBF16 = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
@@ -126,6 +125,10 @@ private:
             // Buffer scratchpad
             std::vector<uint8_t> buffer_scratchpad = {};
             size_t buffer_scratchpad_size = 0;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+            inline void segfault_detector();
+#endif
     };
 };
 

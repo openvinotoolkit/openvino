@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// TODO (vurusovs): delete file after removing dependency in other components
+
 #pragma once
 
 #include <memory>
