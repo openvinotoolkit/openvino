@@ -17,6 +17,7 @@ the table for more information.
 
 .. list-table:: Model Accuracy for INT8
    :header-rows: 1
+
    * - OpenVINO™  Model name
      - dataset
      - Metric Name
