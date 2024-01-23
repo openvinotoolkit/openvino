@@ -35,7 +35,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
-    , m_layout(make_layout(element_type, shape))
+    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
     , m_mem_type(mem_type)
     , m_mem(mem)
     , m_surf(surf)
@@ -143,11 +143,7 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {
-        m_memory_object = engine.allocate_memory(cldnn::layout{
-                                                    ov::PartialShape{m_shape},
-                                                    m_element_type,
-                                                    cldnn::format::get_default_format(m_shape.size())
-                                                }, cldnn::allocation_type::usm_host, reset);
+        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
         break;
     }
     case TensorType::BT_USM_DEVICE_INTERNAL: {

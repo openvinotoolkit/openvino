@@ -452,7 +452,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
 
     return std::make_shared<RemoteTensorImpl>(m_context,
                                               get_tensor_shape(port_shape),
-                                              element_type,
+                                              cldnn::element_type_to_data_type(element_type),
                                               tensor_type);
 }
 
@@ -481,7 +481,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     } else if (usm_host_raw_ptr && can_share) {
         return { std::make_shared<RemoteTensorImpl>(m_context,
                                                     user_tensor->get_shape(),
-                                                    element_type,
+                                                    cldnn::element_type_to_data_type(element_type),
                                                     TensorType::BT_USM_SHARED,
                                                     user_tensor->data()), TensorOwner::USER };
     }
@@ -590,7 +590,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std
         tmp_shape[0] = user_tensors.size();
         std::shared_ptr<ov::ITensor> merged_tensor = nullptr;
         if (is_host) {
-            merged_tensor = m_context->create_host_tensor(cldnn::element_type_to_data_type(tmp_et), tmp_shape)._ptr;
+            merged_tensor = m_context->create_host_tensor(tmp_et, tmp_shape)._ptr;
             auto ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);
@@ -727,7 +727,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     cldnn::event::ptr ret_event = nullptr;
     if (!is_remote) {
-        if (device_tensor->get_element_type() != user_tensor->get_element_type()) {
+        if (convert_needed) {
             convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
         } else {
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
