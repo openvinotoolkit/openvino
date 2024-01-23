@@ -162,8 +162,12 @@ VariableStateKVcache::VariableStateKVcache(
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
-    OPENVINO_ASSERT(m_internal_mem && m_hidden_state, "KVState internal memory is not initialized");
-    OPENVINO_ASSERT(!is_reset_state(), "KVState is undefined after reset");
+    if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
+        auto new_desc = to_static(get_external_desc());
+        auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
+        return std::make_shared<Tensor>(external_mem);
+    }
+
     auto actual_internal_desc = m_internal_mem->getDescWithType<BlockedMemoryDesc>();
     auto&& dims = actual_internal_desc->getShape().getStaticDims();
 
@@ -252,7 +256,7 @@ MemoryPtr VariableStateKVcache::output_mem() {
 }
 
 MemoryDescPtr VariableStateKVcache::internal_desc() const {
-    return m_internal_mem->getDescPtr(); //since we don't store initial one
+    return m_dense_internal_desc; //since we don't store initial one
 }
 
 MemoryPtr VariableStateKVcache::internal_state_mem() const {

@@ -371,7 +371,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
 
 ## OV Core
 
-This strcut represents OpenVINO entity and allows you to manipulate with plugins using unified interfaces.
+This struct represents OpenVINO entity and allows you to manipulate with plugins using unified interfaces.
 
 ### Create
 

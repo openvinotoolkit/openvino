@@ -316,8 +316,7 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
     }
 
     auto get_scale_shift_mem = [](const cldnn::eltwise_node& eltw, size_t dep_id) -> memory::ptr {
-        if (dep_id >= eltw.get_dependencies().size())
-            CLDNN_ERROR_MESSAGE(eltw.id(), "Invalid dependency id in dequantize optimization");
+        OPENVINO_ASSERT(dep_id < eltw.get_dependencies().size(), "[GPU] ", eltw.id(), "Invalid dependency id in dequantize optimization");
 
         return eltw.get_dependency(dep_id).as<data>().get_attached_memory_ptr();
     };

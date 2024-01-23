@@ -78,6 +78,54 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   ov::test::utils::InputGenerateData(start_from, range, resolution, seed));
 }
 
+ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
+                                          const ov::Shape& shape,
+                                          const uint32_t range,
+                                          const double_t start_from,
+                                          const int32_t resolution,
+                                          const int seed) {
+    auto tensor = ov::Tensor{element_type, shape};
+#define CASE(X)                                                                     \
+    case X:                                                                         \
+        fill_data_random_act_dft(tensor.data<element_type_traits<X>::value_type>(), \
+                                 shape_size(shape),                                 \
+                                 range,                                             \
+                                 start_from,                                        \
+                                 resolution,                                        \
+                                 seed);                                             \
+        break;
+    switch (element_type) {
+        CASE(ov::element::Type_t::boolean)
+        CASE(ov::element::Type_t::i8)
+        CASE(ov::element::Type_t::i16)
+        CASE(ov::element::Type_t::i32)
+        CASE(ov::element::Type_t::i64)
+        CASE(ov::element::Type_t::u8)
+        CASE(ov::element::Type_t::u16)
+        CASE(ov::element::Type_t::u32)
+        CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::bf16)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
+        fill_data_random_act_dft(static_cast<uint8_t*>(tensor.data()),
+                                 tensor.get_byte_size(),
+                                 range,
+                                 start_from,
+                                 resolution,
+                                 seed);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type: ", element_type);
+    }
+#undef CASE
+    return tensor;
+}
+
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
                                                   const ov::Shape& shape,
                                                   const int32_t start_from,
@@ -162,6 +210,46 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(const ov::element
                                           mean,
                                           stddev,
                                           seed);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type: ", element_type);
+    }
+#undef CASE
+    return tensor;
+}
+
+ov::runtime::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type element_type,
+                                                             const ov::Shape& shape,
+                                                             const float min,
+                                                             const float max,
+                                                             const int seed) {
+    auto tensor = ov::runtime::Tensor{element_type, shape};
+#define CASE(X)                                                                            \
+    case X:                                                                                \
+        fill_data_ptr_real_random_float(tensor.data<element_type_traits<X>::value_type>(), \
+                                        shape_size(shape),                                 \
+                                        min,                                               \
+                                        max,                                               \
+                                        seed);                                             \
+        break;
+    switch (element_type) {
+        CASE(ov::element::Type_t::boolean)
+        CASE(ov::element::Type_t::i8)
+        CASE(ov::element::Type_t::i16)
+        CASE(ov::element::Type_t::i32)
+        CASE(ov::element::Type_t::i64)
+        CASE(ov::element::Type_t::u8)
+        CASE(ov::element::Type_t::u16)
+        CASE(ov::element::Type_t::u32)
+        CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::bf16)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+        fill_data_ptr_real_random_float(static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size(), min, max, seed);
         break;
     default:
         OPENVINO_THROW("Unsupported element type: ", element_type);
@@ -304,18 +392,22 @@ void compare(const ov::Tensor& expected,
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
+        if (std::isnan(expected_value) && std::isnan(actual_value))
+            continue;
         if (std::isnan(expected_value)) {
             std::ostringstream out_stream;
-            out_stream << "Expected value is NAN on coordinate: " << i;
+            out_stream << "Expected value is NAN but Actual value is not on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
         if (std::isnan(actual_value)) {
             std::ostringstream out_stream;
-            out_stream << "Actual value is NAN on coordinate: " << i;
+            out_stream << "Actual value is NAN but Expected value is not on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
+
         double abs = std::fabs(expected_value - actual_value);
         double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
+
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }

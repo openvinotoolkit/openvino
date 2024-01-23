@@ -7,10 +7,10 @@
 #include <cstdint>
 #include <memory>
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/topk.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -25,17 +25,17 @@ public:
 
     /// \brief      Creates ArgMax ONNX operation.
     /// \return     Sub-graph representing ArgMax op.
-    std::shared_ptr<ngraph::Node> make_arg_max() const;
+    std::shared_ptr<ov::Node> make_arg_max() const;
 
     /// \brief      Creates ArgMin ONNX operation.
     /// \return     Sub-graph representing ArgMin op.
-    std::shared_ptr<ngraph::Node> make_arg_min() const;
+    std::shared_ptr<ov::Node> make_arg_min() const;
 
 private:
-    std::shared_ptr<ngraph::Node> make_topk_subgraph(default_opset::TopK::Mode mode) const;
+    std::shared_ptr<ov::Node> make_topk_subgraph(ov::op::v11::TopK::Mode mode) const;
 
     const std::int64_t m_keep_dims;
-    Output<ngraph::Node> m_input_node;
+    Output<ov::Node> m_input_node;
     std::int64_t m_axis;
     std::int64_t m_select_last_index;
 };

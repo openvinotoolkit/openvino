@@ -295,3 +295,26 @@ def test_pytorch_telemetry():
     assert tel_stat["send_event"] == 2
     assert tel_stat["send_error"] == 0
     assert tel_stat["send_stack_trace"] == 0
+
+
+def test_state_dict_names():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    import torchvision
+    model = torch.hub.load("pytorch/vision", "resnet18", weights="DEFAULT")
+    decoder = TorchScriptPythonDecoder(
+        model, example_input=(torch.randn(1, 3, 224, 224),))
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    om = fe.convert(im)
+    state_dict_keys = set(
+        name for name in model.state_dict().keys() if "_tracked" not in name)
+    common_names = set()
+    for n in om.get_ops():
+        if "Constant" in n.get_type_name():
+            for name in n.output(0).names:
+                matches = [k for k in state_dict_keys if name.startswith("self." + k)]
+                if (len(matches) > 0):
+                    common_names.update(matches)
+    assert state_dict_keys == common_names, f"Not all names exist:\nstate_dict:{state_dict_keys}"

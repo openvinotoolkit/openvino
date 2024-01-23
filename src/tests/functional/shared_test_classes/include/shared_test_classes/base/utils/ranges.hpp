@@ -28,6 +28,8 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
+#include "openvino/op/rdft.hpp"
+#include "openvino/op/irdft.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
@@ -93,11 +95,13 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v7::DFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
+        { ov::op::v9::RDFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
         { ov::op::v1::LogicalAnd::get_type_info_static(), {{{0, 2}}, {{0, 2, 1}}} },
         { ov::op::v1::LogicalOr::get_type_info_static(), {{{0, 2}}, {{0, 2, 1}}} },
         { ov::op::v1::LogicalNot::get_type_info_static(), {{{0, 2}}, {{0, 2, 1}}} },
         { ov::op::v1::LogicalXor::get_type_info_static(), {{{0, 2}}, {{0, 2, 1}}} },
         { ov::op::v7::IDFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
+        { ov::op::v9::IRDFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
         { ov::op::v0::Sigmoid::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Tanh::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Relu::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },

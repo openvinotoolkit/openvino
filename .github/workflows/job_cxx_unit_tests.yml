@@ -1,4 +1,4 @@
-name: Samples
+name: C++ Unit Tests
 
 on:
   workflow_call:

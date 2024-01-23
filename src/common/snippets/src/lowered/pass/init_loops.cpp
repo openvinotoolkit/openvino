@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -37,6 +38,22 @@ int64_t get_output_stride(size_t dim, const VectorDims& shape) {
 
 InitLoops::InitLoops() : Pass() {}
 
+void InitLoops::init_is_incremented(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    auto loop_entries = loop_info->get_entry_points();
+    auto loop_exits = loop_info->get_exit_points();
+    auto update = [](std::vector<LoopPort>& ports) {
+        for (auto& port : ports) {
+            if (!ov::is_type<op::MemoryAccess>(port.expr_port->get_expr()->get_node())) {
+                port.is_incremented = false;
+            }
+        }
+    };
+    update(loop_entries);
+    update(loop_exits);
+    loop_info->set_entry_points(loop_entries);
+    loop_info->set_exit_points(loop_exits);
+}
+
 void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
     const auto work_amount = loop_info->get_work_amount();
     auto loop_entries = loop_info->get_entry_points();
@@ -47,7 +64,6 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
         if (loop_entry.is_incremented) {
             const auto& port = loop_entry.expr_port;
             const auto source = *port->get_connected_ports().begin();
-            const auto loop_ids = port->get_expr()->get_loop_ids();
             const auto& layout = port->get_descriptor_ptr()->get_layout();
             const auto& shape = port->get_descriptor_ptr()->get_shape();
             const auto& dim = *(layout.rbegin() + loop_entry.dim_idx);
@@ -63,7 +79,6 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
         loop_exit.ptr_increment = 0;
         if (loop_exit.is_incremented) {
             const auto& port = loop_exit.expr_port;
-            const auto loop_ids = port->get_expr()->get_loop_ids();
             const auto& layout = port->get_descriptor_ptr()->get_layout();
             const auto& shape = port->get_descriptor_ptr()->get_shape();
             const auto original_dim = layout.size() - 1 - loop_exit.dim_idx;
@@ -117,6 +132,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
         const auto loop_info = loop.second;
+        init_is_incremented(loop_info);
         init_ptr_increments(loop_info);
         init_finalization_offsets(loop_info);
         init_element_type_sizes(loop_info);
