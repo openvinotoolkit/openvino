@@ -4,7 +4,16 @@
 
 #include "op/trilu.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
 
@@ -26,22 +35,22 @@ OutputVector trilu(const Node& node) {
         CHECK_VALID_NODE(node, rank.get_length() >= 2, "Trilu first input's rank must be >= 2");
     }
 
-    Output<ngraph::Node> k;
+    Output<ov::Node> k;
     bool is_k_available = num_inputs == 2 && !ov::op::util::is_null(inputs[1]);
     if (is_k_available) {
         k = inputs[1];
         auto axes =
-            std::make_shared<default_opset::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
         // Check if k is a tensor with a single value
         if (k.get_shape().size() == 1 && k.get_shape()[0] == 1) {
-            k = std::make_shared<default_opset::Squeeze>(k, axes);
+            k = std::make_shared<ov::op::v0::Squeeze>(k, axes);
         }
         CHECK_VALID_NODE(node, k.get_partial_shape().compatible({}), "Trilu second input must be a scalar");
     }
 
-    const auto shape = std::make_shared<default_opset::ShapeOf>(input);
-    const auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
-    const auto one = default_opset::Constant::create(element::i64, Shape{}, {1});
+    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(input);
+    const auto zero = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+    const auto one = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
     // to choose appropiate values from the input
@@ -71,39 +80,39 @@ OutputVector trilu(const Node& node) {
     // fetch last two dimensions of input shape
     // M = shape[-1]
     // N = shape[-2]
-    const auto M = std::make_shared<default_opset::Gather>(shape,
-                                                           default_opset::Constant::create(element::i32, Shape{}, {-1}),
+    const auto M = std::make_shared<ov::op::v1::Gather>(shape,
+                                                           ov::op::v0::Constant::create(element::i32, Shape{}, {-1}),
                                                            zero);
-    const auto N = std::make_shared<default_opset::Gather>(shape,
-                                                           default_opset::Constant::create(element::i32, Shape{}, {-2}),
+    const auto N = std::make_shared<ov::op::v1::Gather>(shape,
+                                                           ov::op::v0::Constant::create(element::i32, Shape{}, {-2}),
                                                            zero);
 
     // create 2D tensor with shape [1, M] and values [[0, 1, ..., M - 1]]
     const auto horizontal_range =
-        std::make_shared<default_opset::Unsqueeze>(std::make_shared<default_opset::Range>(zero, M, one, element::i64),
+        std::make_shared<ov::op::v0::Unsqueeze>(std::make_shared<ov::op::v4::Range>(zero, M, one, element::i64),
                                                    zero);
     // create 2D tensor with shape [N, 1] and values [[k], [k + 1], ..., [N + k - 1]]
-    std::shared_ptr<ngraph::Node> vertical_range;
+    std::shared_ptr<ov::Node> vertical_range;
     if (is_k_available) {
         vertical_range =
-            std::make_shared<default_opset::Range>(k, std::make_shared<default_opset::Add>(N, k), one, element::i64);
+            std::make_shared<ov::op::v4::Range>(k, std::make_shared<ov::op::v1::Add>(N, k), one, element::i64);
     } else {
-        vertical_range = std::make_shared<default_opset::Range>(zero, N, one, element::i64);
+        vertical_range = std::make_shared<ov::op::v4::Range>(zero, N, one, element::i64);
     }
-    vertical_range = std::make_shared<default_opset::Unsqueeze>(vertical_range, one);
+    vertical_range = std::make_shared<ov::op::v0::Unsqueeze>(vertical_range, one);
 
     const bool upper = node.get_attribute_value<int64_t>("upper", 1) == 1;
-    std::shared_ptr<ngraph::Node> mask;
+    std::shared_ptr<ov::Node> mask;
     if (upper) {
-        mask = std::make_shared<default_opset::GreaterEqual>(horizontal_range, vertical_range);
+        mask = std::make_shared<ov::op::v1::GreaterEqual>(horizontal_range, vertical_range);
     } else {
-        mask = std::make_shared<default_opset::LessEqual>(horizontal_range, vertical_range);
+        mask = std::make_shared<ov::op::v1::LessEqual>(horizontal_range, vertical_range);
     }
 
-    return {std::make_shared<default_opset::Select>(
+    return {std::make_shared<ov::op::v1::Select>(
         mask,
         input,
-        default_opset::Constant::create(input.get_element_type(), Shape{}, {0}))};
+        ov::op::v0::Constant::create(input.get_element_type(), Shape{}, {0}))};
 }
 
 }  // namespace set_1
