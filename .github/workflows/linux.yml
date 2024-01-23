@@ -61,6 +61,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
@@ -500,6 +501,7 @@ jobs:
       CMAKE_CUDA_COMPILER_LAUNCHER: sccache
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       INSTALL_DIR: /__w/openvino/openvino/install
       OPENVINO_DEVELOPER_PACKAGE: /__w/openvino/openvino/install/developer_package
       OPENVINO_REPO: /__w/openvino/openvino/openvino
