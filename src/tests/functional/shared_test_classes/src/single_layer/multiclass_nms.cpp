@@ -65,7 +65,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MulticlassNmsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
 
     const auto& funcInputs = function->inputs();

@@ -570,6 +570,50 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
 }
 
+TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
+    const ov::Shape newShape({1, 1, 3, 2});
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 2}));
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMaxSizeShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape new_shape({1, 2, 1, 1});
+    const ov::Shape roi_capacity({1, 2, 4, 3});
+
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+
+    roi_tensor.set_shape(new_shape);
+    ASSERT_EQ(roi_tensor.get_shape(), new_shape);
+
+    roi_tensor.set_shape(roi_capacity);
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+}
+
+TEST_F(OVTensorTest, setShapeGtMaxOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({0, 0, 0, 0});
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMinShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({1, 3, 6, 3});  // ROI coordinate begin + newShape[2] is bigger than t.shape[2]
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 3}));
+    ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
+}
+
 TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
