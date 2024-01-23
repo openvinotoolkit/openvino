@@ -4,7 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "variable.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 
 using namespace std;
 using namespace ov;

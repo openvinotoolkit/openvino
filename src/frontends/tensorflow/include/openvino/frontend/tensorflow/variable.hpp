@@ -4,25 +4,27 @@
 
 #pragma once
 
+#include "openvino/op/util/framework_node.hpp"
 #include "tf_framework_node.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class Variable : public ov::frontend::tensorflow::FrameworkNode {
+class Variable : public ov::op::util::FrameworkNode {
 public:
     using Ptr = std::shared_ptr<Variable>;
-    OPENVINO_OP("Variable", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::FrameworkNode);
+    OPENVINO_OP("TFVariable", "ov::frontend::tensorflow", ::ov::op::util::FrameworkNode);
 
     Variable(const std::string& name,
              const ov::Shape& shape,
              const ov::element::Type& type,
              const std::shared_ptr<DecoderBase>& decoder)
-        : ov::frontend::tensorflow::FrameworkNode(decoder, ov::OutputVector{}, 1),
+        : ov::op::util::FrameworkNode(ov::OutputVector{}, 1),
           m_name(name),
           m_shape(shape),
           m_type(type),
+          m_decoder(decoder),
           m_is_initialized(false),
           m_init_counter(0) {
         validate_and_infer_types();
@@ -78,6 +80,7 @@ private:
     std::string m_name;
     ov::Shape m_shape;
     ov::element::Type m_type;
+    std::shared_ptr<DecoderBase> m_decoder;
     bool m_is_initialized;
     ov::Output<ov::Node> m_value;
     // this member is used to select the latest state of Variable
@@ -97,7 +100,7 @@ public:
                     found_variable = variable;
                     return true;
                 }
-            }
+            }  
         } else {
             return false;
         }

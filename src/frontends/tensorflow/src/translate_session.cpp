@@ -10,13 +10,13 @@
 #include "helper_ops/next_iteration.hpp"
 #include "helper_ops/switch.hpp"
 #include "input_model.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
-#include "variable.hpp"
 
 using namespace ov::frontend::tensorflow;
 
@@ -548,7 +548,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         if (m_translator_map->count(operation_type)) {
             try {
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
-                NodeContext node_context(operation_decoder, ov_inputs, ov_tensors_map, ov_variables_map, this);
+                NodeContext node_context(operation_decoder, ov_inputs, ov_variables_map, this);
                 ov_outputs = translator(node_context);
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure

@@ -23,14 +23,12 @@ public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder,
                 const OutputVector& inputs,
-                const NameTensorMapPtr& ov_tensors_map = nullptr,
                 const VariableMap::Ptr& ov_variable_state_map = nullptr,
                 TranslateSession* translate_session = nullptr)
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_translate_session(translate_session),
           m_inputs(inputs),
-          m_ov_tensors_map(ov_tensors_map),
           m_ov_variable_state_map(ov_variable_state_map) {}
 
     /// Detects if there is at least one input attached with a given name
@@ -106,8 +104,7 @@ private:
     TranslateSession* m_translate_session;
     const OutputVector& m_inputs;
 
-    // it maps operation name to its output tensors
-    NameTensorMapPtr m_ov_tensors_map;
+    // it contains variables states at each node of the graph
     VariableMap::Ptr m_ov_variable_state_map;
 };
 

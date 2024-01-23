@@ -4,8 +4,8 @@
 
 #include "common_op_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/subtract.hpp"
-#include "variable.hpp"
 
 using namespace std;
 using namespace ov;
