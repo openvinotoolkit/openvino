@@ -15,7 +15,7 @@ namespace intel_cpu {
 jit_loop_begin_emitter::jit_loop_begin_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
-    OPENVINO_ASSERT(loop_begin != nullptr, "jit_loop_begin_emitter invoked with invalid op argument");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin != nullptr, "invoked with invalid op argument");
     const auto loop_end = get_loop_end(expr);
     work_amount = loop_end->get_work_amount();
     evaluate_once = loop_end->get_evaluate_once();
@@ -23,11 +23,11 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(jit_generator* h, cpu_isa_t isa, 
 }
 
 std::shared_ptr<snippets::op::LoopEnd> jit_loop_begin_emitter::get_loop_end(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OPENVINO_ASSERT(expr->get_output_port_connectors().size() == 1, "jit_loop_begin_emitter has invalid LoopBegin expression configuration");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "has invalid LoopBegin expression configuration");
     const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-    OPENVINO_ASSERT(consumers.size() == 1, "jit_loop_begin_emitter has invalid LoopBegin expression configuration");
+    OV_CPU_JIT_EMITTER_ASSERT(consumers.size() == 1, "has invalid LoopBegin expression configuration");
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(consumers.cbegin()->get_expr()->get_node());
-    OPENVINO_ASSERT(loop_end != nullptr, "jit_loop_begin_emitter has invalid LoopBegin expression configuration");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "has invalid LoopBegin expression configuration");
     return loop_end;
 }
 
@@ -38,8 +38,8 @@ void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std:
 }
 
 void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OPENVINO_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
-    OPENVINO_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got ", out.size());
 }
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -59,7 +59,7 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
 jit_loop_end_emitter::jit_loop_end_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
-    OPENVINO_ASSERT(loop_end != nullptr, "jit_loop_end_emitter invoked with invalid op argument");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "invoked with invalid op argument");
     loop_begin = loop_end->get_loop_begin();
     // Note that 1 edge connects LoopBegin and LoopEnd
     num_inputs = expr->get_input_count();
@@ -83,10 +83,11 @@ void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::v
 
 void jit_loop_end_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     const auto io_size = num_inputs - 1;
-    OPENVINO_ASSERT(in.size() == num_inputs, "Invalid number of in arguments: expected ", num_inputs , " got ", in.size());
-    OPENVINO_ASSERT(out.size() == num_outputs, "Invalid number of out arguments: expected ", num_outputs, " got ", out.size());
-    OPENVINO_ASSERT(ptr_increments.size() == io_size, "Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
-    OPENVINO_ASSERT(finalization_offsets.size() == io_size, "Invalid finalization_offsets size: expected ", io_size, " got ", finalization_offsets.size());
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == num_inputs, "Invalid number of in arguments: expected ", num_inputs , " got ", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == num_outputs, "Invalid number of out arguments: expected ", num_outputs, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size, "Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
+    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
+                              "Invalid finalization_offsets size: expected ", io_size, " got ", finalization_offsets.size());
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
