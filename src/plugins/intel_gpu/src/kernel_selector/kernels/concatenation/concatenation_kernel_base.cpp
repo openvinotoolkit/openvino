@@ -141,6 +141,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
+    kd.needs_sub_kernels_sync = false;
     GetUpdateDispatchDataFunc(kd);
 
     bool is_dynamic = orgParams.has_dynamic_tensors();
