@@ -49,6 +49,6 @@ namespace LayerTestsDefinitions {
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
         OPENVINO_SUPPRESS_DEPRECATED_END
-        function = std::make_shared<ngraph::Function>(op, input, "MinMax");
+        function = std::make_shared<ov::Model>(op, input, "MinMax");
     }
 } // namespace LayerTestsDefinitions

@@ -7,7 +7,7 @@
 namespace LayerTestsDefinitions {
 
 std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple> &obj) {
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     size_t classes;
     size_t coords;
     size_t num_regions;
@@ -32,7 +32,7 @@ std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<re
 }
 
 void RegionYoloLayerTest::SetUp() {
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     size_t classes;
     size_t coords;
     size_t num_regions;
@@ -45,7 +45,7 @@ void RegionYoloLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
     auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(param, coords, classes, num_regions, do_softmax, mask, start_axis, end_axis);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
+    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(region_yolo), ov::ParameterVector{param}, "RegionYolo");
 }
 
 } // namespace LayerTestsDefinitions
