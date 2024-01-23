@@ -104,7 +104,7 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
+void LayerTestsCommon::Serialize(ov::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     std::string output_name = ov::test::utils::generateTestFilePrefix();
@@ -112,7 +112,7 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
 
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
@@ -144,15 +144,9 @@ void LayerTestsCommon::QueryNetwork() {
 
     std::set<std::string> actual;
     for (auto&& res : queryNetworkResult.supportedLayersMap) {
-        std::shared_ptr<InferenceEngine::RemoteContext> ctx = nullptr;
-        try {
-            // Try to take fully specified name from the context to match it with query network result for devices that support remote contexts
-            ctx = core->GetDefaultContext(targetDevice);
-            ASSERT_EQ(res.second, ctx->getDeviceName());
-        } catch (...) {
-            // otherwise, compare with originally used device name
-            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
-        }
+        // compare with originally used device name
+        ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
+
         actual.insert(res.first);
     }
     ASSERT_EQ(expected, actual);

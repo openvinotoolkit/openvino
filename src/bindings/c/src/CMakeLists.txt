@@ -10,7 +10,6 @@ ov_disable_deprecated_warnings()
 add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE LEGACY_HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/c_api/*.h)
 file(GLOB_RECURSE HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/*.h)
 
 # create library
@@ -58,11 +57,6 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_C_DEV}
         INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR}
                              ${OV_CPACK_INCLUDEDIR}/ie)
-
-install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/c_api
-        DESTINATION ${OV_CPACK_INCLUDEDIR}/ie
-        COMPONENT ${OV_CPACK_COMP_CORE_C_DEV}
-        ${OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL})
 
 install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/
         DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino

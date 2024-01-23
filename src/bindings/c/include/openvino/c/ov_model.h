@@ -94,7 +94,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_port_t** input_port);
 
 /**
- * @brief Get a single const output port of ov_model_t, which only support single output model..
+ * @brief Get a single const output port of ov_model_t, which only support single output model.
  * @ingroup ov_model_c_api
  * @param model A pointer to the ov_model_t.
  * @param output_port A pointer to the ov_output_const_port_t.
@@ -126,7 +126,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_const_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_port_t** output_port);
 
 /**
- * @brief Get an single output port of ov_model_t, which only support single output model.
+ * @brief Get a single output port of ov_model_t, which only support single output model.
  * @ingroup ov_model_c_api
  * @param model A pointer to the ov_model_t.
  * @param output_port A pointer to the ov_output_const_port_t.
@@ -178,7 +178,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_outputs_size(const ov_model_t* model, size_t* output_size);
 
 /**
- * @brief Returns true if any of the ops defined in the model is dynamic shape..
+ * @brief Returns true if any of the ops defined in the model is dynamic shape.
  * @param model A pointer to the ov_model_t.
  * @return true if model contains dynamic shapes
  */

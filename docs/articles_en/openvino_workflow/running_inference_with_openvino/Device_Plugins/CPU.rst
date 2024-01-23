@@ -6,8 +6,8 @@ CPU Device
 
 
 .. meta::
-   :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
-                 is developed to achieve high performance inference of neural 
+   :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit
+                 is developed to achieve high performance inference of neural
                  networks on Intel® x86-64 and Arm® CPUs.
 
 
@@ -19,7 +19,7 @@ For an in-depth description of CPU plugin, see:
 
 .. note::
    The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for all CPU architectures.
-   
+
 
 Device Name
 ###########################################################
@@ -64,7 +64,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``i8`` (Intel® x86-64)
   - ``u1`` (Intel® x86-64)
 
-:doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
 
 
 Quantized Data Types Specifics
@@ -75,13 +75,8 @@ The ``u1/u8/i8`` data types are used for quantized operations only, i.e., those 
 
 For more details on how to get a quantized model see the :doc:`low-precision optimization guide <openvino_docs_model_optimization_guide>`.
 
-.. note:: 
-   
-   Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" that may lead to reduced computational accuracy for ``u8/i8`` precision calculations.
-   To get more information on how to detect such issues and possible workarounds, see the :doc:`saturation (overflow) issue section <pot_saturation_issue>`.
+.. note::
 
-.. note:: 
-   
    Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating-point precision.
 
 
@@ -93,11 +88,11 @@ CPU plugin supports the following floating-point data types as inference precisi
 - ``f32`` (Intel® x86-64, Arm®)
 - ``bf16`` (Intel® x86-64)
 
-The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
+The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
 On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
-Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
+Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
 Using the ``bf16`` precision provides the following performance benefits:
@@ -105,7 +100,7 @@ Using the ``bf16`` precision provides the following performance benefits:
 - ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
 
-To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
+To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>`
 to query ``ov::device::capabilities`` property, which should contain ``BF16`` in the list of CPU capabilities:
 
 
@@ -129,7 +124,7 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
 Inference Precision Hint
 -----------------------------------------------------------
 
-If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
+If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
 
 .. tab-set::
@@ -147,7 +142,7 @@ the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to
       .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
          :language: cpp
          :fragment: [part1]
-         
+
 To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
 
 
@@ -168,18 +163,18 @@ To infer the model in ``f32`` precision instead of ``bf16`` on targets with nati
          :fragment: [part2]
 
 
-The ``Bfloat16`` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the 
+The ``Bfloat16`` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the
 native ``avx512_bf16`` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, the ``ov::hint::inference_precision`` has to be explicitly set to ``ov::element::bf16``.
 
-.. note:: 
-   
+.. note::
+
    If ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
 
-.. note:: 
-   
-   Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
-   especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
+.. note::
+
+   Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference,
+   especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable,
    it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
    see the `Execution Mode Hint <#execution-mode-hint>`__.
 
@@ -224,35 +219,35 @@ For more details, see the :doc:`Multi-device execution <openvino_docs_OV_UG_Runn
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-If either ``ov::num_streams(n_streams)`` with ``n_streams > 1`` or ``ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)`` 
-property is set for CPU plugin, then multiple streams are created for the model. In case of CPU plugin, each stream has its own 
-host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of 
+If either ``ov::num_streams(n_streams)`` with ``n_streams > 1`` or ``ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)``
+property is set for CPU plugin, then multiple streams are created for the model. In case of CPU plugin, each stream has its own
+host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
 For more details, see the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
 
-.. note:: 
+.. note::
 
-   When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads 
-   on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint. 
+   When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
+   on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <openvino_docs_OV_UG_Performance_Hints>` overview.
 
-.. note:: 
+.. note::
 
    Multi-stream execution is not supported on Arm® platforms. Latency and throughput hints have identical behavior and use only one stream for inference.
-   
+
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 CPU provides full functional support for models with dynamic shapes in terms of the opset coverage.
 
-.. note:: 
+.. note::
 
    The CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
 
-Some runtime optimizations work better if the model shapes are known in advance. Therefore, if the input data shape is 
-not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model 
+Some runtime optimizations work better if the model shapes are known in advance. Therefore, if the input data shape is
+not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model
 with the static input shape to get the best performance.
 
 
@@ -302,12 +297,12 @@ For more details, see :doc:`preprocessing API guide <openvino_docs_OV_UG_Preproc
 Model Caching
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-CPU supports Import/Export network capability. If model caching is enabled via the common OpenVINO™ ``ov::cache_dir`` property, 
-the plugin automatically creates a cached blob inside the specified directory during model compilation. This cached blob contains 
+CPU supports Import/Export network capability. If model caching is enabled via the common OpenVINO™ ``ov::cache_dir`` property,
+the plugin automatically creates a cached blob inside the specified directory during model compilation. This cached blob contains
 partial representation of the network, having performed common runtime optimizations and low precision transformations.
-The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial OpenVINO IR, 
-so the aforementioned transformation steps will be skipped. These transformations take a significant amount of time during 
-model compilation, so caching this representation reduces time spent for subsequent compilations of the model, thereby reducing 
+The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial OpenVINO IR,
+so the aforementioned transformation steps will be skipped. These transformations take a significant amount of time during
+model compilation, so caching this representation reduces time spent for subsequent compilations of the model, thereby reducing
 first inference latency (FIL).
 
 For more details, see the :doc:`model caching <openvino_docs_OV_UG_Model_caching_overview>` overview.
@@ -317,7 +312,7 @@ Extensibility
 
 CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin does not have its own implementation for such operation.
 That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` can be used for the plugin extension as well.
-Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation 
+Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation
 class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
 
 Stateful Models
@@ -377,13 +372,13 @@ Optimization guide
 Multi-Threading Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-CPU inference will infer an input or multiple inputs in parallel on multiple logical processors. 
+CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
 User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU resources.
 
-- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference. 
+- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference.
   If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
-- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores). 
+- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores).
   If user platform only has one type of CPU cores, this property has no effect, and CPU inference always uses this unique core type.
 - ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
   If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
@@ -392,71 +387,71 @@ User can use the following properties to limit available CPU resource for model 
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
          :language: python
          :fragment: [ov:intel_cpu:multi_threading:part0]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:multi_threading:part0]
-   
 
-.. note:: 
-   
+
+.. note::
+
    ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
-   
+
 By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
          :language: python
          :fragment: [ov:intel_cpu:multi_threading:part1]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:multi_threading:part1]
-   
+
 
 user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
 
-.. note:: 
-   
+.. note::
+
    ``ov::hint::enable_cpu_pinning`` only support Linux in current release.
-   
+
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Denormal numbers (denormals) are non-zero, finite float numbers that are very close to zero, i.e. the numbers 
-in (0, 1.17549e-38) and (0, -1.17549e-38). In such cases, normalized-number encoding format does not have a capability 
+Denormal numbers (denormals) are non-zero, finite float numbers that are very close to zero, i.e. the numbers
+in (0, 1.17549e-38) and (0, -1.17549e-38). In such cases, normalized-number encoding format does not have a capability
 to encode the number and underflow will happen. The computation involving such numbers is extremely slow on much hardware.
 
-As a denormal number is extremely close to zero, treating a denormal directly as zero is a straightforward 
-and simple method to optimize computation of denormals. This optimization does not comply with IEEE 754 standard. 
-If it causes unacceptable accuracy degradation, the ``denormals_optimization`` property is introduced to control this behavior. 
-If there are denormal numbers in use cases, and no or acceptable accuracy drop is seen, set the property to `True` 
-to improve performance, otherwise set it to ``False``. If it is not set explicitly by the property and the application 
-does not perform any denormals optimization as well, the optimization is disabled by default. After enabling 
-the ``denormals_optimization`` property, OpenVINO will provide a cross operation system/ compiler and safe optimization 
+As a denormal number is extremely close to zero, treating a denormal directly as zero is a straightforward
+and simple method to optimize computation of denormals. This optimization does not comply with IEEE 754 standard.
+If it causes unacceptable accuracy degradation, the ``denormals_optimization`` property is introduced to control this behavior.
+If there are denormal numbers in use cases, and no or acceptable accuracy drop is seen, set the property to `True`
+to improve performance, otherwise set it to ``False``. If it is not set explicitly by the property and the application
+does not perform any denormals optimization as well, the optimization is disabled by default. After enabling
+the ``denormals_optimization`` property, OpenVINO will provide a cross operation system/ compiler and safe optimization
 on all platform when applicable.
 
-There are cases when the application in which OpenVINO is used also performs this low-level denormals optimization. 
-If it is optimized by setting the FTZ(Flush-To-Zero) and DAZ(Denormals-As-Zero) flags in MXCSR register at the beginning 
-of the thread where OpenVINO is called, OpenVINO will inherit this setting in the same thread and sub-thread, 
-so there is no need to set the ``denormals_optimization`` property. In such cases, you are responsible for the 
+There are cases when the application in which OpenVINO is used also performs this low-level denormals optimization.
+If it is optimized by setting the FTZ(Flush-To-Zero) and DAZ(Denormals-As-Zero) flags in MXCSR register at the beginning
+of the thread where OpenVINO is called, OpenVINO will inherit this setting in the same thread and sub-thread,
+so there is no need to set the ``denormals_optimization`` property. In such cases, you are responsible for the
 effectiveness and safety of the settings.
 
-.. note:: 
+.. note::
 
    The ``denormals_optimization`` property must be set before calling ``compile_model()``.
 
@@ -466,14 +461,14 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_denormals.py
          :language: python
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/ov_denormals.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
@@ -482,26 +477,26 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
 Sparse weights decompression (Intel® x86-64)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-``Sparse weights`` are weights where most of the elements are zero. The ratio of the number of zero elements 
-to the number of all elements is called ``sparse rate``. Thus, we assume that ``sparse weights`` are weights 
-with a high sparse rate. In case of ``sparse weights``, we can store only non-zero values in memory using 
-special storage structures, which allows us to use memory more efficiently. In turn, this can give us better 
+``Sparse weights`` are weights where most of the elements are zero. The ratio of the number of zero elements
+to the number of all elements is called ``sparse rate``. Thus, we assume that ``sparse weights`` are weights
+with a high sparse rate. In case of ``sparse weights``, we can store only non-zero values in memory using
+special storage structures, which allows us to use memory more efficiently. In turn, this can give us better
 performance in the high memory bound workloads (e.g., throughput scenario).
 
-``Sparse weights decompression feature`` allows to pack weights for Matrix Multiplication operations directly 
-in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, 
-during the execution of the model, the weights are unpacked and used in the computational kernel. Since the 
-weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption 
+``Sparse weights decompression feature`` allows to pack weights for Matrix Multiplication operations directly
+in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then,
+during the execution of the model, the weights are unpacked and used in the computational kernel. Since the
+weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption
 and as a consequence improve inference performance.
 
-To use this feature, the user is provided with property ``sparse_weights_decompression_rate``, which can take 
-values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threshold: only operations 
-with higher sparse rate will be executed using ``sparse weights decompression feature``. The default value is ``1``, 
+To use this feature, the user is provided with property ``sparse_weights_decompression_rate``, which can take
+values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threshold: only operations
+with higher sparse rate will be executed using ``sparse weights decompression feature``. The default value is ``1``,
 which means the option is disabled.
 
-.. note:: 
-   
-   ``Sparse weights decompression feature`` is disabled by default since overall speed-up highly depends on 
+.. note::
+
+   ``Sparse weights decompression feature`` is disabled by default since overall speed-up highly depends on
    particular workload and for some cases the feature may introduce performance degradations.
 
 Code examples of how to use ``sparse_weights_decompression_rate``:
@@ -510,25 +505,25 @@ Code examples of how to use ``sparse_weights_decompression_rate``:
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
          :language: python
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
 
-.. note:: 
-   
+.. note::
+
    The ``sparse_weights_decompression_rate`` property must be set before calling ``compile_model()``.
 
-Information about the layers in which the ``sparse weights decompression feature`` was applied can be obtained 
-from perf counters log. The "exec type" field will contain the implementation type with the "sparse" particle 
+Information about the layers in which the ``sparse weights decompression feature`` was applied can be obtained
+from perf counters log. The "exec type" field will contain the implementation type with the "sparse" particle
 ("brgemm_avx512_amx_sparse_I8" in the example below):
 
 .. code-block:: sh

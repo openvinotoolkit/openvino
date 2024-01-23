@@ -17,9 +17,9 @@ This tutorial shows how to convert a TensorFlow `Mask R-CNN with
 Inception ResNet
 V2 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__
 instance segmentation model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+Representation <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 (OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Optimizer <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
@@ -689,4 +689,4 @@ utilization.
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
 and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__.

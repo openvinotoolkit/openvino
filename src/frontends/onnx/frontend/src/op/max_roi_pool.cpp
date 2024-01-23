@@ -23,9 +23,9 @@ OutputVector max_roi_pool(const Node& node) {
     const auto X = inputs.at(0);
     const auto rois = inputs.at(1);
 
-    NGRAPH_CHECK(X.get_element_type() == element::f16 || X.get_element_type() == element::f32 ||
-                     X.get_element_type() == element::f64,
-                 "MaxRoiPool operator only supports float16, float32 and float64 datatypes.");
+    OPENVINO_ASSERT(X.get_element_type() == element::f16 || X.get_element_type() == element::f32 ||
+                        X.get_element_type() == element::f64,
+                    "MaxRoiPool operator only supports float16, float32 and float64 datatypes.");
 
     const auto pooled_shape = node.get_attribute_value<std::vector<size_t>>("pooled_shape");
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0);

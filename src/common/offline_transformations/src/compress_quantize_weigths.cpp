@@ -391,6 +391,16 @@ bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Constant>& o
                                                            zero_point_is_zero);
         break;
     }
+    case ov::element::bf16: {
+        compute_scale_and_zero_point_internal<ov::bfloat16>(output_low,
+                                                            output_high,
+                                                            levels,
+                                                            scale_tensor,
+                                                            zero_point_tensor,
+                                                            zero_point_is_zero);
+        break;
+    }
+
     default:
         return false;
     }
@@ -690,45 +700,63 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
 
     switch (type) {
     case ov::element::f32: {
-        new_weights = compress_quantized_weights_internal(low_precision_type,
-                                                          weights->get_data_ptr<float>(),
-                                                          weights_shape,
-                                                          input_low->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
-                                                          input_high->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
-                                                          output_low->get_data_ptr<float>(),
-                                                          output_low->get_shape(),
-                                                          output_high->get_data_ptr<float>(),
-                                                          output_low->get_shape(),
-                                                          zero_point_constant->get_data_ptr<float>(),
-                                                          zero_point_constant->get_shape(),
-                                                          fq->get_levels(),
-                                                          can_fuse_zero_point);
+        return compress_quantized_weights_internal(low_precision_type,
+                                                   weights->get_data_ptr<float>(),
+                                                   weights_shape,
+                                                   input_low->get_data_ptr<float>(),
+                                                   input_low->get_shape(),
+                                                   input_high->get_data_ptr<float>(),
+                                                   input_low->get_shape(),
+                                                   output_low->get_data_ptr<float>(),
+                                                   output_low->get_shape(),
+                                                   output_high->get_data_ptr<float>(),
+                                                   output_low->get_shape(),
+                                                   zero_point_constant->get_data_ptr<float>(),
+                                                   zero_point_constant->get_shape(),
+                                                   fq->get_levels(),
+                                                   can_fuse_zero_point);
         break;
     }
     case ov::element::f16: {
-        new_weights = compress_quantized_weights_internal(low_precision_type,
-                                                          weights->get_data_ptr<ov::float16>(),
-                                                          weights_shape,
-                                                          input_low->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
-                                                          input_high->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
-                                                          output_low->get_data_ptr<ov::float16>(),
-                                                          output_low->get_shape(),
-                                                          output_high->get_data_ptr<ov::float16>(),
-                                                          output_low->get_shape(),
-                                                          zero_point_constant->get_data_ptr<ov::float16>(),
-                                                          zero_point_constant->get_shape(),
-                                                          fq->get_levels(),
-                                                          can_fuse_zero_point);
+        return compress_quantized_weights_internal(low_precision_type,
+                                                   weights->get_data_ptr<ov::float16>(),
+                                                   weights_shape,
+                                                   input_low->get_data_ptr<ov::float16>(),
+                                                   input_low->get_shape(),
+                                                   input_high->get_data_ptr<ov::float16>(),
+                                                   input_low->get_shape(),
+                                                   output_low->get_data_ptr<ov::float16>(),
+                                                   output_low->get_shape(),
+                                                   output_high->get_data_ptr<ov::float16>(),
+                                                   output_low->get_shape(),
+                                                   zero_point_constant->get_data_ptr<ov::float16>(),
+                                                   zero_point_constant->get_shape(),
+                                                   fq->get_levels(),
+                                                   can_fuse_zero_point);
+        break;
+    }
+    case ov::element::bf16: {
+        return compress_quantized_weights_internal(low_precision_type,
+                                                   weights->get_data_ptr<ov::bfloat16>(),
+                                                   weights_shape,
+                                                   input_low->get_data_ptr<ov::bfloat16>(),
+                                                   input_low->get_shape(),
+                                                   input_high->get_data_ptr<ov::bfloat16>(),
+                                                   input_low->get_shape(),
+                                                   output_low->get_data_ptr<ov::bfloat16>(),
+                                                   output_low->get_shape(),
+                                                   output_high->get_data_ptr<ov::bfloat16>(),
+                                                   output_low->get_shape(),
+                                                   zero_point_constant->get_data_ptr<ov::bfloat16>(),
+                                                   zero_point_constant->get_shape(),
+                                                   fq->get_levels(),
+                                                   can_fuse_zero_point);
         break;
     }
     default:
         return nullptr;
     }
-    return new_weights;
+    return nullptr;
 }
 
 template <typename T>
@@ -832,6 +860,21 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                           input_high->get_data_ptr<ov::float16>(),
                                                           input_low->get_shape(),
                                                           zero_point_tensor.data<ov::float16>(),
+                                                          zero_point_tensor.get_shape(),
+                                                          levels,
+                                                          zero_point_is_zero,
+                                                          can_fuse_zero_point);
+        break;
+    }
+    case ov::element::bf16: {
+        new_weights = compress_quantized_weights_internal(low_precision_type,
+                                                          weights->get_data_ptr<ov::bfloat16>(),
+                                                          weights_shape,
+                                                          input_low->get_data_ptr<ov::bfloat16>(),
+                                                          input_low->get_shape(),
+                                                          input_high->get_data_ptr<ov::bfloat16>(),
+                                                          input_low->get_shape(),
+                                                          zero_point_tensor.data<ov::bfloat16>(),
                                                           zero_point_tensor.get_shape(),
                                                           levels,
                                                           zero_point_is_zero,

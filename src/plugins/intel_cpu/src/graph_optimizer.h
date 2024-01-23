@@ -5,8 +5,6 @@
 #pragma once
 
 #include "graph.h"
-#include "nodes/eltwise.h"
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {

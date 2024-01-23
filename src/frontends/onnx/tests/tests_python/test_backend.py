@@ -74,7 +74,6 @@ from tests import (
     xfail_issue_119925,
     xfail_issue_119926,
     xfail_issue_125485,
-    xfail_issue_125486,
     xfail_issue_125488,
     skip_issue_125487,
     skip_issue_125489,
@@ -418,19 +417,14 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
     ),
     (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_and_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
@@ -698,20 +692,9 @@ tests_expected_to_fail = [
     (
         xfail_issue_125485,
         "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
-    ),
-    (
-        xfail_issue_125486,
-        "OnnxBackendNodeModelTest.test_gelu_default_1_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_default_2_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_tanh_1_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_tanh_2_cpu",
     ),
     (
         xfail_issue_125488,
@@ -781,7 +764,10 @@ tests_expected_to_fail = [
     ),
     (
         skip_issue_124587,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset13_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset18_cpu",
     ),
 ]
 

@@ -51,7 +51,7 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2023.0/openvino_ir.html>`__ is the
+(IR) <https://docs.openvino.ai/2023.3/openvino_ir.html>`__ is the
 proprietary model format of OpenVINO. It is produced after converting a
 model with model conversion API. Model conversion API translates the
 frequently used deep learning operations to their respective similar
@@ -71,7 +71,7 @@ tool. You can choose one of them based on whichever is most convenient
 for you. There should not be any differences in the results of model
 conversion if the same set of parameters is used. For more details,
 refer to `Model
-Preparation <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+Preparation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 documentation.
 
 .. code:: ipython3
@@ -1007,9 +1007,9 @@ To convert a model to OpenVINO IR, use the following command:
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1046,20 +1046,20 @@ Both Python conversion API and Model Optimizer command-line tool provide
 the following capabilities: \* overriding original input shapes for
 model conversion with ``input`` and ``input_shape`` parameters. `Setting
 Input Shapes
-guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
+guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
 \* cutting off unwanted parts of a model (such as unsupported operations
 and training sub-graphs) using the ``input`` and ``output`` parameters
 to define new inputs and outputs of the converted model. `Cutting Off
 Parts of a Model
-guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
+guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
 \* inserting additional input pre-processing sub-graphs into the
 converted model by using the ``mean_values``, ``scales_values``,
 ``layout``, and other parameters. `Embedding Preprocessing Computation
-article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
+article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
 \* compressing the model weights (for example, weights for convolutions
 and matrix multiplications) to FP16 data type using ``compress_to_fp16``
 compression parameter. `Compression of a Model to FP16
-guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html>`__.
+guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html>`__.
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is
 specified) is not successful, it may be required to use the parameters
@@ -1080,7 +1080,7 @@ up static shapes, model conversion API provides the ``input`` and
 ``input_shape`` parameters.
 
 For more information refer to `Setting Input Shapes
-guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
+guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
 
 .. code:: ipython3
 
@@ -1103,9 +1103,9 @@ guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1122,9 +1122,9 @@ guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1173,9 +1173,9 @@ sequence length dimension for inputs:
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1218,9 +1218,9 @@ dimension:
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1261,7 +1261,7 @@ required:
 
 For a more detailed description, refer to the `Cutting Off Parts of a
 Model
-guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
+guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
 
 .. code:: ipython3
 
@@ -1286,9 +1286,9 @@ guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1305,9 +1305,9 @@ guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
@@ -1344,7 +1344,7 @@ This preprocessing block can perform mean-scale normalization of input
 data, reverting data along channel dimension, and changing the data
 layout. For more information on preprocessing, refer to the `Embedding
 Preprocessing Computation
-article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
+article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
 
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
@@ -1356,7 +1356,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Layout_Overview.html>`__.
+overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 
@@ -1381,9 +1381,9 @@ Resnet50 model that was exported to the ONNX format:
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1427,9 +1427,9 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1446,9 +1446,9 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1498,9 +1498,9 @@ that the preprocessing takes negligible time for inference.
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1517,9 +1517,9 @@ that the preprocessing takes negligible time for inference.
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1566,9 +1566,9 @@ the color channels before inference.
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin
@@ -1611,9 +1611,9 @@ models, this decrease is negligible.
 .. parsed-literal::
 
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/resnet.bin

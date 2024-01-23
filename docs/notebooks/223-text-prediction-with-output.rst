@@ -178,7 +178,7 @@ converted to OpenVINO Intermediate Representation (IR) format.
 HuggingFace provides a GPT-Neo model in PyTorch format, which is
 supported in OpenVINO via Model Conversion API. The ``ov.convert_model``
 Python function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface. The
 Model can also be save on device in OpenVINO IR format for future

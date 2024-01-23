@@ -93,7 +93,7 @@ void PriorBoxLayerTest::SetUp() {
 
     ov::pass::disable_constant_folding(priorBox);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBox)};
-    function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBox)};
+    function = std::make_shared <ov::Model>(results, params, "PriorBoxFunction");
 }
 } // namespace LayerTestsDefinitions

@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/selu.hpp"
+#include "op/selu.hpp"
 
 #include <memory>
 #include <vector>
 
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
-#include "op/selu.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

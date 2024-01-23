@@ -53,7 +53,7 @@ protected:
 class ConfigBase : public BehaviorTestsUtils::IEPluginTestBase {
 public:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::CNNNetwork cnnNet;
     std::map<std::string, std::string> configuration;
 };
