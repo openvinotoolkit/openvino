@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/op/util/framework_node.hpp"
-#include "tf_framework_node.hpp"
 
 namespace ov {
 namespace frontend {
