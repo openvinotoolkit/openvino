@@ -70,7 +70,7 @@ ssd_mobilenet_v2,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frame
 imagenet/mobilenet_v3_large_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-075-224-feature-vector/versions/1
 centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512-kpts/versions/1,skip,129153 TimeoutError or killed with a signal 11
 bert_cased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/cased-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
-biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2,129232 IndexError list index out of range for Squeeze
+biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2
 tf2-preview/gnews-swivel-20dim-with-oov,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim-with-oov/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
 tf2-preview/nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 efficientnet/b4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b4-feature-vector/versions/1
