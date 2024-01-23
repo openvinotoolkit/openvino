@@ -24,18 +24,18 @@ TEST(BrgemmExecutor, gemm_test) {
     std::vector<ov::bfloat16> a_scracth(gemm.get_scratch_a_size(), 0.0f);
 
     gemm.copy_buffer_b(b_data.data(), b_scracth.data());
-    size_t m_blocks = 2;
+    auto m_block_size = gemm.get_mblk_size();
+    auto m_blocks = (M + gemm.get_mblk_size() - 1) / m_block_size;
     ov::parallel_for2d(nthr, m_blocks, [&](size_t i, size_t m_blk) {
-        auto m_start = m_blk * 32;
-        auto m_end = std::min(m_start + 32, M);
+        auto m_start = m_blk * m_block_size;
+        auto m_end = std::min(m_start + m_block_size, M);
         auto m_cnt = m_end - m_start;
-        gemm.executeGemm(m_cnt,
-                         a_data.data(),
-                         b_data.data(),
-                         c_data.data() + i * M * N + m_start * N,
-                         wsp.data() + i * 4 * 1024,
-                         a_scracth.data(),
-                         b_scracth.data());
+        gemm.executeGemmPackedB(m_cnt < m_block_size,
+                                a_data.data() + m_start * K,
+                                b_scracth.data(),
+                                c_data.data() + i * M * N + m_start * N,
+                                wsp.data() + i * 4 * 1024,
+                                a_scracth.data());
     });
     ov::parallel_for(nthr, [&](size_t i){
         for (size_t m = 0; m < M; m++) {
