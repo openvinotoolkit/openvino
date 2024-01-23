@@ -103,7 +103,9 @@ void kv_cache_inst::post_realloc_optimization(const layout& allocated_layout) {
                 std::vector<primitive_id> mem_deps_eol;
                 for (auto kms : _network.get_kv_cache_mem_deps()) {
                     const auto kv_cache_id = kms.first;
-                    if (_network.has_event(kv_cache_id) && _network.get_primitive_event(kv_cache_id)->is_set()) {
+                    auto queue_type = get_network().get_stream().get_queue_type();
+                    if (queue_type == QueueTypes::in_order ||
+                        (_network.has_event(kv_cache_id) && _network.get_primitive_event(kv_cache_id)->is_set())) {
                         for (auto mem_deps : kms.second) {
                             mem_deps_eol.push_back(mem_deps);
                         }
