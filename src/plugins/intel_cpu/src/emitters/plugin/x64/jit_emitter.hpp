@@ -8,6 +8,7 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
+#include "emitters/utils.hpp"
 #include <node.h>
 
 #include <set>
@@ -18,39 +19,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
-inline std::string jit_emitter_pretty_name(const std::string &pretty_func) {
-    // Example:
-    //      pretty_func := void ov::intel_cpu::jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const
-    //      begin := -----------|
-    //      end := ---------------------------------------------------|
-    //      result := ov::intel_cpu::jit_load_memory_emitter
-    // Signatures:
-    //      GCC:   void foo() [with T = {type}]
-    //      clang: void foo() [T = {type}]
-    //      MSVC:  void __cdecl foo<{type}>(void)
-    auto parenthesis = pretty_func.find("(");
-    if (pretty_func[parenthesis - 1] == '>') { // To cover template on MSVC
-        parenthesis--;
-        size_t counter = 1;
-        while (counter != 0 && parenthesis > 0) {
-            parenthesis--;
-            if (pretty_func[parenthesis] == '>') counter++;
-            if (pretty_func[parenthesis] == '<') counter--;
-        }
-    }
-    const auto end = pretty_func.substr(0, parenthesis).rfind("::");
-    const auto begin = pretty_func.substr(0, end).rfind(" ") + 1;
-    return pretty_func.substr(begin, end - begin);
-}
-
-#ifdef __GNUC__
-#define OV_CPU_JIT_EMITTER_NAME jit_emitter_pretty_name(__PRETTY_FUNCTION__)
-#else /* __GNUC__ */
-#define OV_CPU_JIT_EMITTER_NAME jit_emitter_pretty_name(__FUNCSIG__)
-#endif /* __GNUC__ */
-#define OV_CPU_JIT_EMITTER_THROW(...) OPENVINO_THROW(OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
-#define OV_CPU_JIT_EMITTER_ASSERT(cond, ...) OPENVINO_ASSERT((cond), OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
 
 enum emitter_in_out_map {
     vec_to_vec,
