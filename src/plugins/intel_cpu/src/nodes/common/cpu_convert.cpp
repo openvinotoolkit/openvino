@@ -185,15 +185,13 @@ class jit_convert_array : public jit_kernel {
 
             auto tail_size = var<size_t>();
 
-            tail_size = size;
-            tail_size <<= static_cast<size_t>(std::logb(_src_size)) - 1;
-            copy<uint16_t>(tmp.pointer(), src, tail_size);
+            tail_size = size * _src_size;
+            copy<uint8_t>(tmp.pointer(), src, tail_size);
 
             _convert_vec(*this, tmp.pointer(), tmp.pointer());
 
-            tail_size = size;
-            tail_size <<= static_cast<size_t>(std::logb(_dst_size)) - 1;
-            copy<uint16_t>(dst, tmp.pointer(), tail_size);
+            tail_size = size * _dst_size;
+            copy<uint8_t>(dst, tmp.pointer(), tail_size);
         });
 
         postamble();
