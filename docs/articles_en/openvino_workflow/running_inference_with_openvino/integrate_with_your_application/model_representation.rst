@@ -118,7 +118,7 @@ You can create a model from source. This section illustrates how to construct a 
 Operation set ``opsetX`` integrates a list of pre-compiled operations that work for this purpose. In other words, ``opsetX``
 defines a set of operations for building a graph.
 
-To build an ``:ref:`ov::Model <doxid-classov_1_1_model>``` instance from ``opset8`` operations, include the following files:
+To build an ``ov::Model`` instance from ``opset8`` operations, include the following files:
 
 .. tab-set::
 
@@ -181,7 +181,7 @@ Model Debugging Capabilities
 OpenVINO™ provides several debug capabilities:
 
 * To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the
-``-DENABLE_OPENVINO_DEBUG=ON`` option.
+  ``-DENABLE_OPENVINO_DEBUG=ON`` option.
 
 * Model can be visualized to image from the xDot format:
 
