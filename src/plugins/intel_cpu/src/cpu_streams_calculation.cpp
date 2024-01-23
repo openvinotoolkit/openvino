@@ -417,13 +417,9 @@ int get_model_prefer_threads(const int num_streams,
 
 #if ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__linux__))
         config.modelPreferThreads = 4;
-        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::SPECIAL) {
-            config.modelPreferThreads = 16;
-        } else if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
                 config.modelPreferThreads = 8;
-            } else {
-                config.modelPreferThreads = 1;
             }
         } else if ((networkToleranceForLowCache.max_mem_tolerance < ov::MemBandwidthPressure::LIMITED) &&
                    ((networkToleranceForLowCache.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED) ||
