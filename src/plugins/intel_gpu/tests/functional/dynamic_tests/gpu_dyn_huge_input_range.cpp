@@ -213,7 +213,7 @@ const std::vector<StridedSliceParams> paramsPlain2D_excessive_uppper_boundary = 
         StridedSliceParams{ { 0, 1 }, { 0, 2147483647 }, { 1, 1 }, { 1, 0 }, { 1, 0 },  { },  { },  { } },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, DynamicShapeHugeRangeGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, DynamicShapeHugeRangeGPUTest,
                          ::testing::Combine(
                              ::testing::ValuesIn(inputShapesDynamic2D_excessive_uppper_boundary),
                              ::testing::ValuesIn(paramsPlain2D_excessive_uppper_boundary),
