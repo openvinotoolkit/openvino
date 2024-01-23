@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,7 @@
 #include "op/gather.hpp"
 #include "op/gather_elements.hpp"
 #include "op/gather_nd.hpp"
+#include "op/gelu.hpp"
 #include "op/gemm.hpp"
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
@@ -400,6 +401,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Gather", 1, gather);
     REGISTER_OPERATOR("GatherElements", 1, gather_elements);
     REGISTER_OPERATOR("GatherND", 1, gather_nd);
+    REGISTER_OPERATOR("Gelu", 1, gelu);
     REGISTER_OPERATOR("Gemm", 1, gemm);
     REGISTER_OPERATOR("Gemm", 6, gemm);
     REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
@@ -590,6 +592,7 @@ OperatorsBridge::OperatorsBridge() {
                                        VersionRange::since(1),
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
+    register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,
