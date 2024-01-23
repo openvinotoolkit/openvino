@@ -194,7 +194,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
-    _ngraph_function = ngraph::clone_function(*network.getFunction());
+    _ngraph_function = network.getFunction()->clone();
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
