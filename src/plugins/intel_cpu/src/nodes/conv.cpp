@@ -296,6 +296,12 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
+    const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                    inputDataType == memory::data_type::f32;
+    avx2DisableBrgconvHeuristic = (((IC == 1 && groupOC * groupNum == 1) || isDepthWise()) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -382,13 +388,8 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
-    const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                                    inputDataType == memory::data_type::f32;
-    const bool diableBrgConv = (((IC == 1 && groupOC * groupNum == 1) || isDepthWise()) && isAvx2FP32);
     const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                           !diableBrgConv;
+                                           !avx2DisableBrgconvHeuristic;
     return isBrgConvAvailable;
 }
 
@@ -1150,11 +1151,9 @@ bool Convolution::isNspcAvailable() const {
     auto inpDims = getInputShapeAtPort(0).getDims();
     auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
-
+    if (avx2DisableBrgconvHeuristic)
+        return false;
     if (isDepthWise()) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            return false;
         // 1d equivalent cases are painfully slow
         if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
             return false;
