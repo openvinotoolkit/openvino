@@ -26,7 +26,7 @@ IE_SUPPRESS_DEPRECATED_START
 //
 ILayerImpl::~ILayerImpl() {}
 ILayerExecImpl::~ILayerExecImpl() {}
-std::map<std::string, ngraph::OpSet> IExtension::getOpSets() {
+std::map<std::string, ov::OpSet> IExtension::getOpSets() {
     return {};
 }
 

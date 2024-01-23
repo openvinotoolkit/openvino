@@ -504,7 +504,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
             custom_opsets.insert(begin(opset), end(opset));
@@ -526,7 +526,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
             custom_opsets.insert(begin(opset), end(opset));
@@ -548,7 +548,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
             custom_opsets.insert(begin(opset), end(opset));

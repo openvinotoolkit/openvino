@@ -10,11 +10,10 @@
 #include <set>
 #include <utility>
 
-#include "ngraph/factory.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/opsets/factory.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 /**
  * @brief Run-time opset information
@@ -27,17 +26,15 @@ public:
     OpSet(const OpSet& opset);
     virtual ~OpSet() = default;
     OpSet& operator=(const OpSet& opset);
-    std::set<NodeTypeInfo>::size_type size() const {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        return m_op_types.size();
-    }
+
+    std::set<NodeTypeInfo>::size_type size() const;
 
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
     void insert(const std::string& name) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        std::lock_guard<std::mutex> guard(opset_mutex);
+        m_factory_registry.register_factory<OP_TYPE>();
+        insert(name, OP_TYPE::get_type_info_static());
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
@@ -46,9 +43,8 @@ public:
         insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
 
-    const std::set<NodeTypeInfo>& get_types_info() const {
-        return m_op_types;
-    }
+    const std::set<NodeTypeInfo>& get_types_info() const;
+
     /// \brief Create the op named name using it's factory
     ov::Node* create(const std::string& name) const;
 
@@ -56,10 +52,7 @@ public:
     ov::Node* create_insensitive(const std::string& name) const;
 
     /// \brief Return true if OP_TYPE is in the opset
-    bool contains_type(const NodeTypeInfo& type_info) const {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        return m_op_types.find(type_info) != m_op_types.end();
-    }
+    bool contains_type(const NodeTypeInfo& type_info) const;
 
     /// \brief Return true if OP_TYPE is in the opset
     template <typename OP_TYPE>
@@ -68,49 +61,24 @@ public:
     }
 
     /// \brief Return true if name is in the opset
-    bool contains_type(const std::string& name) const {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        return m_name_type_info_map.find(name) != m_name_type_info_map.end();
-    }
+    bool contains_type(const std::string& name) const;
 
     /// \brief Return true if name is in the opset
-    bool contains_type_insensitive(const std::string& name) const {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        return m_case_insensitive_type_info_map.find(to_upper_name(name)) != m_case_insensitive_type_info_map.end();
-    }
+    bool contains_type_insensitive(const std::string& name) const;
 
     /// \brief Return true if node's type is in the opset
-    bool contains_op_type(const Node* node) const {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        return m_op_types.find(node->get_type_info()) != m_op_types.end();
-    }
+    bool contains_op_type(const Node* node) const;
 
-    const std::set<NodeTypeInfo>& get_type_info_set() const {
-        return m_op_types;
-    }
+    const std::set<NodeTypeInfo>& get_type_info_set() const;
 
 protected:
-    /// \brief Insert an op into the opset with a particular name and factory
-    void insert(const std::string& name,
-                const NodeTypeInfo& type_info,
-                ngraph::FactoryRegistry<Node>::Factory factory) {
-        std::lock_guard<std::mutex> guard(opset_mutex);
-        m_op_types.insert(type_info);
-        m_name_type_info_map[name] = type_info;
-        m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
-        m_factory_registry.register_factory(type_info, std::move(factory));
-    }
-    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+    /// \brief Insert an op into the opset
+    void insert(const std::string& name, const NodeTypeInfo& type_info);
+
+    ov::FactoryRegistry<ov::Node> m_factory_registry;
 
 private:
-    static std::string to_upper_name(const std::string& name) {
-        std::string upper_name = name;
-        std::locale loc;
-        std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), [&loc](char c) {
-            return std::toupper(c, loc);
-        });
-        return upper_name;
-    }
+    static std::string to_upper_name(const std::string& name);
 
     std::string m_name;
     std::set<NodeTypeInfo> m_op_types;
@@ -190,4 +158,3 @@ const OPENVINO_API OpSet& get_opset13();
  */
 const OPENVINO_API std::map<std::string, std::function<const ov::OpSet&()>>& get_available_opsets();
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

@@ -52,7 +52,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/factory.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
@@ -65,9 +64,11 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/opsets/factory.hpp"
 
 // nGraph opsets
-#include "ngraph/opsets/opset.hpp"
+#include "openvino/opsets/opset.hpp"
 
 // nGraph passes
 #include "ngraph/pass/graph_rewrite.hpp"

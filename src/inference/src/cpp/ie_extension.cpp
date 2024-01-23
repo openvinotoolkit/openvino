@@ -73,6 +73,6 @@ Extension::Extension(const std::wstring& name) {
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
+std::map<std::string, ov::OpSet> Extension::getOpSets() {
     return _actual->getOpSets();
 }

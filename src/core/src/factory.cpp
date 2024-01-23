@@ -2,23 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/factory.hpp"
+#include "openvino/opsets/factory.hpp"
 
 #include <mutex>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-using namespace std;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-mutex& get_registry_mutex() {
-    static mutex registry_mutex;
-    return registry_mutex;
-}
-
+namespace ov {
 #ifndef _WIN32
-template class FactoryRegistry<ngraph::Node>;
+template class FactoryRegistry<Node>;
 #endif
-}  // namespace ngraph
+}  // namespace ov

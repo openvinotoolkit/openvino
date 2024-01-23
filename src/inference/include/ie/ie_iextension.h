@@ -29,7 +29,7 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_version.hpp"
-#include "ngraph/opsets/opset.hpp"
+#include "openvino/opsets/opset.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
@@ -176,14 +176,14 @@ public:
      * This method throws an exception if it was not implemented
      * @return map of opset name to opset
      */
-    virtual std::map<std::string, ngraph::OpSet> getOpSets();
+    virtual std::map<std::string, ov::OpSet> getOpSets();
 
     /**
      * @brief Returns vector of implementation types
      * @param node shared pointer to nGraph op
      * @return vector of strings
      */
-    virtual std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) {
+    virtual std::vector<std::string> getImplTypes(const std::shared_ptr<ov::Node>& node) {
         (void)node;
         return {};
     }
@@ -194,7 +194,7 @@ public:
      * @param implType implementation type
      * @return shared pointer to implementation
      */
-    virtual ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+    virtual ILayerImpl::Ptr getImplementation(const std::shared_ptr<ov::Node>& node, const std::string& implType) {
         (void)node;
         (void)implType;
         return nullptr;

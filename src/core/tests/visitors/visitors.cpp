@@ -6,10 +6,9 @@
 
 #include "openvino/op/ops.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-ngraph::FactoryRegistry<ov::Node>& ov::test::NodeBuilder::get_ops() {
-    static ngraph::FactoryRegistry<Node> registry = [] {
-        ngraph::FactoryRegistry<Node> registry;
+ov::FactoryRegistry<ov::Node>& ov::test::NodeBuilder::get_ops() {
+    static ov::FactoryRegistry<Node> registry = [] {
+        ov::FactoryRegistry<Node> registry;
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
 #undef _OPENVINO_OP_REG
@@ -17,4 +16,3 @@ ngraph::FactoryRegistry<ov::Node>& ov::test::NodeBuilder::get_ops() {
     }();
     return registry;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END

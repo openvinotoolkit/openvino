@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "ie_iextension.h"
-#include "ngraph/opsets/opset.hpp"
+#include "openvino/opsets/opset.hpp"
 
 namespace InferenceEngine {
 
@@ -74,14 +74,14 @@ public:
      * This method throws an exception if it was not implemented
      * @return map of opset name to opset
      */
-    std::map<std::string, ngraph::OpSet> getOpSets() override;
+    std::map<std::string, ov::OpSet> getOpSets() override;
 
     /**
      * @brief Returns vector of implementation types
      * @param node shared pointer to nGraph op
      * @return vector of strings
      */
-    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ov::Node>& node) override {
         if (node == nullptr)
             IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return _actual->getImplTypes(node);
@@ -93,7 +93,7 @@ public:
      * @param implType implementation type
      * @return shared pointer to implementation
      */
-    ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+    ILayerImpl::Ptr getImplementation(const std::shared_ptr<ov::Node>& node, const std::string& implType) override {
         if (node == nullptr)
             IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return _actual->getImplementation(node, implType);

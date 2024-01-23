@@ -7,15 +7,15 @@
 #include <process.h>
 #endif
 
+#include <openvino/pass/serialize.hpp>
 #include <thread>
 
-#include "openvino/runtime/device_id_parser.hpp"
-#include <openvino/pass/serialize.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "ie_icore.hpp"
+#include "openvino/opsets/opset.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
 
