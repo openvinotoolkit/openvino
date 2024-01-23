@@ -65,12 +65,7 @@ void BatchNormInference::validate_and_infer_types() {
                                                                   get_input_element_type(INPUT_MEAN),
                                                                   get_input_element_type(INPUT_VARIANCE)});
 
-    const auto inputs_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto channel_inputs_shapes = std::vector<PartialShape>{inputs_shapes[INPUT_GAMMA],
-                                                                 inputs_shapes[INPUT_BETA],
-                                                                 inputs_shapes[INPUT_MEAN],
-                                                                 inputs_shapes[INPUT_VARIANCE]};
-    const auto output_shapes = shape_infer(this, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, output_et, output_shapes.front());
 }
@@ -117,12 +112,7 @@ void BatchNormInference::validate_and_infer_types() {
                                                                   get_input_element_type(INPUT_MEAN),
                                                                   get_input_element_type(INPUT_VARIANCE)});
 
-    const auto inputs_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto channel_inputs_shapes = std::vector<PartialShape>{inputs_shapes[INPUT_GAMMA],
-                                                                 inputs_shapes[INPUT_BETA],
-                                                                 inputs_shapes[INPUT_MEAN],
-                                                                 inputs_shapes[INPUT_VARIANCE]};
-    const auto output_shapes = shape_infer(this, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, output_et, output_shapes.front());
 }

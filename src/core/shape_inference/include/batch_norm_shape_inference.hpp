@@ -4,25 +4,19 @@
 
 #pragma once
 
-// #include <cstdint>
+#include <vector>
 
-// #include "dimension_util.hpp"
-// #include "openvino/core/validation_util.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/batch_norm.hpp"
-// #include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace batch_norm {
-namespace util {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> infer_shape(const Op* op,
                                  const TShape& data_input_shape,
-                                 const std::vector<TShape>& channel_inputs_shapes,
-                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    // NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
-
+                                 const std::vector<TShape>& channel_inputs_shapes) {
     // Extract channel dimension from input shape.
     auto channel_dim = Dimension::dynamic();
     const auto data_input_rank = data_input_shape.rank();
@@ -65,35 +59,48 @@ std::vector<TRShape> infer_shape(const Op* op,
 
     // Batch result shape is same as the input shape, except we may possibly have inferred more
     // information from the channel count via gamma/beta/etc.
-    auto output_shape = data_input_shape;
+    auto outputs_shapes = std::vector<TRShape>{data_input_shape};
 
+    auto& output_shape = outputs_shapes[0];
     if (output_shape.rank().is_static()) {
         output_shape[1] = channel_dim;
     }
 
-    return {std::move(output_shape)};
+    return outputs_shapes;
 }
-}  // namespace util
 }  // namespace batch_norm
 
-namespace v0 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> shape_infer(const BatchNormInference* op,
-                                 const TShape& data_input_shape,
-                                 const std::vector<TShape>& channel_inputs_shapes,
-                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    return batch_norm::util::infer_shape(op, data_input_shape, channel_inputs_shapes, tensor_accessor);
-}
-}  // namespace v0
+std::vector<TRShape> shape_infer(const v0::BatchNormInference* op, const std::vector<TShape>& inputs_shapes) {
+    NODE_VALIDATION_CHECK(op, inputs_shapes.size() == 5);
 
-namespace v5 {
-template <class TShape, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> shape_infer(const BatchNormInference* op,
-                                 const TShape& data_input_shape,
-                                 const std::vector<TShape>& channel_inputs_shapes,
-                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    return batch_norm::util::infer_shape(op, data_input_shape, channel_inputs_shapes, tensor_accessor);
+    static constexpr size_t INPUT_GAMMA = 0;
+    static constexpr size_t INPUT_BETA = 1;
+    static constexpr size_t INPUT_DATA = 2;
+    static constexpr size_t INPUT_MEAN = 3;
+    static constexpr size_t INPUT_VARIANCE = 4;
+    const auto channel_inputs_shapes = std::vector<TShape>{inputs_shapes[INPUT_GAMMA],
+                                                           inputs_shapes[INPUT_BETA],
+                                                           inputs_shapes[INPUT_MEAN],
+                                                           inputs_shapes[INPUT_VARIANCE]};
+
+    return batch_norm::infer_shape(op, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
 }
-}  // namespace v5
+
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const v5::BatchNormInference* op, const std::vector<TShape>& inputs_shapes) {
+    NODE_VALIDATION_CHECK(op, inputs_shapes.size() == 5);
+
+    static constexpr size_t INPUT_DATA = 0;
+    static constexpr size_t INPUT_GAMMA = 1;
+    static constexpr size_t INPUT_BETA = 2;
+    static constexpr size_t INPUT_MEAN = 3;
+    static constexpr size_t INPUT_VARIANCE = 4;
+    const auto channel_inputs_shapes = std::vector<TShape>{inputs_shapes[INPUT_GAMMA],
+                                                           inputs_shapes[INPUT_BETA],
+                                                           inputs_shapes[INPUT_MEAN],
+                                                           inputs_shapes[INPUT_VARIANCE]};
+    return batch_norm::infer_shape(op, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
+}
 }  // namespace op
 }  // namespace ov
