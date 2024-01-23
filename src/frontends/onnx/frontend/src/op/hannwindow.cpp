@@ -7,10 +7,16 @@
 
 #include <math.h>
 
-#include <memory>
-
-#include "default_opset.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -27,39 +33,34 @@ OutputVector hannwindow(const Node& node) {
 
     // Weights as described in ONNX HannWindow docs
     // https://github.com/onnx/onnx/blob/main/docs/Operators.md#hannwindow
-    const auto float_size = std::make_shared<default_opset::Convert>(size, ov::element::f32);
-    const auto a_0 = std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.5f});
+    const auto float_size = std::make_shared<v0::Convert>(size, ov::element::f32);
+    const auto a_0 = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.5f});
     const auto a_1 = a_0;
 
-    const auto start =
-        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.0f});
-    const auto one_const =
-        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{1.0f});
-    const auto two_const =
-        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{2.0f});
-    const auto range = std::make_shared<default_opset::Range>(start, size, one_const, ov::element::f32);
-    const auto pi =
-        default_opset::Constant::create(ov::element::f32, ov::Shape(), std::vector<float>{static_cast<float>(M_PI)});
+    const auto start = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.0f});
+    const auto one_const = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{1.0f});
+    const auto two_const = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{2.0f});
+    const auto range = std::make_shared<v4::Range>(start, size, one_const, ov::element::f32);
+    const auto pi = v0::Constant::create(ov::element::f32, ov::Shape(), std::vector<float>{static_cast<float>(M_PI)});
     std::shared_ptr<ov::Node> factor;
     if (periodic) {
-        factor = std::make_shared<default_opset::Multiply>(
+        factor = std::make_shared<v1::Multiply>(
             range,
-            std::make_shared<default_opset::Divide>(std::make_shared<default_opset::Multiply>(pi, two_const),
-                                                    float_size));
+            std::make_shared<v1::Divide>(std::make_shared<v1::Multiply>(pi, two_const), float_size));
     } else {
-        factor = std::make_shared<default_opset::Multiply>(
+        factor = std::make_shared<v1::Multiply>(
             range,
-            std::make_shared<default_opset::Divide>(std::make_shared<default_opset::Multiply>(pi, two_const),
-                                                    std::make_shared<default_opset::Subtract>(float_size, one_const)));
+            std::make_shared<v1::Divide>(std::make_shared<v1::Multiply>(pi, two_const),
+                                         std::make_shared<v1::Subtract>(float_size, one_const)));
     }
 
-    const auto cos = std::make_shared<default_opset::Cos>(factor);
-    const auto scaled_cos = std::make_shared<default_opset::Multiply>(cos, a_1);
-    const auto y_values = std::make_shared<default_opset::Subtract>(a_0, scaled_cos);
+    const auto cos = std::make_shared<v0::Cos>(factor);
+    const auto scaled_cos = std::make_shared<v1::Multiply>(cos, a_1);
+    const auto y_values = std::make_shared<v1::Subtract>(a_0, scaled_cos);
     if (output_datatype == element::f32) {
         return {y_values};
     } else {
-        return {std::make_shared<default_opset::Convert>(y_values, output_datatype)};
+        return {std::make_shared<v0::Convert>(y_values, output_datatype)};
     }
 }
 }  // namespace set_1

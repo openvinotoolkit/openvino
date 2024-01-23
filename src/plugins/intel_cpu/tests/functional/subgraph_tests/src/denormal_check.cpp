@@ -6,36 +6,14 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
 namespace test {
 
-template<typename T>
-class AlignedBufferWrapper {
-public:
-    AlignedBufferWrapper(size_t size, size_t alignment) {
-        _buffer.reset(new ngraph::runtime::AlignedBuffer(size * sizeof(T), alignment));
-    }
-    AlignedBufferWrapper(const AlignedBufferWrapper&) = delete;
-    AlignedBufferWrapper& operator=(const AlignedBufferWrapper&) = delete;
-    AlignedBufferWrapper(AlignedBufferWrapper&&) = default;
-    AlignedBufferWrapper& operator=(AlignedBufferWrapper&&) = default;
-
-    T* get_ptr() {
-        return _buffer->get_ptr<T>();
-    }
-
-    size_t size() const {
-        return _buffer->size() / sizeof(T);
-    }
-private:
-    std::unique_ptr<ngraph::runtime::AlignedBuffer> _buffer = nullptr;
-};
-
 class DenormalNullifyCheck : public SubgraphBaseTest {
 protected:
-std::unique_ptr<AlignedBufferWrapper<float>> pConstStorage;
+std::unique_ptr<ov::AlignedBuffer> pConstStorage;
 
 void validate() override {
     const auto& actualOutputs = get_plugin_outputs();
@@ -63,7 +41,7 @@ void SetUp() override {
     const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
-    pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
+    pConstStorage.reset(new ov::AlignedBuffer(elemsCount, alignment));
 
     auto constTensor = ov::Tensor(rtPrc, inpShape, pConstStorage->get_ptr());
     auto constNode = std::make_shared<ov::op::v0::Constant>(constTensor);
@@ -78,7 +56,7 @@ void SetUp() override {
 
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
     using indexInterval = std::pair<size_t, size_t>;
-    size_t elemsCount = pConstStorage->size();
+    size_t elemsCount = pConstStorage->size() / sizeof(float);
     const indexInterval intervals[] = {
         {0, elemsCount/2},
         {elemsCount/2, elemsCount},
@@ -99,9 +77,9 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
                 auto denormal = random.Generate(denormalsRange) + 1;
                 float tmp;
                 memcpy(&tmp, &denormal, sizeof(float));
-                pConstStorage->get_ptr()[i] = tmp;
+                pConstStorage->get_ptr<float>()[i] = tmp;
             } else {
-                pConstStorage->get_ptr()[i] = randomRange[i];
+                pConstStorage->get_ptr<float>()[i] = randomRange[i];
             }
         }
 

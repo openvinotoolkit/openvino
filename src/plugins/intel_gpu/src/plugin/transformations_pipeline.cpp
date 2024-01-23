@@ -123,6 +123,7 @@
 #include "plugin/transformations/move_convert_after_gather.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
+#include "plugin/transformations/clamp_fp16_output.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -693,6 +694,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();

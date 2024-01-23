@@ -4,9 +4,9 @@
 
 #include "op/lrn.hpp"
 
-#include <memory>
+#include "openvino/op/lrn.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -20,7 +20,7 @@ OutputVector lrn(const Node& node) {
     double bias = node.get_attribute_value<double>("bias", 1);
     size_t size = node.get_attribute_value<size_t>("size");
 
-    return {std::make_shared<default_opset::LRN>(data, alpha, beta, bias, size)};
+    return {std::make_shared<v0::LRN>(data, alpha, beta, bias, size)};
 }
 
 }  // namespace set_1

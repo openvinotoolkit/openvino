@@ -44,13 +44,13 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indPrecision);
 
-    auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(ngPrc, ngraph::Shape(embTableShape));
-    ngraph::ParameterVector params = {emb_table_node};
+    auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(embTableShape));
+    ov::ParameterVector params = {emb_table_node};
 
     auto embBag = std::dynamic_pointer_cast<ov::op::v3::EmbeddingSegmentsSum>(
             ngraph::builder::makeEmbeddingSegmentsSum(
                 ngPrc, ngIdxPrc, emb_table_node, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
-    function = std::make_shared<ngraph::Function>(results, params, "embeddingSegmentsSum");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
+    function = std::make_shared<ov::Model>(results, params, "embeddingSegmentsSum");
 }
 }  // namespace LayerTestsDefinitions

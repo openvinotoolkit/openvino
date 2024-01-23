@@ -32,7 +32,7 @@ public:
     std::shared_ptr<Emitter> get_emitter() const;
 
     RegInfo get_reg_info() const;
-    void set_reg_info(RegInfo rinfo);
+    void set_reg_info(const RegInfo& rinfo);
 
     const PortConnectorPtr& get_input_port_connector(size_t i) const;
     const PortConnectorPtr& get_output_port_connector(size_t i) const;
