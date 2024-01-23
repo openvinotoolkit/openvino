@@ -80,6 +80,8 @@ public:
         return max_pad;
     }
 
+    void post_realloc_optimization(const layout& allocated_layout);
+
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 };

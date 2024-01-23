@@ -596,57 +596,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
     // Set variable memory same as output memory
     if (_node->is_type<kv_cache>()) {
-        auto desc = _node->as<kv_cache>().get_primitive();
-        auto& variable = get_network().get_variable(desc->variable_info.variable_id);
-        auto present_layout = _impl_params->output_layouts[0];
-        const auto& sequence_axis = desc->concat_axis;
-        auto sequence_axis_legacy =
-            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout.get_partial_shape().size());
-        GPU_DEBUG_TRACE_DETAIL << id() << " is kv_cache => set the variable with newly allocated output memory"
-                               << std::endl;
-        bool axis_is_outer_most = true;
-        for (int64_t dim = 0; dim < sequence_axis; ++dim) {
-            if (present_layout.get_shape()[dim] > 1) {
-                axis_is_outer_most = false;
-                break;
-            }
-        }
-        if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] == 1) {
-            // Apply padding of variable to make it be optimized in the next iteration
-            auto max_pad = kv_cache_inst::get_max_pad(present_layout,
-                                                      updated_params.output_layouts[0].get_buffer_size().count(),
-                                                      sequence_axis_legacy,
-                                                      "present_layout");
-            if (max_pad > 0) {
-                kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis_legacy);
-                if (!axis_is_outer_most) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": Update impl with new output padding" << std::endl;
-                    set_shape_change();
-                    _impl_params->output_layouts[0] = present_layout;
-                    update_impl();
-                }
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
-                                       << "'s memory with allocated kv cache output: "
-                                       << present_layout.to_short_string() << " is_set  = " << variable.is_set()
-                                       << std::endl;
-                variable.set_memory(_outputs[0], present_layout);
-                _impl_params->_can_be_optimized = true;
-                // No need to copy, still it can be optimized
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Set can_be_optimized = true " << std::endl;
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
-                                       << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
-                                       << " (is_set  = " << variable.is_set() << ") " << std::endl;
-                variable.set_layout(present_layout);
-            }
-        } else {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
-                                   << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
-                                   << " (is_set  = " << variable.is_set() << ") " << std::endl;
-            variable.set_layout(present_layout);
-        }
+        dynamic_cast<kv_cache_inst*>(this)->post_realloc_optimization(updated_params.output_layouts[0]);
     }
-
     _mem_allocated = true;
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
