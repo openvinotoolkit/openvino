@@ -100,8 +100,8 @@ void InterpolateLayerTest::SetUp() {
                                                                     axesInput,
                                                                     interpolateAttributes);
     }
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 //Interpolate-1
@@ -164,8 +164,8 @@ void Interpolate1LayerTest::SetUp() {
 
     auto interpolate = std::make_shared<ov::op::v0::Interpolate>(params[0], sizesInput, interpolateAttributes);
 
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 namespace v11 {
@@ -261,8 +261,8 @@ void InterpolateLayerTest::SetUp() {
                                                                      axesInput,
                                                                      interpolateAttributes);
     }
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    function = std::make_shared<ov::Model>(results, params, "interpolate");
 }
 
 } // namespace v11

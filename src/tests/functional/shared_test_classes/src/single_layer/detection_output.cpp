@@ -96,8 +96,8 @@ void DetectionOutputLayerTest::GenerateInputs() {
 }
 
 void DetectionOutputLayerTest::Compare(
-    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+        const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+        const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
         const auto &expected = expectedOutputs[outputIndex].second;
         const auto &actual = actualOutputs[outputIndex];
@@ -164,7 +164,7 @@ void DetectionOutputLayerTest::SetUp() {
     else
         OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
-    function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(detOut)};
+    function = std::make_shared<ov::Model>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions

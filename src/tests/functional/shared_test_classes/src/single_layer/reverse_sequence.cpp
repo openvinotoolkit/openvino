@@ -40,7 +40,7 @@ void ReverseSequenceLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto secondPrc = ov::element::Type_t::i32;  // according to the specification
+    auto secondPrc = ov::element::Type_t::i32; //according to the specification
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -49,8 +49,8 @@ void ReverseSequenceLayerTest::SetUp() {
     }
 
     auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
+    function = std::make_shared<ov::Model>(results, paramsIn, "ReverseSequence");
 }
 
 } // namespace LayerTestsDefinitions

@@ -365,7 +365,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
         ie.QueryNetwork(actualCnnNetwork, target_device);
     } catch (const InferenceEngine::Exception& ex) {
         std::string message = ex.what();
-        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ov::Model is not supported natively");
     }
 }
 
@@ -383,7 +383,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
         }
     } catch (const InferenceEngine::Exception& ex) {
         std::string message = ex.what();
-        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ov::Model is not supported natively");
     }
 }
 
@@ -419,30 +419,32 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
     try {
-        std::shared_ptr<ngraph::Function> func;
+        std::shared_ptr<ov::Model> func;
         {
-            ngraph::PartialShape shape({1, 84});
+            ov::PartialShape shape({1, 84});
             ov::element::Type type(ov::element::Type_t::f32);
             auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-            auto matMulWeights = ov::op::v0::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
+            auto matMulWeights =
+                    ov::op::v0::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
             auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(matMulWeights);
             auto gConst1 = ov::op::v0::Constant::create(ov::element::Type_t::i32, {1}, {1});
             auto gConst2 = ov::op::v0::Constant::create(ov::element::Type_t::i64, {}, {0});
             auto gather = std::make_shared<ov::op::v1::Gather>(shapeOf, gConst1, gConst2);
             auto concatConst = ov::op::v0::Constant::create(ov::element::Type_t::i64, {1}, {1});
             auto concat =
-                    std::make_shared<ov::op::v0::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
+                    std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concatConst, gather}, 0);
             auto relu = std::make_shared<ov::op::v0::Relu>(param);
             auto reshape = std::make_shared<ov::op::v1::Reshape>(relu, concat, false);
             auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, matMulWeights, false, true);
-            auto matMulBias = ov::op::v0::Constant::create(ov::element::Type_t::f32, {1, 10}, {1});
+            auto matMulBias =
+                    ov::op::v0::Constant::create(ov::element::Type_t::f32, {1, 10}, {1});
             auto addBias = std::make_shared<ov::op::v1::Add>(matMul, matMulBias);
             auto result = std::make_shared<ov::op::v0::Result>(addBias);
 
-            ngraph::ParameterVector params = {param};
-            ngraph::ResultVector results = {result};
+            ov::ParameterVector params = {param};
+            ov::ResultVector results = {result};
 
-            func = std::make_shared<ngraph::Function>(results, params);
+            func = std::make_shared<ov::Model>(results, params);
         }
         InferenceEngine::CNNNetwork net(func);
 
@@ -460,7 +462,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork,  target_device);
     } catch (const InferenceEngine::NotImplemented & ex) {
         std::string message = ex.what();
-        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ov::Model is not supported natively");
     }
 }
 
@@ -483,7 +485,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork,  target_device);
     } catch (const InferenceEngine::Exception& ex) {
         std::string message = ex.what();
-        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ov::Model is not supported natively");
     }
 }
 
@@ -841,7 +843,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
 TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork actualCnnNetwork;
-    std::shared_ptr<ngraph::Function> actualNetwork = ov::test::utils::make_split_conv_concat();
+    std::shared_ptr<ov::Model> actualNetwork = ov::test::utils::make_split_conv_concat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));

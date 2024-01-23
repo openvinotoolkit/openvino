@@ -48,17 +48,17 @@ typedef std::tuple<
         std::string                     // Device name
 > globalPoolLayerTestParamsSet;
 
-typedef std::tuple<std::vector<size_t>,   // Kernel size
-                   std::vector<size_t>,   // Stride
-                   std::vector<size_t>,   // Dilation
-                   std::vector<size_t>,   // Pad begin
-                   std::vector<size_t>,   // Pad end
-                   ov::element::Type_t,   // Index element type
-                   int64_t,               // Axis
-                   ov::op::RoundingType,  // Rounding type
-                   ov::op::PadType        // Pad type
-                   >
-    maxPoolV8SpecificParams;
+typedef std::tuple<
+        std::vector<size_t>,            // Kernel size
+        std::vector<size_t>,            // Stride
+        std::vector<size_t>,            // Dilation
+        std::vector<size_t>,            // Pad begin
+        std::vector<size_t>,            // Pad end
+        ov::element::Type_t,        // Index element type
+        int64_t,                        // Axis
+        ov::op::RoundingType,       // Rounding type
+        ov::op::PadType             // Pad type
+> maxPoolV8SpecificParams;
 
 typedef std::tuple<
         maxPoolV8SpecificParams,

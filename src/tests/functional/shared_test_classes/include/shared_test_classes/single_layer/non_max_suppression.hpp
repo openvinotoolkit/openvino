@@ -37,9 +37,9 @@ using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st an
                              float,             // Score threshold
                              float,             // Soft NMS sigma
                              ov::op::v5::NonMaxSuppression::BoxEncodingType,  // Box encoding
-                             bool,                                            // Sort result descending
+                             bool,                                                // Sort result descending
                              ov::element::Type,                               // Output type
-                             std::string>;                                    // Device name
+                             std::string>;                                        // Device name
 
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:

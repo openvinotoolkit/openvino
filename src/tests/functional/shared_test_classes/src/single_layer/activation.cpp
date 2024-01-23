@@ -44,14 +44,14 @@ void ActivationLayerTest::SetUp() {
     params[0]->set_friendly_name("Input");
 
     if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
-        const auto elemnts_count = ngraph::shape_size(shapes.second);
+        const auto elemnts_count = ov::shape_size(shapes.second);
         constantsValue.resize(elemnts_count);
         std::iota(constantsValue.begin(), constantsValue.end(), -10);
     }
 
     auto activation = ov::test::utils::make_activation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params);
 }
 
 InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -150,8 +150,7 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
                                             resolution);
 }
 
-ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ov::element::Type ngPrc,
-                                                                         std::vector<size_t> inShape) {
+ov::ParameterVector ActivationParamLayerTest::createActivationParams(ov::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
             ov::ParameterVector negativeSlopeParam {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inShape))};
@@ -186,12 +185,12 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
     InferenceEngine::Blob::Ptr blobPtr;
     const std::string& name = info.name();
     if (name == "negativeSlope") {
-        const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
+        const auto elemnts_count = ov::shape_size(function->get_parameters()[1]->get_shape());
         std::vector<float> param_data(elemnts_count);
         std::iota(param_data.begin(), param_data.end(), -10);
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
     } else if (name == "leakySlope") {
-        const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
+        const auto elemnts_count = ov::shape_size(function->get_parameters()[1]->get_shape());
         std::vector<float> param_data(elemnts_count, constantsValue[0]);
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
     } else if (name == "alpha") {
@@ -220,13 +219,13 @@ void ActivationParamLayerTest::SetUp() {
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
     auto activation = ov::test::utils::make_activation(params, ngPrc, activationType);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(activation)};
-    function = std::make_shared<ngraph::Function>(results, params);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(activation)};
+    function = std::make_shared<ov::Model>(results, params);
 }
 
 void ActivationDynamicLayerTest::Run() {
     const auto& params = function->get_parameters();
-    ngraph::PartialShape output_shape;
+    ov::PartialShape output_shape;
 
     // make each parameter dimension dynamic with range {1 .. prev_dim * 2}
     for (const auto& parameter : params) {

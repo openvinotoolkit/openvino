@@ -54,8 +54,8 @@ void MultinomialTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
     }
 
-    auto numSamplesConstant =
-        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{1}, numSamples);
+    auto numSamplesConstant = std::make_shared<ov::op::v0::Constant>(
+        ov::element::Type_t::i64, ov::Shape{1}, numSamples);
     const auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
@@ -68,7 +68,7 @@ void MultinomialTest::SetUp() {
         0,
         2);
 
-    function = std::make_shared<ngraph::Function>(multinomial, params, "Multinomial");
+    function = std::make_shared<ov::Model>(multinomial, params, "Multinomial");
 }
 
 } // namespace subgraph

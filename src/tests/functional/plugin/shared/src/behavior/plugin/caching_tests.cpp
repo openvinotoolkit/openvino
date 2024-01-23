@@ -26,12 +26,12 @@ using namespace std::placeholders;
 
 namespace LayerTestsDefinitions {
 
-static std::shared_ptr<ngraph::Function> simple_function_multiply(ov::element::Type type, size_t batchSize) {
+static std::shared_ptr<ov::Model> simple_function_multiply(ov::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
-    auto constant = ov::op::v0::Constant::create(type, ngraph::Shape{1}, {2});
+    auto constant = ov::op::v0::Constant::create(type, ov::Shape{1}, {2});
     constant->set_friendly_name("constant");
     auto mul = std::make_shared<ov::op::v1::Multiply>(data, constant);
     mul->set_friendly_name("mul");
@@ -41,14 +41,14 @@ static std::shared_ptr<ngraph::Function> simple_function_multiply(ov::element::T
     res->set_friendly_name("res");
 
     // Create nGraph function
-    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
+    auto func = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
     func->set_friendly_name("function");
     return func;
 }
 
-static std::shared_ptr<ngraph::Function> simple_function_relu(ov::element::Type type, size_t batchSize) {
+static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ov::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
     auto relu = std::make_shared<ov::op::v0::Relu>(data);
@@ -59,7 +59,7 @@ static std::shared_ptr<ngraph::Function> simple_function_relu(ov::element::Type 
     res->set_friendly_name("res");
 
     // Create nGraph function
-    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
+    auto func = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
     func->set_friendly_name("function");
     return func;
 }
@@ -120,10 +120,9 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunc
 
 std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
-    res.push_back(nGraphFunctionWithName{[](ov::element::Type type, size_t batchSize) {
-                                             return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
-                                         },
-                                         "TIwithLSTMcell1"});
+    res.push_back(nGraphFunctionWithName { [](ov::element::Type type, size_t batchSize) {
+        return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
+    }, "TIwithLSTMcell1"});
     return res;
 }
 
@@ -161,8 +160,7 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
-    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" +
-           deviceName;
+    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
@@ -260,7 +258,7 @@ std::string LoadNetworkCompiledKernelsCacheTest::getTestCaseName(testing::TestPa
 
 TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    // Create CNNNetwork from ngraph::Function
+    // Create CNNNetwork from ov::Model
     InferenceEngine::CNNNetwork cnnNet(function);
     ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path }});
     try {
@@ -291,7 +289,7 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
 
 TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    // Create two CNNNetwork from same ngraph::Function
+    // Create two CNNNetwork from same ov::Model
     InferenceEngine::CNNNetwork cnnNet1(function);
     InferenceEngine::CNNNetwork cnnNet2(function);
     ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path }});
@@ -340,7 +338,7 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    // Create CNNNetwork from ngraph::Function
+    // Create CNNNetwork from ov::Model
     InferenceEngine::CNNNetwork cnnNet(function);
     for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
         std::wstring postfix  = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];

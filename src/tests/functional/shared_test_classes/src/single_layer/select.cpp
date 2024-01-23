@@ -28,17 +28,16 @@ namespace LayerTestsDefinitions {
         ov::op::AutoBroadcastSpec broadcast;
         std::tie(inputShapes, inputPrecision, broadcast, targetDevice) = this->GetParam();
 
-        ngraph::ParameterVector paramNodesVector;
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean,
-                                                                 ngraph::Shape(inputShapes[CONDITION]));
+        ov::ParameterVector paramNodesVector;
+        auto paramNode = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape(inputShapes[CONDITION]));
         paramNodesVector.push_back(paramNode);
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         for (size_t i = 1; i < inputShapes.size(); i++) {
-            paramNode = std::make_shared<ov::op::v0::Parameter>(inType, ngraph::Shape(inputShapes[i]));
+            paramNode = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes[i]));
             paramNodesVector.push_back(paramNode);
         }
         auto select = std::make_shared<ov::op::v1::Select>(paramNodesVector[0], paramNodesVector[1], paramNodesVector[2], broadcast);
-        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(select)};
-        function = std::make_shared<ngraph::Function>(results, paramNodesVector, "select");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(select)};
+        function = std::make_shared<ov::Model>(results, paramNodesVector, "select");
     }
 }  // namespace LayerTestsDefinitions

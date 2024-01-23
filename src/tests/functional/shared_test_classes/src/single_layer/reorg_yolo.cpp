@@ -7,7 +7,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple> &obj) {
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     size_t stride;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
@@ -21,13 +21,13 @@ std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<Reo
 }
 
 void ReorgYoloLayerTest::SetUp() {
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     size_t stride;
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, stride, netPrecision, targetDevice) = this->GetParam();
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
     auto reorg_yolo = std::make_shared<ov::op::v0::ReorgYolo>(param, stride);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(reorg_yolo), ngraph::ParameterVector{param}, "ReorgYolo");
+    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(reorg_yolo), ov::ParameterVector{param}, "ReorgYolo");
 }
 
 } // namespace LayerTestsDefinitions

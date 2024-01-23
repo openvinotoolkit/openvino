@@ -71,8 +71,9 @@ void NmsLayerTest::GenerateInputs() {
     }
 }
 
-void NmsLayerTest::Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-                           const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+void NmsLayerTest::Compare(
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
 

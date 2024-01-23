@@ -17,7 +17,7 @@ std::string TensorNamesTest::getTestCaseName(const testing::TestParamInfo<constR
 void TensorNamesTest::SetUp() {
     std::tie(targetDevice) = this->GetParam();
 
-    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
     parameter->set_friendly_name("parameter");
     parameter->get_output_tensor(0).set_names({"input"});
     auto relu_prev = std::make_shared<ov::op::v0::Relu>(parameter);
@@ -26,10 +26,10 @@ void TensorNamesTest::SetUp() {
     auto relu = std::make_shared<ov::op::v0::Relu>(relu_prev);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu,t", "identity"});
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
     results[0]->set_friendly_name("out");
-    ngraph::ParameterVector params{parameter};
-    function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
+    ov::ParameterVector params{parameter};
+    function = std::make_shared<ov::Model>(results, params, "TensorNames");
 }
 
 }  // namespace SubgraphTestsDefinitions

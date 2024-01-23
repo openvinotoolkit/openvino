@@ -64,10 +64,9 @@ class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOut
     ov::op::v0::DetectionOutput::Attributes attrs;
     std::vector<InferenceEngine::SizeVector> inShapes;
     void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
-
-protected:
+    void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
+  protected:
     void SetUp() override;
 };
 

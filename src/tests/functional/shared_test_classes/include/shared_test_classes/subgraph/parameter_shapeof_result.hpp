@@ -14,10 +14,10 @@
 
 namespace SubgraphTestsDefinitions {
 
-typedef std::tuple<ov::element::Type,  // Input type
-                   std::string         // Device name
-                   >
-    parameterShapeOfResultParams;
+typedef std::tuple<
+    ov::element::Type, // Input type
+    std::string            // Device name
+> parameterShapeOfResultParams;
 
 class ParameterShapeOfResultSubgraphTest : public testing::WithParamInterface<parameterShapeOfResultParams>,
                                            virtual public LayerTestsUtils::LayerTestsCommon {

@@ -105,12 +105,10 @@ void SetBlobTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(IS))};
-    auto axisNode =
-        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})
-            ->output(0);
+    auto axisNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{-1})->output(0);
     auto cumSum = std::make_shared<ov::op::v0::CumSum>(params[0], axisNode, false, false);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(cumSum)};
-    function = std::make_shared<ngraph::Function>(results, params, "InferSetBlob");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(cumSum)};
+    function = std::make_shared<ov::Model>(results, params, "InferSetBlob");
 }
 
 TEST_P(SetBlobTest, CompareWithRefs) {

@@ -12,17 +12,17 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ov_models/builders.hpp"
 namespace LayerTestsDefinitions {
-typedef std::tuple<ov::element::Type,             // depth type (any integer type)
-                   int64_t,                       // depth value
-                   ov::element::Type,             // On & Off values type (any supported type)
-                   float,                         // OnValue
-                   float,                         // OffValue
-                   int64_t,                       // axis
-                   InferenceEngine::Precision,    // Net precision
-                   InferenceEngine::SizeVector,   // Input shapes
-                   LayerTestsUtils::TargetDevice  // Target device name
-                   >
-    oneHotLayerTestParamsSet;
+typedef std::tuple<
+        ov::element::Type,          // depth type (any integer type)
+        int64_t,                        // depth value
+        ov::element::Type,          // On & Off values type (any supported type)
+        float,                          // OnValue
+        float,                          // OffValue
+        int64_t,                        // axis
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::SizeVector,    // Input shapes
+        LayerTestsUtils::TargetDevice   // Target device name
+> oneHotLayerTestParamsSet;
 
 class OneHotLayerTest : public testing::WithParamInterface<oneHotLayerTestParamsSet>,
                      virtual public LayerTestsUtils::LayerTestsCommon {

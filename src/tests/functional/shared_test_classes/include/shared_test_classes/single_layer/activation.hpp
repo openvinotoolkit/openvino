@@ -104,7 +104,8 @@ protected:
 private:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void generateActivationBlob(std::vector<float> constantsValue);
-    ngraph::ParameterVector createActivationParams(ov::element::Type ngPrc, std::vector<size_t> inShape = {});
+    ov::ParameterVector createActivationParams(
+        ov::element::Type ngPrc, std::vector<size_t> inShape = {});
 
 private:
     std::vector<float> constantsValue;
