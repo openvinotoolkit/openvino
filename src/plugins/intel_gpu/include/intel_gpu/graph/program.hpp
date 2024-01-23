@@ -274,7 +274,33 @@ public:
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
-    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
+    class ImplementationsCache : public cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher> {
+    public:
+        using parent = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
+        explicit ImplementationsCache(size_t caps) : parent(caps) {
+        }
+
+        bool is_waiting(const kernel_impl_params& p) {
+            return (_waiting_set.find(p.hash()) != _waiting_set.end());
+        }
+
+        void add_to_waiting(const kernel_impl_params& p) {
+            size_t hash = p.hash();
+            if (!is_waiting(p))
+                _waiting_set.insert(hash);
+        }
+
+        void remove_from_waiting(const kernel_impl_params& p) {
+            size_t hash = p.hash();
+            if (is_waiting(p))
+                _waiting_set.erase(hash);
+        }
+
+    private:
+        std::set<size_t> _waiting_set;
+    };
+
+    // using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }

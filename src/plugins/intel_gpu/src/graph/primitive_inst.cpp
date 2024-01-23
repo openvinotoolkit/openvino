@@ -787,11 +787,18 @@ bool primitive_inst::update_impl() {
             if (_dynamic_impl || is_current_impl_dynamic) {
                 if (use_async_compilation()) {
                     auto& compilation_context = prog->get_compilation_context();
+
+                    cache.add_to_waiting(updated_params_no_dyn_pad);
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
                         if (compilation_context.is_stopped())
                             return;
                         auto _program = get_network().get_program();
                         auto& cache = _program->get_implementations_cache();
+                        if (cache.is_waiting(updated_params_no_dyn_pad)) {
+                            // std::cout << __FILE__ << ":" << __LINE__ << " " << updated_params_no_dyn_pad.hash()
+                            //     << "is Waiting!!!!" << std::endl;
+                            return;
+                        }
                         {
                             // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
                             // tasks created for same shapes
@@ -807,6 +814,8 @@ bool primitive_inst::update_impl() {
                             }
                             cache.add(updated_params_no_dyn_pad, impl->clone());
                         }
+
+                        cache.remove_from_waiting(updated_params_no_dyn_pad);
                     });
                 }
                 if (!can_be_optimized())  {
