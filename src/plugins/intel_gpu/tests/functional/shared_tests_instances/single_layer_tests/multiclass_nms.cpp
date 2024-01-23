@@ -207,10 +207,6 @@ void MulticlassNmsLayerTestGPU::GetOutputParams(size_t& numBatches, size_t& maxO
 
 void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutputs,
                                      const std::vector<ov::Tensor> &actualOutputs) {
-    if (targetDevice != ov::test::utils::DEVICE_GPU) {
-        SubgraphBaseTest::compare(expectedOutputs, actualOutputs);
-        return;
-    }
     auto batchIndex = -1; // output index for output 'selected_num'
     size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
