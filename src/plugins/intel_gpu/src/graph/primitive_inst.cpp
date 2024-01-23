@@ -544,7 +544,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
 
     // If we allocated too large memory, reclaim the memory.
-    if (updated_layout.count() * 10 < _max_output_layout_count) {
+    if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;
@@ -584,6 +584,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
         if (need_reset_output_memory() && !can_be_optimized()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
             ev = _outputs[0]->fill(_network.get_stream());
         }
     } else {
@@ -1098,7 +1099,15 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    for (size_t i = 0; i < _deps.size(); ++i) {
+        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     bool need_args_update = false;
+    _mem_changed = false;
+    const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
@@ -1173,9 +1182,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
         if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
-            need_args_update = true;
-
             if (update_impl()) {
+                need_args_update = true;
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
@@ -1194,16 +1202,29 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
     bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
         [](const std::pair<primitive_inst*, int32_t>& dep) {
-            return dep.first->is_dynamic();
+            return dep.first->mem_changed();
     });
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || (!is_dynamic() && has_dynamic_dependencies_insts)) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         set_arguments();
     }
     on_execute();
 
-    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic() << ", "
+    if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
+        for (size_t i = 0; i < _outputs.size(); ++i) {
+            if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
+                _mem_changed = true;
+                break;
+            }
+            if (!_network.get_engine().is_the_same_buffer(*orig_outputs[i], *_outputs[i])) {
+                _mem_changed = true;
+                break;
+            }
+        }
+    }
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
+                    << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
     const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;

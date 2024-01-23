@@ -96,6 +96,7 @@ struct KernelData {
     int autoTuneIndex = -1;
 
     bool can_reuse_memory = true;
+    bool needs_sub_kernels_sync = true;
 
     static bool SkipKernelExecution(const base_params& params, size_t kernel_id = 0) {
         for (const auto& input : params.inputs) {
@@ -125,6 +126,7 @@ struct KernelData {
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;
         kd.can_reuse_memory = true;
+        kd.needs_sub_kernels_sync = true;
 
         for (auto& kernel : kd.kernels) {
             kernel.skip_execution = SkipKernelExecution(orgParams);
