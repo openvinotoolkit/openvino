@@ -88,6 +88,8 @@ jit_mul_add_emitter::jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator
 
 size_t jit_mul_add_emitter::get_inputs_count() const { return 3; }
 
+size_t jit_mul_add_emitter::get_aux_vecs_count() const { return 1; }
+
 void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
@@ -108,10 +110,18 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     TReg src2 = TReg(in_vec_idxs[2]);
     TReg dst = TReg(out_vec_idxs[0]);
 
-    if (dst.getIdx() != src2.getIdx()) {
-        h->uni_orr(dst, src2, src2);
+    if ((dst.getIdx() == src0.getIdx()) || (dst.getIdx() == src1.getIdx())) {
+        TReg aux = TReg(aux_vec_idxs[0]);
+        // input registers can not change values
+        h->uni_orr(aux, src2, src2);
+        h->fmla(aux.s, src0.s, src1.s);
+        h->uni_orr(dst, aux, aux);
+    } else {
+        if (dst.getIdx() != src2.getIdx()) {
+            h->uni_orr(dst, src2, src2);
+        }
+        h->fmla(dst.s, src0.s, src1.s);
     }
-    h->fmla(dst.s, src0.s, src1.s);
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -277,6 +287,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         Xbyak_aarch64::SReg s1(1);
 
         for (auto i = 0; i < 4; i++) {
+            store_context();
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
 
@@ -287,6 +298,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
             Xbyak_aarch64::WReg w0(0);
             h->fmov(w0, s0);
             h->mov(dst.s[i], w0);
+            restore_context();
         }
     }
 }

@@ -260,8 +260,8 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                 if (ptr_offset == 0) {
                     ld1r(data.h, ptr(ptr_reg));
                 } else {
-                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
-                    ld1r(data.h, ptr(X_DEFAULT_ADDR));
+                    add_imm(ptr_reg, ptr_reg, ptr_offset, X_DEFAULT_ADDR);
+                    ld1r(data.h, ptr(ptr_reg));
                 }
             } else {
                 ldr(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr_reg, ptr_offset));

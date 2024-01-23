@@ -148,7 +148,7 @@ private:
     // X25    | src ptr
     // X26    | temporary
     // X27    | temporary
-    // X28    | [not used]
+    // X28    | kernel used (X_DEFAULT_ADDR)
 
     // X29    | [not used: The Frame Pointer (FP)]
     // X30    | [not used: The Link Register (LR)]
