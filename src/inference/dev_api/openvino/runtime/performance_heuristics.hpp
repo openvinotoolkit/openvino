@@ -19,7 +19,6 @@ struct MemBandwidthPressure {
     float ratio_compute_deconvs = 0;
 
     static constexpr float UNKNOWN = FLT_MAX;
-    static constexpr float SPECIAL = -1.0f;
     static constexpr float ALL = 1.0f;
     static constexpr float NONE = 0.0f;
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
@@ -49,7 +48,7 @@ static MemBandwidthPressure mem_bandwidth_pressure_tolerance(
             std::strcmp("ConvolutionBackpropData", node_name)) {
             if (!std::strcmp("GRUSequence", node_name) || !std::strcmp("TensorIterator", node_name)) {
                 MemBandwidthPressure res;
-                res.max_mem_tolerance = MemBandwidthPressure::SPECIAL;
+                res.max_mem_tolerance = MemBandwidthPressure::UNKNOWN;
                 return res;
             }
             continue;
