@@ -469,8 +469,8 @@ void ExecGraphUniqueNodeNames::SetUp() {
 
     auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    fnPtr = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {

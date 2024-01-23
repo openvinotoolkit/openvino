@@ -40,14 +40,14 @@ void AdaPoolLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    ngraph::Shape pooledShape = {pooledSpatialShape.size() };
+    ov::Shape pooledShape = {pooledSpatialShape.size() };
     auto pooledParam = ov::test::utils::deprecated::make_constant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
 
     // we cannot create abstract Op to use polymorphism
     auto adapoolMax = std::make_shared<ov::op::v8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
     auto adapoolAvg = std::make_shared<ov::op::v8::AdaptiveAvgPool>(params[0], pooledParam);
 
-    function = (poolingMode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
-                std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+    function = (poolingMode == "max" ? std::make_shared<ov::Model>(adapoolMax->outputs(), params, "AdaPoolMax") :
+                std::make_shared<ov::Model>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
 }
 }  // namespace LayerTestsDefinitions
