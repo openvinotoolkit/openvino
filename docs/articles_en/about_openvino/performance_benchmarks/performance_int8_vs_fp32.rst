@@ -5,9 +5,9 @@ Model Accuracy
 
 
 
-The following two tables present the absolute accuracy drop calculated as the accuracy difference 
-between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and 
-FP16 representations of a model on three platform architectures. Please also refer to notes below 
+The following two tables present the absolute accuracy drop calculated as the accuracy difference
+between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
+FP16 representations of a model on three platform architectures. Please also refer to notes below
 the table for more information.
 
 * A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
@@ -105,30 +105,30 @@ the table for more information.
    * - chatGLM2-6b
      - lambada openai
      - ppl
-     - 
-     - 
-     - 
+     -
+     -
+     -
      -
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
-     - 
-     - 
-     - 
+     -
+     -
+     -
      -
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - ppl
-     - 
-     - 
-     - 
+     -
+     -
+     -
      -
    * - Mistral-7b
      - proprietary Mistral.ai
      - ppl
-     - 
-     - 
-     - 
+     -
+     -
+     -
      -
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8490H only)
    :header-rows: 1
@@ -232,37 +232,37 @@ the table for more information.
    * - chatGLM2-6b
      - lambada openai
      - ppl
-     - 
-     - 
-     - 
+     -
+     -
+     -
      -
      -
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
-     - 
-     - 
      -
      -
-     - 
+     -
+     -
+     -
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - ppl
-     - 
-     - 
      -
      -
-     - 
+     -
+     -
+     -
    * - Mistral-7b
      - proprietary Mistral.ai
      - ppl
-     - 
-     - 
      -
      -
-     - 
+     -
+     -
+     -
 
-Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop. 
-For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured 
+Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop.
+For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured
 accuracy for the model.
 

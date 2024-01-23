@@ -92,36 +92,36 @@ Performance Information F.A.Q.
       * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
         - ssd-mobilenet-V1-coco onnx model
         - object detection
-        - 300x300      
+        - 300x300
       * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
         - ssd-resnet34 onnx model
         - object detection
-        - 1200x1200      
+        - 1200x1200
       * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
         - U-Net
         - semantic segmentation
-        - 368x480     
+        - 368x480
       * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
         - YOLO v3 Tiny
         - object detection
-        - 416x416      
+        - 416x416
       * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
-        - Yolov8nano 
+        - Yolov8nano
         -  object detection
         - 608x608
 
 
 .. dropdown:: Where can I purchase the specific hardware used in the benchmarking?
 
-   Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the 
-   `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__. 
+   Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
+   `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
    For more details, see the :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
    documentation. Before purchasing any hardware, you can test and run
    models remotely, using `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`__.
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
-   Set of guidelines and recommendations to optimize models are available in the 
+   Set of guidelines and recommendations to optimize models are available in the
    :doc:`optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
    Join the conversation in the `Community Forum <https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit>`__ for further support.
 
