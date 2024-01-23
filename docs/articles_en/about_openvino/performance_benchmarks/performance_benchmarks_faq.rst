@@ -57,6 +57,10 @@ Performance Information F.A.Q.
         - Meta AI
         - Auto regressive language
         - 4096
+      * - `Mistral-7b <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
+        - Mistral AI
+        - Auto regressive language
+        - 4096
       * - `Stable-Diffusion-V2-1 <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__
         - Hugginface
         - Latent Diffusion Model
@@ -69,18 +73,14 @@ Performance Information F.A.Q.
         - BERT-large
         - question / answer
         - 384
-      * - `deeplabv3 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3>`__
-        -  DeepLab v3 Tf
-        - semantic segmentation
-        - 513x513
       * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
         - Efficientdet
         - classification
         - 512x512
-      * - `faster_rcnn_resnet50_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
-        - Faster RCNN TF
-        - object detection
-        - 600x1024
+      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
+        - Mask R-CNN ResNet 50 Atrous
+        - object instance segmentation
+        - 800x1365
       * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification
@@ -101,10 +101,6 @@ Performance Information F.A.Q.
         - U-Net
         - semantic segmentation
         - 368x480     
-      * - `yolo-v3 <https://https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tf>`__
-        - YOLO v3 
-        - object detection
-        - 416x416      
       * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
         - YOLO v3 Tiny
         - object detection
@@ -163,5 +159,4 @@ Performance Information F.A.Q.
    industrial robot to changes in its environment and obstacle avoidance
    for autonomous vehicles, where a quick response to the result of the
    inference is required.
-
 
