@@ -18,11 +18,10 @@
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -371,7 +370,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         }
 
         try {
-            ngraph::pass::Manager ssr_manager;
+            ov::pass::Manager ssr_manager;
             using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
@@ -503,7 +502,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
@@ -521,7 +520,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
     noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
@@ -540,7 +539,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         std::stringstream binBuf;
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);

@@ -73,8 +73,6 @@ private:
      *       even from main thread
      */
     GraphGuard::Lock get_graph() const;
-
-    ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
 };
 
 }   // namespace intel_cpu

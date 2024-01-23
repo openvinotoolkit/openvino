@@ -45,7 +45,7 @@ void DepthToSpaceLayerTest::SetUp() {
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape))};
     auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(d2s)};
-    function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(d2s)};
+    function = std::make_shared<ov::Model>(results, params, "DepthToSpace");
 }
 }  // namespace LayerTestsDefinitions

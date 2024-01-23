@@ -16,9 +16,9 @@ const std::vector<EliminateFakeQuantizeTransformationTestValues> testValues = {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 },
-            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 }
+            ov::element::f32,
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ov::element::f32 },
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ov::element::f32 }
         },
         {
             { "fakeQuantize1" },
@@ -30,9 +30,9 @@ const std::vector<EliminateFakeQuantizeTransformationTestValues> testValues = {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 },
-            { 256ul, {}, { 0.f }, { 255.f / 2.1f }, { 0.f }, { 255.f / 2.1f }, ngraph::element::f32 }
+            ov::element::f32,
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ov::element::f32 },
+            { 256ul, {}, { 0.f }, { 255.f / 2.1f }, { 0.f }, { 255.f / 2.1f }, ov::element::f32 }
         },
         {
             { "fakeQuantize1", "fakeQuantize2" }, // not fused

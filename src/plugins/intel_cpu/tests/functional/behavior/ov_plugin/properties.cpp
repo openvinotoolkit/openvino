@@ -31,6 +31,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::available_devices.name()),
         RO_property(ov::range_for_async_infer_requests.name()),
         RO_property(ov::range_for_streams.name()),
+        RO_property(ov::execution_devices.name()),
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
         // read write
@@ -315,6 +316,14 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
     OV_EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}),
             ov::Exception,
             testing::HasSubstr(expect_message));
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
+    ASSERT_EQ(value.as<std::string>(), "CPU");
 }
 
 } // namespace
