@@ -111,7 +111,7 @@ GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
 INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
 GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
                   std::function<void(std::shared_ptr<ov::Model>&)> transform,
-                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+                  std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
 /**
  * @interface IInferencePlugin
