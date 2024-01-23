@@ -4,11 +4,11 @@
 
 #include "op/add.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/add.hpp"
 #include "utils/common.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -19,19 +19,19 @@ OutputVector add(const Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Add op is not supported");
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+    return common::handle_opset6_binary_op<v1::Add>(node);
 }
 }  // namespace set_1
 
 namespace set_6 {
 OutputVector add(const Node& node) {
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+    return common::handle_opset6_binary_op<v1::Add>(node);
 }
 }  // namespace set_6
 
 namespace set_7 {
 OutputVector add(const Node& node) {
-    return {std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    return {std::make_shared<v1::Add>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 }  // namespace set_7
 

@@ -10,7 +10,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {

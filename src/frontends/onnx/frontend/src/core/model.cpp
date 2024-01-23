@@ -6,7 +6,6 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
@@ -43,11 +42,11 @@ Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {
     const auto dm = m_opset.find(domain);
     if (dm == std::end(m_opset)) {
-        throw error::UnknownDomain{domain};
+        OPENVINO_THROW("Domain isn't supported: " + domain);
     }
     const auto op = dm->second.find(name);
     if (op == std::end(dm->second)) {
-        throw error::UnknownOperator{name, domain};
+        OPENVINO_THROW("Operation isn't supported: " + (domain.empty() ? "" : domain + ".") + name);
     }
     return op->second;
 }

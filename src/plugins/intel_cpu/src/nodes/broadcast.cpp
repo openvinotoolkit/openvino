@@ -5,16 +5,14 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include "broadcast.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <openvino/opsets/opset1.hpp>
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/opsets/opset1.hpp"
 #include "common/cpu_memcpy.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -142,7 +140,7 @@ void Broadcast::prepareParams() {
             repeats[axesMapping[i]] /= srcDims[i];
         }
 
-        SizeVector newSrcBlockedDims = SizeVector(dstBlockedDims.size(), 1);
+        VectorDims newSrcBlockedDims = VectorDims(dstBlockedDims.size(), 1);
         for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
             newSrcBlockedDims[axesMapping[i]] = srcBlockedDims[i];
         }

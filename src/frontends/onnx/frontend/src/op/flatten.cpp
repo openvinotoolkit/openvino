@@ -4,11 +4,11 @@
 
 #include "op/flatten.hpp"
 
-#include <cinttypes>
-
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -25,10 +25,10 @@ OutputVector flatten(const Node& node) {
         const std::int64_t data_rank_value = data_rank.get_length();
         // Accepted range is [-r, r] where r = rank(input).
         OPENVINO_SUPPRESS_DEPRECATED_START
-        axis = ngraph::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
+        axis = ov::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
-    return {ngraph::builder::opset1::flatten(data, static_cast<int>(axis))};
+    return {ov::op::util::flatten(data, static_cast<int>(axis))};
 }
 
 }  // namespace set_1

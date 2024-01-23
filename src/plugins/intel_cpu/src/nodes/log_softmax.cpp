@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "log_softmax.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

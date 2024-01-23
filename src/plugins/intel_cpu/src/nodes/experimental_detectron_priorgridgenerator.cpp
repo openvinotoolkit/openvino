@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "experimental_detectron_priorgridgenerator.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

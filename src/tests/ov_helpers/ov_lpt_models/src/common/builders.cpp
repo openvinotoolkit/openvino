@@ -12,6 +12,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -197,7 +198,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ov::element::Type constantType,
     const FakeQuantizeOnData& fqOnData) {
-    return ov::as_type_ptr<ov::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    return ov::as_type_ptr<ov::opset1::FakeQuantize>(ov::test::utils::make_fake_quantize(
         output,
         constantType,
         fqOnData.quantizationLevel,
@@ -368,7 +369,7 @@ std::shared_ptr<Node> makeConvolution(
     if (weightsWithoutFQ) {
         weights = std::make_shared<ov::opset1::Constant>(weightsprecision, shape, std::vector<int>(ov::shape_size(shape), 100));
     } else {
-        weights = ngraph::builder::makeFakeQuantize(
+        weights = ov::test::utils::make_fake_quantize(
             std::make_shared<ov::opset1::Constant>(precision, shape, std::vector<float>(ov::shape_size(shape), 1.f)),
             precision,
             255,

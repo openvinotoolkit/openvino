@@ -16,7 +16,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;

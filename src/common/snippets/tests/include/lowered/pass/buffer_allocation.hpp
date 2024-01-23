@@ -27,10 +27,11 @@ public:
 
 protected:
     void SetUp() override;
-    void ApplyTransformations(bool is_optimized, bool with_split_loops);
+    void ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config);
     void Validate();
 
     virtual std::shared_ptr<ov::Model> GetModel() const = 0;
+    virtual std::shared_ptr<ov::snippets::lowered::pass::PassConfig> GetPassConfig();
 
     static void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor);
 
@@ -42,6 +43,9 @@ protected:
 
     size_t m_loop_depth = 2;
     size_t m_vector_size = 16;
+
+    bool m_is_buffer_optimized = true;
+    bool m_with_split_loops = true;
 };
 
 class EltwiseBufferAllocationTest : public BufferAllocationTest {

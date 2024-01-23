@@ -4,20 +4,19 @@
 
 #include "space_to_depth.h"
 
-#include <dnnl_extension_utils.h>
-#include <utils/general_utils.h>
+#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 
 #include <cmath>
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <string>
 
 #include "common/blocked_desc_creator.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("SpaceToDepth layer with name '", getName(), "' ", __VA_ARGS__)
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 
@@ -243,7 +242,7 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
     // where `k` is number of spatial dimensions
 
     auto reshapeAndSetPermOrder =
-        [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
+        [&](const size_t idx1, const size_t idx2, const size_t shift, const VectorDims& dims) {
             for (size_t i = 0; i < attrs.nSpatialDims; i++) {
                 params.order[i + idx1] = i * 2 + shift;
                 params.order[i + idx2] = i * 2 + shift + 1;

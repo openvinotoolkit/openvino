@@ -7,6 +7,7 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -62,7 +63,7 @@ void QuantGroupConvLayerTest::SetUp() {
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(params[0], element_type, quantLevels, dataFqConstShapes);
+    auto dataFq = ov::test::utils::make_fake_quantize(params[0], element_type, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {convOutChannels, inputShape[1]};
     if (weightsShapes[0] % numGroups || weightsShapes[1] % numGroups)
@@ -81,7 +82,7 @@ void QuantGroupConvLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> weights;
     if (quantizeWeights) {
-        weights = ngraph::builder::makeFakeQuantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
+        weights = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
     } else {
         weights = weightsNode;
     }

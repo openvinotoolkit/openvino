@@ -7,6 +7,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "test_utils/convolution_params.hpp"
 
 using namespace CPUTestUtils;
@@ -44,7 +45,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     selectedType = ".*_i8";
 
     ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes)};
-    const auto fq = ngraph::builder::makeFakeQuantize(inputParams[0],
+    const auto fq = ov::test::utils::make_fake_quantize(inputParams[0],
                                                       ov::element::f32,
                                                       256,
                                                       {1, 1, 1, 1},
@@ -60,7 +61,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         branches[0] = std::make_shared<ov::op::v1::MaxPool>(fq, strides, pads_begin, pads_end, kernel);
     }
     {
-        const auto fq_conv_data = ngraph::builder::makeFakeQuantize(fq,
+        const auto fq_conv_data = ov::test::utils::make_fake_quantize(fq,
                                                                     ov::element::f32,
                                                                     256,
                                                                     {1, 1, 1, 1},

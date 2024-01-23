@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <string>
 
-#include "ngraph/deprecated.hpp"
 #include "onnx_import/core/operator_set.hpp"
 #include "onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {

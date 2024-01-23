@@ -53,15 +53,10 @@ void ConvolutionLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::vector<float> filter_weights;
-    if (targetDevice == ov::test::utils::DEVICE_GNA) {
-        auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = ov::test::utils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
-                                                                 -0.1f, 0.1f);
-    }
     auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(
             ngraph::builder::makeConvolution(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
-    function = std::make_shared<ngraph::Function>(results, params, "convolution");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
+    function = std::make_shared<ov::Model>(results, params, "convolution");
 }
 }  // namespace LayerTestsDefinitions

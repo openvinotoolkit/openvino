@@ -6,8 +6,8 @@
 
 #include "blocked_memory_desc.h"
 #include "openvino/util/util.hpp"
-#include <cpu_memory.h>
-#include <dnnl_extension_utils.h>
+#include "cpu_memory.h"
+#include "dnnl_extension_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 
 namespace ov {

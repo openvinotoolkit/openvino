@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mha.h"
+#include "common/cpu_convert.h"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
+#include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include "mha.h"
-#include <openvino/opsets/opset1.hpp>
-#include "common/cpu_memcpy.h"
-#include <utils/general_utils.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-#include "common/cpu_convert.h"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
-#include "dnnl_extension_utils.h"
-#include "utils/bfloat16.hpp"
-#include <ie_ngraph_utils.hpp>
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;

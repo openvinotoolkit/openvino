@@ -4,18 +4,18 @@
 
 #include "cpu_streams_calculation.hpp"
 
+#include "cpu_map_scheduling.hpp"
+#include "graph.h"
+#include "openvino/runtime/performance_heuristics.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "transformations/utils.hpp"
+#include "transformations/utils/utils.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <numeric>
-#include <transformations/utils/utils.hpp>
 #include <unordered_set>
-
-#include "cpu_map_scheduling.hpp"
-#include "graph.h"
-#include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
-#include "performance_heuristics.hpp"
-#include "transformations/utils.hpp"
 
 using namespace ov;
 using namespace ov::threading;
@@ -158,9 +158,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     stream_info[PROC_TYPE] = ALL_PROC;
                 }
             }
-        } else if (((input_streams_changed == false) &&
+        } else if ((((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
                     (latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM)) ||
-                   (proc_type_table.size() == 1) || ((input_streams_changed == true) && (input_streams == 1))) {
+                   (proc_type_table.size() == 1)) {
             n_streams = 1;
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 stream_info[NUMBER_OF_STREAMS] = n_streams;
@@ -183,27 +183,17 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             } else {
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
-        } else if ((input_streams_changed == false) &&
+        } else if (((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
                    (latencyThreadingMode == Config::LatencyThreadingMode::PER_SOCKET)) {
             for (auto& row : proc_socket_table) {
                 n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
             }
-            for (auto& row : proc_socket_table) {
-                if (n_threads_per_stream <= row[ALL_PROC]) {
-                    n_streams++;
-                }
-            }
-            n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, n_streams) : n_streams;
+            n_streams = 1;
         } else {
             for (size_t i = 1; i < proc_type_table.size(); i++) {
                 n_threads_per_stream = std::max(n_threads_per_stream, proc_type_table[i][ALL_PROC]);
             }
-            for (size_t i = 1; i < proc_type_table.size(); i++) {
-                if (n_threads_per_stream <= proc_type_table[i][ALL_PROC]) {
-                    n_streams++;
-                }
-            }
-            n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, n_streams) : n_streams;
+            n_streams = 1;
         }
     } else {
         n_threads =
@@ -423,9 +413,21 @@ int get_model_prefer_threads(const int num_streams,
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#if ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__linux__))
+        config.modelPreferThreads = 4;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
+                config.modelPreferThreads = 16;
+            }
+        } else if ((networkToleranceForLowCache.ratio_mem_limited_deconvs != ov::MemBandwidthPressure::ALL) &&
+                   ((networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) ||
+                    (networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) ||
+                    (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::NONE))) {
+            config.modelPreferThreads = 8;
+        }
+#elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
@@ -447,27 +449,25 @@ int get_model_prefer_threads(const int num_streams,
                    networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) {
             config.modelPreferThreads = 2;
         }
-#endif
-
-        if (-1 == config.modelPreferThreads) {
-            config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
-            if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-                if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-                    (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                    // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                    config.modelPreferThreads = 1;
-                }  // otherwise (no recognized layers) falling back to the default value
-            } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-                // network is below the ISA-specific threshold
+#else
+        config.modelPreferThreads = 0;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 config.modelPreferThreads = 1;
-            } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-                // network is below general threshold
-                config.modelPreferThreads = 2;
-            }
-            if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
-                config.modelPreferThreads = 2;
-            }
+            }  // otherwise (no recognized layers) falling back to the default value
+        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+            // network is below the ISA-specific threshold
+            config.modelPreferThreads = 1;
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            // network is below general threshold
+            config.modelPreferThreads = 2;
         }
+        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+            config.modelPreferThreads = 2;
+        }
+#endif
     }
 
     // latency

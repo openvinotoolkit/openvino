@@ -279,8 +279,82 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
     auto cond_model = std::make_shared<ov::Model>(ov_cond_output, cond_params);
     auto body_model = std::make_shared<ov::Model>(ov_body_outputs, body_params);
 
-    auto loop_node = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs);
+    // check if condition model has NextIteration->Merge construction
+    // if yes, it means we need to create separate condition for initial check prior to While execution
+    // and separate one for Loop inside
+    auto prior_cond_model = cond_model->clone();
+    for (const auto& op : prior_cond_model->get_ordered_ops()) {
+        auto merge = ov::as_type_ptr<Merge>(op);
+        if (!merge) {
+            continue;
+        }
 
+        auto next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(0).get_node_shared_ptr());
+        if (!next_iteration) {
+            next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        if (!param_node) {
+            param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        if (!next_iteration || !param_node) {
+            continue;
+        }
+        merge->output(0).replace(param_node->output(0));
+    }
+
+    // create condition model to inject inside Loop operaion
+    auto cond_model_params = cond_model->get_parameters();
+    for (const auto& op : cond_model->get_ordered_ops()) {
+        auto merge = ov::as_type_ptr<Merge>(op);
+        if (!merge) {
+            continue;
+        }
+
+        auto next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(0).get_node_shared_ptr());
+        if (!next_iteration) {
+            next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        if (!param_node) {
+            param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        if (!next_iteration || !param_node) {
+            continue;
+        }
+
+        std::string producer_name;
+        size_t producer_output_port_idx;
+        next_iteration->get_producer(producer_name, producer_output_port_idx);
+        FRONT_END_GENERAL_CHECK(
+            ov_tensors_map.count(producer_name) > 0,
+            "[TensorFlow Frontend] internal error: NextIteration producer is not found in the tensor map");
+        auto producer_outputs = ov_tensors_map.at(producer_name);
+        FRONT_END_GENERAL_CHECK(
+            producer_output_port_idx < producer_outputs.size(),
+            "[TensorFlow Frontend] internal error: NextIteration producer has insufficient number of outputs");
+        auto next_iteration_output = producer_outputs[producer_output_port_idx].port;
+
+        // create auxiliary body model having separate instances of ov::Nodes to avoid cycles in graph during Loop
+        // construction node
+        auto aux_cond_model =
+            std::make_shared<ov::Model>(ov::OutputVector{next_iteration_output}, body_params)->clone();
+        auto aux_cond_params = aux_cond_model->get_parameters();
+        auto aux_cond_results = aux_cond_model->get_results();
+        auto params_size = aux_cond_params.size();
+        // insert the auxiliary body model into condition model
+        for (size_t param_ind = 0; param_ind < params_size; ++param_ind) {
+            auto cond_param = cond_model_params[param_ind];
+            aux_cond_params[param_ind]->output(0).replace(cond_model_params[param_ind]->output(0));
+        }
+        merge->output(0).replace(aux_cond_results[0]->input_value(0));
+    }
+
+    auto loop_node = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
     auto loop_model = std::make_shared<ov::Model>(loop_node->outputs());
 
     size_t loop_node_output_size = loop_node->get_output_size();
@@ -565,12 +639,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
-                FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
-                                        "Output port with index " + std::to_string(port_index) + " of " +
-                                            operation_name + "node specified as custom output does not exist");
-                auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
-                result_node->set_friendly_name(model_output_name);
-                results.push_back(result_node);
+                if (node_outputs.size() > port_index) {
+                    auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
+                    result_node->set_friendly_name(model_output_name);
+                    results.push_back(result_node);
+                }
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
                 std::shared_ptr<OpPlace> operation_place = nullptr;

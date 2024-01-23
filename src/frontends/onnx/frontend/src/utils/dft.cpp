@@ -4,11 +4,19 @@
 
 #include "dft.hpp"
 
-#include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/op/rdft.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
-using namespace ngraph::onnx_import;
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -23,10 +31,9 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
         const auto last_axis_pos = length - 1;
         const auto last_dim = signal.get_partial_shape()[last_axis_pos];
         if (last_dim.is_static() && last_dim.get_length() == 1) {
-            ov::Output<ov::Node> imag_part = default_opset::Constant::create(signal.get_element_type(), {}, {0});
-            imag_part =
-                std::make_shared<default_opset::Broadcast>(imag_part, std::make_shared<default_opset::ShapeOf>(signal));
-            signal = std::make_shared<default_opset::Concat>(OutputVector{signal, imag_part}, last_axis_pos);
+            ov::Output<ov::Node> imag_part = v0::Constant::create(signal.get_element_type(), {}, {0});
+            imag_part = std::make_shared<v3::Broadcast>(imag_part, std::make_shared<v3::ShapeOf>(signal));
+            signal = std::make_shared<v0::Concat>(OutputVector{signal, imag_part}, last_axis_pos);
             return true;
         }
     }
@@ -42,35 +49,35 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               bool is_inversed,
                               bool is_onesided) {
     auto processed_signal = signal;
-    const auto axis_const = default_opset::Constant::create(element::i64, {1}, {axis});
+    const auto axis_const = v0::Constant::create(element::i64, {1}, {axis});
     bool conversion_to_complex_applied = false;
     if (is_inversed || !is_onesided) {  // skip for RDFT case
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
-    bool dft_length_provided = !ngraph::op::is_null(length);
+    bool dft_length_provided = !ov::op::util::is_null(length);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::Output<ov::Node> result;
     if (is_inversed) {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<default_opset::IRDFT>(processed_signal, axis_const, length)
-                                         : std::make_shared<default_opset::IRDFT>(processed_signal, axis_const);
+            result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, length)
+                                         : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
-                const auto unsqueeze_axis = default_opset::Constant::create(element::i64, {}, {-1});
-                result = std::make_shared<default_opset::Unsqueeze>(result, unsqueeze_axis);
+                const auto unsqueeze_axis = v0::Constant::create(element::i64, {}, {-1});
+                result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {
-            result = dft_length_provided ? std::make_shared<default_opset::IDFT>(processed_signal, axis_const, length)
-                                         : std::make_shared<default_opset::IDFT>(processed_signal, axis_const);
+            result = dft_length_provided ? std::make_shared<v7::IDFT>(processed_signal, axis_const, length)
+                                         : std::make_shared<v7::IDFT>(processed_signal, axis_const);
         }
     } else {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<default_opset::RDFT>(processed_signal, axis_const, length)
-                                         : std::make_shared<default_opset::RDFT>(processed_signal, axis_const);
+            result = dft_length_provided ? std::make_shared<v9::RDFT>(processed_signal, axis_const, length)
+                                         : std::make_shared<v9::RDFT>(processed_signal, axis_const);
         } else {
-            result = dft_length_provided ? std::make_shared<default_opset::DFT>(processed_signal, axis_const, length)
-                                         : std::make_shared<default_opset::DFT>(processed_signal, axis_const);
+            result = dft_length_provided ? std::make_shared<v7::DFT>(processed_signal, axis_const, length)
+                                         : std::make_shared<v7::DFT>(processed_signal, axis_const);
         }
     }
     return {result};

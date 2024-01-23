@@ -131,6 +131,7 @@ using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
+using OVClassLoadNetworkTestWithThrow = OVClassBaseTestP;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
@@ -515,6 +516,18 @@ TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.set_property(ov::enable_profiling(true)));
     OV_ASSERT_NO_THROW(ie.get_versions(target_device));
+}
+
+TEST_P(OVClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    bool value = false;
+    ASSERT_NO_THROW(ie.set_property(target_device, {ov::force_tbb_terminate(true)}));
+    ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    ASSERT_TRUE(value);
+
+    ASSERT_NO_THROW(ie.set_property(target_device, {ov::force_tbb_terminate(false)}));
+    ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    ASSERT_FALSE(value);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
@@ -1313,6 +1326,14 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
         }
     }
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
+}
+
+//
+// LoadNetwork with null device & throw
+//
+TEST_P(OVClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device), ov::Exception);
 }
 
 //

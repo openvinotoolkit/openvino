@@ -24,8 +24,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ./src/bindings/python/requirements.txt
-          # Add for -DENABLE_PYTHON=ON, no cython
-          python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake configure

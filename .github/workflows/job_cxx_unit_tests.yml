@@ -1,4 +1,4 @@
-name: Samples
+name: C++ Unit Tests
 
 on:
   workflow_call:
@@ -210,13 +210,6 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
                 --gtest_filter=*smoke* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
-
-      - name: Inference Engine C API tests
-        if: fromJSON(inputs.affected-components).C_API.test
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
         if: fromJSON(inputs.affected-components).C_API.test

@@ -39,6 +39,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include <memory>
 #include <string>
@@ -172,9 +173,9 @@ protected:
         auto lastNode1 = utils::make_eltwise(paramVec[2], paramVec[3], eltwiseOpTypes[1]);
         lastNode1->get_rt_info() = getCPUInfo();
         if (withQuantization) {
-            lastNode0 = ngraph::builder::makeFakeQuantize(lastNode0, ov::element::Type(ov::element::Type_t::f32),
+            lastNode0 = ov::test::utils::make_fake_quantize(lastNode0, ov::element::Type(ov::element::Type_t::f32),
                                                           256, fqInputShapes[0]);
-            lastNode1 = ngraph::builder::makeFakeQuantize(lastNode1, ov::element::Type(ov::element::Type_t::f32),
+            lastNode1 = ov::test::utils::make_fake_quantize(lastNode1, ov::element::Type(ov::element::Type_t::f32),
                                                           256, fqInputShapes[1]);
         }
         if (needReshape) {

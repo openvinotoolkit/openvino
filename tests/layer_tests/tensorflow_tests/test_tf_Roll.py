@@ -41,12 +41,11 @@ class TestTFRoll(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     use_old_api):
+    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_tf_roll_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend), ie_device,
                    precision,
                    temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   **params)

@@ -84,7 +84,7 @@ void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
+std::shared_ptr<ov::Model> IExecutableNetworkInternal::GetExecGraphInfo() {
     IE_THROW(NotImplemented);
 }
 
@@ -105,10 +105,6 @@ Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
 }
 
 Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
     IE_THROW(NotImplemented);
 }
 

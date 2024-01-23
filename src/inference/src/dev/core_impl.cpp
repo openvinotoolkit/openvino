@@ -11,6 +11,7 @@
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
 #include "dev/iplugin_wrapper.hpp"
+#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -30,9 +31,9 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
-#include "xml_parse_utils.h"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -482,19 +483,19 @@ void ov::CoreImpl::register_compile_time_plugins() {
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto parse_result = ParseXml(xml_config_file.c_str());
+    using namespace ov::util;
+    auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
         OPENVINO_THROW(parse_result.error_msg);
     }
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace pugixml::utils;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
-        std::string deviceName = GetStrAttr(pluginNode, "name");
+        std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
         if (pluginRegistry.find(deviceName) != pluginRegistry.end()) {
             OPENVINO_THROW("Device with \"", deviceName, "\"  is already registered in the OpenVINO Runtime");
         }
@@ -503,7 +504,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         }
 
         ov::util::FilePath pluginPath =
-            ov::util::get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
+            ov::util::get_plugin_path(pugixml::get_str_attr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -511,8 +512,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
         if (propertiesNode) {
             FOREACH_CHILD (propertyNode, propertiesNode, "property") {
-                std::string key = GetStrAttr(propertyNode, "key");
-                std::string value = GetStrAttr(propertyNode, "value");
+                std::string key = pugixml::get_str_attr(propertyNode, "key");
+                std::string value = pugixml::get_str_attr(propertyNode, "value");
                 config[key] = value;
             }
         }
@@ -524,7 +525,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         if (extensionsNode) {
             FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
                 ov::util::FilePath extensionLocation =
-                    ov::util::to_file_path(GetStrAttr(extensionNode, "location").c_str());
+                    ov::util::to_file_path(pugixml::get_str_attr(extensionNode, "location").c_str());
                 listOfExtentions.push_back(extensionLocation);
             }
         }
@@ -599,14 +600,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 std::const_pointer_cast<ov::ICore>(std::dynamic_pointer_cast<const ov::ICore>(shared_from_this()));
             plugin.set_core(mutableCore);
         }
-
-        // Add registered extensions to new plugin
-        allowNotImplemented([&]() {
-            auto old_extensions = ov::legacy_convert::convert_extension(extensions);
-            for (const auto& ext : old_extensions) {
-                plugin.add_extension(ext);
-            }
-        });
 
         // configuring
         {
@@ -690,12 +683,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // set global device-id independent settings to plugin
                 plugin.set_property(desc.defaultConfig);
             });
-
-            allowNotImplemented([&]() {
-                for (auto&& extensionLocation : desc.listOfExtentions) {
-                    plugin.add_extension(std::make_shared<InferenceEngine::Extension>(extensionLocation));
-                }
-            });
         }
 
         // add plugin as extension itself
@@ -703,14 +690,13 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
-                InferenceEngine::IExtensionPtr ext;
+                std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
-                AddExtensionUnsafe(ext);
+                add_extensions_unsafe(ext);
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
@@ -803,8 +789,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
     // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
-        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
+    if (!is_new_api() && !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -1300,6 +1285,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             auto cache_it = config.find(ov::cache_dir.name());
             if (cache_it != config.end()) {
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
+                config.erase(cache_it);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
             // apply and remove core properties
@@ -1316,25 +1302,27 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             }
         }
 
-        auto base_desc = pluginRegistry.find(clearDeviceName);
-        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-            PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
-            pluginRegistry[deviceName] = desc;
-        }
-
-        // set config for plugins in registry
-        bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
-            if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
-                }
-                configIsSet = true;
+        if (!config.empty()) {
+            auto base_desc = pluginRegistry.find(clearDeviceName);
+            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+                PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+                pluginRegistry[deviceName] = desc;
             }
-        }
 
-        if (!configIsSet && !deviceName.empty()) {
-            OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            // set config for plugins in registry
+            bool configIsSet = false;
+            for (auto& desc : pluginRegistry) {
+                if (deviceName.empty() || deviceName == desc.first) {
+                    for (auto&& conf : config) {
+                        desc.second.defaultConfig[conf.first] = conf.second;
+                    }
+                    configIsSet = true;
+                }
+            }
+
+            if (!configIsSet && !deviceName.empty()) {
+                OPENVINO_THROW("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
+            }
         }
 
         // set config for already created plugins
@@ -1496,8 +1484,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context ? plugin.import_model(networkStream, context, config)
-                                     : plugin.import_model(networkStream, config);
+            ov::AnyMap update_config = config;
+            update_config[ov::loaded_from_cache.name()] = true;
+            compiled_model = context ? plugin.import_model(networkStream, context, update_config)
+                                     : plugin.import_model(networkStream, update_config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }
@@ -1521,11 +1511,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
 
-    // 0. Move ov::device::priorities / TARGET_FALLBACK key to property_config
-    auto device_priorities_it = user_config.find("TARGET_FALLBACK");
-    if (device_priorities_it == user_config.end()) {
-        device_priorities_it = user_config.find(ov::device::priorities.name());
-    }
+    // 0. Move ov::device::priorities key to property_config
+    auto device_priorities_it = user_config.find(ov::device::priorities.name());
     if (device_priorities_it != user_config.end()) {
         property_config[device_priorities_it->first] = device_priorities_it->second.as<std::string>();
     }
@@ -1554,24 +1541,6 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     }
 
     return compile_config;
-}
-
-void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
-    std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
-    for (const auto& it : opsets) {
-        if (opsetNames.find(it.first) != opsetNames.end())
-            IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
-        opsetNames.insert(it.first);
-    }
-
-    // add extensions for already created plugins
-    for (auto& plugin : plugins) {
-        allowNotImplemented([&]() {
-            plugin.second.add_extension(extension);
-        });
-    }
-    for (const auto& ext : ov::legacy_convert::convert_extension({extension}))
-        extensions.emplace_back(ext);
 }
 
 void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {

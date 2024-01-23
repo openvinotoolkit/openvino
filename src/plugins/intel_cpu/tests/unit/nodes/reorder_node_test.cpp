@@ -13,10 +13,8 @@
 
 #include <common/memory_desc_wrapper.hpp>
 #include <dnnl.hpp>
-#include <utility>
 
 #include "common_test_utils/common_utils.hpp"
-#include "cache/multi_cache.h"
 #include "nodes/input.h"
 
 using namespace ov::intel_cpu;
@@ -110,7 +108,6 @@ public:
         Config conf;
         conf.rtCacheCapacity = 100;
         auto context = std::make_shared<GraphContext>(conf,
-                                                      nullptr,
                                                       std::make_shared<WeightsSharing>(),
                                                       false);
         const dnnl::engine cpuEngine = context->getEngine();
@@ -129,8 +126,8 @@ public:
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
         parentEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
         childEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
-        reorderNode->addEdge(parentEdge);
-        reorderNode->addEdge(childEdge);
+        Node::addEdge(parentEdge);
+        Node::addEdge(childEdge);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, inputDesc);
         auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, outputDesc);

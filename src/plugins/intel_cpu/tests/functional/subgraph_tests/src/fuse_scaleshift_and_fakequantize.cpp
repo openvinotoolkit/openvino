@@ -6,6 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "openvino/util/common_util.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -60,7 +61,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
-        const auto quantize = ngraph::builder::makeFakeQuantize(multiply,
+        const auto quantize = ov::test::utils::make_fake_quantize(multiply,
                                                                 inputPrecision,
                                                                 256,
                                                                 inConstShape,

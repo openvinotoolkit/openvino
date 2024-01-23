@@ -4,17 +4,15 @@
 
 #include "lrn.h"
 
-#include <dnnl_extension_utils.h>
-#include <openvino/opsets/opset1.hpp>
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <memory>
 #include <string>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

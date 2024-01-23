@@ -121,7 +121,7 @@ OutputVector resize(const onnx_import::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
-    if (inputs.size() == 4 && !ngraph::op::is_null(inputs[3])) {
+    if (inputs.size() == 4 && !ov::op::util::is_null(inputs[3])) {
         attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
         return {std::make_shared<default_opset::Interpolate>(data, sizes, attrs)};

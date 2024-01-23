@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "interaction.h"
+
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
+#include "common/bfloat16.hpp"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
+#include "onednn/dnnl.h"
+
 #include <chrono>
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "interaction.h"
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include <ie_ngraph_utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 

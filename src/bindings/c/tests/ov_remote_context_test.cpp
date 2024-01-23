@@ -21,19 +21,22 @@ protected:
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
-        EXPECT_NE(nullptr, model);
-
+        // Check gpu plugin and hardware available.
+        bool gpu_device_available = false;
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
-        EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
-        ASSERT_STRNE(info, nullptr);
-
-        if (strlen(info) == 0) {
-            ov_free(info);
-            GTEST_SKIP();
+        if (ov_core_get_property(core, "GPU", key, &info) == ov_status_e::OK) {
+            if (strlen(info) > 0) {
+                gpu_device_available = true;
+            }
         }
         ov_free(info);
+        if (!gpu_device_available) {
+            GTEST_SKIP();
+        }
+
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+        EXPECT_NE(nullptr, model);
 
         const unsigned int refVendorID = 0x8086;
         cl_uint n = 0;

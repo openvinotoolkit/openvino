@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
+#include "ov_models/ov_builders/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -20,8 +20,7 @@ OutputVector transpose(const Node& node) {
 
     auto permute_axes = node.get_attribute_value<std::vector<std::size_t>>("perm", {});
 
-    return {(permute_axes.empty()) ? ngraph::builder::opset1::transpose(data)
-                                   : ngraph::builder::opset1::reorder_axes(data, permute_axes)};
+    return {(permute_axes.empty()) ? ov::op::util::transpose(data) : ov::op::util::reorder_axes(data, permute_axes)};
 }
 
 }  // namespace set_1

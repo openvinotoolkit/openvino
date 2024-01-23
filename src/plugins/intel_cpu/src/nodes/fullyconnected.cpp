@@ -37,7 +37,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -109,15 +108,9 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Only Constant operation on 'bias' input is supported";
             return false;
         }
-        const auto inRank = fc->get_input_partial_shape(DATA_ID).size();
         const auto weightRank = fc->get_input_partial_shape(WEIGHTS_ID).size();
-        if (!one_of(inRank, 2u, 3u, 4u)) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
-            return false;
-        }
-        if ((one_of(inRank, 2u, 3u) && weightRank != 2) || (inRank == 4 && weightRank != 4)) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank) +
-                           " and 'weight' input with rank: " + std::to_string(weightRank);
+        if (weightRank != 2) {
+            errorMessage = "Doesn't support 'weight' input with rank: " + std::to_string(weightRank);
             return false;
         }
     } catch (...) {
@@ -161,16 +154,9 @@ VectorDims FullyConnected::makeDummyInputDims() const {
 
     auto inMinDims = inShape.getMinDims();
     auto inMaxDims = inShape.getMaxDims();
+    inMinDims.back() = weightDims.back();
+    inMaxDims.back() = weightDims.back();
 
-    if (inMinDims.size() == 3) {
-        inMinDims.back() = weightDims.back();
-        inMaxDims.back() = weightDims.back();
-    } else {
-        for (size_t i = 1; i < inMinDims.size(); i++) {
-            inMinDims[i] = weightDims[i];
-            inMaxDims[i] = weightDims[i];
-        }
-    }
     return MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
 }
 
@@ -219,6 +205,10 @@ void FullyConnected::getSupportedDescriptors() {
         // bf16 input only supports bf16/f32 output, even if FQ is fused as post-ops
         if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
             outputDataType = memory::data_type::bf16;
+        }
+        // TODO: Ticket CVS-122347 - support WeightsDecompression with bf16 inputDataType on avx2_vnni_2
+        if (useWeightsDecompressionImpl && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+            inputDataType = outputDataType = memory::data_type::f32;
         }
     } else if (inputDataType == memory::data_type::f16) {
 #if defined(OV_CPU_WITH_ACL)
@@ -395,6 +385,11 @@ createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     }
 }
 
+template <typename T>
+static std::vector<T> normalizeDims(const std::vector<T>& dims) {
+    return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
+}
+
 static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::engine& engine) {
     // use conv1x1 primitive for computation
     if (key.useConv1x1) {
@@ -408,17 +403,18 @@ static dnnl::primitive_desc createPrimitiveDesc(const FCKey& key, const dnnl::en
     // fallback to normal inner product primitive
     auto inDesc = key.inp0->getDnnlDesc();
     const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
-    if (inDims.size() == 3) {
-        auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+    if (inDims.size() > 2) {
+        dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
         inDesc = inDesc.reshape(normalizedInDims);
     }
+
     auto outDesc = key.out->getDnnlDesc();
     const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-
-    if (outDims.size() == 3) {
-        auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+    if (outDims.size() > 2) {
+        dnnl::memory::dims normalizedOutDims = normalizeDims(outDims);
         outDesc = outDesc.reshape(normalizedOutDims);
     }
+
     dnnl::memory::desc weiDesc;
     if (key.useSparseWeights) {
         weiDesc = key.inp1->getDnnlDesc();
@@ -674,10 +670,10 @@ void FullyConnected::execute(dnnl::stream strm) {
     auto updateMemoryPtr = [this](int argType) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
-            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 || useConv1x1)) {
+            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() > 2 || useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
-            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 || useConv1x1)) {
+            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() > 2 || useConv1x1)) {
                 primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
         }
@@ -709,17 +705,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     //    2D:   [X,Y] [Y,Z] =>   [X,Z]   with    N=X,IC=Y,OC=Z
     //    3D: [B,X,Y] [Y,Z] => [B,X,Z]   with  N=B*X,IC=Y,OC=Z
 
-    VectorDims dims;
-    if (dims_ext.size() == 2) {
-        // 2D
-        dims = dims_ext;
-    } else if (dims_ext.size() == 3) {
-        // 3D
-        dims.push_back(dims_ext[0] * dims_ext[1]);
-        dims.push_back(dims_ext[2]);
-    } else {
-        OPENVINO_THROW("Unexpected rank(", dims_ext.size(), ") for output tensor of node: ", getName());
-    }
+    VectorDims dims = normalizeDims(dims_ext);
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
@@ -803,11 +789,11 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
 void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDesc,
                                               const dnnl::memory::desc &outputDesc) {
     auto create2Dcandidate = [](const dnnl::memory::desc &desc) {
-        if (desc.get_dims().size() != 3) // already 2D
+        if (desc.get_dims().size() == 2) // already 2D
             return desc;
 
         auto inDims = desc.get_dims();
-        auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+        dnnl::memory::dims normalizedInDims = normalizeDims(inDims);
 
         return dnnl::memory::desc(normalizedInDims, desc.get_data_type(),
                                   DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
@@ -968,7 +954,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
 
-    if (getInputShapeAtPort(idx).getRank() == 3
+    if (getInputShapeAtPort(idx).getRank() != 2
         // report original plain layout for weight since it needs to be reordered dynamically at runtime
         || (idx == 1 && !useSparseWeights)) {
         return std::make_shared<CpuBlockedMemoryDesc>(
@@ -985,7 +971,7 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_
 std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = prim_desc.dst_desc(idx);
 
-    if (getOutputShapeAtPort(idx).getRank() == 3) {
+    if (getOutputShapeAtPort(idx).getRank() != 2) {
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()), getOutputShapeAtPort(idx));
     }

@@ -3,15 +3,15 @@
 //
 #pragma once
 
+#include "common.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include <openvino/core/type/element_type.hpp>
 
-#include "common.hpp"
-
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -573,4 +573,4 @@ inline void attn_softmax_kernel(float* a,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

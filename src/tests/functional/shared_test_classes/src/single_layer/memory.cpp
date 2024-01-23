@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/memory.hpp"
-
 #include <signal.h>
 
 #include <functional_test_utils/core_config.hpp>
-#include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
-#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/pass/low_latency.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
-using namespace opset7;
+using ov::op::v1::Add;
+using ov::op::v0::TensorIterator;
+using ov::op::v0::Result;
 
 namespace LayerTestsDefinitions {
 
@@ -49,9 +50,9 @@ void MemoryTest::SetUp() {
         ApplyLowLatency();
     }
 
-    auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
+    auto tensor = ov::Tensor(ngPrc, inputShape);
     auto variable_context = ov::op::util::VariableContext();
-    auto variable_value = std::make_shared<VariableValue>(hostTensor);
+    auto variable_value = std::make_shared<ov::op::util::VariableValue>(tensor);
     variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
     eval_context["VariableContext"] = variable_context;
 }
@@ -115,21 +116,19 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<element::Type>(inputs.size());
-    HostTensorVector inputTensors;
+    ov::TensorVector inputTensors;
     for (auto& input : inputs) {
         const auto& dataSize = input->byteSize();
         const auto& tensorDesc = input->getTensorDesc();
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-        IE_ASSERT(memory);
+        OPENVINO_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto buffer = lockedMemory.as<const std::uint8_t*>();
 
-        auto hostTensor =
-            std::make_shared<HostTensor>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(tensorDesc.getPrecision()),
-                                         tensorDesc.getDims());
-        hostTensor->write(buffer, dataSize);
-        inputTensors.push_back(hostTensor);
+        inputTensors.emplace_back(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(tensorDesc.getPrecision()),
+                                  tensorDesc.getDims());
+        std::memcpy(inputTensors.back().data(), buffer, dataSize);
     }
 
     // evaluate method is not implemented for TI op.
@@ -138,19 +137,14 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     manager.run_passes(function);
 
     const auto& outInfo = executableNetwork.GetOutputsInfo();
-    HostTensorVector outputTensors(outInfo.size());
-    for (auto& outTensor : outputTensors) {
-        outTensor = std::make_shared<HostTensor>();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    ov::TensorVector outputTensors(outInfo.size());
     function->evaluate(outputTensors, inputTensors, eval_context);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
     for (size_t idx = 0; idx < outInfo.size(); ++idx) {
-        outputs[idx].first = outputTensors[idx]->get_element_type();
-        outputs[idx].second.resize(outputTensors[idx]->get_size_in_bytes());
-        outputTensors[idx]->read(outputs[idx].second.data(), outputTensors[idx]->get_size_in_bytes());
+        outputs[idx].first = outputTensors[idx].get_element_type();
+        outputs[idx].second.resize(outputTensors[idx].get_byte_size());
+        std::memcpy(outputs[idx].second.data(), outputTensors[idx].data(), outputTensors[idx].get_byte_size());
     }
     return outputs;
 }
@@ -187,14 +181,14 @@ void MemoryTest::CreateTIFunc() {
 void MemoryTest::CreateCommonFunc() {
     ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU
-                                   ? VariableInfo{Shape{inputShape}, ngPrc, "v0"}
-                                   : VariableInfo{inputShape, ngPrc, "v0"};
-    auto variable = std::make_shared<Variable>(variable_info);
+                                   ? ov::op::util::VariableInfo{Shape{inputShape}, ngPrc, "v0"}
+                                   : ov::op::util::VariableInfo{inputShape, ngPrc, "v0"};
+    auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
     auto read_value = CreateReadValueOp(param.at(0), variable);
-    auto add = std::make_shared<Add>(read_value, param.at(0));
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
-    auto res = std::make_shared<Result>(add);
-    function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
+    auto res = std::make_shared<ov::op::v0::Result>(add);
+    function = std::make_shared<Function>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {
@@ -212,4 +206,3 @@ void MemoryTest::ApplyLowLatency() {
 }
 
 }  // namespace LayerTestsDefinitions
-

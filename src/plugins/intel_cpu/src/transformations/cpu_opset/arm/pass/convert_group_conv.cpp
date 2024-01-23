@@ -6,7 +6,7 @@
 
 #include <numeric>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset8.hpp>
 #include "openvino/core/rt_info.hpp"
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,10 @@ void regmodule_properties(py::module m) {
         .value("CORE", ov::Affinity::CORE)
         .value("NUMA", ov::Affinity::NUMA)
         .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
+
+    py::enum_<ov::CacheMode>(m_properties, "CacheMode", py::arithmetic())
+        .value("OPTIMIZE_SIZE", ov::CacheMode::OPTIMIZE_SIZE)
+        .value("OPTIMIZE_SPEED", ov::CacheMode::OPTIMIZE_SPEED);
 
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");

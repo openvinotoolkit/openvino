@@ -7,8 +7,6 @@
 #include "openvino/core/parallel.hpp"
 #include <openvino/op/space_to_batch.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -86,7 +84,7 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     }
 }
 
-static std::vector<int64_t> getShape5D(const SizeVector &shape) {
+static std::vector<int64_t> getShape5D(const VectorDims &shape) {
     std::vector<int64_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];

@@ -11,7 +11,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -127,7 +126,7 @@ OutputVector import_onnx_scan(const Node& node,
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_outputs = body_graph->get_ov_outputs();
     auto body_inputs = body_graph->get_ng_parameters();
 
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
@@ -166,7 +165,7 @@ namespace set_1 {
 OutputVector scan(const Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
-    OPENVINO_ASSERT(ngraph::op::is_null(node.get_ng_inputs().at(0)),
+    OPENVINO_ASSERT(ov::op::util::is_null(node.get_ng_inputs().at(0)),
                     node.get_description(),
                     " ONNX Scan-8 `sequence_lens` input is not supported. ");
     return import_onnx_scan(node, 1, 1, "directions");

@@ -7,6 +7,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -51,7 +52,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
     float k = 50.f;
 
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
         input, precision, 256ul, { 1ul },
         { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
     const auto mvn = std::make_shared<ov::op::v0::MVN>(fakeQuantizeOnActivations, reductionAxes, normalizeVariance);

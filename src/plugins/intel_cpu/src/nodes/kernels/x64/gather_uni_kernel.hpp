@@ -24,7 +24,7 @@
 
 #include "jit_kernel_base.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 
 namespace ov {
 namespace intel_cpu {
