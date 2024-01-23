@@ -136,9 +136,12 @@ TEST(F8E5M2Test, f32_quiet_nan) {
 
 TEST(F8E5M2Test, f32_sig_nan) {
     const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::signaling_NaN());
+    const auto f8_bits = f8.to_bits();
+
+    const auto allowed_nan = (f8_bits == 0b01111101) || (f8_bits == 0b01111110);
+    EXPECT_TRUE(allowed_nan);
 
     EXPECT_TRUE(std::isnan(f8));
-    EXPECT_EQ(f8.to_bits(), 0b01111101);
     EXPECT_TRUE(std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
 }
@@ -302,12 +305,21 @@ TEST_P(F8E5M2PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& value = std::get<1>(params);
     auto exp_value = std::get<0>(params);
-    if (exp_value == 0xFF || exp_value == 0x7F) {  // quiet NaN
-        exp_value--;
-    }
     const auto f8 = ov::float8_e5m2(value);
+    const auto f8_bits = f8.to_bits();
 
-    EXPECT_EQ(f8.to_bits(), exp_value);
+    if (exp_value == 0xFF || exp_value == 0x7F) {  // quiet NaN
+        EXPECT_TRUE(std::isnan(f8));
+        exp_value--;
+    } else if (exp_value == 0x7D || exp_value == 0xFD) {  // signaling NaN
+        // signaling NaN representation can be implementation defined
+        const auto allowed_nan = (f8_bits == exp_value) || (f8_bits == ++exp_value);
+        EXPECT_TRUE(std::isnan(f8));
+        EXPECT_TRUE(allowed_nan);
+        return;
+    }
+
+    EXPECT_EQ(f8_bits, exp_value);
 }
 }  // namespace test
 }  // namespace ov
