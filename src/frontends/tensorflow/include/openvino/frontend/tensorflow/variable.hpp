@@ -100,7 +100,7 @@ public:
                     found_variable = variable;
                     return true;
                 }
-            }  
+            }
         } else {
             return false;
         }
