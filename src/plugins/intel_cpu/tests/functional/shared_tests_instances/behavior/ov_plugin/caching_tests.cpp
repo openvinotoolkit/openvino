@@ -3,43 +3,44 @@
 //
 
 #include "behavior/ov_plugin/caching_tests.hpp"
-#include <ov_ops/nms_ie_internal.hpp>
-#include <ov_ops/nms_static_shape_ie.hpp>
-#include <ov_ops/multiclass_nms_ie_internal.hpp>
 
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
+
+using namespace ov;
 using namespace ov::test::behavior;
-using namespace ngraph;
 
 namespace {
-    static const std::vector<ngraph::element::Type> precisionsCPU = {
-            ngraph::element::f32,
-            ngraph::element::f16,
-            ngraph::element::i32,
-            ngraph::element::i64,
-            ngraph::element::i8,
-            ngraph::element::u8,
-            ngraph::element::i16,
-            ngraph::element::u16,
+    static const std::vector<ov::element::Type> precisionsCPU = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i32,
+            ov::element::i64,
+            ov::element::i8,
+            ov::element::u8,
+            ov::element::i16,
+            ov::element::u16,
     };
 
-    static const std::vector<ngraph::element::Type> floatPrecisionsCPU = {
-            ngraph::element::f32,
-            ngraph::element::f16,
+    static const std::vector<ov::element::Type> floatPrecisionsCPU = {
+            ov::element::f32,
+            ov::element::f16,
     };
 
     static const std::vector<std::size_t> batchSizesCPU = {
             1, 2
     };
 
-    static const std::vector<ngraph::element::Type> precisionsCPUInternal = {
-            ngraph::element::f32
+    static const std::vector<ov::element::Type> precisionsCPUInternal = {
+            ov::element::f32
     };
 
     static const std::vector<std::size_t> batchSizesCPUInternal = {
             1
     };
 
-    static std::shared_ptr<ngraph::Function> simple_function_non_max_suppression_internal(ngraph::element::Type, size_t) {
+    static std::shared_ptr<Model> simple_function_non_max_suppression_internal(element::Type, size_t) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i32, Shape{1}, {10});
@@ -48,11 +49,11 @@ namespace {
         auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
                 iou_threshold, score_threshold, 0, true, element::i32);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 
-    static std::shared_ptr<ngraph::Function> simple_function_matrix_nms_internal(ngraph::element::Type, size_t) {
+    static std::shared_ptr<Model> simple_function_matrix_nms_internal(element::Type, size_t) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         ov::op::v8::MatrixNms::Attributes attr;
@@ -60,18 +61,18 @@ namespace {
         attr.output_type = element::i32;
         auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 
-    static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
+    static std::shared_ptr<Model> simple_function_multiclass_nms_internal(element::Type, size_t) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         ov::op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
         auto nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 

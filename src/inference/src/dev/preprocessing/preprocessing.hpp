@@ -12,9 +12,6 @@ namespace pass {
 
 /**
  * @brief Converts the following preprocessing information to OpenVINO operations:
- *  - InferenceEngine::PreProcessInfo->PreProcessChannel::meanData -> Subtract
- *  - InferenceEngine::PreProcessInfo->PreProcessChannel::meanValue -> Subtract
- *  - InferenceEngine::PreProcessInfo->PreProcessChannel::stdScale -> Divide
  *
  * The order of operations is the following:
  *      (x - mean) / stdScale

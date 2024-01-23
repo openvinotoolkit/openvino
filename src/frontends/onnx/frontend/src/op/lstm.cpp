@@ -14,9 +14,6 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/enum_names.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -58,18 +55,18 @@ struct LSTMNgInputMap {
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(1),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(1),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // The recurrence weight tensor.
         // Shape: [num_directions, 4*hidden_size, hidden_size]
         m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(2),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(2),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<default_opset::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
@@ -103,10 +100,10 @@ struct LSTMNgInputMap {
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
-                ngraph::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
-                                                           ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                           ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                           1);
+                ov::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
+                                                       ov::op::util::LSTMWeightsFormat::IOFC,
+                                                       ov::op::util::LSTMWeightsFormat::FICO,
+                                                       1);
         } else {
             auto b_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{num_directions_node,

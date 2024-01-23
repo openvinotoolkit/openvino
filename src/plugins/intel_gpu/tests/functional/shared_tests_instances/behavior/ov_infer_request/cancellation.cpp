@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_infer_request/cancellation.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 

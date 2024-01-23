@@ -30,7 +30,6 @@
 #include "cpp/ie_infer_request.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 
 namespace ov {
 class Core;
@@ -170,13 +169,6 @@ public:
      * @return Metric parameter value
      */
     Parameter GetMetric(const std::string& name) const;
-
-    /**
-     * @brief Returns pointer to plugin-specific shared context
-     * on remote accelerator device that was used to create this ExecutableNetwork
-     * @return A context
-     */
-    RemoteContext::Ptr GetContext() const;
 
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized

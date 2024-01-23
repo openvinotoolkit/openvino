@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/parameter_shapeof_result.hpp"
-
 #include <ie_ngraph_utils.hpp>
+
+#include "shared_test_classes/subgraph/parameter_shapeof_result.hpp"
 
 namespace SubgraphTestsDefinitions {
 

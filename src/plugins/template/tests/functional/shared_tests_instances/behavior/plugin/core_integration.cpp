@@ -66,54 +66,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_IEClassGetAvailableDevices,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 //
-// IE Class SetConfig
-//
-
-class IEClassSetConfigTestHETERO : public BehaviorTestsUtils::IEClassNetworkTest,
-                                   public BehaviorTestsUtils::IEPluginTestBase {
-    void SetUp() override {
-        IEClassNetworkTest::SetUp();
-        IEPluginTestBase::SetUp();
-    }
-};
-
-TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
-    {
-        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        InferenceEngine::Parameter p;
-
-        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
-        ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
-        bool dump = p.as<bool>();
-
-        ASSERT_TRUE(dump);
-    }
-
-    {
-        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        InferenceEngine::Parameter p;
-
-        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(NO)}}, "HETERO"));
-        ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
-        bool dump = p.as<bool>();
-
-        ASSERT_FALSE(dump);
-    }
-
-    {
-        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        InferenceEngine::Parameter p;
-
-        ASSERT_NO_THROW(ie.GetMetric("HETERO", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
-        ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
-        bool dump = p.as<bool>();
-
-        ASSERT_TRUE(dump);
-    }
-}
-
-//
 // IE Class GetConfig
 //
 
