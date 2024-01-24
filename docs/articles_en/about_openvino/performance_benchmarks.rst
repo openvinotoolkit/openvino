@@ -48,7 +48,7 @@ Click the buttons below to see the chosen benchmark data.
          :material-regular:`bar_chart;1.4em` OVMS Benchmark Graphs
 
 
-For a successful deep learning inference application, the following four key metrics need to be considered:
+Please visit the tabs below for more information on key performance indicators and workload parameters.
 
 .. tab-set::
 
@@ -90,6 +90,24 @@ For a successful deep learning inference application, the following four key met
       medical personnel only request analysis of a single ultra sound scanning image or in real-time or
       near real-time applications for example an industrial robot's response to actions in its environment
       or obstacle avoidance for autonomous vehicles.
+
+   .. tab-item:: Workload Parameters
+      :sync: workloadparameters
+
+      The workload parameters affect the performance results of the different models we use for benchmarking.
+      Image processing models have different image size definitions and the Natural Language Processing models
+      have different max token list lengths. All these can be found in detail in the :doc:`FAQ section <openvino_docs_performance_benchmarks_faq>`.
+      All models are executed using a batch size of 1. Below are the parameters for the GenAI models we display.
+
+      * Input tokens: 1024,
+      * Output tokens: 128,
+      * number of beams: 1
+
+      For text to image:
+
+      * iteration steps: 20,
+      * image size (HxW): 256 x 256,
+      * input token length: 1024 (the tokens for GenAI models are in English).
 
 
 Platforms, Configurations, Methodology
@@ -168,9 +186,9 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.2, as of November 15, 2023.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.3, as of January 16, 2024.
 
-* OpenVINO Model Server performance results are based on release 2023.0, as of June 01, 2023.
+* OpenVINO Model Server performance results are based on release 2023.0, as of June 06, 2023.
 
 The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration
 and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
