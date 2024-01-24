@@ -6234,8 +6234,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
     auto model = convert_model("celu_float.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(Shape{2}, {-45., 22.98});
-    test_case.add_expected_output<float>(Shape{2}, {-1., 22.98});
+    test_case.add_input<float>(Shape{2}, {-45.f, 22.98f});
+    test_case.add_expected_output<float>(Shape{2}, {-1.f, 22.98f});
 
     test_case.run();
 }
@@ -6245,7 +6245,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_int) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(Shape{4}, {-5, -4, -10, 7});
-    test_case.add_expected_output<float>(Shape{4}, {-0.99326205, -0.98168436, -0.9999546, 7.});
+    test_case.add_expected_output<float>(Shape{4}, {-0.99326205f, -0.98168436f, -0.9999546f, 7.f});
 
     test_case.run();
 }
