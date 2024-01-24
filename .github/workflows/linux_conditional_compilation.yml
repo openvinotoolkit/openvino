@@ -60,6 +60,7 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -68,7 +69,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Install git
@@ -249,6 +250,7 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build

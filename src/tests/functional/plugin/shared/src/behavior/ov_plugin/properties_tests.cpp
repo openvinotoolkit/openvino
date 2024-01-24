@@ -779,6 +779,28 @@ TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckS
     ASSERT_EQ(actual, expect);
 }
 
+TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
+    ov::Core ie;
+
+    std::string clear_target_device;
+    auto pos = target_devices.begin()->find('.');
+    if (pos != std::string::npos) {
+        clear_target_device = target_devices.begin()->substr(0, pos);
+    }
+    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect Device ID" << std::endl;
+
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        OV_ASSERT_NO_THROW(ie.set_property(target_devices[i], ov::enable_profiling(true)));
+    }
+    bool res;
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        OV_ASSERT_NO_THROW(res = ie.get_property(target_devices[i], ov::enable_profiling));
+        ASSERT_TRUE(res);
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
