@@ -171,11 +171,11 @@ bool default_bound_evaluator(const ov::Node* node,
     return node->evaluate(output_values, inputs);
 }
 
-ov::Tensor equality_mask(const ov::Tensor& tensor, const ov::Tensor& c_tensor) {
-    auto mask_out = ov::TensorVector{{element::boolean, tensor.get_shape()}};
-    const auto& param = std::make_shared<op::v0::Parameter>(tensor.get_element_type(), tensor.get_shape());
-    const auto& constant = std::make_shared<op::v0::Parameter>(c_tensor.get_element_type(), c_tensor.get_shape());
-    op::v1::Equal(param, constant).evaluate(mask_out, ov::TensorVector{tensor, c_tensor});
+ov::Tensor equality_mask(const ov::Tensor& lhs, const ov::Tensor& rhs) {
+    auto mask_out = ov::TensorVector{{element::boolean, lhs.get_shape()}};
+    const auto l_param = std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape());
+    const auto r_param = std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape());
+    op::v1::Equal(l_param, r_param).evaluate(mask_out, ov::TensorVector{lhs, rhs});
     return mask_out.front();
 }
 
