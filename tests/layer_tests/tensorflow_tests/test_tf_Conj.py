@@ -24,8 +24,7 @@ class TestComplexConjugate(CommonTFLayerTest):
         inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
 
         return inputs_data
-
-    def create_complex_conjugate_net(self, input_shape, perm):
+    def create_complex_conjugate_net(self, input_shape):
         """
             TensorFlow net                                 IR net
             Placeholder->Conjugate    =>       Placeholder->Conjugate
@@ -40,7 +39,7 @@ class TestComplexConjugate(CommonTFLayerTest):
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
-            conj= tf.raw_ops.Conj(x=complex_input, perm=perm, name = "Operation")
+            conj= tf.raw_ops.Conj(x=complex_input, name = "Operation")
             real = tf.raw_ops.Real(input=conj)
             img = tf.raw_ops.Imag(input=conj)
 
@@ -52,14 +51,7 @@ class TestComplexConjugate(CommonTFLayerTest):
         return tf_net, ref_net
 
 
-    test_data = [
-        (dict(input_shape=[1, 2], perm=[1, 0])),
-        (dict(input_shape=[1, 2, 3], perm=[2, 1, 0])),
-        (dict(input_shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
-        (dict(input_shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
@@ -81,7 +73,7 @@ class TestConjugate(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_conjugate_net(self, input_shape, perm):
+    def create_conjugate_net(self, input_shape):
         """
             TensorFlow net                                 IR net
             Placeholder->Conjugate    =>       Placeholder->Conjugate
@@ -93,7 +85,7 @@ class TestConjugate(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             input = tf.compat.v1.placeholder(np.float32, input_shape, 'input')
 
-            tf.raw_ops.Conj(x=input, perm=perm, name = "Operation")
+            tf.raw_ops.Conj(x=input, name = "Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -102,14 +94,7 @@ class TestConjugate(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data = [
-        (dict(input_shape=[1, 2], perm=[1, 0])),
-        (dict(input_shape=[1, 2, 3], perm=[2, 1, 0])),
-        (dict(input_shape=[1, 2, 3, 4], perm=[0, 3, 2, 1])),
-        (dict(input_shape=[1, 2, 3, 4, 5, 6], perm=[0, 2, 1, 3, 4, 5])),
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
