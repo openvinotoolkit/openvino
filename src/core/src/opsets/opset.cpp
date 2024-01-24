@@ -15,6 +15,8 @@ ov::OpSet::OpSet(const ov::OpSet& opset) {
     *this = opset;
 }
 
+ov::OpSet::~OpSet() = default;
+
 ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
     m_factory_registry = opset.m_factory_registry;
     m_name = opset.m_name;
@@ -40,7 +42,7 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
         return nullptr;
     }
     REGISTER_OP(m_name, name);
-    return m_factory_registry.create(type_info_it->second);
+    return m_factory_registry.find(type_info_it->second)->second();
 }
 
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
@@ -50,7 +52,7 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
         return nullptr;
     }
     REGISTER_OP(m_name, name);
-    return m_factory_registry.create(type_info_it->second);
+    return m_factory_registry.find(type_info_it->second)->second();
 }
 
 bool ov::OpSet::contains_type(const ov::NodeTypeInfo& type_info) const {
@@ -77,10 +79,11 @@ const std::set<ov::NodeTypeInfo>& ov::OpSet::get_type_info_set() const {
     return m_op_types;
 }
 
-void ov::OpSet::insert(const std::string& name, const NodeTypeInfo& type_info) {
+void ov::OpSet::insert(const std::string& name, const NodeTypeInfo& type_info, DefaultOp func) {
     m_op_types.insert(type_info);
     m_name_type_info_map[name] = type_info;
     m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
+    m_factory_registry[type_info] = func;
 }
 
 std::string ov::OpSet::to_upper_name(const std::string& name) {

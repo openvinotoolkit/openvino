@@ -12,7 +12,6 @@
 
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/factory.hpp"
 
 namespace ov {
 /**
@@ -24,7 +23,7 @@ public:
     OpSet() = default;
     OpSet(const std::string& name);
     OpSet(const OpSet& opset);
-    virtual ~OpSet() = default;
+    virtual ~OpSet();
     OpSet& operator=(const OpSet& opset);
 
     std::set<NodeTypeInfo>::size_type size() const;
@@ -33,8 +32,7 @@ public:
     template <typename OP_TYPE>
     void insert(const std::string& name) {
         std::lock_guard<std::mutex> guard(opset_mutex);
-        m_factory_registry.register_factory<OP_TYPE>();
-        insert(name, OP_TYPE::get_type_info_static());
+        insert(name, OP_TYPE::get_type_info_static(), get_op_default_ctor<OP_TYPE>());
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
@@ -72,12 +70,25 @@ public:
     const std::set<NodeTypeInfo>& get_type_info_set() const;
 
 protected:
-    /// \brief Insert an op into the opset
-    void insert(const std::string& name, const NodeTypeInfo& type_info);
+    /// \brief Factory function which create object using default ctor.
+    using DefaultOp = std::function<Node*()>;
+    /// \brief Factory map hold object type_info as key and Factory function.
+    using FactoryMap = std::unordered_map<typename Node::type_info_t, DefaultOp>;
 
-    ov::FactoryRegistry<ov::Node> m_factory_registry;
+    /// \brief Insert an op into the opset
+    void insert(const std::string& name, const NodeTypeInfo& type_info, DefaultOp func);
+
+    FactoryMap m_factory_registry;
 
 private:
+    /// \brief Get the default factory for OP_TYPE. Specialize as needed.
+    template <typename OP_TYPE>
+    static DefaultOp get_op_default_ctor() {
+        return [] {
+            return new OP_TYPE();
+        };
+    }
+
     static std::string to_upper_name(const std::string& name);
 
     std::string m_name;
