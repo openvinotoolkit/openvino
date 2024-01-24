@@ -16,9 +16,9 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/xml_parse_utils.hpp"
 #include "plugin.hpp"
 #include "properties.hpp"
+#include "xml_parse_utils.h"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -150,23 +150,23 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     if (res.status != pugi::status_ok)
         OPENVINO_THROW("Failed to read Hetero device xml header");
 
-    using namespace ov::util::pugixml;
+    using namespace pugixml::utils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
-    m_name = get_str_attr(heteroNode, "name");
+    m_name = GetStrAttr(heteroNode, "name");
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
     // clang-format off
     FOREACH_CHILD(heteroConfigNode, heteroConfigsNode, "config") {
-        properties.emplace(get_str_attr(heteroConfigNode, "key"), get_str_attr(heteroConfigNode, "value"));
+        properties.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
     }
 
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
     pugi::xml_node subnetworksNode = heteroNode.child("compiled_submodels");
     FOREACH_CHILD(subnetworkNode, subnetworksNode, "compiled_submodel") {
-        auto device = get_str_attr(subnetworkNode, "device");
+        auto device = GetStrAttr(subnetworkNode, "device");
 
         auto meta_devices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
         assert(meta_devices.size() == 1);
@@ -206,20 +206,20 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     auto inputs_map_node = heteroNode.child("inputs_to_submodels_inputs");
     FOREACH_CHILD(xml_node, inputs_map_node, "pair") {
-        m_mapping_info._inputs_to_submodels_inputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
-                                                  get_uint64_attr(xml_node, "node_idx"));
+        m_mapping_info._inputs_to_submodels_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "node_idx"));
     }
     auto outputs_map_node = heteroNode.child("outputs_to_submodels_outputs");
     FOREACH_CHILD(xml_node, outputs_map_node, "pair") {
-        m_mapping_info._outputs_to_submodels_outputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
-                                                    get_uint64_attr(xml_node, "node_idx"));
+        m_mapping_info._outputs_to_submodels_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                    GetUInt64Attr(xml_node, "node_idx"));
     }
     auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
     FOREACH_CHILD(xml_node, submodels_input_to_prev_output_node, "record") {
-        std::pair<uint64_t, uint64_t> in_pair = {get_uint64_attr(xml_node, "in_submodel_idx"),
-                                                 get_uint64_attr(xml_node, "in_node_idx")};
-        std::pair<uint64_t, uint64_t> out_pair = {get_uint64_attr(xml_node, "out_submodel_idx"),
-                                                  get_uint64_attr(xml_node, "out_node_idx")};
+        std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
+                                                 GetUInt64Attr(xml_node, "in_node_idx")};
+        std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "out_node_idx")};
         m_mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
     // clang-format on

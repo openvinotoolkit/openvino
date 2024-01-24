@@ -1,14 +1,14 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief Basic functions to safely extract values from `pugi::xml_node` and open `pugi::xml_document`
- * @file xml_parse_utils.hpp
+ * @file xml_parse_utils.h
  */
 
 #pragma once
-#include <algorithm>
+
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -17,9 +17,14 @@
 #include <string>
 #include <utility>
 
-#include "openvino/util/file_util.hpp"
+#include "file_utils.h"
+#include "ie_api.h"
+#include "ie_common.h"
+#include "ie_precision.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 /**
+ * @ingroup    ie_dev_api_xml
  * @brief      Defines convinient for-each based cycle to iterate over node children
  *
  * @param      c     Child node name
@@ -28,22 +33,27 @@
  */
 #define FOREACH_CHILD(c, p, tag) for (auto c = p.child(tag); !c.empty(); c = c.next_sibling(tag))
 
-namespace ov {
-namespace util {
-
 /**
  * @brief XML helpers function to extract values from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  */
 namespace pugixml {
 
 /**
+ * @brief XML helpers function to extract values from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
+ */
+namespace utils {
+
+/**
  * @brief      Gets the integer attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string
  * @return     An integer value
  */
-int get_int_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -53,144 +63,182 @@ int get_int_attr(const pugi::xml_node& node, const char* str);
  * @param[in]  defVal  The default value
  * @return     An integer value
  */
-int get_int_attr(const pugi::xml_node& node, const char* str, int defVal);
+INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char* str, int defVal);
 
 /**
  * @brief      Gets the `int64_t` attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     An `int64_t` value
  */
-int64_t get_int64_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the `int64_t` attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node    The node
  * @param[in]  str     The string identifying value name
  * @param[in]  defVal  The default value
  * @return     An `int64_t` value
  */
-int64_t get_int64_attr(const pugi::xml_node& node, const char* str, int64_t defVal);
+INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const char* str, int64_t defVal);
 
 /**
  * @brief      Gets the `uint64_t` attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     An `uint64_t` value
  */
-uint64_t get_uint64_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the `uint64_t` attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node    The node
  * @param[in]  str     The string identifying value name
  * @param[in]  defVal  The default value
  * @return     An `uint64_t` value
  */
-uint64_t get_uint64_attr(const pugi::xml_node& node, const char* str, uint64_t defVal);
+INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, const char* str, uint64_t defVal);
 
 /**
  * @brief      Gets the unsigned integer attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     An unsigned integer value
  */
-unsigned int get_uint_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the unsigned integer attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node    The node
  * @param[in]  str     The string identifying value name
  * @param[in]  defVal  The default value
  * @return     An unsigned integer value
  */
-unsigned int get_uint_attr(const pugi::xml_node& node, const char* str, unsigned int defVal);
+INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, const char* str, unsigned int defVal);
 
 /**
  * @brief      Gets the string attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     A string value
  */
-std::string get_str_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the string attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @param[in]  def   The default value
  * @return     A string value
  */
-std::string get_str_attr(const pugi::xml_node& node, const char* str, const char* def);
+INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, const char* str, const char* def);
 
 /**
  * @brief      Gets the bool attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     A boolean value
  */
-bool get_bool_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the bool attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @param[in]  def   The default value
  * @return     A boolean value
  */
-bool get_bool_attr(const pugi::xml_node& node, const char* str, const bool def);
+INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const char* str, const bool def);
 
 /**
  * @brief      Gets the float attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node  The node
  * @param[in]  str   The string identifying value name
  * @return     A single-precision floating point value
  */
-float get_float_attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the float attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node    The node
  * @param[in]  str     The string identifying value name
  * @param[in]  defVal  The default value
  * @return     A single-precision floating point value
  */
-float get_float_attr(const pugi::xml_node& node, const char* str, float defVal);
+INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const char* str, float defVal);
+
+/**
+ * @brief      Gets the Precision attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
+ *
+ * @param[in]  node  The node
+ * @param[in]  str   The string identifying value name
+ * @return     A Precision value
+ */
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Precision) GetPrecisionAttr(const pugi::xml_node& node, const char* str);
+
+/**
+ * @brief      Gets the Precision attribute from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
+ *
+ * @param[in]  node  The node
+ * @param[in]  str   The string identifying value name
+ * @param[in]  def  The default value
+ * @return     A Precision value
+ */
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Precision)
+GetPrecisionAttr(const pugi::xml_node& node, const char* str, InferenceEngine::Precision def);
 
 /**
  * @brief      Gets the integer value located in a child node.
+ * @ingroup    ie_dev_api_xml
  *
  * @param[in]  node    The node
  * @param[in]  str     The string value identifying a child node
  * @param[in]  defVal  The default value
  * @return     An ingeter value located in a child node, @p devVal otherwise.
  */
-int get_int_child(const pugi::xml_node& node, const char* str, int defVal);
+INFERENCE_ENGINE_API_CPP(int) GetIntChild(const pugi::xml_node& node, const char* str, int defVal);
+
+}  // namespace utils
+}  // namespace pugixml
 
 /**
  * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.
  * @ingroup    ie_dev_api_xml
  */
-struct ParseResult {
+struct parse_result {
     /**
-     * @brief      Constructs ParseResult with `pugi::xml_document` and an error message
+     * @brief      Constructs parse_result with `pugi::xml_document` and an error message
      *
      * @param      xml        The `pugi::xml_document`
      * @param[in]  error_msg  The error message
      */
-    ParseResult(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
+    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
         : xml(std::move(xml)),
           error_msg(std::move(error_msg)) {}
 
@@ -206,14 +254,14 @@ struct ParseResult {
 };
 
 /**
- * @brief      Parses a file and returns ParseResult
+ * @brief      Parses a file and returns parse_result
  * @ingroup    ie_dev_api_xml
  *
  * @param[in]  file_path  The file path
  *
- * @return     The ParseResult.
+ * @return     The parse_result.
  */
-inline ParseResult parse_xml(const char* file_path) {
+inline parse_result ParseXml(const char* file_path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring wFilePath = ov::util::string_to_wstring(file_path);
     const wchar_t* resolvedFilepath = wFilePath.c_str();
@@ -249,6 +297,5 @@ inline ParseResult parse_xml(const char* file_path) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }
-}  // namespace pugixml
-}  // namespace util
-}  // namespace ov
+
+IE_SUPPRESS_DEPRECATED_END

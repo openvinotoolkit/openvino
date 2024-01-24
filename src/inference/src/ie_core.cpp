@@ -40,7 +40,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "openvino/util/xml_parse_utils.hpp"
+#include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;

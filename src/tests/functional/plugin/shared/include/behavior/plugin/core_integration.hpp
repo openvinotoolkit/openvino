@@ -166,7 +166,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
     std::string filename = ov::test::utils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     ov::test::utils::createFile(filename, content);
-    ASSERT_THROW(ov::Core ie(filename), ov::Exception);
+    ASSERT_THROW(InferenceEngine::Core  ie(filename), InferenceEngine::Exception);
     ov::test::utils::removeFile(filename.c_str());
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

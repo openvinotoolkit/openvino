@@ -24,7 +24,7 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-static MemBandwidthPressure mem_bandwidth_pressure_tolerance(
+static MemBandwidthPressure MemBandwidthPressureTolerance(
     const std::shared_ptr<ov::Model> model,
     const float cache_size,
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {

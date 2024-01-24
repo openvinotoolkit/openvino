@@ -4,18 +4,18 @@
 
 #include "cpu_streams_calculation.hpp"
 
-#include "cpu_map_scheduling.hpp"
-#include "graph.h"
-#include "openvino/runtime/performance_heuristics.hpp"
-#include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
-#include "transformations/utils.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include <algorithm>
 #include <cstdio>
 #include <numeric>
+#include <transformations/utils/utils.hpp>
 #include <unordered_set>
+
+#include "cpu_map_scheduling.hpp"
+#include "graph.h"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "performance_heuristics.hpp"
+#include "transformations/utils.hpp"
 
 using namespace ov;
 using namespace ov::threading;
@@ -413,7 +413,7 @@ int get_model_prefer_threads(const int num_streams,
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
 #if ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__linux__))
         config.modelPreferThreads = 4;

@@ -4,14 +4,15 @@
 
 #include "plugin.h"
 
-#include "internal_properties.hpp"
 #include "itt.h"
+#include "internal_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "performance_heuristics.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
@@ -211,7 +212,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
         const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                                    ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT,
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
