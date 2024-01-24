@@ -701,6 +701,8 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::execution_devices.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::type.name()),
+                                                    RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
@@ -764,6 +766,22 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
+    } else if (name == ov::device::type) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+    } else if (name == ov::device::architecture) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return decltype(ov::device::architecture)::value_type{"intel64"};
+#elif defined(OPENVINO_ARCH_X86)
+        return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
+#endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

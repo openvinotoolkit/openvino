@@ -34,6 +34,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::execution_devices.name()),
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
+        RO_property(ov::device::type.name()),
+        RO_property(ov::device::architecture.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::affinity.name()),
@@ -324,6 +326,33 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
     ASSERT_EQ(value.as<std::string>(), "CPU");
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceType) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
+    ASSERT_EQ(value.as<ov::device::Type>(), ov::device::Type::INTEGRATED);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
+
+#if defined(OPENVINO_ARCH_X86_64)
+    ASSERT_EQ(value.as<std::string>(), "intel64");
+#elif defined(OPENVINO_ARCH_X86)
+    ASSERT_EQ(value.as<std::string>(), "ia32");
+#elif defined(OPENVINO_ARCH_ARM)
+    ASSERT_EQ(value.as<std::string>(), "armhf");
+#elif defined(OPENVINO_ARCH_ARM64)
+    ASSERT_EQ(value.as<std::string>(), "arm64");
+#elif defined(OPENVINO_ARCH_RISCV64)
+    ASSERT_EQ(value.as<std::string>(), "riscv");
+#endif
 }
 
 } // namespace
