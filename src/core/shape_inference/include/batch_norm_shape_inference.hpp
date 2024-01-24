@@ -6,19 +6,18 @@
 
 #include <vector>
 
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/batch_norm.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace batch_norm {
-template <class TShape, class TRShape = result_shape_t<TShape>>
+template <class TShape, class TRShape = result_shape_t<TShape>, class TDimension = typename TShape::value_type>
 std::vector<TRShape> infer_shape(const Op* op,
                                  const TShape& data_input_shape,
                                  const std::vector<TShape>& channel_inputs_shapes) {
     // Extract channel dimension from input shape.
-    auto channel_dim = Dimension::dynamic();
+    auto channel_dim = TDimension::dynamic();
     const auto data_input_rank = data_input_shape.rank();
     if (data_input_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
@@ -31,13 +30,12 @@ std::vector<TRShape> infer_shape(const Op* op,
     }
 
     // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size "channel_dim".
-    auto channel_shape = PartialShape::dynamic();
-
-    for (const auto& shape : channel_inputs_shapes) {
-        NODE_VALIDATION_CHECK(op,
-                              PartialShape::merge_into(channel_shape, shape),
-                              "Shapes for gamma/beta/mean/variance do not match.");
-    }
+    auto channel_shape = channel_inputs_shapes[0];
+    NODE_VALIDATION_CHECK(op,
+                          TShape::merge_into(channel_shape, channel_inputs_shapes[1]) &&
+                              TShape::merge_into(channel_shape, channel_inputs_shapes[2]) &&
+                              TShape::merge_into(channel_shape, channel_inputs_shapes[3]),
+                          "Shapes for gamma/beta/mean/variance do not match.");
 
     NODE_VALIDATION_CHECK(op,
                           channel_shape.merge_rank(1),
@@ -46,7 +44,7 @@ std::vector<TRShape> infer_shape(const Op* op,
                           ") does not have rank 1.");
 
     NODE_VALIDATION_CHECK(op,
-                          Dimension::merge(channel_dim, channel_dim, channel_shape[0]),
+                          TDimension::merge(channel_dim, channel_dim, channel_shape[0]),
                           "Input channel dimension (",
                           channel_dim,
                           ") does not match shape for gamma/beta/mean/variance (",
