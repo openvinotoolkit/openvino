@@ -10,7 +10,6 @@
 #include <openvino/cc/pass/itt.hpp>
 
 #include "atomic_guard.hpp"
-#include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace std;
@@ -53,9 +52,3 @@ void ov::pass::PassBase::set_callback(const param_callback& callback) {
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
 ov::pass::ModelPass::~ModelPass() = default;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
-
-ngraph::pass::NodePass::~NodePass() = default;

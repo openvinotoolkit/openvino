@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/pass/pass.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -107,15 +106,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 }
             } else {
                 pass_applied = function_pass->run_on_model(func);
-            }
-        } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
-            if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-            for (const shared_ptr<Node>& n : func->get_ops()) {
-                pass_applied |= node_pass->run_on_node(n);
             }
         }
 
