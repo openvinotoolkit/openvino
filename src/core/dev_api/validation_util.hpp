@@ -63,29 +63,6 @@ Tensor make_tensor_of_max_value(const element::Type_t et);
 /// \return Tensor with minimum value.
 Tensor make_tensor_of_min_value(const element::Type_t et);
 
-/// \brief Apply auto padding to padding_above and padding_below inputs
-///        if all needed informations are known.
-///
-/// \param image_shape       The shape of input image.
-/// \param filter_shape      The shape of filter input.
-/// \param filter_strides    The strides of applied padding.
-/// \param filter_dilations  The dilations of applied padding.
-/// \param pad_type          The type of padding. Auto padding is applied only
-///                          for SAME_UPPER and SAME_LOWER mode.
-/// \param padding_above     The beginning of padding shape.
-/// \param end               The beginning of padding shape.
-///
-/// \return true if auto padding was applied successfully (all needed informations such as
-///         spatial dims are known), false otherwise.
-OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
-OPENVINO_API bool try_apply_auto_padding(const PartialShape& image_shape,
-                                         const Shape& filter_shape,
-                                         const Strides& filter_strides,
-                                         const Strides& filter_dilations,
-                                         const op::PadType pad_type,
-                                         CoordinateDiff& padding_above,
-                                         CoordinateDiff& padding_below);
-
 /// @brief Get the tensors shapes as ov::PartialShape.
 ///
 /// @param tensors  Input tensors vector to get their shapes.
@@ -106,29 +83,6 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 ///
 /// \return True if rank compatible to any of others, otherwise false.
 OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others);
-
-/// \brief Infers the output batch shape for convolution forward propagation.
-///
-/// \return Infered output shape.
-OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
-OPENVINO_API PartialShape infer_convolution_forward(const Node* node,
-                                                    const PartialShape& data_batch_shape,
-                                                    const Strides& data_dilation,
-                                                    const CoordinateDiff& data_padding_below,
-                                                    const CoordinateDiff& data_padding_above,
-                                                    const PartialShape& filters_shape,
-                                                    const Strides& filter_strides,
-                                                    const Strides& filter_dilation);
-
-/// \brief Infers image paddings.
-OPENVINO_DEPRECATED("This function is deprecated and will be removed.")
-OPENVINO_API void infer_auto_padding(const Shape& image_shape,
-                                     const Shape& filter_shape,
-                                     const Strides& filter_strides,
-                                     const Strides& filter_dilations,
-                                     const op::PadType pad_type,
-                                     CoordinateDiff& padding_above,
-                                     CoordinateDiff& padding_below);
 
 /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would be represented as partial
 /// shape object using Dimension(min, max) for each element.
