@@ -519,27 +519,14 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         {pattern::any_input(), scatter_indexes_label, scatter_update_label});
     auto trip_count_label = pattern::wrap_type<op::v0::Constant>();
     auto cond_label = pattern::wrap_type<op::v0::Constant>();
-    auto iteration_counter_label = pattern::wrap_type<op::v0::Constant>();
-    auto H_label = pattern::wrap_type<op::v0::Constant>(pattern::rank_equals(2));
-    auto time_label = pattern::wrap_type<op::v0::Constant>();
-    auto C_label = pattern::wrap_type<op::v0::Constant>(pattern::rank_equals(2));
-    auto loop_label_1 = pattern::wrap_type<op::v5::Loop>({trip_count_label,
-                                                          cond_label,
-                                                          pattern::any_input(pattern::rank_equals(3)),
-                                                          iteration_counter_label,
-                                                          H_label,
-                                                          time_label,
-                                                          C_label,
-                                                          scatter_label});
-    auto loop_label_2 = pattern::wrap_type<op::v5::Loop>({trip_count_label,
-                                                          cond_label,
-                                                          iteration_counter_label,
-                                                          H_label,
-                                                          time_label,
-                                                          C_label,
-                                                          pattern::any_input(pattern::rank_equals(3)),
-                                                          scatter_label});
-    auto loop_label = std::make_shared<pattern::op::Or>(OutputVector{loop_label_1, loop_label_2});
+    auto loop_label = pattern::wrap_type<op::v5::Loop>({trip_count_label,
+                                                        cond_label,
+                                                        pattern::any_input(),
+                                                        pattern::any_input(),
+                                                        pattern::any_input(),
+                                                        pattern::any_input(),
+                                                        pattern::any_input(),
+                                                        scatter_label});
     auto output_transpose_const_label = pattern::wrap_type<op::v0::Constant>();
     auto output_transpose_label = pattern::wrap_type<op::v1::Transpose>({loop_label, output_transpose_const_label});
 
@@ -547,15 +534,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto match_root = m.get_match_root();
 
-        std::shared_ptr<op::v5::Loop> loop;
-        if (pattern_map.count(loop_label_1) > 0) {
-            loop = std::dynamic_pointer_cast<op::v5::Loop>(pattern_map.at(loop_label_1).get_node_shared_ptr());
-        } else if (pattern_map.count(loop_label_2) > 0) {
-            loop = std::dynamic_pointer_cast<op::v5::Loop>(pattern_map.at(loop_label_2).get_node_shared_ptr());
-        } else {
-            return false;
-        }
-
+        const auto loop = ov::as_type_ptr<op::v5::Loop>(pattern_map.at(loop_label).get_node_shared_ptr());
         const auto& output_descs = loop->get_output_descriptions();
         if (output_descs.size() != 1)
             return false;
@@ -662,10 +641,59 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         auto B = loop_output_map.at(B_label).get_node_shared_ptr();
         const auto lstm_cell =
             ov::as_type_ptr<op::v4::LSTMCell>(loop_output_map.at(lstm_cell_label).get_node_shared_ptr());
+        const auto H_unsqueeze = loop_output_map.at(updates_label).get_node_shared_ptr();
+        if (H_unsqueeze->input_value(0) != lstm_cell->output(0))
+            return false;
 
         Output<Node> X = pattern_map.at(input_label);
-        const auto& H = pattern_map.at(H_label);
-        const auto& C = pattern_map.at(C_label);
+        Output<Node> H;
+        Output<Node> C;
+
+        const auto& input_descs = loop->get_input_descriptions();
+        for (const auto& desc : input_descs) {
+            if (body_parameters[desc->m_body_parameter_index] == X_body) {
+                if (!std::dynamic_pointer_cast<op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
+                    return false;
+                }
+                if (loop->input_value(desc->m_input_index) != pattern_map.at(scatter_label)) {
+                    return false;
+                }
+            }
+            if (body_parameters[desc->m_body_parameter_index] == H_body) {
+                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                if (!merged_desc) {
+                    return false;
+                }
+                H = loop->input_value(desc->m_input_index);
+                const auto& result = body_results[merged_desc->m_body_value_index];
+                if (result->input_value(0) != lstm_cell->output(0)) {
+                    return false;
+                }
+            }
+            if (body_parameters[desc->m_body_parameter_index] == C_body) {
+                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                if (!merged_desc) {
+                    return false;
+                }
+                C = loop->input_value(desc->m_input_index);
+                const auto& result = body_results[merged_desc->m_body_value_index];
+                if (result->input_value(0) != lstm_cell->output(1)) {
+                    return false;
+                }
+            }
+            if (body_parameters[desc->m_body_parameter_index] == sequence_index) {
+                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                if (!merged_desc) {
+                    return false;
+                }
+            }
+            if (body_parameters[desc->m_body_parameter_index] == iteration_counter) {
+                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                if (!merged_desc) {
+                    return false;
+                }
+            }
+        }
 
         auto constant_is_zero = [](const Output<Node>& node) -> bool {
             auto constant = ov::as_type_ptr<op::v0::Constant>(node.get_node_shared_ptr());
@@ -731,65 +759,15 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
             return false;
         }
 
-        const auto& input_descs = loop->get_input_descriptions();
-        for (const auto& desc : input_descs) {
-            if (body_parameters[desc->m_body_parameter_index] == X_body) {
-                if (!std::dynamic_pointer_cast<op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
-                    return false;
-                }
-                if (loop->input_value(desc->m_input_index) != pattern_map.at(scatter_label)) {
-                    return false;
-                }
-            }
-            if (body_parameters[desc->m_body_parameter_index] == H_body) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
-                if (!merged_desc) {
-                    return false;
-                }
-                if (loop->input_value(desc->m_input_index) != H) {
-                    return false;
-                }
-                const auto& result = body_results[merged_desc->m_body_value_index];
-                if (result->input_value(0) != lstm_cell->output(0)) {
-                    return false;
-                }
-            }
-            if (body_parameters[desc->m_body_parameter_index] == C_body) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
-                if (!merged_desc) {
-                    return false;
-                }
-                if (loop->input_value(desc->m_input_index) != C) {
-                    return false;
-                }
-                const auto& result = body_results[merged_desc->m_body_value_index];
-                if (result->input_value(0) != lstm_cell->output(1)) {
-                    return false;
-                }
-            }
-            if (body_parameters[desc->m_body_parameter_index] == sequence_index) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
-                if (!merged_desc) {
-                    return false;
-                }
-            }
-            if (body_parameters[desc->m_body_parameter_index] == iteration_counter) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
-                if (!merged_desc) {
-                    return false;
-                }
-            }
-        }
-
         auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
         auto max_sequence_length = op::v0::Constant::create(element::i32, Shape{1}, {sequence_index_limit});
         auto shapeof_X = std::make_shared<op::v3::ShapeOf>(X);
         auto batch_size = std::make_shared<op::v8::Gather>(shapeof_X, zero, zero);
-        auto new_H_shape =
-            std::make_shared<op::v0::Concat>(OutputVector{batch_size, std::make_shared<op::v3::ShapeOf>(H)}, 0);
+        auto shapeof_H = std::make_shared<op::v3::ShapeOf>(H);
+        auto new_H_shape = std::make_shared<op::v0::Concat>(OutputVector{batch_size, shapeof_H}, 0);
         auto new_H = std::make_shared<op::v3::Broadcast>(H, new_H_shape);
-        auto new_C_shape =
-            std::make_shared<op::v0::Concat>(OutputVector{batch_size, std::make_shared<op::v3::ShapeOf>(C)}, 0);
+        auto shapeof_C = std::make_shared<op::v3::ShapeOf>(C);
+        auto new_C_shape = std::make_shared<op::v0::Concat>(OutputVector{batch_size, shapeof_C}, 0);
         auto new_C = std::make_shared<op::v3::Broadcast>(C, new_C_shape);
         auto new_W = std::make_shared<op::v0::Unsqueeze>(W, zero);
         auto new_R = std::make_shared<op::v0::Unsqueeze>(R, zero);
@@ -816,6 +794,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
 
         const auto one = op::v0::Constant::create(element::i32, Shape{1}, {1});
         auto H_squeezed = std::make_shared<op::v0::Squeeze>(lstm->output(0), one);
+        H_squeezed->set_friendly_name(match_root->get_friendly_name());
 
         copy_runtime_info(NodeVector{scatter.get_node_shared_ptr(), loop},
                           NodeVector{
@@ -829,6 +808,11 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
                               new_B,
                               lstm,
                               H_squeezed,
+                              shapeof_X,
+                              shapeof_H,
+                              shapeof_C,
+                              new_H_shape,
+                              new_C_shape,
                           });
 
         for (auto&& loop_consumer : loop->output(0).get_target_inputs()) {
