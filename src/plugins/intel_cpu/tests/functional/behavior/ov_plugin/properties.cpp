@@ -34,6 +34,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::execution_devices.name()),
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
+        RO_property(ov::device::type.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::affinity.name()),
@@ -324,6 +325,14 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
     ASSERT_EQ(value.as<std::string>(), "CPU");
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceType) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
+    ASSERT_EQ(value.as<ov::device::Type>(), ov::device::Type::INTEGRATED);
 }
 
 } // namespace

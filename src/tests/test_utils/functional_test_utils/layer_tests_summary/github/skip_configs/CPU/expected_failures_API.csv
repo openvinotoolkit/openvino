@@ -1,5 +1,4 @@
 Test Name,Fix Priority
-ov_plugin_mandatory/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_TYPE:},1.0
 ov_plugin_mandatory/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_ARCHITECTURE:},1.0
 ov_plugin_mandatory/OVCheckChangePropComplieModleGetPropTests_InferencePrecision.ChangeCorrectProperties/target_device=CPU_,1.0
 ov_plugin_mandatory/OVClassModelTestP.ImportModelWithNullContextThrows/0,1
