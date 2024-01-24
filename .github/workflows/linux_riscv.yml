@@ -169,6 +169,7 @@ jobs:
         run: |
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
           source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
+          
           cmake \
             -G 'Ninja' \
             -DENABLE_CPPLINT=OFF \
