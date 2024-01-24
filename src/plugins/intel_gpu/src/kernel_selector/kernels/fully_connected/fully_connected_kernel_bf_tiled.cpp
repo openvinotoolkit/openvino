@@ -8,8 +8,6 @@
 #include <functional>
 #include "common_types.h"
 
-#define ENABLE_OUTER_LOOP
-
 static constexpr size_t simd = 16;
 
 namespace kernel_selector {
@@ -222,7 +220,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 }  // namespace
 
 FullyConnected_bf_tiled::tune_params
-FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type, int idx) const {
+FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
     if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
@@ -245,10 +243,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
-            return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+            // Tuning for Meteor Lake
+            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
         } else {
             // Try to use SLM kernels if possible
-            if (preffered_kernel_type != KernelType::DEFAULT) {
+            if (preferred_kernel_type != KernelType::DEFAULT) {
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -330,34 +329,6 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
-#if 1
-    if (params.outputs[0].Batch().v == 1 && !params.is_shape_agnostic) {
-        if ((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
-            (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) {
-                // selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
-#if 0
-                tparams.tile_ofm = 8;
-                tparams.tile_ifm = 8;
-                tparams.tile_k = 1;
-#else
-                tparams.tile_ofm = 2;
-                tparams.tile_ifm = 1;
-                tparams.tile_k = 4;
-#endif
-        } else if ((params.outputs[0].Feature().v == 4096 && params.inputs[0].Feature().v == 13696)) {
-#if 1
-                tparams.tile_ofm = 2;
-                tparams.tile_ifm = 8;
-                tparams.tile_k = 4;
-#else
-                tparams.tile_ofm = 2;
-                tparams.tile_ifm = 1;
-                tparams.tile_k = 4;
-#endif
-        }
-    }
-#endif
-
     size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
     size_t batch_threads = params.outputs[0].Batch().v;
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
@@ -373,14 +344,6 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     dispatchData.gws[0] = can_use_slm ? feature_threads * simd
                                       : feature_threads * batch_threads * simd;
-#ifdef ENABLE_OUTER_LOOP
-    if (((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
-         (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) &&
-        !params.is_shape_agnostic && params.outputs[0].Batch().v == 1) {
-        GPU_DEBUG_INFO << "Apply outer_loop /=4 !!!!!!!!!!!!!!!!!" << std::endl;
-        dispatchData.gws[0] /= 4;
-    }
-#endif
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = can_use_slm ? aligned_batch : 1;
 
@@ -427,22 +390,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        bool is_target = (params.outputs[0].Batch().v == 1 && !params.is_shape_agnostic &&
-                            (params.outputs[0].Feature().v == 4096 && params.inputs[0].Feature().v == 13696));
-        if (is_target)
-            jit.AddConstant(MakeJitConstant("MY_IFM_TEST", 1));
-        // is_target = false;
-        if (scale_group_size % simd == 0 && !dispatchData.use_slm && !is_target)
+        if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-#ifdef ENABLE_OUTER_LOOP
-        if ( ((params.outputs[0].Y().v == 27392 && params.inputs[0].Y().v == 4096) ||
-            (params.outputs[0].Feature().v == 27392 && params.inputs[0].Feature().v == 4096)) &&
-            !params.is_shape_agnostic && params.outputs[0].Batch().v == 1) {
-            jit.AddConstant(MakeJitConstant("MY_OUTER_LOOP", 1));
-        } else {
-            jit.AddConstant(MakeJitConstant("MY_OUTER_LOOP", 0));
-        }
-#endif
     }
 
     if (dispatchData.use_slm) {

@@ -265,8 +265,25 @@ inline void FUNC(fc_bf_tiled_kernel_tile_b1)(
                     }
                 }
             }
+#if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
+            unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                    #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                        const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                ((ni*TILE_IFM*SIMD + ki*TILE_K) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                        ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                    #else
+                        ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                    #endif
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    acc_tmp[bi][fi] = 0;
+                }
+            }
+#endif
         }
-#if DECOMPRESSION_SCALE_POST_OP
+#if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
         unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                 const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -484,12 +501,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
     uint sglid = (uint)get_sub_group_local_id();
 
-#if MY_OUTER_LOOP == 1
-    uint gid0 = (uint)get_group_id(0);
-    for (uint ol = 0; ol < 4; ++ol) {
-        gid = 4 * gid0 + ol;
-#endif
-
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and
     // avoids requirement of threads being available for whole work-group.
@@ -680,17 +691,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif
 
-        #if MY_IFM_TEST
-        ACCUMULATOR_TYPE ds[4][TILE_OFM];
-        unroll_for(uint i = 0; i < 4; ++i) {
-            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                const uint offset_ofm = out_f + fi*SIMD + sglid;
-                const uint scale_offset0 = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                        ((8*i*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                ds[i][fi] = decompression_scale[scale_offset0];
-            }
-        }
-        #endif // MY_IFM_TEST
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
                 #if USE_SLM
@@ -719,29 +719,16 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             #endif
 
             #if COMPRESSED_WEIGHTS && !USE_SLM
-                // #if MY_IFM_TEST
-                // ACCUMULATOR_TYPE ds[TILE_OFM];
-                // const uint scale_offset0 = ((out_f + sglid) % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                //         ((ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                // ds[0] = decompression_scale[scale_offset0];
-                // const uint scale_offset1 = ((out_f + SIMD + sglid) % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                //         ((ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                // ds[1] = decompression_scale[scale_offset1];
-                // #endif // MY_IFM_TEST
-
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint w_idx = kii * TILE_OFM + fi;
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
-                    #if !MY_IFM_TEST
                         #if !DECOMPRESSION_SCALE_POST_OP
                             // Apply scales before FMA to avoid FP16 overflow in case of INT8
                             #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                                 const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
                                                         ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                                // const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                //                         ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                             #else
                                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -749,19 +736,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
                         #endif
-                    #endif  // MY_IFM_TEST
-                        // #if !DECOMPRESSION_SCALE_POST_OP
-                        //     // Apply scales before FMA to avoid FP16 overflow in case of INT8
-                        //     #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                        //         const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                        //                                 ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                        //         ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
-                        //     #else
-                        //         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
-                        //     #endif
-                        // #else
-                        //     ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
-                        // #endif
 
                         #if DECOMPRESSION_ZP_TERM
                             #if DECOMPRESSION_ZP_SCALAR
@@ -776,12 +750,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                #if MY_IFM_TEST
-                        // w[w_idx] = (w[w_idx] - dzp) * ds[fi];
-                        w[w_idx] = (w[w_idx] - dzp) * ds[ki/8][fi];
-                #else
                         w[w_idx] = (w[w_idx] - dzp) * ds;
-                #endif
                     }
                 }
             #endif
@@ -800,8 +769,25 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             }
+#if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
+            unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                    #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                        const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                ((ni*TILE_IFM*SIMD + ki*TILE_K) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                        ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                    #else
+                        ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                    #endif
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    acc_tmp[bi][fi] = 0;
+                }
+            }
+#endif
         }
-#if DECOMPRESSION_SCALE_POST_OP
+#if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                 const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -990,9 +976,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
-#if MY_OUTER_LOOP == 1
-}   // outer_loop end
-#endif
     // =====================================================================================================================================
 }
 
