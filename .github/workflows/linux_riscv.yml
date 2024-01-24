@@ -64,7 +64,7 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       # CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_master_release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
