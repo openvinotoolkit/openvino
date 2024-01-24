@@ -320,6 +320,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_dynamic, ::testing
 class fc_int8_eltwise_dynamic_residual : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_dynamic_residual, basic) {
     // The basic purpose of this test is to check crash in fake aligned shape check
+    if (engine.get_device_info().supports_immad)
+        return;
     auto p = GetParam();
     auto test_input_layout = get_input_layout(p);
     auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
