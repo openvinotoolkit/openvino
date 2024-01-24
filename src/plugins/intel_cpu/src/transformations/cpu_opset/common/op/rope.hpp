@@ -81,7 +81,7 @@ public:
 
     RoPENode(const OutputVector& args, const Config& cfg);
 
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
