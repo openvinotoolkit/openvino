@@ -1459,7 +1459,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = gener
                                     {5, 5},
                                     1,
                                     1,
-                                    CPUParams_Gemm_2D,
+                                    {conv_gemm_2D},
                                     vecPrcConnectParams),
     //  im2col_sz == 0, is_blocking_applicable == true
     makeSingleGroupConvCPUTestCases({1, 1},
