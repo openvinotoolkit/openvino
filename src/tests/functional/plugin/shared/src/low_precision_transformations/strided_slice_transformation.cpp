@@ -49,7 +49,7 @@ void StridedSliceTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
+    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

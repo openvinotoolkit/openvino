@@ -57,7 +57,7 @@ void DepthToSpaceTransformation::SetUp() {
         IE_THROW() << "not supported input shape size " << inputShape.rank();
     }
 
-    function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
+    function = ov::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {

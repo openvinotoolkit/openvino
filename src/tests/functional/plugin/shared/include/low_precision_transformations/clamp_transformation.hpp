@@ -11,8 +11,8 @@
 namespace LayerTestsDefinitions {
 class ClampTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     double clampLowConst;
     double clampHighConst;
 };

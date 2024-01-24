@@ -9,15 +9,15 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> FuseConvertFunction::get(
     const ov::PartialShape& inputShape,
     const ov::element::Type inputPrecision,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<ov::op::v0::Parameter> input;
@@ -49,7 +49,7 @@ std::shared_ptr<ov::Model> FuseConvertFunction::get(
 std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
     const ov::PartialShape& inputShape,
     const ov::element::Type inputPrecision,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<ov::op::v0::Parameter> input1;
@@ -65,7 +65,9 @@ std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
     deqStructure.multiply.outPrecision = inputPrecision;
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, deqStructure);
 
-    std::shared_ptr<ov::op::v0::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
+    std::shared_ptr<ov::op::v0::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(
+            inputPrecision,
+            inputShape);
 
     const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
         input2, inputPrecision, 256ul, { 1ul },
@@ -93,4 +95,4 @@ std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

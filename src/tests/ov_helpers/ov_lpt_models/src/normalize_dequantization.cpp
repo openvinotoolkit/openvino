@@ -8,14 +8,14 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
     std::shared_ptr<ov::Model> NormalizeDequantizationFunction::getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization) {
+        const ov::builder::subgraph::DequantizationOperations dequantization) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deq = makeDequantization(input, dequantization);
@@ -37,4 +37,4 @@ namespace subgraph {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

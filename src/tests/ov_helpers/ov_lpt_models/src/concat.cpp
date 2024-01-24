@@ -16,7 +16,7 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -899,12 +899,12 @@ std::shared_ptr<ov::Model> ConcatFunction::getReference(
     const DequantizationOperations& dequantizationOperations) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
-    const auto fakeQuantize1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
+    const auto fakeQuantize1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
-    const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    const auto fakeQuantize2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
     const std::shared_ptr<ov::opset1::Concat> concat = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Concat>>(
         ov::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
@@ -2043,4 +2043,4 @@ std::shared_ptr<Node> ConcatFunction::makeMaxPool(const Output<Node>& parent, co
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
