@@ -21,7 +21,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
 // TODO: Issue 39810
 //    {

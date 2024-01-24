@@ -11,7 +11,7 @@
 namespace LayerTestsDefinitions {
 class StridedSliceTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> begin;
     std::vector<int64_t> end;
     std::vector<int64_t> strides;

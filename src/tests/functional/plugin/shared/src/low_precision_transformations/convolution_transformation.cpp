@@ -47,7 +47,7 @@ void ConvolutionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         // TODO: pass from test parameters
