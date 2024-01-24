@@ -10,12 +10,7 @@
 #include <unordered_map>
 
 #include "openvino/frontend/manager.hpp"
-
-#ifdef _WIN32
-static const char PathSeparator[] = ";";
-#else
-static const char PathSeparator[] = ":";
-#endif  // _WIN32
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {

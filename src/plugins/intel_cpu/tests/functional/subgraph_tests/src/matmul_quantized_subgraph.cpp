@@ -118,7 +118,7 @@ protected:
                 return it->second.as<std::string>();
             };
             if (node->get_friendly_name() == nodeName) {
-                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+                auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
                 ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
                 ASSERT_EQ(node->get_output_element_type(0), outType);
                 ASSERT_EQ(node->get_input_element_type(0), inType);

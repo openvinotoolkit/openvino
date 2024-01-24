@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 class BatchToSpaceTransformationParam {
 public:
-    ngraph::PartialShape input_shape;
+    ov::PartialShape input_shape;
     std::vector<size_t> block_shape;
     std::vector<size_t> crops_begin;
     std::vector<size_t> crops_end;
@@ -24,7 +24,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     BatchToSpaceTransformationParam
 > BatchToSpaceTransformationParams;
@@ -37,7 +37,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

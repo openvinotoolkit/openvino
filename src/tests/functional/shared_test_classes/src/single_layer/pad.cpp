@@ -45,7 +45,7 @@ void PadLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto pad = CreatePadOp(params[0], padsBegin, padsEnd, argPadValue, padMode);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
-    function = std::make_shared<ngraph::Function>(results, params, "pad");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
+    function = std::make_shared<ov::Model>(results, params, "pad");
 }
 }  // namespace LayerTestsDefinitions

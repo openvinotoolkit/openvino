@@ -52,7 +52,7 @@ protected:
     size_t num_streams;
     size_t num_requests;
     size_t num_batch;
-    std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
+    std::vector<std::shared_ptr<ov::Model>> fn_ptrs;
 
     void TestAutoBatch() {
         std::vector<InferenceEngine::CNNNetwork> nets;

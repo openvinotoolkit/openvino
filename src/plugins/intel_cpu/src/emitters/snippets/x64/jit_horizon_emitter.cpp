@@ -20,7 +20,7 @@ jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h,
     } else if (ov::is_type<const snippets::op::HorizonSum>(expr->get_node())) {
         m_op_type = OpType::sum;
     } else {
-        OPENVINO_THROW("jit_horizon_emitter exprects HorizonMax or HorizonSum ops");
+        OV_CPU_JIT_EMITTER_THROW("exprects HorizonMax or HorizonSum ops");
     }
 }
 
@@ -33,7 +33,7 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("HorizonMax emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -77,7 +77,7 @@ void jit_horizon_emitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm
             h->uni_vaddps(vmm1, vmm2, vmm3);
             break;
         default:
-            OPENVINO_THROW("Unsupported horizontal operation.");
+            OV_CPU_JIT_EMITTER_THROW("Unsupported horizontal operation.");
     }
 }
 

@@ -4,7 +4,6 @@
 
 #include "utils/conv_factory.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/op/group_conv.hpp"

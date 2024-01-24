@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "ngraph/op/op.hpp"
 #include "openvino/op/concat.hpp"
 
 namespace ngraph {
