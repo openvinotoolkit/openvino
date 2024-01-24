@@ -346,6 +346,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
     ASSERT_EQ(value.as<std::string>(), "intel64");
 #elif defined(OPENVINO_ARCH_X86)
     ASSERT_EQ(value.as<std::string>(), "ia32");
+#elif defined(OPENVINO_ARCH_ARM)
+    ASSERT_EQ(value.as<std::string>(), "armhf");
+#elif defined(OPENVINO_ARCH_ARM64)
+    ASSERT_EQ(value.as<std::string>(), "arm64");
+#elif defined(OPENVINO_ARCH_RISCV64)
+    ASSERT_EQ(value.as<std::string>(), "riscv");
 #endif
 }
 

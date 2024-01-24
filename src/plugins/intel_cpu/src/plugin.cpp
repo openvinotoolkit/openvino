@@ -773,6 +773,14 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::device::architecture)::value_type{"intel64"};
 #elif defined(OPENVINO_ARCH_X86)
         return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
 #endif
     }
 
