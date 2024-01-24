@@ -4,7 +4,7 @@ To reduce duplication and increase maintainability, the common jobs from differe
 
 You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 
-The reusable workflows are referenced as `jobs` in several validation workflows. They function as [normal jobs](./overview.md#single-job-overview) with their own environment, runner and steps to execute.
+The reusable workflows are referenced as `jobs` in several validation workflows. They are structured and behave like [normal jobs](./overview.md#single-job-overview) with their own environment, runner and steps to execute.
 
 This document describes the setup used in the OpenVINO GitHub Actions.
 
@@ -39,12 +39,6 @@ Refer to the next section for the usage reference.
 
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/reusing-workflows#calling-a-reusable-workflow) for a complete reference.
 
-The reusable workflows in the OpenVINO GitHub Actions CI usually have:
-* the filename starting with `job`
-* the `runner` input
-* the `container` input
-* *Optional* the `affected-components` input 
-
 To use a reusable workflow, it should be referenced as a `job`. The [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml) reusable workflow example 
 in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
@@ -60,10 +54,21 @@ in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 where:
 * `name` - the display name of the job
 * `needs` - the job's needs, i.e., the jobs that should be completed before this one starts
-* `uses` - the path to the reusable workflow that should be used
-* `with` - the input keys that will be passed to the reusable workflow
+* `uses` - the path to the reusable workflow
+* `with` - the input keys that will be passed to the reusable workflow. Refer to the workflow file to learn more about its inputs
 
 ## Adding Reusable Workflows
 
+If you would like to add new similar stages to several workflows, consider creating a reusable workflow to reduce duplication.
+
+The reusable workflows in the OpenVINO GitHub Actions CI usually have:
+* the filename starting with `job`
+* the `runner` input - the runner name that will be used to execute the steps in a job, learn more about the available runners and how to use them [here](./runners.md)
+* the `container` input - JSON to be converted to the value of the "container" configuration for the job, learn more about using Docker in the workflows [here](./docker_images.md)
+* *Optional* the `affected-components` input - components that are affected by changes in the commit defined by the Smart CI Action, learn more about the Smart CI system [here](./smart_ci.md)
+
 *Note*: Per the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows), all workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows).
+
+As the reusable workflows are structured and behave like jobs, refer to [this document](./adding_tests.md) to learn more about creating a job and
+use the information about the reusable workflows to create one.
 
