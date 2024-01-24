@@ -536,11 +536,7 @@ def set_rpath(rpath, binary):
     if sys.platform == "linux":
         with open(os.path.realpath(binary), "rb") as file:
             if file.read(1) != b"\x7f":
-<<<<<<< HEAD:src/bindings/python/wheel/setup.py
                 log.warning(f"WARNING: {binary}: missed ELF header")
-=======
-                logging.warning(f"WARNING: {binary}: missed ELF header")
->>>>>>> WIP (#126):src/bindings/python/setup.py
                 return
         rpath_tool = "patchelf"
         cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]

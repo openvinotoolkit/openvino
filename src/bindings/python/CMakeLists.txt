@@ -464,8 +464,6 @@ if(ENABLE_PYTHON_PACKAGING)
     set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(meta_info_file "${install_lib}/${meta_info_subdir}/PKG-INFO")
 
-    message("!!!!WHATEVER!!!!")
-
     add_custom_command(OUTPUT ${meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${python_package_prefix}"

@@ -88,7 +88,6 @@ string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
 set(pip_version ${CMAKE_MATCH_1})
 
 if(pip_version VERSION_GREATER_EQUAL 22.0)
-    message("!!!!!!!!!!!!!!!!!!!HELLO: HERE!!!!!!!!!!!!!!!!!!!!!!!!")
     set(wheel_build_command
         ${Python3_EXECUTABLE} -m pip wheel
             --no-deps
