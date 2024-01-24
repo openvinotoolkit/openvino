@@ -4,3 +4,4 @@ importlib-metadata; python_version < "3.8" and sys_platform == "win32"
 networkx
 defusedxml
 openvino-telemetry
+packaging

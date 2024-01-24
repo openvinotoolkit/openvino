@@ -26,7 +26,7 @@ import zipfile
 
 import logging as log
 from common.common_utils import shell
-from distutils import spawn
+from shutil import which
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -168,7 +168,7 @@ class SamplesCommonTestClass():
 
         # This exeption is made for benchmark_app, because it locates in another place.
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
-            executable_path = spawn.find_executable(str('benchmark_app'))
+            executable_path = which(str('benchmark_app'))
         # if not hasattr(cls, 'executable_path'):
         cls.executable_path = executable_path
 

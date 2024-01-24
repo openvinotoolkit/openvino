@@ -15,7 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
-from distutils.dir_util import copy_tree
+from shutil import copytree
 from inspect import getsourcefile
 from pathlib import Path
 import defusedxml.ElementTree as ET
@@ -232,7 +232,7 @@ def main():
     for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
         ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
         # allows copy to an existing folder
-        copy_tree(str(ir_src_path.parent), str(ir_dst_path.parent))
+        copytree(str(ir_src_path.parent), str(ir_dst_path.parent))
 
 
 if __name__ == "__main__":

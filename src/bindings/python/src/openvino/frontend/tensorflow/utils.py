@@ -7,7 +7,7 @@
 
 import logging as log
 import sys
-from distutils.version import LooseVersion
+from packaging.version import parse, Version
 from typing import List, Dict, Union
 
 import numpy as np
@@ -369,7 +369,7 @@ def extract_model_graph(argv):
     if isinstance(model, tf.compat.v1.Session):
         argv["input_model"] = model.graph
         return True
-    if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
+    if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
                                                                                tf.types.experimental.ConcreteFunction)):
         return True
     if isinstance(model, tf.train.Checkpoint):

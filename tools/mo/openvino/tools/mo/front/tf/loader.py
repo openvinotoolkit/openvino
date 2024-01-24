@@ -5,7 +5,7 @@ import argparse
 import logging as log
 import os
 import re
-from distutils.version import LooseVersion
+from packaging.version import parse, Version
 from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
@@ -175,7 +175,7 @@ def deducing_metagraph_path(meta_graph_file: str):
 
 def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
-    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
+    if "tensorflow" in env_setup and Version(env_setup["tensorflow"]) >= parse("2.2.0"):
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=False,
                                                         aggressive_inlining=True)  # pylint: disable=E1123
@@ -226,7 +226,7 @@ def prepare_graph_def(model):
 
         conc_func = tf_function.get_concrete_function(model_inputs)
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
-    if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+    if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
 
         assert hasattr(model, "input_signature") and model.input_signature is not None, \
             "'input_signature' needs to be set for model conversion."
