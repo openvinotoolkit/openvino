@@ -46,7 +46,7 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
 
     init_input_shapes(shape);
 
-    function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
         param.fqOnData,
