@@ -13,9 +13,9 @@ import platform
 import subprocess  # nosec
 import shutil
 import re
-from distutils import log
-from distutils.command.build import build
-from distutils.command.clean import clean
+import logging as log
+from setuptools import Command
+from setuptools.command.build import build
 from pathlib import Path
 from fnmatch import fnmatchcase
 import pkg_resources
@@ -153,8 +153,16 @@ class CustomInstall(install):
         install.run(self)
 
 
-class CustomClean(clean):
+class CustomClean(Command):
     """Clean up staging directories"""
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
 
     def clean_temp_files(self):
         """Clean components staging directories"""
@@ -173,7 +181,6 @@ class CustomClean(clean):
 
     def run(self):
         self.clean_temp_files()
-        clean.run(self)
 
 
 def get_description(desc_file_path):
