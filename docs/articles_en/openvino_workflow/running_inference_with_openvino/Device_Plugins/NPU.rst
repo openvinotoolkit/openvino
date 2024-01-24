@@ -17,12 +17,6 @@ Note that the NPU plugin is currently available only with the Archive distributi
 and you need to :doc:`install a proper NPU driver <openvino_docs_install_guides_configurations_for_intel_npu>`
 to use it successfully. For an in-depth description of the NPU plugin, see:
 
-For an in-depth description of the NPU plugin, see:
-
-* `NPU plugin developer documentation <https://github.com/openvinotoolkit/npu_plugin/blob/develop/docs/VPUX_DG/index.md>`__
-* `OpenVINO Runtime NPU plugin source files <https://github.com/openvinotoolkit/npu_plugin>`__
-
-
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
 |   NPU device: NPU 3720
@@ -31,12 +25,12 @@ For an in-depth description of the NPU plugin, see:
 
 | **Supported Inference Data Types**
 | The NPU plugin supports the following data types as inference precision of internal primitives:
-|    Floating-point data types: f32, f16O
-|    Quantized data types: u8 (quantized models may be int8 or mixed fp16-int8)
-|    Computation precision for the HW is fp16.
+|    Floating-point data types: FP32, FP16
+|    Quantized data types: U8 (quantized models may be int8 or mixed FP16-INT8)
+|    Computation precision for the HW is FP16.
 |
 | For more details on how to get a quantized model, refer to the
-  :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>`, and
+  :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>` and
   :doc:`NNCF tool quantization guide <basic_quantization_flow>`.
 
 
@@ -88,7 +82,8 @@ For more details about OpenVINO model caching, see the
 Supported Features and properties
 #######################################
 
-The NPU device is currently supported by AUTO and MULTI inference modes.
+The NPU device is currently supported by AUTO and MULTI inference modes
+(HETERO execution is partially supported, for certain models).
 
 The NPU support in OpenVINO is still under active development and may
 offer a limited set of supported OpenVINO features.
@@ -142,13 +137,17 @@ offer a limited set of supported OpenVINO features.
    based on the performance mode is **4 for THROUGHPUT** and **1 for LATENCY**.
    The default mode for the NPU device is LATENCY.
 
+**Import/Export:**
+
+Offline compilation and blob import is supported but only for development purposes.
+Pre-compiled models (blobs) are not recommended to be used in production.
+Blob compatibility across different OpenVINO versions/ NPU driver versions is not
+guaranteed.
 
 Limitations
 #############################
 
 * Currently, only the models with static shapes are supported on NPU.
-* If the path to the model file includes non-Unicode symbols, such as in Chinese,
-  the model cannot be used for inference on NPU. It will return an error.
 * Running the Alexnet model with NPU may result in a drop in accuracy.
   At this moment, the googlenet-v4 model is recommended for classification tasks.
 
@@ -156,6 +155,8 @@ Limitations
 Additional Resources
 #############################
 
+* `NPU plugin developer documentation <https://github.com/openvinotoolkit/npu_plugin/blob/develop/docs/VPUX_DG/index.md>`__
+* `OpenVINO Runtime NPU plugin source files <https://github.com/openvinotoolkit/npu_plugin>`__
 * `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
