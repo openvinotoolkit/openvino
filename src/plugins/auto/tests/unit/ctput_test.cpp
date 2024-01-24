@@ -180,7 +180,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{" "}));
+        .WillByDefault(Throw(ov::Exception{"GeneralError"}));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

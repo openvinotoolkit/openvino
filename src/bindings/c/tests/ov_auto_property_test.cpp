@@ -27,7 +27,7 @@ TEST_P(ov_auto_plugin_test, ov_core_auto_set_and_get_property_bool) {
     char* ret = nullptr;
     if (invalid_value) {
         OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), auto_property, &ret));
-        //EXPECT_STRNE(property_value, ret);
+        EXPECT_STRNE(property_value, ret);
     } else {
         OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), auto_property, &ret));
         EXPECT_STREQ(property_value, ret);
