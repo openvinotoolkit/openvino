@@ -17,8 +17,8 @@ struct gemm_params : public base_params {
 
     float alpha;
     float beta;
-    bool transpose_input0;
-    bool transpose_input1;
+    uint32_t transpose_input0;
+    uint32_t transpose_input1;
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;

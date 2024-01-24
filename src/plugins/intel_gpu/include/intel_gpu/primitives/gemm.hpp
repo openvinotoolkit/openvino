@@ -39,15 +39,15 @@ struct gemm : public primitive_base<gemm> {
          const std::vector<input_info>& inputs,
          const data_types data_type,
          const bool transpose_input0,
-         const bool transpose_input1 = false,
+         const bool transpose_input1,
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const size_t input_rank = 4,
          const size_t weight_rank = 4,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
-          transpose_input0(transpose_input0),
-          transpose_input1(transpose_input1),
+          transpose_input0(transpose_input0 ? 1 : 0),
+          transpose_input1(transpose_input1 ? 1 : 0),
           alpha(alpha),
           beta(beta),
           input_rank(input_rank),
@@ -97,12 +97,30 @@ struct gemm : public primitive_base<gemm> {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
+
+        auto get_transpose_mode = [](const std::vector<int64_t>& order_idx) {
+            int64_t rank = order_idx.size() - 1;
+
+            if (rank == order_idx[rank]) {
+                // normal
+                return 0;
+            } else if (rank == order_idx[rank - 1]) {
+                // the second last dim is moved to the last
+                return 1;
+            } else {
+                // other
+                return 2;
+            }
+        };
+
+        transpose_input0 = get_transpose_mode(input0_order);
+        transpose_input1 = get_transpose_mode(input1_order);
     }
 
     /// @brief Flag for transposing first input matrix
-    bool transpose_input0 = false;
+    uint32_t transpose_input0 = 0;
     /// @brief Flag for transposing second input matrix
-    bool transpose_input1 = false;
+    uint32_t transpose_input1 = 0;
     /// @brief order of input 0
     std::vector<int64_t> input0_order;
     /// @brief order of input 1

@@ -636,7 +636,9 @@ bool primitive_inst::use_async_compilation() {
         return false;
     }
 
-    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() || _node->is_type<gemm>() ||
+    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() ||
+            (_node->is_type<gemm>() && _node->get_selected_impl() &&
+             _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos) ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -753,13 +755,6 @@ bool primitive_inst::update_impl() {
 
                         if (!can_be_optimized()) {
                             auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
-                            // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
-                            // the newly chosen impl is not added to the impl cache for beffer performance.
-                            if (_node->is_type<gemm>() &&
-                                _dynamic_impl->get_kernel_name().find("gemm_ref") == std::string::npos &&
-                                impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
-                                return;
-                            }
                             if (impl->get_kernels_source().size() > 0) {
                                 auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                                 impl->set_kernels(kernels);

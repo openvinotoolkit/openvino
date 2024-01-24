@@ -172,26 +172,11 @@ std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) 
 JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    auto get_transpose_mode = [](const std::vector<int64_t>& order_idx) {
-        int64_t rank = order_idx.size() - 1;
-
-        if (rank == order_idx[rank]) {
-            // normal
-            return 0;
-        } else if (rank == order_idx[rank - 1]) {
-            // the second last dim is moved to the last
-            return 1;
-        } else {
-            // randomly transposed
-            return 2;
-        }
-    };
-
     jit.AddConstants({
         MakeJitConstant("ALPHA", params.alpha),
         MakeJitConstant("BETA", params.beta),
-        MakeJitConstant("TRANSPOSE_INPUT0", get_transpose_mode(params.input0_order)),
-        MakeJitConstant("TRANSPOSE_INPUT1", get_transpose_mode(params.input1_order)),
+        MakeJitConstant("TRANSPOSE_INPUT0", params.transpose_input0),
+        MakeJitConstant("TRANSPOSE_INPUT1", params.transpose_input1),
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
     });
 
