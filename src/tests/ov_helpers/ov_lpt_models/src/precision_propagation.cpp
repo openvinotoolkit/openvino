@@ -18,7 +18,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -305,4 +305,4 @@ std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const Output<Nod
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

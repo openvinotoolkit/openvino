@@ -14,7 +14,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -392,4 +392,4 @@ std::shared_ptr<Node> makeConvolution(const std::shared_ptr<Node>& parent,
 
 } // namespace subgraph
 } // namespace builder
-} // namespace ngraph
+} // namespace ov

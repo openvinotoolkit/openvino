@@ -53,7 +53,7 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
 
     init_input_shapes({ inputShapes, inputShapes });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
 

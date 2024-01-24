@@ -47,7 +47,7 @@ void TransposeAfterMatMulTransformation::SetUp() {
 
     init_input_shapes({ inputShape, inputShape });
 
-    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
+    function = ov::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

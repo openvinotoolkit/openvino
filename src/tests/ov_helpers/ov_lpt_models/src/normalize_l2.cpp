@@ -10,7 +10,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -68,7 +68,7 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getOriginal(
     const ov::PartialShape& shape,
     const ov::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
 
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, shape);
 
@@ -93,9 +93,9 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
     const ov::PartialShape& shape,
     const ov::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, shape);
 
     auto deqBeforeStructure = dequantizationBefore;
@@ -130,4 +130,4 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

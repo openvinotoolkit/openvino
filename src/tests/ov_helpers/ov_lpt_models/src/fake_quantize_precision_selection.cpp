@@ -11,7 +11,7 @@
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -106,7 +106,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+    const auto fakeQuantize = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(
         input,
         precision,
         values.fakeQuantizeOnData);
@@ -204,4 +204,4 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -13,14 +13,14 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> SplitFunction::getOriginal(
     const ov::element::Type& precision,
     const ov::PartialShape& inputShape,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const int64_t splitedAxis,
     const size_t numSplits) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
@@ -41,7 +41,7 @@ std::shared_ptr<ov::Model> SplitFunction::getOriginal(
 std::shared_ptr<ov::Model> SplitFunction::getOriginal(
     const ov::element::Type originalFunctionPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+    const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     int64_t splitedAxis, size_t numSplit) {
     const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
@@ -70,9 +70,9 @@ std::shared_ptr<ov::Model> SplitFunction::getReference(
     const ov::element::Type& precision,
     const ov::PartialShape& inputShape,
     const ov::element::Type inputPrecision,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
+    const std::vector<ov::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
     const size_t numSplit) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
@@ -99,4 +99,4 @@ std::shared_ptr<ov::Model> SplitFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

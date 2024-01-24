@@ -20,7 +20,7 @@
 #include "ov_lpt_models/common/reshape.hpp"
 #include "ov_lpt_models/common/transpose.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -107,4 +107,4 @@ std::shared_ptr<Node> makeConvolution(const std::shared_ptr<Node>& parent,
 
 } // namespace subgraph
 } // namespace builder
-} // namespace ngraph
+} // namespace ov

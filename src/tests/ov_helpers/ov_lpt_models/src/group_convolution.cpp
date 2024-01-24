@@ -18,7 +18,7 @@
 using namespace ov::opset1;
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -32,7 +32,7 @@ std::shared_ptr<Node> createWeightsOriginal(
     const size_t kernelSize,
     const std::vector<float>& weightsValues,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const bool addReshape = true) {
     std::shared_ptr<Node> weights;
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
@@ -96,7 +96,7 @@ std::shared_ptr<Node> createWeightsOriginal(
         }
 
         if (!dequantizationOnWeights.empty()) {
-            weights = ngraph::builder::subgraph::makeDequantization(weights, dequantizationOnWeights);
+            weights = ov::builder::subgraph::makeDequantization(weights, dequantizationOnWeights);
         }
 
         if (addReshape) {
@@ -140,9 +140,9 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
     const ov::Shape& outputShape,
     const size_t groupCount,
     const int groupCalculationDimention,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ov::opset1::Constant> weightsConst,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
+    const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
     const auto rankLength = inputShape.size();
     OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
@@ -283,12 +283,12 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
     const ov::PartialShape& outputShape,
     const size_t groupCount,
     const int calculatedDimention,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ov::opset1::Constant> weightsConst,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ov::element::Type precisionAfterDequantization,
     const bool addReshape) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
@@ -355,4 +355,4 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

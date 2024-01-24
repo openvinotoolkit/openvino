@@ -28,24 +28,24 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
 
-        ngraph::builder::subgraph::Constant weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
-        ngraph::builder::subgraph::Constant weights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::Constant weights;
 
         ov::element::Type precisionBeforeOperation;
-        ngraph::builder::subgraph::DequantizationOperations resultDequantization;
+        ov::builder::subgraph::DequantizationOperations resultDequantization;
 
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     TestTransformationParams params;
@@ -80,7 +80,7 @@ public:
         MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::MatMulFunction::getOriginal(precision,
+            ov::builder::subgraph::MatMulFunction::getOriginal(precision,
                                                                    inputShape,
                                                                    testValues.actual.precisionBeforeDequantization,
                                                                    testValues.actual.dequantizationOnData,
@@ -94,14 +94,14 @@ public:
 
         referenceFunction =
             (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty())
-                ? ngraph::builder::subgraph::MatMulFunction::getReference(
+                ? ov::builder::subgraph::MatMulFunction::getReference(
                       precision,
                       inputShape,
                       testValues.expected.precisionBeforeDequantization,
                       testValues.expected.dequantizationOnData,
                       testValues.expected.weights,
                       testValues.expected.resultDequantization)
-                : ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                : ov::builder::subgraph::MatMulFunction::getOriginal(
                       precision,
                       inputShape,
                       testValues.expected.precisionBeforeDequantization,
