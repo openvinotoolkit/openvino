@@ -36,7 +36,7 @@ std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVe
                                                   error_message);
 }
 
-bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
+bool NotSupportedONNXNode::visit_attributes(ov::AttributeVisitor& visitor) {
     const auto& attrs = get_attrs();
     auto domain = attrs.get_opset_name();
     auto op_type = attrs.get_type_name();
