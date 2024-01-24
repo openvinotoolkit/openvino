@@ -158,7 +158,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ClipByValue", CreatorFunction(translate_clip_by_value_op)},
         {"Complex", CreatorFunction(translate_complex_op)},
         {"ComplexAbs", CreatorFunction(translate_complex_abs_op)},
-        {"Conjugate", CreatorFunction(translate_conj_op)},
+        {"Conj", CreatorFunction(translate_conj_op)},
         {"ConjugateTranspose", CreatorFunction(translate_conj_transpose_op)},
         {"Concat", CreatorFunction(translate_concat_op)},
         {"ConcatV2", CreatorFunction(translate_concat_op)},
