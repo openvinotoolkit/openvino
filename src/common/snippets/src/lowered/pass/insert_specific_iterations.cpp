@@ -15,6 +15,14 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+using LoopInfo = LinearIR::LoopManager::LoopInfo;
+
+std::array<RuntimeConfig::LoopDescriptor::Type, 3> InsertSpecificIterations::m_loop_types = {
+    RuntimeConfig::LoopDescriptor::Type::First,
+    RuntimeConfig::LoopDescriptor::Type::Main,
+    RuntimeConfig::LoopDescriptor::Type::Last
+};
+
 LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
@@ -48,90 +56,92 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
     const auto new_id = loop_manager->replace_with_new_loop(linear_ir, new_loop_begin_pos, new_loop_end_pos,
                                                             original_loop_info->get_work_amount(), original_loop_info->get_increment(),
                                                             new_entry_points, new_exit_points, loop_id);
-    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(std::prev(new_loop_end_pos)->get()->get_node());
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_end_pos)->get()->get_node());
     OPENVINO_ASSERT(loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
     loop_end->set_id(new_id);
     return new_loop_begin_pos;
 }
 
-using LoopInfo = LinearIR::LoopManager::LoopInfo;
+PassPipeline InsertSpecificIterations::get_iter_specific_handlers_by_type(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+                                                                          const RuntimeConfig::LoopDescriptor::Type& type) {
+     switch (type) {
+        case RuntimeConfig::LoopDescriptor::Type::First:
+            return loop_info->get_handlers().get_first_iter_handlers();
+        case RuntimeConfig::LoopDescriptor::Type::Main:
+            return loop_info->get_handlers().get_main_iter_handlers();
+        case RuntimeConfig::LoopDescriptor::Type::Last:
+            return loop_info->get_handlers().get_last_iter_handlers();
+        default:
+            OPENVINO_THROW("Unknown LoopDescriptor type!");
+    }
+}
+
+void InsertSpecificIterations::init_specific_loop(const std::shared_ptr<op::LoopEnd>& loop_end, const RuntimeConfig::LoopDescriptor& desc,
+                                                  LinearIR& linear_ir, const PassPipeline& handlers,
+                                                  LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+    loop_end->set_desc_id(desc.id);
+    loop_end->update(desc);
+    OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(begin->get()->get_node()), "Expected LoopBegin");
+    OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(end->get()->get_node()), "Expected LoopEnd");
+    // Note: handlers must be run on the range started with the first operation in the loop body.
+    handlers.run(linear_ir, std::next(begin), end);
+}
+
+bool InsertSpecificIterations::create_specific_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
+                                                    const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t original_loop_id,
+                                                    const RuntimeConfig& runtime_config, const std::shared_ptr<op::LoopEnd>& loop_end,
+                                                    const RuntimeConfig::LoopDescriptor::Type& type) {
+    auto is_there_non_inserted_loops = [&](const RuntimeConfig::LoopDescriptor::Type& current_type) {
+        const auto current_type_it = std::find(m_loop_types.cbegin(), m_loop_types.cend(), current_type);
+        OPENVINO_ASSERT(current_type_it != m_loop_types.cend(), "Loop Type has not been found!");
+        return std::any_of(std::next(current_type_it), m_loop_types.cend(),
+                           [&](RuntimeConfig::LoopDescriptor::Type loop_type) { return runtime_config.contains(original_loop_id, loop_type); });
+    };
+
+    RuntimeConfig::LoopDescriptor loop_desc;
+    if (runtime_config.get_loop_desc(original_loop_id, type, loop_desc)) {
+        const auto handlers = get_iter_specific_handlers_by_type(loop_info, type);
+        auto spec_loop_end = loop_end;
+        auto spec_loop_begin_it = begin, spec_loop_end_it = end;
+        // Need to copy body if there are other specific sup-loops
+        // Otherwise we should update the current body
+        if (is_there_non_inserted_loops(type)) {
+            spec_loop_begin_it = insert_copy_loop(linear_ir, original_loop_id, begin);
+            const auto new_loop_begin = ov::as_type_ptr<op::LoopBegin>(spec_loop_begin_it->get()->get_node());
+            OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
+            spec_loop_end = new_loop_begin->get_loop_end();
+            spec_loop_end_it = linear_ir.find_after(spec_loop_begin_it, linear_ir.get_expr_by_node(spec_loop_end));
+        }
+        init_specific_loop(spec_loop_end, loop_desc, linear_ir, handlers, spec_loop_begin_it, spec_loop_end_it);
+        return true;
+    }
+    return false;
+}
 
 bool InsertSpecificIterations::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertSpecificIterations")
-    const auto& loop_manager = linear_ir.get_loop_manager();
-
     bool modified = false;
+
+    const auto& loop_manager = linear_ir.get_loop_manager();
+    const auto& runtime_config = linear_ir.get_lowered_config();
+
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto& expr = *expr_it;
-        const auto node = expr->get_node();
-        const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(node);
-        if (!loop_end)
-            continue;
+        if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr_it->get()->get_node())) {
+            const auto begin_it = linear_ir.find_before(expr_it, linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
+            const auto end_it = expr_it;
 
-        const auto& loop_info = loop_manager->get_loop_info(loop_end->get_id());
-        const auto work_amount = loop_info->get_work_amount();
-        const auto increment = loop_info->get_increment();
-        const auto& handlers = loop_info->get_handlers();
+            const auto loop_id = loop_end->get_id();
+            const auto& loop_info = loop_manager->get_loop_info(loop_id);
+            OPENVINO_ASSERT(runtime_config.contains(loop_id), "LoopDescriptors are missed for Loop with ID " + std::to_string(loop_id));
 
-        const auto main_loop_begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
-        const auto main_loop_end_it = linear_ir.find_after(main_loop_begin_it, linear_ir.get_expr_by_node(loop_end));
-        // Note: handlers must be run on the range started with the first operation in the loop body.
-        const auto main_first_body_op_it = std::next(main_loop_begin_it);
-
-        auto update_loop_params = [&loop_manager](const std::shared_ptr<op::LoopEndStatic>& loop_end_copy,
-                                                  size_t new_work_amount,
-                                                  size_t new_increment,
-                                                  bool zero_finalization_offsets) {
-            loop_end_copy->set_work_amount(new_work_amount);
-            loop_end_copy->set_increment(new_increment);
-
-            const auto& loop_info_copy = loop_manager->get_loop_info(loop_end_copy->get_id());
-            loop_info_copy->set_work_amount(new_work_amount);
-            loop_info_copy->set_increment(new_increment);
-
-            if (zero_finalization_offsets)
-                loop_end_copy->set_finalization_offsets(std::vector<int64_t>(loop_end_copy->get_finalization_offsets().size(), 0));
-        };
-
-        auto copy_and_run_specific_handlers = [&](const PassPipeline& handlers) {
-            const auto new_loop_begin_pos = insert_copy_loop(linear_ir, loop_end->get_id(), main_loop_begin_it);
-            const auto new_loop_begin = ov::as_type_ptr<op::LoopBeginStatic>(new_loop_begin_pos->get()->get_node());
-            OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
-            const auto new_loop_end = ov::as_type_ptr<op::LoopEndStatic>(new_loop_begin->get_loop_end());
-            OPENVINO_ASSERT(new_loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
-            const auto new_loop_end_pos = linear_ir.find_after(new_loop_begin_pos, linear_ir.get_expr_by_node(new_loop_end));
-
-            // Note: handlers must be run on the range started with the first operation in the loop body.
-            handlers.run(linear_ir, std::next(new_loop_begin_pos), new_loop_end_pos);
-            return new_loop_end;
-        };
-
-        const bool specific_first_iteration = !handlers.get_first_iter_handlers().empty();
-        if (work_amount == increment) {
-            handlers.get_first_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
-        } else {
-            if (specific_first_iteration) {
-                const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_first_iter_handlers());
-                update_loop_params(loop_end_copy, increment, increment, true);
-            }
-
-            const auto tail_size = work_amount % increment;
-            if (tail_size != 0) {
-                if (!specific_first_iteration || work_amount > 2 * increment) {
-                    const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_main_iter_handlers());
-                    const auto reduce_value = specific_first_iteration ? tail_size + increment : tail_size;
-                    const auto new_work_amount = work_amount - reduce_value;
-                    update_loop_params(loop_end_copy, new_work_amount, increment, true);
-                }
-                handlers.get_last_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
-                update_loop_params(loop_end, tail_size, tail_size, false);
-            } else if (specific_first_iteration) {
-                handlers.get_main_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
-                update_loop_params(loop_end, work_amount - increment, increment, false);
-            }
+            bool created = false;
+            for (const auto& type : m_loop_types)
+                created = create_specific_loop(linear_ir, begin_it, end_it, loop_info, loop_id, runtime_config, loop_end, type) || created;
+            OPENVINO_ASSERT(created, "The Loop has not been updated!");
+            modified = true;
         }
-        modified = true;
     }
+
     return modified;
 }
 

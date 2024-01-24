@@ -599,6 +599,7 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
 
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), canonicalShape.size());
+    snippetAttrs.snippet->set_tensor_rank(tensorRank);
     auto initDataSizes = [this]() {
         dataSize.resize(numInput + numOutput);
         for (size_t i = 0; i < numInput; i++)
@@ -617,9 +618,8 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
     generate(&jcp);
     buffer_scratchpad_size = schedule.lowering_result.buffer_scratchpad_size;
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
-    parallel_exec_domain = schedule.parallel_exec_domain;
+    parallel_exec_domain = getNormalizedDimsBySize(schedule.parallel_exec_domain, tensorRank);
     harnessWorkAmount = std::accumulate(parallel_exec_domain.begin(), parallel_exec_domain.end(), 1, std::multiplies<size_t>());
-    parallel_exec_domain = getNormalizedDimsBySize(parallel_exec_domain, tensorRank);
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {

@@ -119,17 +119,32 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
     const auto& finalization_offsets = loop_end->get_finalization_offsets();
     const auto& data_sizes = loop_end->get_element_type_sizes();
 
+    const auto increment = loop_end->get_increment();
+    const auto evaluance_once = loop_end->get_work_amount() < 2 * increment;
+
     BufferMap buffer_neighbours;
+
+    auto create_shifts = [&](size_t idx) {
+        return (evaluance_once && ptr_increments[idx] * static_cast<int64_t>(increment) == -1 * finalization_offsets[idx]) ?
+                    ShiftPtrParams(data_sizes[idx], 0, 0) :
+                    ShiftPtrParams(data_sizes[idx], ptr_increments[idx], finalization_offsets[idx]);
+    };
+
+    auto add_neighbour = [&](const ExpressionPtr& expr, size_t idx) {
+        buffer_neighbours[expr] = create_shifts(idx);
+    };
+
     for (size_t i = 0; i < input_count; ++i) {
         const auto& parent_output = loop_end_expr->get_input_port_connector(i)->get_source().get_expr();
         if (ov::is_type<op::Buffer>(parent_output->get_node())) {
             if (buffer_neighbours.count(parent_output) > 0) {
-                OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == ptr_increments[i] &&
-                                buffer_neighbours[parent_output].finalization_offset == finalization_offsets[i],
+                const auto& data_ptr_shifts = create_shifts(i);
+                OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == data_ptr_shifts.ptr_increment &&
+                                buffer_neighbours[parent_output].finalization_offset == data_ptr_shifts.finalization_offset,
                                 "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
                 continue;
             }
-            buffer_neighbours[parent_output] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+            add_neighbour(parent_output, i);
         }
     }
     for (size_t i = input_count; i < input_count + output_count; ++i) {
@@ -140,7 +155,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
         for (const auto& consumer_input : consumer_inputs) {
             const auto& child_expr = consumer_input.get_expr();
             if (ov::is_type<op::Buffer>(child_expr->get_node())) {
-                buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+                add_neighbour(child_expr, i);
                 buffer_count++;
             } else if (ov::is_type<op::LoopEndStatic>(child_expr->get_node())) {
                 loop_count++;

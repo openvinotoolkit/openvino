@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/emitter.hpp"
+#include "snippets/lowered/runtime_config.hpp"
 
 #include "openvino/op/op.hpp"
 
@@ -78,7 +79,7 @@ public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
     LoopEnd() = default;
     LoopEnd(const Output<Node>& loop_begin, size_t work_amount_increment, std::vector<bool> is_incremented,
-            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
+            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id = 0);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -88,6 +89,7 @@ public:
     const std::vector<int64_t>& get_element_type_sizes() const;
     size_t get_increment() const;
     size_t get_id() const;
+    size_t get_desc_id() const;
     size_t get_input_num() const;
     size_t get_output_num() const;
     bool get_evaluate_once() const;
@@ -96,6 +98,9 @@ public:
     void set_increment(size_t new_increment);
     void set_evaluate_once(bool once);
     void set_id(size_t id);
+    void set_desc_id(size_t id);
+
+    virtual void update(const lowered::RuntimeConfig::LoopDescriptor& descriptor);
 
 protected:
     std::vector<bool> m_is_incremented = {};
@@ -104,6 +109,7 @@ protected:
     size_t m_input_num = 0;
     size_t m_output_num = 0;
     size_t m_id = 0;  // the corresponding Loop identificator in LoopManager
+    size_t m_desc_id = 0; // the corresponding LoopDescriptor ID in RuntimeConfigurator
 };
 
 class LoopEndStatic : public LoopEnd {
@@ -112,7 +118,7 @@ public:
     LoopEndStatic() = default;
     LoopEndStatic(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
                   std::vector<bool> is_incremented, std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
-                  std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
+                  std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id = 0);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     void validate_and_infer_types() override;
@@ -132,6 +138,8 @@ public:
     void set_work_amount(size_t new_work_amount);
     void set_evaluate_once(bool once);
 
+    void update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) override;
+
 protected:
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};
@@ -144,7 +152,7 @@ public:
     OPENVINO_OP("LoopEndDynamic", "SnippetsOpset", LoopEnd);
     LoopEndDynamic() = default;
     LoopEndDynamic(const Output<Node>& loop_begin, size_t work_amount_increment, std::vector<bool> is_incremented,
-                   std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
+                   std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id = 0);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };

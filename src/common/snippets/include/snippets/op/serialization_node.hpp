@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include <snippets/snippets_isa.hpp>
 #include <snippets/lowered/expression.hpp>
 
 namespace ov {

@@ -8,8 +8,6 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/shape_types.hpp"
 #include "target_machine.hpp"

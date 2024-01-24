@@ -4,7 +4,6 @@
 
 #include "snippets/generator.hpp"
 
-#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
@@ -13,6 +12,10 @@
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/kernel.hpp"
+
+#include "snippets/snippets_isa.hpp"
+#include "snippets/itt.hpp"
+
 
 namespace ov {
 namespace snippets {
