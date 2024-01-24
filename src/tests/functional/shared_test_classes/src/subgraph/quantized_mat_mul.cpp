@@ -75,7 +75,7 @@ void QuantMatMulTest::SetUp() {
 
     auto makeFakeQuantizeNode = [element_type](size_t quantLevels, QuantRange inputRange, QuantRange outputRange,
             ov::test::utils::QuantizationGranularity quantGranularity, const ov::Output<ov::Node> &in, ov::Shape inputShape,
-            ov::element::Type prec) -> std::shared_ptr<ngraph::Node> {
+            ov::element::Type prec) -> std::shared_ptr<ov::Node> {
         std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
         if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
             dataFqConstShapes[1] = inputShape[1];
