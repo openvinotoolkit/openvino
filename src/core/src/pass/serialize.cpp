@@ -944,8 +944,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& param : model.get_parameters()) {
             result.emplace_back(param);
         }
+        auto model_sinks = model.get_sinks();
         for (auto&& node : sorted_ops) {
-            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
+            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && std::find(model_sinks.begin(), model_sinks.end(), node) == model_sinks.end())
                 result.emplace_back(node);
         }
         for (const auto& sink : model.get_sinks()) {

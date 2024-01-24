@@ -513,7 +513,20 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         }
 
         if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
-            if (!std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+            auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+            if (subgraph_op) {
+                bool has_sinks = false;
+                for (const auto& body_model : subgraph_op->get_functions()) {
+                    if (body_model->get_sinks().size()) {
+                        has_sinks = true;
+                    }
+                }
+                if (has_sinks) {
+                    func_nodes.sinks.emplace_back(sink);
+                }
+            } 
+            else
+            {
                 func_nodes.sinks.emplace_back(sink);
             }
         }
