@@ -58,7 +58,7 @@ void MemoryTest::SetUp() {
 }
 
 void MemoryTest::Run() {
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     using namespace LayerTestsUtils;
     auto crashHandler = [](int errCode) {

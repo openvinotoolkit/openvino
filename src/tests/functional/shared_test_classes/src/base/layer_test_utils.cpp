@@ -63,7 +63,7 @@ void LayerTestsCommon::Run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
+        functionRefs = function->clone();
         functionRefs->set_friendly_name("refFunction");
     }
 
@@ -562,7 +562,7 @@ void LayerTestsCommon::Compare(
 
 void LayerTestsCommon::Validate() {
     if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
+        functionRefs = function->clone();
     }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
