@@ -62,7 +62,8 @@ class TestAssignOps(CommonTFLayerTest):
             assign = tf.raw_ops.Assign(ref=variable, value=const_value)
             with tf.control_dependencies([assign]):
                 mul1 = tf.raw_ops.Mul(x=variable, y=x, name='mul')
-            assign_add = assign_op(ref=assign, value=const_value2)
+            with tf.control_dependencies([mul1]):
+                assign_add = assign_op(ref=assign, value=const_value2)
             with tf.control_dependencies([assign_add]):
                 tf.raw_ops.Sub(x=variable, y=mul1, name='sub')
 
