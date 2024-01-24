@@ -524,9 +524,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                 if (has_sinks) {
                     func_nodes.sinks.emplace_back(sink);
                 }
-            } 
-            else
-            {
+            } else {
                 func_nodes.sinks.emplace_back(sink);
             }
         }
