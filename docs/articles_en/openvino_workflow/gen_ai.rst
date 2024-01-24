@@ -143,7 +143,7 @@ This transformation further improves inference performance and decreases amount 
 It is achieved by hiding inputs and outputs of the model that represent past KV-cache tensors, and handling them inside the model in a more efficient way.
 This feature is activated automatically for a wide range of supported text generation models, keeping not supported models in a regular, stateless form.
 
-Model usage are identical for stateful and stateless models as long as Optimum-Intel API is used because KV-cache handling is an internal detail of how Optimum-Intel is implmented under the hood.
+Model usage are identical for stateful and stateless models as long as Optimum-Intel API is used because KV-cache handling is an internal detail of the text-generation API of Transformers library.
 But a form of a model matterns in case when exported from Optimum-Intel OpenVINO model IR is used in an application implemented with native OpenVINO API, because stateful and stateless models have different number of inputs and outputs.
 Please refer to a dedicated section of this document below for more information about using native OpenVINO API.
 
