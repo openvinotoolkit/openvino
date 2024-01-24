@@ -67,9 +67,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/factory.hpp"
 
-// nGraph opsets
-#include "openvino/opsets/opset.hpp"
-
 // nGraph passes
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
