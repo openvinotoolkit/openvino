@@ -55,14 +55,14 @@ where:
 * `name` - the display name of the job
 * `needs` - the job's needs, i.e., the jobs that should be completed before this one starts
 * `uses` - the path to the reusable workflow
-* `with` - the input keys that will be passed to the reusable workflow. Refer to the workflow file to learn more about its inputs
+* `with` - the input keys that will be passed to the reusable workflow. Refer to the workflow file to learn more about its inputs, refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/reusing-workflows#using-inputs-and-secrets-in-a-reusable-workflow) for a syntax reference
 
 ## Adding Reusable Workflows
 
 If you would like to add new similar stages to several workflows, consider creating a reusable workflow to reduce duplication.
 
 The reusable workflows in the OpenVINO GitHub Actions CI usually have:
-* the filename starting with `job`
+* the filename starting with `job_`, e.g., [`job_cxx_unit_tests.yml`](./../../../../.github/workflows/job_cxx_unit_tests.yml)
 * the `runner` input - the runner name that will be used to execute the steps in a job, learn more about the available runners and how to use them [here](./runners.md)
 * the `container` input - JSON to be converted to the value of the "container" configuration for the job, learn more about using Docker in the workflows [here](./docker_images.md)
 * *Optional* the `affected-components` input - components that are affected by changes in the commit defined by the Smart CI Action, learn more about the Smart CI system [here](./smart_ci.md)
@@ -70,5 +70,4 @@ The reusable workflows in the OpenVINO GitHub Actions CI usually have:
 *Note*: Per the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows), all workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows).
 
 As the reusable workflows are structured and behave like jobs, refer to [this document](./adding_tests.md) to learn more about creating a job and
-use the information about the reusable workflows to create one.
-
+use the information about the reusable workflows to make a job into a reusable workflow.
