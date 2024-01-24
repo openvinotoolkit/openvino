@@ -34,7 +34,6 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/node_input.hpp"
 #include "ngraph/node_output.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "openvino/core/any.hpp"
@@ -42,6 +41,7 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
 

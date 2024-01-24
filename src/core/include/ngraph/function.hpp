@@ -16,8 +16,8 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/parameter.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/variable.hpp"
 
 namespace ngraph {

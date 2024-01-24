@@ -36,7 +36,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent1->set_friendly_name("maxPool1");
         }
 
@@ -69,7 +69,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
@@ -79,7 +79,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent2->set_friendly_name("maxPool2");
         }
 
@@ -147,7 +147,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
@@ -157,7 +157,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent1->set_friendly_name("maxPool1");
         }
 
@@ -182,7 +182,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
@@ -192,7 +192,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent2->set_friendly_name("maxPool2");
         }
 

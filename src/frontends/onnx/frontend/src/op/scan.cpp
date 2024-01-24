@@ -11,9 +11,9 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -23,7 +23,7 @@ namespace op {
 namespace {
 
 OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
-                                     ParameterVector& body_inputs,
+                                     ov::ParameterVector& body_inputs,
                                      OutputVector& body_outputs,
                                      int64_t num_scan_inputs,
                                      const std::vector<int64_t>& scan_input_axes,

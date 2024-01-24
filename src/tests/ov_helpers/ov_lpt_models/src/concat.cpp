@@ -391,14 +391,13 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithIntermediateAvgPool(
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
 
-    std::shared_ptr<Node> parent2 = std::make_shared<ov::opset1::AvgPool>(
-        intermediateOp,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
+    std::shared_ptr<Node> parent2 = std::make_shared<ov::opset1::AvgPool>(intermediateOp,
+                                                                          Strides{1, 1},
+                                                                          Shape{1, 1},
+                                                                          Shape{0, 0},
+                                                                          Shape{2, 2},
+                                                                          true,
+                                                                          ov::op::RoundingType::FLOOR);
     parent2->set_friendly_name("avgPool");
 
     ov::ResultVector results {
@@ -1002,14 +1001,13 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
 
     std::shared_ptr<ov::Node> parent = lastDequantization;
     if (addNotPrecisionPreservedOperation) {
-        auto avgPool = std::make_shared<ov::opset1::AvgPool>(
-            lastDequantization,
-            Strides{1, 1},
-            Shape{1, 1},
-            Shape{1, 1},
-            Shape{2, 2},
-            true,
-            op::RoundingType::FLOOR);
+        auto avgPool = std::make_shared<ov::opset1::AvgPool>(lastDequantization,
+                                                             Strides{1, 1},
+                                                             Shape{1, 1},
+                                                             Shape{1, 1},
+                                                             Shape{2, 2},
+                                                             true,
+                                                             ov::op::RoundingType::FLOOR);
         parent = avgPool;
     }
 
@@ -1052,13 +1050,12 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
             std::make_shared<ov::opset1::Constant>(element::i32, Shape{ intermediateShape.size() }, intermediateShape),
             true);
 
-        const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-            reshape1,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+        const auto maxPool = std::make_shared<ov::opset1::MaxPool>(reshape1,
+                                                                   Strides{1, 1},
+                                                                   Shape{1, 1},
+                                                                   Shape{0, 0},
+                                                                   Shape{2, 2},
+                                                                   ov::op::RoundingType::FLOOR);
 
         const auto reshape2 = std::make_shared<ov::opset1::Reshape>(
             maxPool,
@@ -1129,14 +1126,13 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     }
 
     if (addNotPrecisionPreservedOperation) {
-        auto avgPool = std::make_shared<ov::opset1::AvgPool>(
-            parent,
-            Strides{1, 1},
-            Shape{1, 1},
-            Shape{1, 1},
-            Shape{2, 2},
-            true,
-            op::RoundingType::FLOOR);
+        auto avgPool = std::make_shared<ov::opset1::AvgPool>(parent,
+                                                             Strides{1, 1},
+                                                             Shape{1, 1},
+                                                             Shape{1, 1},
+                                                             Shape{2, 2},
+                                                             true,
+                                                             ov::op::RoundingType::FLOOR);
         parent = avgPool;
     }
     parent->set_friendly_name("output");
@@ -1427,15 +1423,15 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateAvgPool(
     parent1->set_friendly_name("concat");
 
     std::shared_ptr<Node> parent2 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(
-        std::vector<ov::element::Type>{ element::f32, element::f32 },
-        std::vector<ov::element::Type>{ element::f32 },
+        std::vector<ov::element::Type>{element::f32, element::f32},
+        std::vector<ov::element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
+        Strides{1, 1},
+        Shape{1, 1},
+        Shape{0, 0},
+        Shape{2, 2},
         true,
-        op::RoundingType::FLOOR);
+        ov::op::RoundingType::FLOOR);
     parent2->set_friendly_name("avgPool");
 
     parent2 = makeDequantization(parent2, dequantizationAfter2);

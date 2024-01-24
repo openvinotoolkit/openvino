@@ -14,16 +14,15 @@
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-std::shared_ptr<ov::Model> PadFunction::get(
-    const PartialShape& inputShape,
-    const element::Type precisionBeforeDequantization,
-    const builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const std::vector<int64_t>& padsBegin,
-    const std::vector<int64_t>& padsEnd,
-    const op::PadMode mode,
-    const float padValue,
-    const element::Type precisionAfterOperation,
-    const builder::subgraph::DequantizationOperations& dequantizationAfter) {
+std::shared_ptr<ov::Model> PadFunction::get(const PartialShape& inputShape,
+                                            const element::Type precisionBeforeDequantization,
+                                            const builder::subgraph::DequantizationOperations& dequantizationBefore,
+                                            const std::vector<int64_t>& padsBegin,
+                                            const std::vector<int64_t>& padsEnd,
+                                            const ov::op::PadMode mode,
+                                            const float padValue,
+                                            const element::Type precisionAfterOperation,
+                                            const builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
@@ -50,14 +49,13 @@ std::shared_ptr<ov::Model> PadFunction::get(
     return function;
 }
 
-std::shared_ptr<ov::Model> PadFunction::get(
-    const PartialShape& inputShape,
-    const element::Type inputPrecision,
-    const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
-    const std::vector<int64_t>& padsBegin,
-    const std::vector<int64_t>& padsEnd,
-    const op::PadMode mode,
-    const float padValue) {
+std::shared_ptr<ov::Model> PadFunction::get(const PartialShape& inputShape,
+                                            const element::Type inputPrecision,
+                                            const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
+                                            const std::vector<int64_t>& padsBegin,
+                                            const std::vector<int64_t>& padsEnd,
+                                            const ov::op::PadMode mode,
+                                            const float padValue) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
 
@@ -67,9 +65,9 @@ std::shared_ptr<ov::Model> PadFunction::get(
     const auto pad = std::make_shared<ov::op::v12::Pad>(fqOnData, padsBeginConst, padsEndConst, padsValueConst, mode);
     pad->set_friendly_name("Pad");
 
-    const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
-        ParameterVector{ input }, "PadTransformation");
+    const auto function = std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::opset1::Result>(pad)},
+                                                      ov::ParameterVector{input},
+                                                      "PadTransformation");
 
     return function;
 }

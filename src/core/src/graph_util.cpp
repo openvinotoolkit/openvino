@@ -520,8 +520,8 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
     }
 
     // Make parameter node
-    std::shared_ptr<op::Parameter> par_node =
-        std::make_shared<op::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
+    std::shared_ptr<ov::op::v0::Parameter> par_node =
+        std::make_shared<ov::op::v0::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
     std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);

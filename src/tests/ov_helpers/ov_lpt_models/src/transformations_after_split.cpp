@@ -53,14 +53,13 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "AvgPoolTransformation") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
-        return std::make_shared<ov::opset1::AvgPool>(
-            dequantization,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            true,
-            op::RoundingType::FLOOR);
+        return std::make_shared<ov::opset1::AvgPool>(dequantization,
+                                                     Strides{1, 1},
+                                                     Shape{1, 1},
+                                                     Shape{0, 0},
+                                                     Shape{2, 2},
+                                                     true,
+                                                     ov::op::RoundingType::FLOOR);
     }
     if (transformationName == "ClampTransformation") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });

@@ -313,7 +313,7 @@ void NmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
@@ -374,7 +374,7 @@ void Nms9LayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],

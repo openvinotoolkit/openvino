@@ -51,7 +51,7 @@ public:
         return ov::element::dynamic;
     }
 
-    std::shared_ptr<ov::Node> get_ov_node(ParameterVector& parameters,
+    std::shared_ptr<ov::Node> get_ov_node(ov::ParameterVector& parameters,
                                           const std::map<std::string, Tensor>& initializers) const {
         const auto it = initializers.find(get_name());
         if (it != std::end(initializers)) {

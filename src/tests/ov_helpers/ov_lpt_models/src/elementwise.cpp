@@ -97,13 +97,12 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
         result = makeFakeQuantizeWithNames(result, precision, fqOnDataAfter, "fakeQuantizeAfter");
 
         // we need a some operation to move dequantization operations away from FakeQuantize to avoid cleanup fuse
-        result = std::make_shared<ov::opset1::MaxPool>(
-            result,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+        result = std::make_shared<ov::opset1::MaxPool>(result,
+                                                       Strides{1, 1},
+                                                       Shape{1, 1},
+                                                       Shape{0, 0},
+                                                       Shape{2, 2},
+                                                       ov::op::RoundingType::FLOOR);
         result->set_friendly_name("maxPool");
     }
 

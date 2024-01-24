@@ -7,32 +7,32 @@
 //#include "ov_models/builders.hpp"
 //#include "ov_models/utils/ov_helpers.hpp"
 //
-//using namespace InferenceEngine;
-//using namespace CPUTestUtils;
+// using namespace InferenceEngine;
+// using namespace CPUTestUtils;
 //
-//namespace CPULayerTestsDefinitions {
-//typedef std::tuple<
+// namespace CPULayerTestsDefinitions {
+// typedef std::tuple<
 //        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>,  // input shape
 //        std::tuple<float, float, float>,  // start, limit, delta
 //        Precision  // output type
 //> RangeSpecificParams;
 //
-//typedef std::tuple<
+// typedef std::tuple<
 //        RangeSpecificParams,
 //        InferenceEngine::Precision,     // Net precision
 //        LayerTestsUtils::TargetDevice   // Device name
 //> RangeLayerTestParams;
 //
-//typedef std::tuple<
+// typedef std::tuple<
 //        CPULayerTestsDefinitions::RangeLayerTestParams,
 //        CPUSpecificParams> RangeLayerCPUTestParamsSet;
 //
-//class RangeLayerCPUTest : public testing::WithParamInterface<RangeLayerCPUTestParamsSet>,
+// class RangeLayerCPUTest : public testing::WithParamInterface<RangeLayerCPUTestParamsSet>,
 //                             virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 //    float start = 0;
 //    float stop = 0;
 //    float step = 0;
-//public:
+// public:
 //    static std::string getTestCaseName(testing::TestParamInfo<RangeLayerCPUTestParamsSet> obj) {
 //        CPULayerTestsDefinitions::RangeLayerTestParams basicParamsSet;
 //        CPUSpecificParams cpuParams;
@@ -61,7 +61,7 @@
 //        result << ov::test::utils::vec2str(shapes.second[0]) << "_";
 //        return result.str();
 //    }
-//protected:
+// protected:
 //    void GenerateInputs() override {
 //        // for correct work of fill_data_random() method
 //        size_t blobFillingRange = (inPrc == Precision::FP32 ? 0 : 1);
@@ -123,77 +123,79 @@
 //        stepPar->set_friendly_name("step");
 //
 //        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
-//        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector {
+//        function = std::make_shared<ngraph::Function>(results, ov::ParameterVector {
 //            startPar, stopPar, stepPar}, "Range");
 //        functionRefs = ngraph::clone_function(*function);
 //    }
 //};
 //
-//TEST_P(RangeLayerCPUTest, CompareWithRefs) {
+// TEST_P(RangeLayerCPUTest, CompareWithRefs) {
 //    run();
 //    CheckPluginRelatedResults(executableNetwork, "Range");
 //}
 //
-//namespace {
+// namespace {
 //
 ///* CPU PARAMS */
-//std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-//    return std::vector<CPUSpecificParams> {CPUSpecificParams{{}, {x}, {}, {}}};
-//}
+// std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
+//     return std::vector<CPUSpecificParams> {CPUSpecificParams{{}, {x}, {}, {}}};
+// }
 //
-//const std::vector<InferenceEngine::Precision> netPrecisions = {
-//        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::I32
-//};
-//const std::vector<InferenceEngine::Precision> outputType = {
-//        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::I32
-//};
+// const std::vector<InferenceEngine::Precision> netPrecisions = {
+//         InferenceEngine::Precision::FP32,
+//         InferenceEngine::Precision::I32
+// };
+// const std::vector<InferenceEngine::Precision> outputType = {
+//         InferenceEngine::Precision::FP32,
+//         InferenceEngine::Precision::I32
+// };
 //
-//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamic = {
-//        {{ngraph::PartialShape(), ngraph::PartialShape(), ngraph::PartialShape()},
-//         {{ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}, {ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}}}
-//};
-//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesPseudoStatic = {
-//        {{}, {{ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}}}
-//};
+// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamic =
+// {
+//         {{ngraph::PartialShape(), ngraph::PartialShape(), ngraph::PartialShape()},
+//          {{ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}, {ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}}}
+// };
+// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>
+// inShapesPseudoStatic = {
+//         {{}, {{ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}}}
+// };
 //
-//const std::vector<std::tuple<float, float, float>> rangeInputValues = {
-//        std::tuple<float, float, float> {1.0, -5.0, -1.0},
-//        std::tuple<float, float, float> {1.0, 10.0, 1.2},
-//        std::tuple<float, float, float> {1.1, 12.2, 1.1},
-//        std::tuple<float, float, float> {1.1, -5.1, -1.1},
-//        std::tuple<float, float, float> {1.0, 5.0, 2.0},
-//        std::tuple<float, float, float> {10.0, 6.0, -3.0},
-//        std::tuple<float, float, float> {5, 35, 5}
-//};
-//const auto rangeParDynamic = ::testing::Combine(
-//        ::testing::ValuesIn(inShapesDynamic),
-//        ::testing::ValuesIn(rangeInputValues),
-//        ::testing::ValuesIn(outputType)
+// const std::vector<std::tuple<float, float, float>> rangeInputValues = {
+//         std::tuple<float, float, float> {1.0, -5.0, -1.0},
+//         std::tuple<float, float, float> {1.0, 10.0, 1.2},
+//         std::tuple<float, float, float> {1.1, 12.2, 1.1},
+//         std::tuple<float, float, float> {1.1, -5.1, -1.1},
+//         std::tuple<float, float, float> {1.0, 5.0, 2.0},
+//         std::tuple<float, float, float> {10.0, 6.0, -3.0},
+//         std::tuple<float, float, float> {5, 35, 5}
+// };
+// const auto rangeParDynamic = ::testing::Combine(
+//         ::testing::ValuesIn(inShapesDynamic),
+//         ::testing::ValuesIn(rangeInputValues),
+//         ::testing::ValuesIn(outputType)
 //);
-//const auto rangeParStatic = ::testing::Combine(
-//        ::testing::ValuesIn(inShapesPseudoStatic),
-//        ::testing::ValuesIn(rangeInputValues),
-//        ::testing::ValuesIn(outputType)
+// const auto rangeParStatic = ::testing::Combine(
+//         ::testing::ValuesIn(inShapesPseudoStatic),
+//         ::testing::ValuesIn(rangeInputValues),
+//         ::testing::ValuesIn(outputType)
 //);
-//const auto params3dDynamic = ::testing::Combine(
-//        ::testing::Combine(
-//                rangeParDynamic,
-//                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//        ::testing::ValuesIn(filterCPUInfoForDevice()));
-//const auto params3dPseudoStatic = ::testing::Combine(
-//        ::testing::Combine(
-//                rangeParStatic,
-//                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//        ::testing::ValuesIn(filterCPUInfoForDevice()));
+// const auto params3dDynamic = ::testing::Combine(
+//         ::testing::Combine(
+//                 rangeParDynamic,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//         ::testing::ValuesIn(filterCPUInfoForDevice()));
+// const auto params3dPseudoStatic = ::testing::Combine(
+//         ::testing::Combine(
+//                 rangeParStatic,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//         ::testing::ValuesIn(filterCPUInfoForDevice()));
 //// We don't check static case, because of constant folding, but we can use static shape for test infrastructure,
 //// however Range node will be dynamic, since inputs are parameters, not a constants
-//INSTANTIATE_TEST_SUITE_P(smoke_RangePseudoStaticLayoutTest, RangeLayerCPUTest,
-//                         params3dPseudoStatic, RangeLayerCPUTest::getTestCaseName);
-//INSTANTIATE_TEST_SUITE_P(smoke_RangeDynamicLayoutTest, RangeLayerCPUTest,
-//                         params3dDynamic, RangeLayerCPUTest::getTestCaseName);
-//} // namespace
-//} // namespace CPULayerTestsDefinitions
+// INSTANTIATE_TEST_SUITE_P(smoke_RangePseudoStaticLayoutTest, RangeLayerCPUTest,
+//                          params3dPseudoStatic, RangeLayerCPUTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_RangeDynamicLayoutTest, RangeLayerCPUTest,
+//                          params3dDynamic, RangeLayerCPUTest::getTestCaseName);
+// } // namespace
+// } // namespace CPULayerTestsDefinitions

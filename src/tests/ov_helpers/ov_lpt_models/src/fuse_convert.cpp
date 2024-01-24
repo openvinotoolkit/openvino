@@ -20,7 +20,7 @@ std::shared_ptr<ov::Model> FuseConvertFunction::get(
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const bool constInput) {
     std::shared_ptr<Node> parent;
-    std::shared_ptr<op::Parameter> input;
+    std::shared_ptr<ov::op::v0::Parameter> input;
     if (constInput) {
         parent = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
@@ -52,7 +52,7 @@ std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
-    std::shared_ptr<op::Parameter> input1;
+    std::shared_ptr<ov::op::v0::Parameter> input1;
     if (constInput) {
         parent = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
@@ -65,9 +65,7 @@ std::shared_ptr<ov::Model> FuseConvertFunction::getWithFQ(
     deqStructure.multiply.outPrecision = inputPrecision;
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, deqStructure);
 
-    std::shared_ptr<op::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(
-            inputPrecision,
-            inputShape);
+    std::shared_ptr<ov::op::v0::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
 
     const auto fakeQuantizeOnActivations = ov::test::utils::make_fake_quantize(
         input2, inputPrecision, 256ul, { 1ul },

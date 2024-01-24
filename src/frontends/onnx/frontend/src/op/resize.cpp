@@ -8,8 +8,8 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

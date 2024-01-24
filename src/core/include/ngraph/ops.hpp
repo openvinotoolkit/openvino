@@ -18,7 +18,7 @@
 
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/divide.hpp"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/split.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/op_types.hpp"

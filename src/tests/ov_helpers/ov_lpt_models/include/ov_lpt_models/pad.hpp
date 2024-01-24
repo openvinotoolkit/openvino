@@ -21,7 +21,7 @@ static std::shared_ptr<ov::Model> get(
     const builder::subgraph::DequantizationOperations& dequantizationBefore,
     const std::vector<int64_t>& padsBegin,
     const std::vector<int64_t>& padsEnd,
-    const op::PadMode mode,
+    const ov::op::PadMode mode,
     const float padValue,
     const element::Type precisionAfterOperation,
     const builder::subgraph::DequantizationOperations& dequantizationAfter);
@@ -32,7 +32,7 @@ static std::shared_ptr<ov::Model> get(
     const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<int64_t>& padsBegin,
     const std::vector<int64_t>& padsEnd,
-    const op::PadMode mode,
+    const ov::op::PadMode mode,
     const float padValue = 0.f);
 };
 }  // namespace subgraph
