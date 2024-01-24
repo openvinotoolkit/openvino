@@ -21,7 +21,7 @@ If the input shape of any layer changes, a new static kernel must be compiled be
 
 <img src="async_compilation.PNG" alt="async compilation overall workflow" width=500>
 
-The above diagram shows the overall execution flow of the async compilation. First, in the case of network loading, dynamic kernels are selected and stored in the impl cache. Next, in the phase of network inference, if the input shape of the current primitive impl is changed or it has a dynamic kernel, it is checked whether the impl cache has a pre-built impl for the updated input shape. In the case of cache hit, the pre-built impl is used for the primitive execution. In the case of cache miss, a new static kernel compilation task is triggered in the backgroud, and the dynamic kernel is used at this time for faster inference.
+The above diagram shows the overall execution flow of the async compilation. First, in the case of network loading, dynamic kernels are selected and stored in the impl cache. Next, in the phase of network inference, if the input shape of the current primitive impl is changed or it has a dynamic kernel, it is checked whether the impl cache has a pre-built impl for the updated input shape. In the case of cache hit, the pre-built impl is used for the primitive execution. In the case of cache miss, a new static kernel compilation task is triggered in the background, and the dynamic kernel is used at this time for faster inference.
 
 ## Prioritized Asynchronous Kernel Compilation
 

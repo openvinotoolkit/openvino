@@ -2,7 +2,7 @@
 
 ## Motivation
 
-When creating a primitive_impl in the Dynamic Shape model, if each primitive_impls are created about the same primitive with the same type and input / output shapes, it creates duplicated primitive_impl including new cl kernel build for same kernel source. this may results in inefficiency and performance degradation due to build the exactly same cl kernel source code multiple times for same layout and primitive type on the run time for dynamic model. To resolve this issue, ImplementationCache handle is newly introduced.
+When creating a primitive_impl in the Dynamic Shape model, if each primitive_impls are created about the same primitive with the same type and input / output shapes, it creates duplicated primitive_impl including new cl kernel build for same kernel source. this may result in inefficiency and performance degradation due to build the exactly same cl kernel source code multiple times for same layout and primitive type on the run time for dynamic model. To resolve this issue, ImplementationCache handle is newly introduced.
 
 
 ## Property
@@ -16,7 +16,7 @@ When creating a primitive_impl in the Dynamic Shape model, if each primitive_imp
 
 ## Usages
 
-ImplementationCache is used to handle primitive_impl cache  at primitive_inst::update_impl() and primitive_inst::update_weights() in dynamic shape model.
+ImplementationCache is used to handle primitive_impl cache at primitive_inst::update_impl() and primitive_inst::update_weights() in dynamic shape model.
 
 * In primitive_inst::update_impl(), it looks up the cache with key which is hash value of kernel_impl_param which is updated by the current primitive_inst. If it is not found from ImplementationCache, new primitive_impl is created and save it into the cache.
 * In primitive_inst::update_weights(), if it is not found a primitive_impl with a hash key value which matches the weights_reorder_kernel_params of the primitive inst, it also create a new primitive_impl for weight reorder and put it in the cache.

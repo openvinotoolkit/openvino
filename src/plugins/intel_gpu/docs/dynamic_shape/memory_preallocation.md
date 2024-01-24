@@ -26,7 +26,7 @@ Return value: `predict_preallocation_shape` returns a pair of `bool` and `ov::Sh
 
 `ShapePredictor` can operate in two modes:
 
-* By default it tries to predict shape for the next `_next_iters_preallocation_count` (10 by default) iterations. There are two requirements for successful shape prediction in this mode: per-iteration buffer size should be less than `_max_per_iter_size` (16KB by default) and difference between shapes' dimensions should be less than `_max_per_dim_diff`. These restrictions are needed to prevent unexpected large memory preallocations which lead to inefficient memory usage.
+* By default, it tries to predict shape for the next `_next_iters_preallocation_count` (10 by default) iterations. There are two requirements for successful shape prediction in this mode: per-iteration buffer size should be less than `_max_per_iter_size` (16KB by default) and difference between shapes' dimensions should be less than `_max_per_dim_diff`. These restrictions are needed to prevent unexpected large memory preallocations which lead to inefficient memory usage.
 
 * The second operation mode is percentage preallocation - this mode can be configured with `ov::intel_gpu::buffers_preallocation_ratio` (1.1 by default) internal property - it increases buffer size by `_buffers_preallocation_ratio` value unconditionally if it's not possible to predict the shape for multiple iterations ahead.
 
@@ -89,4 +89,4 @@ if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.secon
 ```
 
 ## `ShapePredictor` debug capabilities:
-You can use `OV_GPU_MemPreallocationOptions` environment variable (in case of enabled `DEBUG_CAPS`, see details in src/plugins/intel_gpu/docs/gpu_debug_utils.md) to change buffer preallocation behaviour. This property expects 4 values separated by space in the following order: number of iterations for preallocation(int), max size of single iteration in bytes(int), max per-dim allowed diff(int), unconditional buffers preallocation ratio(float). For example for disabling memory preallocation at all, you can use `OV_GPU_MemPreallocationOptions='0 0 0 1.0'`
+You can use `OV_GPU_MemPreallocationOptions` environment variable (in case of enabled `DEBUG_CAPS`, see details in src/plugins/intel_gpu/docs/gpu_debug_utils.md) to change buffer preallocation behaviour. This property expects 4 values separated by space in the following order: number of iterations for preallocation(int), max size of single iteration in bytes(int), max per-dim allowed diff(int), unconditional buffers preallocation ratio(float). For example, for disabling memory preallocation at all, you can use `OV_GPU_MemPreallocationOptions='0 0 0 1.0'`

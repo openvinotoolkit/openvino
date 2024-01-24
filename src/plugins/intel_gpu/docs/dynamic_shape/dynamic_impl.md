@@ -1,6 +1,6 @@
 # Dynamic primitive impls
 
-* Unlike static impl, dynamic impl has no shape information before execution. The input shape is dependent with input layer's output shape or excution result value. To do handle this dynamic case, the shape agnostic kernel is used.
+* Unlike static impl, dynamic impl has no shape information before execution. The input shape is dependent with input layer's output shape or execution result value. To do handle this dynamic case, the shape agnostic kernel is used.
 
 * Kernels that support dynamic shapes must declare EnableDynamicShapesSupport() as supported key.
 
