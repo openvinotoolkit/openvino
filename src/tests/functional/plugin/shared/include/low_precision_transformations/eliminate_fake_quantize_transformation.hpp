@@ -7,7 +7,6 @@
 #include <string>
 #include <set>
 
-#include <ngraph/ngraph.hpp>
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -19,7 +18,7 @@ class EliminateFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBefore;
+        ov::element::Type precisionBefore;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
@@ -31,7 +30,7 @@ public:
         size_t int8_convolutions;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;

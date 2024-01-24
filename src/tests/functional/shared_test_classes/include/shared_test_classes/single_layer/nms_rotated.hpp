@@ -35,7 +35,7 @@ class NmsRotatedLayerTest : public testing::WithParamInterface<NmsRotatedParams>
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsRotatedParams>& obj);
     void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
 
 protected:

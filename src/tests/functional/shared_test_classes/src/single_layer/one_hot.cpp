@@ -8,7 +8,7 @@ namespace LayerTestsDefinitions {
 
 std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
     int64_t axis;
-    ngraph::element::Type depth_type, set_type;
+    ov::element::Type depth_type, set_type;
     int64_t depth_val;
     float on_val, off_val;
     InferenceEngine::Precision netPrecision;
@@ -34,7 +34,7 @@ std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHot
 void OneHotLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     int64_t axis;
-    ngraph::element::Type depth_type, set_type;
+    ov::element::Type depth_type, set_type;
     int64_t depth_val;
     float on_val, off_val;
     InferenceEngine::Precision netPrecision;
@@ -48,7 +48,7 @@ void OneHotLayerTest::SetUp() {
     auto off_value_const = std::make_shared<ov::op::v0::Constant>(set_type, ov::Shape{}, off_val);
     auto onehot = std::make_shared<ov::op::v1::OneHot>(params[0], depth_const, on_value_const, off_value_const, axis);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
-    function = std::make_shared<ngraph::Function>(results, params, "OneHot");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
+    function = std::make_shared<ov::Model>(results, params, "OneHot");
 }
 }  // namespace LayerTestsDefinitions

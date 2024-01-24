@@ -218,5 +218,17 @@ private:
     VectorDims dims;
 };
 
+/**
+ * @brief Merges two shapes overlapping their dims intervals.
+ * @note When one of the dims intervals are not overlapped an exception is thrown.
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @return resulting shape
+ */
+
+Shape mergeShapes(const Shape& lhs, const Shape& rhs);
+
 }   // namespace intel_cpu
 }   // namespace ov

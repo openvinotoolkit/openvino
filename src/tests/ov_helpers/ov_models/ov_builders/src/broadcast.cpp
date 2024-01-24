@@ -26,7 +26,7 @@ namespace {
 /// \return     The vector with axes indexes mapping .
 ///
 std::vector<size_t> get_axes_mapping(const Shape& output_shape, const AxisSet& broadcast_axes) {
-    NGRAPH_CHECK((broadcast_axes.size() <= output_shape.size()));
+    OPENVINO_ASSERT((broadcast_axes.size() <= output_shape.size()));
     std::vector<size_t> axes_mapping(output_shape.size());
     iota(axes_mapping.begin(), axes_mapping.end(), 0);
     for (auto i = broadcast_axes.rbegin(); i != broadcast_axes.rend(); ++i) {

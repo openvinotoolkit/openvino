@@ -2,29 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using get_property_params = std::tuple<std::string,  // Get Property Name
                                        bool>;        // Throw exception
-
-const char supported_metric[] = "SUPPORTED_METRICS FULL_DEVICE_NAME SUPPORTED_CONFIG_KEYS";
-const char supported_config_keys[] = "AUTO_BATCH_DEVICE_CONFIG MULTI_DEVICE_PRIORITIES AUTO_BATCH_TIMEOUT CACHE_DIR";
 
 class GetPropertyTest : public ::testing::TestWithParam<get_property_params> {
 public:
@@ -70,29 +51,18 @@ TEST_P(GetPropertyTest, GetPropertyTestCase) {
     } else {
         ov::Any value;
         ASSERT_NO_THROW(value = m_plugin->get_property(m_property_name, options));
-        if (m_property_name == METRIC_KEY(SUPPORTED_METRICS)) {
-            EXPECT_EQ(value.as<std::string>(), supported_metric);
-            return;
-        }
         if (m_property_name == ov::device::full_name.name()) {
             EXPECT_EQ(value.as<std::string>(), "BATCH");
-            return;
-        }
-        if (m_property_name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-            EXPECT_EQ(value.as<std::string>(), supported_config_keys);
             return;
         }
     }
 }
 
 const std::vector<get_property_params> get_property_params_test = {
-    get_property_params{"AUTO_BATCH_TIMEOUT", false},
-    get_property_params{"AUTO_BATCH_DEVICE_CONFIG", true},
-    get_property_params{"CACHE_DIR", true},
-    get_property_params{METRIC_KEY(SUPPORTED_METRICS), false},
-    get_property_params{METRIC_KEY(SUPPORTED_CONFIG_KEYS), false},
-    get_property_params{"CPU_THREADS_NUM", true},
-    get_property_params{"PERFORMANCE_HINT", true},
+    get_property_params{ov::auto_batch_timeout.name(), false},
+    get_property_params{ov::device::priorities.name(), true},
+    get_property_params{ov::cache_dir.name(), true},
+    get_property_params{ov::hint::performance_mode.name(), true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

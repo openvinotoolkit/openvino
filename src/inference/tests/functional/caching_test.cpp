@@ -1883,7 +1883,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
         });
         // Ensure that only 1 blob (for Hetero) is created
@@ -1900,7 +1900,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         }
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
             comp_models.clear();
         });
@@ -2020,7 +2020,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             m_testFunction(core);
         });
     }
@@ -2034,7 +2034,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(*net, export_model(_)).Times(0);
         }
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         });
@@ -2048,7 +2048,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(net, export_model(_)).Times(1);
         });
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.51"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.51"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
             comp_models.clear();

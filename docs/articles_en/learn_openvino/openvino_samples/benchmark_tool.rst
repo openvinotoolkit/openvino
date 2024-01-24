@@ -195,7 +195,7 @@ Device
 
 To set which device benchmarking runs on, use the ``-d <device>`` argument. This
 will tell ``benchmark_app`` to run benchmarking on that specific device. The benchmark
-app supports CPU, GPU, and GNA devices. In order to use GPU, the system
+app supports CPU and GPU devices. In order to use GPU, the system
 must have the appropriate drivers installed. If no device is specified, ``benchmark_app``
 will default to using ``CPU``.
 
@@ -454,7 +454,7 @@ following usage message:
 
             Device-specific performance options:
               -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
-                                    Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
+                                    Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
 
               -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
                                     Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'),
