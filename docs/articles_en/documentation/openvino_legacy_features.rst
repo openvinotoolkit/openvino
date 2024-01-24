@@ -61,14 +61,6 @@ offering.
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
 
-| **Apache MXNet, Caffe, and Kaldi model formats**
-|   *New solution:* conversion to ONNX via external tools
-|   *Old solution:* model support discontinued with OpenVINO 2024.0
-|
-|   `See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
-|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
-
-
 | **Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1
 |   *Old solution:* discontinued with OpenVINO 2024.0
