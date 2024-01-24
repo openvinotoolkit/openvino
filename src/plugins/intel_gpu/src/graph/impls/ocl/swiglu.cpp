@@ -29,6 +29,15 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         return make_unique<swiglu_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<swiglu>();
         auto params = get_default_params<kernel_selector::swiglu_params>(impl_param, is_shape_agnostic);
@@ -61,3 +70,6 @@ attach_swiglu_impl::attach_swiglu_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::swiglu_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::swiglu)
