@@ -35,6 +35,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::device::type.name()),
+        RO_property(ov::device::architecture.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::affinity.name()),
@@ -333,6 +334,19 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceType) {
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
     ASSERT_EQ(value.as<ov::device::Type>(), ov::device::Type::INTEGRATED);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
+
+#if defined(OPENVINO_ARCH_X86_64)
+    ASSERT_EQ(value.as<std::string>(), "intel64");
+#elif defined(OPENVINO_ARCH_X86)
+    ASSERT_EQ(value.as<std::string>(), "ia32");
+#endif
 }
 
 } // namespace
