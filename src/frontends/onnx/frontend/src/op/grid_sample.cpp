@@ -23,8 +23,8 @@ OutputVector grid_sample(const Node& node) {
     attributes.mode = ov::EnumNames<v9::GridSample::InterpolationMode>::as_enum(
         node.get_attribute_value<std::string>("mode", "bilinear"));
 
-    attributes.padding_mode =
-        ov::EnumNames<v9::GridSample::PaddingMode>::as_enum(node.get_attribute_value<std::string>("padding_mode", "zeros"));
+    attributes.padding_mode = ov::EnumNames<v9::GridSample::PaddingMode>::as_enum(
+        node.get_attribute_value<std::string>("padding_mode", "zeros"));
 
     return {std::make_shared<v9::GridSample>(data, grid, attributes)};
 }
