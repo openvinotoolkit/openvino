@@ -7,6 +7,7 @@
 #include <list>
 
 #include "expression.hpp"
+#include "runtime_config.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -32,22 +33,27 @@ class Config {
 public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
-    size_t m_loop_depth = 1;
-#ifdef SNIPPETS_DEBUG_CAPS
-    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
-#endif
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
+    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
+    // False if all Buffers will have uniqie ID and offsets in the Linear IR
+    bool m_are_buffers_optimized = true;
+    // Defined by OptimizeDomain optimization. Otherwise can be inited by backend
+    size_t m_loop_depth = 0;
+    // If it's zero (default value), data offsets and master shape won't be appended by ones. Can be inited by backed.
+    size_t m_tensor_rank = 0;
     // Minimal advised work amount for parallel execution.
     // Set by a backend, typically equals to the number of threads available on the machine.
     size_t m_min_parallel_work_amount = 8;
     // Minimal advised work amount that should be processed during one call of the executable produced by Subgraph::generate
     // Set by a backend, should be large enough to compensate for the kernel call overheads
     size_t m_min_kernel_work_amount = 256;
-    // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
-    // False if all Buffers will have uniqie ID and offsets in the Linear IR
-    bool m_are_buffers_optimized = true;
+#ifdef SNIPPETS_DEBUG_CAPS
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+#endif
 };
+
+class RuntimeConfigurator;
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
@@ -72,10 +78,11 @@ public:
                                                LinearIR::container::const_iterator end,
                                                ExressionMap& expression_map);
 
-    const container& get_ops() const {return m_expressions; }
-    const io_container& get_IO_ops() const {return m_io_expressions; }
-    Config get_config() {return m_config; }
+    const container& get_ops() const { return m_expressions; }
+    const io_container& get_IO_ops() const { return m_io_expressions; }
+    const Config& get_config() const { return m_config; }
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    void set_tensor_rank(size_t tensor_rank) { m_config.m_tensor_rank = tensor_rank; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -135,6 +142,10 @@ public:
     VectorDims get_master_shape() const;
 
     bool is_dynamic() const;
+
+    void init_runtime_configurator();
+    void configure_runtime_args();
+    const RuntimeConfig& get_runtime_config() const;
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -253,6 +264,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    std::shared_ptr<RuntimeConfigurator> m_runtime_configurator;
 };
 
 template<typename iterator>

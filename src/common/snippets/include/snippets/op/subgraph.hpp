@@ -119,7 +119,8 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
-    void set_tile_rank(size_t newRank) {tileRank = newRank;}
+    void set_kernel_rank(size_t new_rank);
+    void set_tensor_rank(size_t new_rank);
     void set_virtual_port_count(size_t count);
 
     void print() const;
@@ -147,6 +148,8 @@ public:
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
     std::shared_ptr<Subgraph> clone() const;
 
+    const lowered::RuntimeConfig& configure_runtime_args();
+
 private:
     void control_flow_transformations(lowered::LinearIR& linear_ir,
                                       LoweringResult& lowering_result,
@@ -161,7 +164,8 @@ private:
     Shape exec_domain = {};
     std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
 
-    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+    size_t m_kernel_rank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+    size_t m_tensor_rank = 0; // set by plugin to specify the number of dimensions processed in a master shape
     std::vector<size_t> appendOnesForCanonical;
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
 

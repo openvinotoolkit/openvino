@@ -338,12 +338,29 @@ VectorDims Subgraph::infer_master_shape() {
     return default_broadcasting->infer(inputs).dims.front();
 }
 
+void Subgraph::set_tensor_rank(size_t new_rank) {
+    OPENVINO_ASSERT(new_rank > 0, "Tensor rank must be positive");
+    m_tensor_rank = new_rank;
+    if (m_linear_ir) {
+        m_linear_ir->set_tensor_rank(new_rank);
+    }
+}
+
+void Subgraph::set_kernel_rank(size_t new_rank) {
+    OPENVINO_ASSERT(new_rank > 0, "Kernel rank must be positive");
+    m_kernel_rank = new_rank;
+    if (m_linear_ir) {
+        m_linear_ir->set_loop_depth(new_rank);
+    }
+}
+
 std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    lowering_config.m_loop_depth = tileRank;
+    lowering_config.m_loop_depth = m_kernel_rank;
+    lowering_config.m_tensor_rank = m_tensor_rank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
@@ -412,7 +429,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = 1;
+    size_t loop_depth = linear_ir.get_config().m_loop_depth;
     lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
     linear_ir.set_loop_depth(loop_depth);
 
@@ -438,6 +455,16 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.run(linear_ir);
+
+    // After transformations init runtime configurator
+    // If shapes are static - creates static loop descriptors with inited data ptr shifts
+    // If shapes are dynamic - creates full set of loop descriptor for the following initialization by static shapes
+    linear_ir.init_runtime_configurator();
+}
+
+const lowered::RuntimeConfig& Subgraph::configure_runtime_args() {
+    m_linear_ir->configure_runtime_args();
+    return m_linear_ir->get_runtime_config();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,

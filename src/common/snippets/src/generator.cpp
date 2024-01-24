@@ -27,6 +27,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
         return get_op_out_reg_type(out);
     };
+
     lowered::pass::PassPipeline lowered_pipeline;
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
@@ -36,7 +37,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
-    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>(linear_ir.get_runtime_config());
     lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);

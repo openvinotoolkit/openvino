@@ -8,6 +8,7 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/expression_factory.hpp"
+#include "snippets/lowered/runtime_configurator.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -18,7 +19,8 @@ namespace snippets {
 namespace lowered {
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config)
-        : m_io_expressions{}, m_config{config}, m_loop_manager(std::make_shared<LoopManager>()), m_shape_infer_factory(factory) {
+        : m_io_expressions{}, m_config{config}, m_loop_manager(std::make_shared<LoopManager>()),
+          m_shape_infer_factory(factory), m_runtime_configurator(std::make_shared<RuntimeConfigurator>()) {
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
@@ -59,6 +61,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
     cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    cloned->m_runtime_configurator = m_runtime_configurator->clone(*cloned);
     return cloned;
 }
 
@@ -369,7 +372,23 @@ VectorDims LinearIR::get_master_shape() const {
                             "Failed to merge input shapes in infer_master_shape");
         }
     }
+    if (m_config.m_tensor_rank > 0) {
+        OPENVINO_ASSERT(m_config.m_tensor_rank - master_shape.size() >= 0, "Incorrect tensor rank!");
+        master_shape.insert(master_shape.begin(), m_config.m_tensor_rank - master_shape.size(), 1);
+    }
     return master_shape;
+}
+
+void LinearIR::init_runtime_configurator() {
+    m_runtime_configurator->init(*this);
+}
+
+void LinearIR::configure_runtime_args() {
+    m_runtime_configurator->update(*this);
+}
+
+const RuntimeConfig& LinearIR::get_runtime_config() const {
+    return m_runtime_configurator->get_config();
 }
 
 template<>

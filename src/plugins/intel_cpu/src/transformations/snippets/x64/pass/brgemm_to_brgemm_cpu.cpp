@@ -113,6 +113,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             }
         }
 
+        brgemm_cpu->set_beta(1.f);
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_cpu);
 

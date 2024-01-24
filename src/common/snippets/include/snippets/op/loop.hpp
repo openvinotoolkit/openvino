@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/emitter.hpp"
+#include "snippets/lowered/runtime_config.hpp"
 
 #include "openvino/op/op.hpp"
 
@@ -131,6 +132,8 @@ public:
     void set_ptr_increments(std::vector<int64_t> new_ptr_increments);
     void set_work_amount(size_t new_work_amount);
     void set_evaluate_once(bool once);
+
+    void update(const lowered::RuntimeConfig::LoopDescriptor& descriptor);
 
 protected:
     std::vector<int64_t> m_ptr_increments = {};

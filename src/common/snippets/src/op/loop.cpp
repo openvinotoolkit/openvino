@@ -201,6 +201,13 @@ void LoopEndStatic::set_evaluate_once(bool once) {
     m_evaluate_once = once;
 }
 
+void LoopEndStatic::update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) {
+    set_work_amount(descriptor.work_amount);
+    set_increment(descriptor.increment);
+    set_ptr_increments(descriptor.ptr_increments);
+    set_finalization_offsets(descriptor.finalization_offsets);
+}
+
 LoopEndDynamic::LoopEndDynamic(const Output<Node>& loop_begin, size_t work_amount_increment, std::vector<bool> is_incremented,
                                std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
     : LoopEnd(loop_begin, work_amount_increment, std::move(is_incremented), std::move(element_type_sizes), input_num, output_num, id) {}

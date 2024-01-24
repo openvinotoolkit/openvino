@@ -68,7 +68,9 @@ std::shared_ptr<LoopInfo> LoopInfo::clone_with_new_expr(const ExressionMap& expr
     const auto& new_entry_points = clone_loop_ports(m_entry_points);
     const auto& new_exit_points = clone_loop_ports(m_exit_points);
 
-    return std::make_shared<LoopInfo>(m_work_amount, m_increment, new_entry_points, new_exit_points, m_outer_splited_loop);
+    const auto cloned = std::make_shared<LoopInfo>(m_work_amount, m_increment, new_entry_points, new_exit_points, m_outer_splited_loop);
+    cloned->set_first_iter_handler(m_first_iter_handler);
+    return cloned;
 }
 
 size_t LoopInfo::get_work_amount() const {
