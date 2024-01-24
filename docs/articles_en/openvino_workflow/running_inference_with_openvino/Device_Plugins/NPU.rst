@@ -157,8 +157,6 @@ guaranteed.
 Additional Resources
 #############################
 
-* `NPU plugin developer documentation <https://github.com/openvinotoolkit/npu_plugin/blob/develop/docs/VPUX_DG/index.md>`__
-* `OpenVINO Runtime NPU plugin source files <https://github.com/openvinotoolkit/npu_plugin>`__
 * `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__

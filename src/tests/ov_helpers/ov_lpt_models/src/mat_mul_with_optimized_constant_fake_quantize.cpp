@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "ov_models/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -55,4 +55,4 @@ std::shared_ptr<ov::Model> MatMulWithOptimizedConstantFakeQuantizeFunction::getO
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

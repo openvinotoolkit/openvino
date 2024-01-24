@@ -28,13 +28,13 @@ public:
     class Actual {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     TestTransformationParams params;
@@ -55,7 +55,7 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
             inputShape,
             testValues.precision,
             testValues.actual.weights,
@@ -71,7 +71,7 @@ public:
         cleanupManager.run_passes(actualFunction);
 
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
             inputShape,
             testValues.precision,
             testValues.expected.weights,

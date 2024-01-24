@@ -47,7 +47,7 @@ void MatMulWithConstantTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         testValues.inputShape,
         testValues.fqOnData,

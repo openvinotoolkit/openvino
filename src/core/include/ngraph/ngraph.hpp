@@ -64,10 +64,3 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/opsets/factory.hpp"
-
-// nGraph passes
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
