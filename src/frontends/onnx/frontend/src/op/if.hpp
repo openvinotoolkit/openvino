@@ -7,18 +7,17 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-/// \brief Convert ONNX If operation to an nGraph node.
+/// \brief Convert ONNX If operation to an OV node.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX If
+/// \return The vector containing OV nodes producing output of ONNX If
 ///        operation.
 OutputVector if_op(const Node& node);
 
