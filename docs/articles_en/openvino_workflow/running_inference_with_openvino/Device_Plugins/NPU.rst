@@ -15,7 +15,7 @@ for more streamlined resource management.
 
 Note that the NPU plugin is currently available only with the Archive distribution of OpenVINO™
 and you need to :doc:`install a proper NPU driver <openvino_docs_install_guides_configurations_for_intel_npu>`
-to use it successfully. For an in-depth description of the NPU plugin, see:
+to use it successfully.
 
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
