@@ -27,7 +27,7 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    size_t get_count(const PortDescriptorPtr& port_desc) const;
+    size_t get_count(const ExpressionPort& port) const;
     bool insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
     bool insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
 

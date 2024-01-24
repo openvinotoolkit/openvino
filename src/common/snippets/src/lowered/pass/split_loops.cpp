@@ -53,15 +53,21 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 continue;
 
             const auto& parent_loop_id = parent_loop_ids.front();
-            const auto parent_loop_port = loop_manager->get_loop_port_by_expr_port(parent_port, parent_loop_id);
+            const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
+
+            const bool split_parent = parent_loop->get_increment() < loop->get_increment();
+            const auto upper_loop = std::make_shared<LoopManager::LoopInfo>(*parent_loop);
+            const auto lower_loop = std::make_shared<LoopManager::LoopInfo>(*loop);
+            if (split_parent)
+                upper_loop->set_increment(loop->get_increment());
+            else
+                lower_loop->set_increment(parent_loop->get_increment());
             // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (!FuseLoops::loop_ports_are_compatible(loop_manager, loop_id, parent_loop_id))
+            if (!FuseLoops::can_be_fused(upper_loop, lower_loop))
                 continue;
 
-            const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
             if (can_be_split(loop, parent_loop)) {
                 loop_was_split = true;
-                const bool split_parent = parent_loop->get_increment() < loop->get_increment();
                 const auto& loop_to_split = split_parent ? parent_loop : loop;
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto& loop_to_fuse = !split_parent ? parent_loop : loop;

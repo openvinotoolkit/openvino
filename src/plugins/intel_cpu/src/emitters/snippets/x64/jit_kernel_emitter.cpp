@@ -204,17 +204,25 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
-                    desc = first_consumer->get_output_port_descriptor(0);
-                } else {
-                    desc = expr->get_output_port_descriptor(0);
+                // Note that here we consider only the first child (which is usually load),
+                // but often there is another child - LoopEnd
+                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
+                const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                // If there is a RankNormalization op after a parameter - we should skip it
+                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
+                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                // TODO: Add validation pass after control flow pipeline that all consumers have the same layout
+                for (const auto& child_input : consumer_inputs) {
+                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
+                    if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
+                        desc = child_input.get_descriptor_ptr();
+                    }
                 }
                 etype = expr->get_node()->get_output_element_type(0);
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_descriptor(0);
+                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {

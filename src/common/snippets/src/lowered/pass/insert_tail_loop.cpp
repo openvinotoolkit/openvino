@@ -36,13 +36,13 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
                 }
 
                 const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
-                const auto& layout = parent_desc->get_layout();
                 const auto& shape = parent_desc->get_shape();
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = shape;
                 }
+                const auto& layout = desc->get_layout();
                 auto new_shape = shape;
-                new_shape[*(layout.rbegin() + port.dim_idx)] = new_dim_value;
+                new_shape[utils::get_input_dim_idx(layout, port.dim_idx)] = new_dim_value;
                 parent_desc->set_shape(new_shape);
             }
         }
@@ -55,15 +55,15 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
             const auto expr = port.expr_port->get_expr();
             const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
 
-            const auto& layout = parent_desc->get_layout();
             const auto& shape = parent_desc->get_shape();
             const auto& desc_subtensor = desc->get_subtensor();
             if (port.dim_idx < desc_subtensor.size()) {
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = shape;
                 }
+                const auto& layout = desc->get_layout();
                 auto new_shape = shape;
-                new_shape[*(layout.rbegin() + port.dim_idx)] = *(desc_subtensor.rbegin() + port.dim_idx);
+                new_shape[utils::get_input_dim_idx(layout, port.dim_idx)] = *(desc_subtensor.rbegin() + port.dim_idx);
                 parent_desc->set_shape(new_shape);
             }
         }

@@ -21,14 +21,10 @@ namespace pass {
 class InitLoops : public Pass {
 public:
     OPENVINO_RTTI("InitLoops", "Pass")
-    InitLoops();
+    InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
-private:
-    static void init_is_incremented(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
-    static void init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
-    static void init_finalization_offsets(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
-    static void init_element_type_sizes(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args = false);
 };
 
 } // namespace pass

@@ -55,6 +55,28 @@ inline T div_up(const T a, const U b) {
     return static_cast<T>((a + b - 1) / b);
 }
 
+inline bool is_dynamic_vdim(const VectorDims::value_type& dim) {
+    return dim == IShapeInferSnippets::DYNAMIC_DIMENSION;
+}
+
+inline bool is_dynamic_vdims(const VectorDims& shape) {
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_vdim(v); });
+}
+
+VectorDims pshape_to_vdims(const PartialShape&);
+ov::PartialShape vdims_to_pshape(const VectorDims&);
+
+// dim_idx starts from the layout end: dim_idx = 0 -> last element in layout (layout.back())
+inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    return *(layout.rbegin() + dim_idx);
+}
+// dim_idx starts from the layout end: dim_idx = 0 -> last index in layout (layout.size() - 1)
+inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
+}
+
 /* ----- Shape `getters` ----- */
 /**
  * @brief Returns a dense shape after applying the order.
@@ -124,11 +146,6 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
  */
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
-
-bool is_dynamic_vdims(const VectorDims& shape);
-
-VectorDims pshape_to_vdims(const PartialShape&);
-ov::PartialShape vdims_to_pshape(const VectorDims&);
 /* --------------------------- */
 
 } // namespace utils

@@ -42,15 +42,13 @@ public:
     FuseLoops();
     bool run(LinearIR& linear_ir) override;
 
-    // This method checks that all ports which connect lower and upper loops are incremented.
-    // This helps to avoid fusing for the ports with incompleted data
-    static bool loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
-                                          const size_t loop_lower_id,
-                                          const size_t loop_upper_id);
+    static bool can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_upper, const LinearIR::LoopManager::LoopInfoPtr& loop_lower);
 
 private:
-    static bool can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_current,
-                             const LinearIR::LoopManager::LoopInfoPtr& loop_target);
+     // This method checks that all ports which connect lower and upper loops are incremented.
+    // This helps to avoid fusing for the ports with incompleted data
+    static bool loop_ports_are_compatible(const LinearIR::LoopManager::LoopInfoPtr& loop_upper,
+                                          const LinearIR::LoopManager::LoopInfoPtr& loop_lower);
     static bool fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                         const std::shared_ptr<ExpressionPort>& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,

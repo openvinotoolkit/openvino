@@ -20,6 +20,9 @@ public:
     LoopManager() = default;
 
     struct LoopPort {
+        // It's needed as separate value because data ptr shift params have int64_t type while shape dimensions - size_t
+        static constexpr int64_t DYNAMIC_VALUE = std::numeric_limits<int64_t>::max();
+
         LoopPort() = default;
         LoopPort(const ExpressionPort& port, bool is_incremented = true, size_t dim_idx = 0);
         std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
@@ -27,6 +30,10 @@ public:
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator<(const LoopPort& lhs, const LoopPort& rhs);
+
+        bool is_dynamic() const;
+
+        static inline bool is_dynamic_value(int64_t value) { return value == DYNAMIC_VALUE; }
 
         std::shared_ptr<ExpressionPort> expr_port = {};
         // True if after each Loop iteration the corresponding data pointer should be incremented.
