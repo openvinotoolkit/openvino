@@ -18,7 +18,10 @@
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master
 namespace details {
 
 void Rethrow() {

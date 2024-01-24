@@ -36,6 +36,5 @@ std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
 ov::SoPtr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
     const std::string& plugin_name = "");
-
 }  // namespace legacy_convert
 }  // namespace ov

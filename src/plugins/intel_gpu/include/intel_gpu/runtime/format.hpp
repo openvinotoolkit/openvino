@@ -239,7 +239,9 @@ struct format {
         os_zy_is_x_osv8_isv2,
         os_zy_is_x_osv8_isv4,
         os_is_yx_osv4_isv16,
+        os_is_yx_osv2_isv4,
         os_is_yx_osv2_isv16,
+        os_is_yx_osv2_isv32,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution

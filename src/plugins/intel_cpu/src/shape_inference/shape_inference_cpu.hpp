@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <cpu_shape.h>
 #include <cpu_memory.h>
+#include <cpu_shape.h>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
-
 #include "shape_inference_status.hpp"
 
 namespace ov {

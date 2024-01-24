@@ -24,6 +24,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/pp.hpp"
+#include "ie_version.hpp"
 
 using namespace ov::threading;
 
