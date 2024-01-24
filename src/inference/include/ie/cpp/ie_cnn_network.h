@@ -62,8 +62,7 @@ public:
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
-    explicit CNNNetwork(const std::shared_ptr<ov::Model>& network,
-                        const std::vector<std::shared_ptr<IExtension>>& exts = {});
+    explicit CNNNetwork(const std::shared_ptr<ov::Model>& network);
     IE_SUPPRESS_DEPRECATED_END
 
     /**
