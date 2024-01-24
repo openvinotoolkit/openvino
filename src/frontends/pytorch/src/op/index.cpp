@@ -199,7 +199,7 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
         }
 
     } else {
-        int64_t i = 0;
+        size_t i = 0;
         auto one = v0::Constant::create(element::i32, Shape{1}, {1});
         while (i < non_used_dims.size() && non_used_dims[i] < advanced_ids[0]) {
             concat_dims.push_back(one);
