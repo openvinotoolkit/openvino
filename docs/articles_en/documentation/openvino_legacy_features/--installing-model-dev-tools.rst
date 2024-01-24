@@ -13,7 +13,6 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 * Model conversion API
 * Benchmark Tool
 * Accuracy Checker and Annotation Converter
-* Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
 The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C/C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.

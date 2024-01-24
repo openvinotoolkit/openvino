@@ -29,7 +29,7 @@ offering.
 |
 |   OpenVINO Development Tools used to be the OpenVINO package with tools for
     advanced operations on models, such as Model conversion API, Benchmark Tool,
-    Accuracy Checker, Annotation Converter, Post-Training Optimization Tool,
+    Accuracy Checker, Annotation Converter,
     and Open Model Zoo tools. Most of these tools have been either removed,
     replaced by other solutions, or moved to the OpenVINO Runtime package.
 |   :doc:`See how to install Development Tools <openvino_docs_install_guides_install_dev_tools>`
@@ -67,17 +67,6 @@ offering.
 |
 |   `See the previous conversion instructions <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
 |   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
-
-
-| **Post-training Optimization Tool (POT)**
-|   *New solution:* NNCF extended in OpenVINO 2023.0
-|   *Old solution:* POT discontinuation planned for 2024.0
-|
-|   Neural Network Compression Framework (NNCF) now offers the same functionality as POT,
-    apart from its original feature set. It is currently the default tool for performing
-    both, post-training and quantization optimizations, while POT is considered deprecated.
-|   :doc:`See how to use NNCF for model optimization <openvino_docs_model_optimization_guide>`
-|   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
 
 | **Inference API 1.0**

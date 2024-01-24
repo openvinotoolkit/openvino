@@ -108,12 +108,6 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    Use Neural Network Compression Framework (NNCF) to quantize PyTorch model in post-training mode (without model fine-tuning).
 
 .. showcase::
-   :title: 111-yolov5-quantization-migration
-   :img: _static/images/notebook_eye.png
-
-   Migrate YOLOv5 POT API based quantization pipeline on Neural Network Compression Framework (NNCF).
-
-.. showcase::
    :title: 110-ct-segmentation-quantize-nncf
    :img: _static/images/notebook_eye.png
 
