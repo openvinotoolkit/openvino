@@ -117,9 +117,9 @@ protected:
 
     virtual void emitter_postamble() const;
 
-    void store_context() const;
+    void store_context(const std::vector<size_t>& ignore_registers) const;
 
-    void restore_context() const;
+    void restore_context(const std::vector<size_t>& ignore_registers) const;
 
     using table_t = std::multimap<std::string, table_entry_t>;
     using mapped_table_t = std::multimap<std::string, mapped_table_entry_t>;

@@ -13,12 +13,21 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
+// Temporary registers are stored
+// r19…r28 Callee-saved registers - Only these are skipped
+// remove 19 (Callee-saved registers)
 const std::vector<uint32_t> jit_emitter::save_gpr_regs = {
-    9, 15
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+    16, 17, 18, 19
 };
 
+// add 9
 const std::vector<uint32_t> jit_emitter::save_v_regs = {
-    10, 11, 16, 17, 18, 19, 20, 21, 22, 23
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 10, 10, 11, 12, 13, 14, 15,
+    16, 17, 18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29, 30, 31
 };
 
 void jit_emitter::emit_code(const std::vector<size_t> &in_idxs,
@@ -129,7 +138,7 @@ void jit_emitter::emitter_postamble() const {
     aux_gpr_idxs.clear();
 }
 
-void jit_emitter::store_context() const {
+void jit_emitter::store_context(const std::vector<size_t>& ignore_registers) const {
     // X29: The register x29 represents the base pointer (also known as the frame pointer or FP)
     // X30: In A64 systems, the return address is stored in register x30 (also known as LR)
     h->stp(h->x29, h->x30, pre_ptr(h->sp, -16));
@@ -153,7 +162,7 @@ void jit_emitter::store_context() const {
     }
 }
 
-void jit_emitter::restore_context() const {
+void jit_emitter::restore_context(const std::vector<size_t>& ignore_registers) const {
     // SIMD and Floating-Point registers
     const auto save_v_regs_size = save_v_regs.size();
     const int32_t qreg_len = 16;
