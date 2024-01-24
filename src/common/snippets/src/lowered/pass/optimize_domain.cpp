@@ -55,7 +55,7 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
     size_t jit_work_amount = master_shape.back();
     size_t num_dims_collapsed = 0;
     while (jit_work_amount < min_jit_work_amount &&
-           num_dims_collapsed < input_shapes[min_rank_idx].size() - 1 &&
+           (num_dims_collapsed + 1) < input_shapes[min_rank_idx].size() &&
            can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
            LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
