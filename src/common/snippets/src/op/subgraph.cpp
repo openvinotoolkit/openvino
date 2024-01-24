@@ -343,10 +343,6 @@ std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
-#ifdef SNIPPETS_DEBUG_CAPS
-    lowering_config.m_save_expressions = lowering_config.m_save_expressions || (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
-#endif
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
@@ -475,8 +471,8 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, lowered_pass_config, backed_passes);
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
-        lowered::pass::InsertPerfCount perf_count_pass;
+    if (linear_ir.get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+        lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(linear_ir);
     }
 #endif

@@ -159,6 +159,8 @@ void Math::execute(dnnl::stream strm) {
                     dst_data[i] = 1.0f;
                 else if (src_data[i] < 0.0f)
                     dst_data[i] = -1.0f;
+                else if (std::isnan(src_data[i]))
+                    dst_data[i] = src_data[i];
                 else
                     dst_data[i] = 0.0f;
             });

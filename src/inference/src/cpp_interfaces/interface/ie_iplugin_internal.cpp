@@ -23,12 +23,11 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "dev/converter_utils.hpp"
-#include "exec_graph_info.hpp"
-#include "ie_algorithm.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
+#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -37,6 +36,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -48,7 +48,6 @@ InputsDataMap copyInfo(const InputsDataMap& networkInputs) {
         InputInfo::Ptr newPtr;
         if (it.second) {
             newPtr = std::make_shared<InputInfo>();
-            newPtr->getPreProcess() = it.second->getPreProcess();
             newPtr->setInputData(std::make_shared<Data>(*it.second->getInputData()));
         }
         _networkInputs.emplace(it.first, newPtr);
@@ -103,12 +102,6 @@ void IInferencePlugin::SetName(const std::string& pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
-    return LoadNetwork(network, config, nullptr);
-}
-
 template <typename T>
 std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<std::string, std::shared_ptr<T>>& map) {
     std::map<std::string, std::shared_ptr<const T>> res;
@@ -119,8 +112,7 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const CNNNetwork& orig_network,
-    const std::map<std::string, std::string>& config,
-    const std::shared_ptr<RemoteContext>& context) {
+    const std::map<std::string, std::string>& config) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
 
     // if IR `version` is not set, suppose it's IR v10 for old API
@@ -155,7 +147,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
                 toInfo->setPrecision(inputInfo.second->getPrecision());
                 toInfo->setLayout(inputInfo.second->getLayout());
-                toInfo->getPreProcess() = inputInfo.second->getPreProcess();
             }
             for (const auto& outputInfo : orig_network.getOutputsInfo()) {
                 auto toInfo = network.getOutputsInfo().at(outputInfo.first);
@@ -166,11 +157,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         }
     }
 
-    if (nullptr == context) {
-        impl = LoadExeNetworkImpl(network, config);
-    } else {
-        impl = LoadExeNetworkImpl(network, context, config);
-    }
+    impl = LoadExeNetworkImpl(network, config);
 
     SetExeNetworkInfo(impl, const_map_cast(network.getInputsInfo()), const_map_cast(network.getOutputsInfo()));
     if (function) {
@@ -206,14 +193,6 @@ Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::st
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
-    IE_THROW(NotImplemented);
-}
-
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     const std::string& modelFileName,
     const std::map<std::string, std::string>& config) {
@@ -228,13 +207,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     std::istream& networkModel,
-    const std::map<std::string, std::string>& config) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
-    std::istream& networkModel,
-    const std::shared_ptr<RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
@@ -270,13 +242,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(
-    const CNNNetwork&,
-    const std::shared_ptr<RemoteContext>&,
-    const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
-}
-
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
@@ -308,7 +273,7 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
     }
 
     for (auto&& originalNode : originalFunction->get_ops()) {
-        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+        if (transformedNodeNames.find(originalNode->get_friendly_name()) == transformedNodeNames.end())
             result.emplace(originalNode->get_friendly_name());
     }
 

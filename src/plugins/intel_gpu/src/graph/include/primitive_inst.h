@@ -225,10 +225,13 @@ public:
     void reset_output_change() { _output_changed = false; }
 
     bool shape_changed() const { return _shape_changed; }
+    bool mem_changed() const { return _mem_changed; }
     void reset_shape_change() { _shape_changed = false; }
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+
+    void update_paddings();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
@@ -349,6 +352,7 @@ protected:
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _shape_changed = false;
+    bool _mem_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -368,7 +372,7 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t max_output_layout_size = 0;
+    size_t _max_output_layout_count = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
@@ -382,6 +386,9 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
+
+    void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();

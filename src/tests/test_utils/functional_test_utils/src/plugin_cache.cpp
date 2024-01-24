@@ -7,12 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
-#include <ie_plugin_config.hpp>
 #include <unordered_map>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "ie_core.hpp"
+#include "ie_plugin_config.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace {

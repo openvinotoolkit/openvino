@@ -52,7 +52,7 @@ def main():
         for model_input in compiled_model.inputs:
             fill_tensor_random(ireq.get_tensor(model_input))
     # Warm up
-    for _ in ireqs:
+    for _ in range(len(ireqs)):
         ireqs.start_async()
     ireqs.wait_all()
     # Benchmark for seconds_to_run seconds and at least niter iterations

@@ -9,9 +9,7 @@
 #include <memory>
 #include <tuple>
 #include <gtest/gtest.h>
-#include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include <cpp/ie_cnn_network.h>
 #include "gtest/gtest.h"
@@ -34,7 +32,7 @@ public:
 
 protected:
     std::vector<int> order;
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 using HoldersTestImportNetwork = HoldersTest;
@@ -46,7 +44,7 @@ public:
     void SetUp() override;
 
 protected:
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 }  // namespace BehaviorTestsDefinitions

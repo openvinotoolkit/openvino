@@ -5,7 +5,7 @@
 #include "op/bitwise_xor.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 
 using namespace ov::op;
 

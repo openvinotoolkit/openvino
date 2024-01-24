@@ -17,7 +17,6 @@
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "ie_remote_context.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_infer_async_request_base.hpp"
 
@@ -79,10 +78,6 @@ public:
 
     StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
         TO_STATUS(result = _impl->GetMetric(name));
-    }
-
-    StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(pContext = _impl->GetContext());
     }
 
     std::shared_ptr<IExecutableNetworkInternal> GetImpl() const {

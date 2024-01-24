@@ -22,6 +22,9 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+using ov::op::util::Variable;
+using ov::op::util::VariableInfo;
+
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
         const ov::PartialShape& inputShape,
         const element::Type& inputPrecision,
