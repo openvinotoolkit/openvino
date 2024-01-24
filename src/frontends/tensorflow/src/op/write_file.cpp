@@ -4,10 +4,10 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/keep_in_graph_op.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::op;
 
 namespace ov {
 namespace frontend {
