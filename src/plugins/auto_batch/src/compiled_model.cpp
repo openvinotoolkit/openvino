@@ -204,7 +204,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
             return time_out;
