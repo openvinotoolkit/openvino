@@ -34,10 +34,10 @@ OutputVector clip(const Node& node) {
 namespace set_11 {
 OutputVector clip(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
-    const Output<ov::Node> data = inputs.at(0);
+    const ov::Output<ov::Node> data = inputs.at(0);
     const element::Type data_type = data.get_element_type();
-    Output<ov::Node> min;
-    Output<ov::Node> max;
+    ov::Output<ov::Node> min;
+    ov::Output<ov::Node> max;
 
     // If second input is provided, assign to min input, otherwise set lowest
     // numeric limit of data type as min input.

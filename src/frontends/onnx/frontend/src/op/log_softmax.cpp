@@ -19,7 +19,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ov::Node> onnx_logsoftmax(const Output<ov::Node> data, const int64_t axis) {
+std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<v5::LogSoftmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<v3::ShapeOf>(data);

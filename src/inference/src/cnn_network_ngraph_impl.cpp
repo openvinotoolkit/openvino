@@ -37,7 +37,7 @@ using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
+void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
@@ -297,7 +297,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
+void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ngraph::Node>& output) {
     auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))

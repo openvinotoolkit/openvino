@@ -788,7 +788,7 @@ std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
 }
 }  // namespace
 
-std::pair<bool, uint64_t> maximum_value(const Output<Node>& value) {
+std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value) {
     static ngraph::Evaluator<MaxValue>::op_handler_map handlers = {
         {ov::op::v0::Concat::get_type_info_static(), exec_concat},
         {ov::op::v0::Constant::get_type_info_static(), exec_constant},
@@ -906,7 +906,7 @@ int64_t ov::normalize_axis(const std::string& node_description,
     return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
-bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+bool ov::evaluate_as_partial_shape(const ov::Output<Node>& output, PartialShape& pshape) {
     return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
@@ -914,7 +914,7 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
     return ov::util::default_label_evaluator(node, output_labels);
 }
 
-std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
+std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<Node>& source) {
     return ov::util::get_constant_from_source(source);
 }
 
@@ -939,7 +939,7 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
+std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 
@@ -976,7 +976,7 @@ namespace ov {
 namespace util {
 using ov::op::v0::Constant;
 
-std::shared_ptr<Constant> get_constant_from_source(const Output<Node>& source) {
+std::shared_ptr<Constant> get_constant_from_source(const ov::Output<Node>& source) {
     if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
         return c;
     } else if (has_and_set_equal_bounds(source)) {
@@ -1094,7 +1094,7 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
-bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+bool evaluate_as_partial_shape(const ov::Output<Node>& output, PartialShape& pshape) {
     Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;

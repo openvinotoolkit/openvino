@@ -39,9 +39,9 @@ OutputVector hardmax(const Node& node) {
     const auto coerced_tensor = ov::op::util::flatten(input, static_cast<int>(axis));
 
     const auto coerced_tensor_shape = std::make_shared<ov::op::v0::ShapeOf>(coerced_tensor);
-    Output<ov::Node> row_size = std::make_shared<v8::Gather>(coerced_tensor_shape,
-                                                             ov::op::v0::Constant::create(element::i64, {1}, {1}),
-                                                             ov::op::v0::Constant::create(element::i64, {}, {0}));
+    ov::Output<ov::Node> row_size = std::make_shared<v8::Gather>(coerced_tensor_shape,
+                                                                 ov::op::v0::Constant::create(element::i64, {1}, {1}),
+                                                                 ov::op::v0::Constant::create(element::i64, {}, {0}));
     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
     const auto indices_axis = 1;
@@ -73,9 +73,10 @@ OutputVector hardmax(const Node& node) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto input_runtime_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
-    Output<ov::Node> row_size = std::make_shared<v8::Gather>(input_runtime_shape,
-                                                             ov::op::v0::Constant::create(element::i64, {1}, {axis}),
-                                                             ov::op::v0::Constant::create(element::i64, {}, {0}));
+    ov::Output<ov::Node> row_size =
+        std::make_shared<v8::Gather>(input_runtime_shape,
+                                     ov::op::v0::Constant::create(element::i64, {1}, {axis}),
+                                     ov::op::v0::Constant::create(element::i64, {}, {0}));
     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
     const auto topk = std::make_shared<v11::TopK>(input,

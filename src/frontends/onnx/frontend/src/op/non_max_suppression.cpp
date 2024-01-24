@@ -22,24 +22,24 @@ OutputVector non_max_suppression(const Node& node) {
     //       a reference implementation is added
 
     const auto ng_inputs = node.get_ng_inputs();
-    const Output<ov::Node> boxes = ng_inputs.at(0);
-    const Output<ov::Node> scores = ng_inputs.at(1);
+    const ov::Output<ov::Node> boxes = ng_inputs.at(0);
+    const ov::Output<ov::Node> scores = ng_inputs.at(1);
 
-    Output<ov::Node> max_output_boxes_per_class;
+    ov::Output<ov::Node> max_output_boxes_per_class;
     if (ng_inputs.size() > 2 && !is_null(ng_inputs.at(2))) {
         max_output_boxes_per_class = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(2));
     } else {
         max_output_boxes_per_class = v0::Constant::create(element::i64, Shape{}, {0});
     }
 
-    Output<ov::Node> iou_threshold;
+    ov::Output<ov::Node> iou_threshold;
     if (ng_inputs.size() > 3 && !is_null(ng_inputs.at(3))) {
         iou_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(3));
     } else {
         iou_threshold = v0::Constant::create(element::f32, Shape{}, {.0f});
     }
 
-    Output<ov::Node> score_threshold;
+    ov::Output<ov::Node> score_threshold;
     if (ng_inputs.size() > 4 && !is_null(ng_inputs.at(4))) {
         score_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(4));
     } else {

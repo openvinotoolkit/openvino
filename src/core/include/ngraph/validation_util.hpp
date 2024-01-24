@@ -115,7 +115,7 @@ PartialShape infer_slice_shape(const Node* node,
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
+NGRAPH_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API_DEPRECATED

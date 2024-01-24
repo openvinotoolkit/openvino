@@ -124,7 +124,7 @@ bool is_post_dominated(Node* X, Node* Y);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant);
+bool is_equal_to_const_value(const std::string& const_value, const ov::Output<Node>& reduce_constant);
 
 // input nodes are cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
@@ -164,7 +164,7 @@ std::shared_ptr<Node> make_constant_from_string(std::string val, const element::
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_zero(const Output<Node>& reduce_constant);
+bool is_zero(const ov::Output<Node>& reduce_constant);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -182,7 +182,7 @@ NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_one(const Output<Node>& reduce_constant);
+bool is_one(const ov::Output<Node>& reduce_constant);
 
 // Returns true if `node` is live in the graph i.e. a result op
 // transitively uses this `node`
@@ -213,12 +213,12 @@ void plot_graph(std::shared_ptr<Function> f,
 ///         of `src`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<Input<Node>> get_inputs_from(Node& src, Node& dst);
+std::vector<ov::Input<Node>> get_inputs_from(Node& src, Node& dst);
 /// \return A vector containing a handle for each output of src that is connected to an input
 ///         of `dst`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<Output<Node>> get_outputs_to(Node& src, Node& dst);
+std::vector<ov::Output<Node>> get_outputs_to(Node& src, Node& dst);
 
 /// Checks the func for graph cycles starting from results going backwards, then from parameters
 /// going forward.
