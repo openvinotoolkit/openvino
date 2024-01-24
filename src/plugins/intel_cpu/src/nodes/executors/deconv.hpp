@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include "cpu_memory.h"
-#include "onednn/iml_type_mapper.h"
-#include "executor.hpp"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "executor.hpp"
 #include "nodes/common/dnnl_executor.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/coordinate_diff.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -11,7 +11,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
 #include "ie_cache_manager.hpp"
-#include "ie_extension.h"
 #include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"

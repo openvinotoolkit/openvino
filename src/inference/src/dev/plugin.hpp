@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "ie_iextension.h"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"

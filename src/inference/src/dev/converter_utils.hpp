@@ -7,7 +7,6 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_iextension.h"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -37,9 +36,5 @@ std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
 ov::SoPtr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
     const std::string& plugin_name = "");
-
-std::vector<ov::Extension::Ptr> convert_extension(const std::vector<InferenceEngine::IExtensionPtr>& exts);
-std::vector<InferenceEngine::IExtensionPtr> convert_extension(const std::vector<ov::Extension::Ptr>& exts);
-
 }  // namespace legacy_convert
 }  // namespace ov

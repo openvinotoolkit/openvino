@@ -20,6 +20,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
