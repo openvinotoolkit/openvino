@@ -14,7 +14,9 @@ ParamsKey SwiGLUKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -29,6 +31,7 @@ JitConstants SwiGLUKernelRef::GetJitConstants(const swiglu_params& params) const
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
     jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+    jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;
 }
@@ -36,8 +39,8 @@ JitConstants SwiGLUKernelRef::GetJitConstants(const swiglu_params& params) const
 CommonDispatchData SwiGLUKernelRef::SetDefault(const swiglu_params& params) const {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = {1, 1, 1};
-    dispatchData.lws = dispatchData.gws;
+    dispatchData.gws = GetTensorFriendlyWorkGroups(params.outputs[0]);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }

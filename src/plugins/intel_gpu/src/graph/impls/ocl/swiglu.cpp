@@ -59,12 +59,21 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
 namespace detail {
 
 attach_swiglu_impl::attach_swiglu_impl() {
+    auto types = {
+        data_types::f32,
+        data_types::f16
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
     implementation_map<swiglu>::add(impl_types::ocl,
                                     shape_types::any,
-                                    typed_primitive_impl_ocl<swiglu>::create<swiglu_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+                                    typed_primitive_impl_ocl<swiglu>::create<swiglu_impl>,
+                                    types,
+                                    formats);
 }
 
 }  // namespace detail
