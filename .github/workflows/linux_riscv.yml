@@ -62,7 +62,6 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      # CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_master_release
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
