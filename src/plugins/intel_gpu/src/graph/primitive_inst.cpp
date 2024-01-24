@@ -259,14 +259,13 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep: " << _deps[i].first->id()
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
                                    << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
         }
     }
-
     if (get_node().is_type<read_value>()) {
         auto prim = get_node().as<read_value>().get_primitive();
         const auto& variable_id = prim->variable_id;
@@ -508,7 +507,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
+            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
             user->update_shape();
             user->update_shape_done_by_other = true;
 
