@@ -221,8 +221,8 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationDepthToSpaceTransformation) {
 TEST(LPT, AvoidDequantizationToShapeOfPropagationFakeQuantizeDecompositionTransformation) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 16, 16});
 
-    ngraph::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
-    auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
+    ov::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
+    auto fakeQuantize = ov::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(fakeQuantize);
 
     auto& outInfo = fakeQuantize->output(0).get_rt_info();

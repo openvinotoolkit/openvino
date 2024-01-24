@@ -9,7 +9,7 @@
 #include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -43,4 +43,4 @@ std::shared_ptr<ov::Model> FoldFakeQuantizeFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -16,7 +16,7 @@ class SubtractMultiplyToMultiplyAddTransformationTestValues {
 public:
     ov::PartialShape inputShape;
     ov::element::Type precision;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
 typedef std::tuple<

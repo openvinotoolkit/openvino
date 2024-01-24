@@ -40,7 +40,7 @@ void ReshapeTransformation::SetUp() {
 
     init_input_shapes(param.inputShape);
 
-    function = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
+    function = ov::builder::subgraph::ReshapeFunction::getOriginal(
         param.inputShape,
         param.reshapeConstValues,
         netPrecision,

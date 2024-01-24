@@ -48,7 +48,7 @@ void MatMulTransformation::SetUp() {
 
     init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         testValues.inputShape1,
         testValues.fqOnData1,

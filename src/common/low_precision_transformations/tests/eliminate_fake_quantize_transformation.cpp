@@ -26,16 +26,16 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBefore;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBefore;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
     };
 
     ov::PartialShape inputShape;
@@ -50,7 +50,7 @@ public:
     void SetUp() override {
         const TransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+        actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
                                                                                   testValues.actual.precisionBefore,
                                                                                   testValues.actual.fakeQuantizeOnData1,
                                                                                   testValues.actual.fakeQuantizeOnData2,
@@ -66,7 +66,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+            ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
                                                                      testValues.expected.precisionBefore,
                                                                      testValues.expected.fakeQuantizeOnData1,
                                                                      testValues.expected.fakeQuantizeOnData2,

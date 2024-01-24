@@ -25,15 +25,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -52,10 +52,10 @@ public:
 
         actualFunction =
             testValues.nonDequantizationMultiply
-                ? ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
+                ? ov::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
                       inputShape,
                       testValues.actual.precisionBeforeDequantization)
-                : ngraph::builder::subgraph::ClampFunction::getOriginal(inputShape,
+                : ov::builder::subgraph::ClampFunction::getOriginal(inputShape,
                                                                         testValues.actual.precisionBeforeDequantization,
                                                                         testValues.actual.dequantization);
 
@@ -64,10 +64,10 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.nonDequantizationMultiply
-                                ? ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
+                                ? ov::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
                                       inputShape,
                                       testValues.actual.precisionBeforeDequantization)
-                                : ngraph::builder::subgraph::ClampFunction::getReference(
+                                : ov::builder::subgraph::ClampFunction::getReference(
                                       inputShape,
                                       testValues.expected.precisionBeforeDequantization,
                                       testValues.expected.dequantizationBefore,

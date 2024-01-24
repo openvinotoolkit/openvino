@@ -25,16 +25,16 @@ class ConvolutionWithIncorrectWeightsTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type weightsPrecision;
         std::vector<float> weightsValues;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::element::Type inputPrecision;
@@ -52,7 +52,7 @@ public:
     void SetUp() override {
         const ConvolutionWithIncorrectWeightsTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
             testValues.inputShape,
             testValues.inputPrecision,
             testValues.actual.fakeQuantizeOnWeights,
@@ -71,7 +71,7 @@ public:
         cleanupManager.register_pass<ov::pass::ConstantFolding>();
         cleanupManager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReferenceWithIncorrectWeights(
+        referenceFunction = ov::builder::subgraph::ConvolutionFunction::getReferenceWithIncorrectWeights(
             testValues.inputShape,
             testValues.inputPrecision,
             testValues.expected.dequantizationBefore,

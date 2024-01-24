@@ -32,7 +32,7 @@ void FuseMultiplyToFakeQuantizeTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);

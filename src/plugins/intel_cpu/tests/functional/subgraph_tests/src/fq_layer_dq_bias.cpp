@@ -71,7 +71,7 @@ protected:
         const auto shapes = layer_type == "MatMul" ? std::vector<InputShape>{input_shape, input_shape}
                                                    : std::vector<InputShape>{input_shape};
         init_input_shapes(shapes);
-        function = ngraph::builder::subgraph::MarkupBiasFunction::get(ov::element::f32,
+        function = ov::builder::subgraph::MarkupBiasFunction::get(ov::element::f32,
                                                                       inputDynamicShapes[0],
                                                                       {},
                                                                       layer_type,

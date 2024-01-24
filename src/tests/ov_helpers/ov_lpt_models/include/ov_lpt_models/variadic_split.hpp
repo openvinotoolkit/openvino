@@ -12,7 +12,7 @@
 
 
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -21,26 +21,26 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::PartialShape& inputShape,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const ov::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type originalFunctionPrecision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+        const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,
         const ov::element::Type inputPrecision,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
+        const std::vector<ov::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths);
 };
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -10,7 +10,7 @@
 namespace LayerTestsDefinitions {
 class VariadicSplitTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     int64_t splitedAxis;
     std::vector<size_t> splitLengths;
 };

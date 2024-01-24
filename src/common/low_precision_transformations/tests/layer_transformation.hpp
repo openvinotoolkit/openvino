@@ -61,7 +61,7 @@ public:
         const ov::PartialShape& shape,
         const TestTransformationParams& params);
 
-    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+    static ov::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
     static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);

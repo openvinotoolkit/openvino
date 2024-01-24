@@ -10,7 +10,7 @@
 namespace LayerTestsDefinitions {
 class SplitTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     int64_t splitedAxis;
     size_t numSplit;
 };

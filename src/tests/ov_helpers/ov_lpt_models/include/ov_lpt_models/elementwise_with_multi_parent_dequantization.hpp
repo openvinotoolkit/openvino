@@ -11,7 +11,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -60,11 +60,11 @@ public:
         const ov::Shape& inputShape,
         const ov::pass::low_precision::LayerTransformation::Params& params,
         const ov::element::Type& precision1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::builder::subgraph::DequantizationOperations& dequantization1,
         const ov::element::Type& precision2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization2);
+        const ov::builder::subgraph::DequantizationOperations& dequantization2);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -58,7 +58,7 @@ void GroupConvolutionTransformation::SetUp() {
     while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
         param.fakeQuantizeOnData.constantShape.pop_back();
     }
-    function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
         inputShapes.first,
         inputShapes.second,

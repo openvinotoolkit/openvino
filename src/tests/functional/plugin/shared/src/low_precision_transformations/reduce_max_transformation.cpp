@@ -39,11 +39,11 @@ void ReduceMaxTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMax>(
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMax>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

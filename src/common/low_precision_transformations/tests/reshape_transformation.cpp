@@ -28,15 +28,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::PartialShape inputShape;
@@ -53,7 +53,7 @@ public:
         const ReshapeTransformationTestValues testValues = GetParam();
 
         actualFunction =
-            ngraph::builder::subgraph::ReshapeFunction::getOriginal(testValues.inputShape,
+            ov::builder::subgraph::ReshapeFunction::getOriginal(testValues.inputShape,
                                                                     testValues.reshapeConstValues,
                                                                     testValues.actual.precisionBeforeDequantization,
                                                                     testValues.actual.dequantization);
@@ -63,7 +63,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::ReshapeFunction::getReference(testValues.inputShape,
+            ov::builder::subgraph::ReshapeFunction::getReference(testValues.inputShape,
                                                                      testValues.reshapeConstValues,
                                                                      testValues.expected.precisionBeforeDequantization,
                                                                      testValues.expected.dequantizationBefore,

@@ -28,15 +28,15 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -63,7 +63,7 @@ public:
         AlignConcatQuantizationParametersTransformationTestValues testValues;
         std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::AlignConcatQuantizationParametersFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::AlignConcatQuantizationParametersFunction::getOriginal(
             precision,
             testValues.actual.inputPrecision,
             shape,
@@ -89,7 +89,7 @@ public:
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::AlignConcatQuantizationParametersFunction::getReference(
+        referenceFunction = ov::builder::subgraph::AlignConcatQuantizationParametersFunction::getReference(
             precision,
             testValues.expected.inputPrecision,
             shape,

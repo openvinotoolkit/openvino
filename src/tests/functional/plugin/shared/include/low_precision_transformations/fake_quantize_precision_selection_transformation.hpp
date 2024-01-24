@@ -16,8 +16,8 @@ namespace LayerTestsDefinitions {
 
 class FakeQuantizePrecisionSelectionTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationActualValues& values) {
@@ -27,8 +27,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 class FakeQuantizePrecisionSelectionTransformationExpectedValues {
 public:
     ov::element::Type fakeQuantizeOnDataOutPrecision;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationExpectedValues& values) {

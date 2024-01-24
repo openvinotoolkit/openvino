@@ -36,7 +36,7 @@ void AssignAndReadValueTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
+    function = ov::builder::subgraph::AssignAndReadValueFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

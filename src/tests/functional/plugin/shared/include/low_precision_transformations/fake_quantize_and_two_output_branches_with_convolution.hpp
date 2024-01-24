@@ -15,9 +15,9 @@
 namespace LayerTestsDefinitions {
 class FakeQuantizeAndTwoOutputBranchesWithConvolution {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
+    ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
 };
 
 typedef std::tuple<

@@ -13,7 +13,7 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -82,7 +82,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
     const bool updatePrecisions,
     const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
     const ov::element::Type fakeQuantizeOutputPrecision,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const bool addNotPrecisionPreservedOperation) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
@@ -134,4 +134,4 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

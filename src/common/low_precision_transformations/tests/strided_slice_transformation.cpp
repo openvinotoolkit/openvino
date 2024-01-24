@@ -24,22 +24,22 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class StridedSliceTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     struct LayerParams {
@@ -69,7 +69,7 @@ public:
         const ov::PartialShape inputShape = std::get<0>(GetParam());
         const StridedSliceTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::StridedSliceFunction::getOriginal(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
@@ -86,7 +86,7 @@ public:
         transformer.add<ov::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::StridedSliceFunction::getReference(
+        referenceFunction = ov::builder::subgraph::StridedSliceFunction::getReference(
             testValues.expected.inputPrecision,
             inputShape,
             testValues.layerParams.begin,

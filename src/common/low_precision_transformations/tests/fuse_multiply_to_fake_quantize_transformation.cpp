@@ -27,14 +27,14 @@ class FuseMultiplyToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     TestTransformationParams params;
@@ -62,7 +62,7 @@ public:
             testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
         }
 
-        actualFunction = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
+        actualFunction = ov::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
             inputShape,
             testValues.actual.fakeQuantizeOnData,
             testValues.actual.dequantization);
@@ -71,7 +71,7 @@ public:
         transformer.add<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
+        referenceFunction = ov::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
             inputShape,
             testValues.expected.fakeQuantizeOnData,
             testValues.expected.dequantization);

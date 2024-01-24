@@ -19,8 +19,8 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBefore;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {

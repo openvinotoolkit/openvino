@@ -48,7 +48,7 @@ void RecurrentCellTransformation::SetUp() {
 
     init_input_shapes(activations_shapes);
 
-    function = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+    function = ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
                                                                       param.RNNType,

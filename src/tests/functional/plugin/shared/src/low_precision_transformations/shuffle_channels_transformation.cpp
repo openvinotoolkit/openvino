@@ -41,7 +41,7 @@ void ShuffleChannelsTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
+    function = ov::builder::subgraph::ShuffleChannelsFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantizeOnData,

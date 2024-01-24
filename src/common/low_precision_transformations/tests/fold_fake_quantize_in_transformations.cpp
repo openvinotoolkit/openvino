@@ -28,7 +28,7 @@ public:
     public:
         std::vector<float> constValues;
         ov::element::Type constPrecision;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
         ov::element::Type fqOutPrecision;
     };
 
@@ -83,7 +83,7 @@ public:
         }
 
         std::shared_ptr<Node> fq =
-            ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
+            ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
                                                                    element::f32,
                                                                    testValues.actual.fakeQuantize);
         ov::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
@@ -97,7 +97,7 @@ public:
             "FoldFakeQuantizeFunction");
 
         referenceFunction =
-            ngraph::builder::subgraph::FoldFakeQuantizeFunction::getReference(testValues.expected.constPrecision,
+            ov::builder::subgraph::FoldFakeQuantizeFunction::getReference(testValues.expected.constPrecision,
                                                                               testValues.constShape,
                                                                               testValues.expected.constValues);
     }

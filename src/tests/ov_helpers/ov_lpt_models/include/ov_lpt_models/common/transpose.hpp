@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -24,4 +24,4 @@ private:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

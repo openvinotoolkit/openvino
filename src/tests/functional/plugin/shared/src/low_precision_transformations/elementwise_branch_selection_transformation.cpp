@@ -25,7 +25,7 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
            "_elementwiseType_" << elementwiseType;
 
-    auto toString = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
+    auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
             return "";
         }
@@ -56,7 +56,7 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
 
     init_input_shapes({ inputShape, inputShape });
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
+    function = ov::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
         false,

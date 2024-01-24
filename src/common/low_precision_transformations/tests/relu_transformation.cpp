@@ -30,15 +30,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -56,7 +56,7 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ReluFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ReluFunction::getOriginal(
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
@@ -65,7 +65,7 @@ public:
         transformer.add<ov::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ReluFunction::getReference(
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,

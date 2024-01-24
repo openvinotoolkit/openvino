@@ -10,7 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -21,7 +21,7 @@ public:
         const ov::Shape& outputShape,
         const ov::op::v0::Interpolate::Attributes& interpAttrs,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ov::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
@@ -34,9 +34,9 @@ public:
         const ov::Shape& outputShape,
         const ov::op::v0::Interpolate::Attributes& interpAttrs,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 
     // v4::Interpolate
     static std::shared_ptr<ov::Model> getOriginal(
@@ -45,7 +45,7 @@ public:
         const ov::Shape& scalesShape,
         const ov::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ov::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
@@ -60,11 +60,11 @@ public:
         const ov::Shape& scalesShape,
         const ov::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

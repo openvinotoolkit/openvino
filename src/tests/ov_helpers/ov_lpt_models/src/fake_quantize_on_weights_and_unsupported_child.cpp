@@ -10,14 +10,14 @@
 #include "ov_models/builders.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
     const ov::Shape& inputShape,
     const ov::element::Type inputPrecision,
     const std::shared_ptr<ov::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights) {
+    const ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("Input");
     weights->set_friendly_name("Weights");
@@ -47,4 +47,4 @@ std::shared_ptr<ov::Model> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

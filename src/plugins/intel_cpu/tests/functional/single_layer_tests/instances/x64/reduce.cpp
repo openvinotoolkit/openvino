@@ -118,8 +118,8 @@ const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<p
             auto last = order[order.size() - 1];
             order.pop_back();
             order.insert(order.begin(), last);
-            const auto transpose = ngraph::builder::subgraph::Transpose(order);
-            return ngraph::builder::subgraph::makeTranspose(fakeQuantize, transpose);
+            const auto transpose = ov::builder::subgraph::Transpose(order);
+            return ov::builder::subgraph::makeTranspose(fakeQuantize, transpose);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"}};
 
 const std::vector<fusingSpecificParams> fusingParamsSet {

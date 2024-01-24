@@ -51,7 +51,7 @@ void ReduceMeanTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

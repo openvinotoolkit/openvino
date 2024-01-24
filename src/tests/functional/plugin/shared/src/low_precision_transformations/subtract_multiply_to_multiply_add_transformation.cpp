@@ -34,7 +34,7 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
+    function = ov::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);

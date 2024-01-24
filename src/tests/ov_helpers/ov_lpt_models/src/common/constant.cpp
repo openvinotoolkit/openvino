@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/common/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -52,4 +52,4 @@ bool Constant::empty() const noexcept {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -17,8 +17,8 @@ class FuseMultiplyToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ov::PartialShape inputShape;

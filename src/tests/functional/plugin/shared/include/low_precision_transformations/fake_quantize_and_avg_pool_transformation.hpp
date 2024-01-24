@@ -17,7 +17,7 @@ typedef std::tuple<
     ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
-    ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeAndAvgPoolTransformationParams;
+    ov::builder::subgraph::FakeQuantizeOnData> FakeQuantizeAndAvgPoolTransformationParams;
 
 class FakeQuantizeAndAvgPoolTransformation :
     public testing::WithParamInterface<FakeQuantizeAndAvgPoolTransformationParams>,

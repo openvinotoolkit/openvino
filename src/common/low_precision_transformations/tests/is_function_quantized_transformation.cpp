@@ -21,7 +21,7 @@ class IsFunctionQuantizedTransformationValues {
 public:
     ov::Shape shape;
     ov::element::Type precision;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
     bool constantSubgraphOnParameters;
     bool inputOnParameters;
 
@@ -34,7 +34,7 @@ public:
         const auto testValues = GetParam();
 
         const auto input = std::make_shared<ov::op::v0::Parameter>(testValues.precision, ov::Shape(testValues.shape));
-        const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(
+        const auto fakeQuantize = ov::builder::subgraph::makeFakeQuantize(
             input,
             testValues.precision,
             testValues.fakeQuantize,

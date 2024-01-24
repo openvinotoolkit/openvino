@@ -9,7 +9,7 @@
 #include <vector>
 #include "fake_quantize_on_data.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -37,4 +37,4 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& 
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

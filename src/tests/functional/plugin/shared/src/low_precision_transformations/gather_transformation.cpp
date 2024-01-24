@@ -39,7 +39,7 @@ void GatherTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::GatherFunction::getOriginal(
+    function = ov::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
         testValues.gatherIndicesShape,
         testValues.gatherIndicesValues,

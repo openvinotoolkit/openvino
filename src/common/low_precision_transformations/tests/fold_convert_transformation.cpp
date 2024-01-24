@@ -25,14 +25,14 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FoldConvertTransformationTestValues {
 public:
     TestTransformationParams params;
     ov::element::Type precision;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationActual;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationExpected;
+    ov::builder::subgraph::DequantizationOperations dequantizationActual;
+    ov::builder::subgraph::DequantizationOperations dequantizationExpected;
 };
 
 typedef std::tuple<
@@ -48,7 +48,7 @@ public:
         const auto createFunction = [](
             const ov::element::Type precision,
             const ov::PartialShape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
+            const ov::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
             auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             std::shared_ptr<ov::Node> output = makeDequantization(input, dequantization);
             output->set_friendly_name("output");

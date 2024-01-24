@@ -23,14 +23,14 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MultiplyBranch {
 public:
-    ngraph::builder::subgraph::Constant constant;
+    ov::builder::subgraph::Constant constant;
     ov::element::Type input_precision;
-    ngraph::builder::subgraph::DequantizationOperations dequantization;
-    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
+    ov::builder::subgraph::DequantizationOperations dequantization;
+    ov::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyBranch& branch) {
@@ -53,7 +53,7 @@ class MultiplyValues {
 public:
     MultiplyBranch branch1;
     MultiplyBranch branch2;
-    ngraph::builder::subgraph::DequantizationOperations after_dequantization;
+    ov::builder::subgraph::DequantizationOperations after_dequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values) {
@@ -109,12 +109,12 @@ public:
         }
 
         const auto to_multiply_values = [&input_shapes, &input_precisions](const MultiplyValues& values) {
-            return ngraph::builder::subgraph::MultiplyValues(
-                ngraph::builder::subgraph::MultiplyBranch(
+            return ov::builder::subgraph::MultiplyValues(
+                ov::builder::subgraph::MultiplyBranch(
                     input_shapes.first, values.branch1.constant, input_precisions.first, values.branch1.dequantization, values.branch1.fake_quantize),
-                ngraph::builder::subgraph::MultiplyBranch(
+                ov::builder::subgraph::MultiplyBranch(
                     input_shapes.second, values.branch2.constant, input_precisions.second, values.branch2.dequantization, values.branch2.fake_quantize),
-                ngraph::builder::subgraph::DequantizationOperations(values.after_dequantization));
+                ov::builder::subgraph::DequantizationOperations(values.after_dequantization));
         };
 
         actualFunction = MultiplyFunction::get(model_precision, to_multiply_values(testParams.actual));

@@ -64,7 +64,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         init_input_shapes(inputShapes);
     }
 
-    function = ngraph::builder::subgraph::MoveFakeQuantize::get(
+    function = ov::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShapes,
         param.concatInputsCount,

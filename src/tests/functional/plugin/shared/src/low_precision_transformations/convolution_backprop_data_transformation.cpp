@@ -53,18 +53,18 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     weightsShape[1] = inputShape[1].get_length() / 2;
 
     if (!param.fakeQuantizeOnWeights.empty()) {
-        weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
             weightsShape,
             netPrecision,
             param.fakeQuantizeOnWeights);
     } else {
-        weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
             weightsShape,
             netPrecision,
             param.dequantizationOnWeights);
     }
 
-    function = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::get(
+    function = ov::builder::subgraph::ConvolutionBackpropDataFunction::get(
         netPrecision,
         inputShape,
         outputShape,

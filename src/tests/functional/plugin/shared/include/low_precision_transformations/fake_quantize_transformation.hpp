@@ -12,7 +12,7 @@
 namespace LayerTestsDefinitions {
 class FakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
 
     std::string layerName;
     std::string expectedKernelType;
