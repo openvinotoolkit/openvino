@@ -64,7 +64,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.2.0
+      conda install -c conda-forge openvino=2023.3.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
@@ -102,7 +102,8 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2023.2.0
+   conda remove openvino=2023.3.0
+
 
 
 What's Next?
@@ -120,3 +121,8 @@ on building and running a basic image classification C++ application.
 Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
 * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`__
+* `Object classification sample <openvino_sample_hello_classification.html>`__
+
+
+
+
