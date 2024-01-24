@@ -703,7 +703,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-        manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
