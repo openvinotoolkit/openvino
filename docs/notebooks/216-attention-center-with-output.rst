@@ -140,7 +140,7 @@ The attention-center model is pre-trained model in TensorFlow Lite
 format. In this Notebook the model will be converted to OpenVINO IR
 format with model conversion API. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 This step is also skipped if the model is already converted.
 
 Also TFLite models format is supported in OpenVINO by TFLite frontend,

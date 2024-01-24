@@ -93,13 +93,13 @@ PartialShape onnx_to_ov_shape(const TensorShapeProto& onnx_shape) {
         return Shape{};  // empty list of dimensions denotes a scalar
     }
 
-    std::vector<Dimension> dims;
+    std::vector<ov::Dimension> dims;
     for (const auto& onnx_dim : onnx_shape.dim()) {
         if (onnx_dim.has_dim_value()) {
             dims.emplace_back(onnx_dim.dim_value());
         } else  // has_dim_param() == true or it is empty dim
         {
-            dims.push_back(Dimension::dynamic());
+            dims.push_back(ov::Dimension::dynamic());
         }
     }
     return PartialShape{dims};

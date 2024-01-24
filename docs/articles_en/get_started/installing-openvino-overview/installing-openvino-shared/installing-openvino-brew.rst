@@ -5,15 +5,15 @@ Install OpenVINO™ Runtime via Homebrew
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Linux and macOS 
+   :description: Learn how to install OpenVINO™ Runtime on Linux and macOS
                  operating systems, using Homebrew.
 
 .. note::
-   
+
    Note that the `Homebrew <https://brew.sh/>`__ distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for GNA and NPU inference
+   * does not offer support for NPU inference
    * is dedicated to macOS (both arm64 and x86_64) and Linux (x86_64 only) users.
 
 
@@ -24,10 +24,10 @@ Install OpenVINO™ Runtime via Homebrew
 
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
-   
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
@@ -38,7 +38,7 @@ Install OpenVINO™ Runtime via Homebrew
 
          .. tab-item:: Linux
             :sync: linux
-         
+
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
@@ -46,13 +46,13 @@ Install OpenVINO™ Runtime via Homebrew
 
          .. tab-item:: macOS
             :sync: macos
-         
+
             * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation). 
+            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation).
             * `Python 3.8 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
-         
+
 
 Installing OpenVINO Runtime
 ###########################
@@ -72,8 +72,8 @@ Installing OpenVINO Runtime
       brew list
 
 
-Congratulations! You've just Installed OpenVINO! For some use cases you may still 
-need to install additional components. Check the 
+Congratulations! You've just Installed OpenVINO! For some use cases you may still
+need to install additional components. Check the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 

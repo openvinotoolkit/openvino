@@ -20,7 +20,7 @@ namespace set_17 {
 OutputVector stft(const Node& node) {
     const OutputVector ng_inputs{node.get_ng_inputs()};
     auto signal = ng_inputs.at(0);
-    const auto dft_length_provided = ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs[3]);
+    const auto dft_length_provided = ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
 
@@ -47,7 +47,7 @@ OutputVector stft(const Node& node) {
                            ->cast_vector<int64_t>()[0];
     }
 
-    const auto window_node_provided = ng_inputs.size() > 2 && !ngraph::op::is_null(ng_inputs[2]);
+    const auto window_node_provided = ng_inputs.size() > 2 && !ov::op::util::is_null(ng_inputs[2]);
     if (window_node_provided) {  // window input provided
         if (ng_inputs[2].get_partial_shape().rank().is_static()) {
             CHECK_VALID_NODE(node,

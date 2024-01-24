@@ -221,7 +221,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     for (std::shared_ptr<Node> node : func.get_results()) {
         auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result) {
-            OPENVINO_THROW("Results should be of type op::Result");
+            OPENVINO_THROW("Results should be of type ov::op::v0::Result");
         }
         cloned_results.push_back(result);
     }
@@ -242,18 +242,6 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     result->m_shared_object = func.m_shared_object;
     return result;
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func) {
-    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> nm;
-    return clone_model(func, nm);
-}
-
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
-                                       std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
-    return ov::clone_ov_model(func, node_map);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2) {
     if (!(op::util::is_constant(n1) && op::util::is_constant(n2))) {
@@ -556,7 +544,7 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
 
     // Add res node
     // Add [4], [5], [6], [7]
-    std::shared_ptr<op::Result> res_node = std::make_shared<op::Result>(src_node);
+    std::shared_ptr<ov::op::v0::Result> res_node = std::make_shared<ov::op::v0::Result>(src_node);
 
     return make_pair(res_node, par_node);
 }
@@ -626,7 +614,7 @@ std::shared_ptr<ov::Node> make_zero(const element::Type& element_type, const Sha
     if (shape.size() > 0) {
         return std::make_shared<ov::op::v1::Broadcast>(
             zero,
-            op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
+            ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }
@@ -635,7 +623,7 @@ std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
                                                     const element::Type& element_type,
                                                     const Shape& shape) {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
-    return std::make_shared<op::v0::Constant>(element_type, shape, cvals);
+    return std::make_shared<ov::op::v0::Constant>(element_type, shape, cvals);
 }
 
 bool is_zero(const Output<Node>& reduce_constant) {

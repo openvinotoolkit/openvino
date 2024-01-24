@@ -32,13 +32,13 @@ CPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
+      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+), ARM64
       * Windows* 10
       * Windows* 11
       * macOS* 10.15 and above, 64-bit
       * macOS 11 and above, ARM64
       * Red Hat Enterprise Linux* 8, 64-bit
-      * Debian 9 ARM64 and ARM
+      * Debian 9 ARM
       * CentOS 7 64-bit 
 
 GPU

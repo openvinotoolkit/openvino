@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ def generate_ir_python_api(coverage=False, **kwargs):
 
     return 0, ""
 
+
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """
     Run command execution in specified environment
@@ -96,7 +98,9 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
-    if cur_array.dtype == bool:
+    if cur_array.dtype.type == str or cur_array.dtype.type == np.str_:
+        return np.array_equal(cur_array, ref_array)
+    elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)
     else:
         abs_diff = np.absolute(cur_array - ref_array)

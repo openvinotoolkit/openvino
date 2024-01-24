@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/util/convert_color_i420_base.hpp"
 #include "openvino/op/util/convert_color_nv12_base.hpp"
 

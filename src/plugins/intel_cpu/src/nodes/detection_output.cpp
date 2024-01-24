@@ -9,7 +9,6 @@
 #include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -37,8 +36,9 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "Node is not an instance of the DetectionOutput from the operations set v8.";
             return false;
         }
-        if (!details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CENTER_SIZE") &&
-            !details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
+        if (!ov::intel_cpu::CaselessEq<std::string>()(doOp->get_attrs().code_type,
+                                                      "caffe.PriorBoxParameter.CENTER_SIZE") &&
+            !ov::intel_cpu::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
             errorMessage = "Unsupported code_type attribute: " + doOp->get_attrs().code_type;
             return false;
         }
@@ -86,8 +86,9 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
 
-    codeType = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
-                  CodeType::CENTER_SIZE : CodeType::CORNER);
+    codeType = (ov::intel_cpu::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE")
+                    ? CodeType::CENTER_SIZE
+                    : CodeType::CORNER);
 }
 
 void DetectionOutput::prepareParams() {

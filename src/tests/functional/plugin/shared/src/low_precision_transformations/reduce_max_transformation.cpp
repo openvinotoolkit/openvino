@@ -6,23 +6,22 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/reduce.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMaxTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
     for (const auto& elem : param.constantValues) {
         result << elem << "_";
     }
@@ -31,11 +30,14 @@ std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceMaxTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    abs_threshold = 1.1;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
+
+    init_input_shapes(inputShape);
 
     ngraph::builder::subgraph::DequantizationOperations::Convert convert;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
@@ -52,17 +54,17 @@ void ReduceMaxTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceMaxTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceMaxTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
+    const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(ReduceMaxTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

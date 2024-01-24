@@ -23,7 +23,7 @@ public:
             return equal(value);
         }
 
-        ov::element::Type outPrecision = element::undefined;
+        ov::element::Type outPrecision = ov::element::undefined;
         bool addDequantizationAttribute = true;
     private:
         bool isEmpty;
@@ -120,7 +120,7 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
     if (convert.empty()) {
         return out << "{}";
     }
-    return out << "_" << (convert.outPrecision != element::undefined ? convert.outPrecision.get_type_name() : "");
+    return out << "_" << (convert.outPrecision != ov::element::undefined ? convert.outPrecision.get_type_name() : "");
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Subtract& subtract) {

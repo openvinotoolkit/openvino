@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "ngraph/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,15 +18,15 @@ std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector
 }  // namespace onnx_import
 }  // namespace ngraph
 
-bool ngraph::op::is_null(const ngraph::Node* node) {
+bool ov::op::util::is_null(const ov::Node* node) {
     return dynamic_cast<const ngraph::onnx_import::NullNode*>(node) != nullptr;
 }
 
-bool ngraph::op::is_null(const std::shared_ptr<ngraph::Node>& node) {
+bool ov::op::util::is_null(const std::shared_ptr<ov::Node>& node) {
     return is_null(node.get());
 }
 
-bool ngraph::op::is_null(const Output<ngraph::Node>& output) {
+bool ov::op::util::is_null(const Output<ov::Node>& output) {
     return is_null(output.get_node());
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

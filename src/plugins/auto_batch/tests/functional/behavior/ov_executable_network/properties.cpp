@@ -4,9 +4,6 @@
 
 #include "behavior/ov_executable_network/properties.hpp"
 
-#include "ie_system_conf.h"
-#include "openvino/runtime/properties.hpp"
-
 using namespace ov::test::behavior;
 
 namespace {
@@ -23,10 +20,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"}},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
      {ov::auto_batch_timeout(1)}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
      {ov::auto_batch_timeout(10)}},
 };
 

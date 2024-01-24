@@ -2,23 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset13.hpp>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include "openvino/opsets/opset13.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
-using namespace ngraph;
 using namespace CPUTestUtils;
-using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
-
+namespace ov {
+namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
                                                 InputShapeAndTransposeOrder,
@@ -118,7 +113,7 @@ public:
             ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastv"});
         auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
         pastv->set_friendly_name("pastv_r");
-        std::shared_ptr<Node> pastk_shapeof, pastv_shapeof;
+        std::shared_ptr<ov::Node> pastk_shapeof, pastv_shapeof;
         if (hasShapeOf) {
             pastk_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastk);
             pastv_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastv);
@@ -132,10 +127,10 @@ public:
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
-        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto concatK = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherK, inputParams[1]}, concat_axis);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
         auto transposeV = std::make_shared<ov::op::v1::Transpose>(concatV, preOrder);
 
@@ -159,7 +154,7 @@ public:
         auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {3}, reshapeOrder);
         auto reshapeSDP = std::make_shared<ov::op::v1::Reshape>(transposeSDP, constReshape, true);  // BLHS -> B,L,HxS
 
-        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, op::v0::Constant::create(inType, {1}, {1.0f}));
+        auto add = std::make_shared<ov::op::v1::Add>(reshapeSDP, ov::op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");
@@ -170,12 +165,12 @@ public:
             results.push_back(pastk_shapeof);
             results.push_back(pastv_shapeof);
         }
-        SinkVector sinks{pastk_assign, pastv_assign};
-        function = std::make_shared<Function>(results, sinks, inputParams, "ConcatTranposeSDP");
+        ov::SinkVector sinks{pastk_assign, pastv_assign};
+        function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatTranposeSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         functionRefs = function->clone();
-        pass::Manager manager;
+        ov::pass::Manager manager;
         // decompose ScaledDotProductAttention
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
         manager.run_passes(functionRefs);
@@ -197,8 +192,8 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
-            if (param->get_element_type() == element::i32) {
+        auto create_input = [this] (std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == ov::element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
                 auto size = shape[0];
                 auto* p = static_cast<int*>(t.data());
@@ -207,12 +202,12 @@ public:
                     p[i] = (start + i) % size;
                 }
                 inputs.insert({param, t});
-            } else if (param->get_element_type() == element::f32) {
+            } else if (param->get_element_type() == ov::element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             } else {
-                ASSERT_TRUE(param->get_element_type() == element::bf16);
+                ASSERT_TRUE(param->get_element_type() == ov::element::bf16);
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
@@ -336,12 +331,12 @@ public:
     void new_state(ov::element::Type& type, const ov::Shape& pastKVInitShape) {
         auto fill = [] (ov::Tensor& t, float val) {
             auto shape = t.get_shape();
-            if (t.get_element_type() == element::f32) {
+            if (t.get_element_type() == ov::element::f32) {
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
-            } else if (t.get_element_type() == element::f16) {
+            } else if (t.get_element_type() == ov::element::f16) {
                 strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
             } else {
-                ASSERT_TRUE(t.get_element_type() == element::bf16);
+                ASSERT_TRUE(t.get_element_type() == ov::element::bf16);
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
             }
         };
@@ -437,4 +432,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTest::getTestCaseName);
 
 }  // namespace
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

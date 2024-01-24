@@ -197,19 +197,3 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
     }
 }
-
-TEST(FrontEndConvertModelTest, test_unsupported_operation_conversion_with_reason) {
-    shared_ptr<Model> model = nullptr;
-    try {
-        model = convert_model("gather_with_string_table/gather_with_string_table.pb");
-        FAIL() << "The model with Const of string type must not be converted.";
-    } catch (const OpConversionFailure& error) {
-        std::string error_message = error.what();
-        std::string ref_message =
-            "[TensorFlow Frontend] Internal error, no translator found for operation(s): Const of string type";
-        ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
-        ASSERT_EQ(model, nullptr);
-    } catch (...) {
-        FAIL() << "Conversion of the model with Const of string type failed by wrong reason.";
-    }
-}

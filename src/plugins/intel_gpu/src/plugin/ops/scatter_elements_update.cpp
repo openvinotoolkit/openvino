@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/constant.hpp"
+#include "validation_util.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -22,9 +22,7 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
     if (!axes_constant) {
         OPENVINO_ASSERT("Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    int64_t axis = ov::normalize_axis(op.get(), axes_constant->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    int64_t axis = ov::util::normalize_axis(op.get(), axes_constant->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
 
     auto mode = cldnn::ScatterElementsUpdateOp::Reduction::NONE;
     auto use_init_val = true;

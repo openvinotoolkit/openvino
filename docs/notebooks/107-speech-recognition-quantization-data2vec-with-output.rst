@@ -336,7 +336,7 @@ steps:
    accurate results, we should keep the operation in the postprocessing
    subgraph in floating point precision, using the ``ignored_scope``
    parameter. For more information see `Tune quantization
-   parameters <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
+   parameters <https://docs.openvino.ai/2023.3/basic_quantization_flow.html#tune-quantization-parameters>`__.
 3. Serialize OpenVINO IR model using ``ov.save_model`` function.
 
 .. code:: ipython3
@@ -623,7 +623,7 @@ Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/latest/openvino_sample_benchmark_tool.html>`__
 is used to measure the inference performance of the ``FP16`` and
 ``INT8`` models.
 

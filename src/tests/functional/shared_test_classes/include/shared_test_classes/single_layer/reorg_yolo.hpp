@@ -15,7 +15,7 @@
 namespace LayerTestsDefinitions {
 
 using ReorgYoloParamsTuple = typename std::tuple<
-        ngraph::Shape,                  // Input Shape
+        ov::Shape,                  // Input Shape
         size_t,                         // stride
         InferenceEngine::Precision,     // Network precision
         std::string>;                   // Device name

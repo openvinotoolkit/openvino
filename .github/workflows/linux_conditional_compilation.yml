@@ -35,6 +35,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -58,6 +59,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -111,7 +113,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -150,6 +152,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
+            -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -200,7 +203,7 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
-              tests/libtemplate_extension.so \
+              tests/libopenvino_template_extension.so \
               tests/functional_test_utils/layer_tests_summary/*
           popd
 
@@ -245,6 +248,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
@@ -289,7 +293,7 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
       #
       # Build
       #

@@ -4,28 +4,18 @@
 
 #pragma once
 
-#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
-#    define NGRAPH_LEGACY_HEADER_INCLUDED
-#    ifdef _MSC_VER
-#        pragma message( \
-            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    else
-#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    endif
-#endif
-
-#include <memory>
-
-#include "ngraph/deprecated.hpp"
-#include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const ngraph::Node* node);
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const std::shared_ptr<ngraph::Node>& node);
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const Output<ngraph::Node>& output);
+namespace util {
+bool is_null(const ov::Node* node);
+bool is_null(const std::shared_ptr<ov::Node>& node);
+bool is_null(const Output<ov::Node>& output);
+}  // namespace util
 }  // namespace op
+}  // namespace ov
+namespace ngraph {
 namespace onnx_import {
 /// \brief Represents a missing optional input or output of an ONNX node
 ///
@@ -36,7 +26,7 @@ namespace onnx_import {
 ///
 /// More:
 /// https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
-class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API NullNode : public ov::op::Op {
+class NullNode : public ov::op::Op {
 public:
     OPENVINO_OP("NullNode");
     NullNode() {

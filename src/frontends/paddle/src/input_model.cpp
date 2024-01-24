@@ -5,6 +5,9 @@
 #include "input_model.hpp"
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 #include <queue>
 
 #include "decoder_proto.hpp"
@@ -291,7 +294,12 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
 
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)),
+                             std::ios::in | std::ifstream::binary);
+#else
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
+#endif
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             const size_t header_size = 16;
             std::vector<char> header(header_size);

@@ -119,7 +119,9 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         ov::Shape start_offset(input_shape.size());
         int32_t new_offset0 = static_cast<int32_t>(result);
         if (support_neg_ind && new_offset0 < 0) {
-            new_offset0 += static_cast<int32_t>(start_offset.size());
+            // According to Gather-8,
+            // Negative values of indices indicate reverse indexing from data.shape[axis]
+            new_offset0 += static_cast<int32_t>(input_shape.get_shape()[axis]);
         }
 
         start_offset[0] = static_cast<size_t>(new_offset0);
