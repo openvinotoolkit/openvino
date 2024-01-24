@@ -27,7 +27,6 @@
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
