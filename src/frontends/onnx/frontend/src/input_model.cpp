@@ -96,6 +96,8 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
 }
 
 void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     const auto original_name = onnx_tensor->get_names().at(0);
@@ -113,6 +115,8 @@ void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
 }
 
 void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(operation, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_operation = std::dynamic_pointer_cast<PlaceOp>(operation);
     FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
     onnx_operation->set_name(new_name);
@@ -125,12 +129,15 @@ void InputModel::free_name_for_operation(const std::string& name) {
 void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
                                         size_t shape_dim_index,
                                         const std::string& dim_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
 void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
     FRONT_END_GENERAL_CHECK(!new_name.empty(), "The additional tensor name cannot be empty.");
 
     ov::frontend::Place::Ptr tensor_place = tensor;
@@ -153,6 +160,8 @@ void InputModel::free_name_for_tensor(const std::string&) {
 }
 
 void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& shape) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -173,6 +182,8 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
 }
 
 ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -194,13 +205,16 @@ ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& p
 }
 
 void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::map<std::string, ov::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
 
 ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
-    OPENVINO_ASSERT(place, "Cannot return a type for nullptr Place.");
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string tensor_name;
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -333,6 +347,8 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
 }
 
 ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& place) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string name = place->get_names().at(0);
 
     const auto& outputs = m_editor->model_outputs();
@@ -364,6 +380,8 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
 }
 
 void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string name = place->get_names().at(0);
     std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
     const auto& output_names = m_editor->model_outputs();
@@ -383,11 +401,13 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
 }
 
 void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, const std::string& new_name_optional) {
-    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
-    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
 
     if (place->is_input())
         return;
+
+    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
 
     const auto edge_place = convert_place_to_input_edge({place});
     const auto edge_outputs = convert_place_to_output_edge(outputs);
@@ -404,9 +424,11 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, co
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
-    std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> map;
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
+        std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> map;
+
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
@@ -488,6 +510,8 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
 }
 
 void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
+    FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
+
     auto model_inputs = model->inputs();
     const auto find_input_by_tensor_name = [&model_inputs](const std::string& name) {
         return std::find_if(std::begin(model_inputs),
@@ -508,6 +532,8 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
 }
 
 void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
+    FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
+
     const auto& inputs = model->inputs();
     const auto is_input_name = [&inputs](const std::string& name) {
         return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {

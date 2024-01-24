@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/infer_request/memory_states.hpp"
-
 #include <base/behavior_test_utils.hpp>
 
+#include "behavior/infer_request/memory_states.hpp"
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/sigmoid.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sigmoid.hpp"
 
 namespace BehaviorTestsDefinitions {
 std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams>& obj) {
@@ -36,8 +35,8 @@ void InferRequestVariableStateTest::SetUp() {
 }
 
 InferenceEngine::CNNNetwork InferRequestVariableStateTest::getNetwork() {
-    ngraph::Shape shape = {1, 200};
-    ngraph::element::Type type = ngraph::element::f32;
+    ov::Shape shape = {1, 200};
+    ov::element::Type type = ov::element::f32;
 
     auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
     auto mem_i1 = std::make_shared<ov::op::v0::Constant>(type, shape, 0);
@@ -60,8 +59,7 @@ InferenceEngine::CNNNetwork InferRequestVariableStateTest::getNetwork() {
     mem_w2->add_control_dependency(mem_r2);
     sigm->add_control_dependency(mem_w2);
 
-    auto function =
-        std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
+    auto function = std::make_shared<ov::Model>(ov::NodeVector{sigm}, ov::ParameterVector{input}, "addOutput");
     return InferenceEngine::CNNNetwork{function};
 }
 

@@ -47,9 +47,9 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         3,
         "",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
+            { ov::element::f32 },
             {},
             { 0.01f }
         },
@@ -62,9 +62,9 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         3,
         "relu",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
+            { ov::element::f32 },
             {},
             { 0.01f }
         },
@@ -102,11 +102,11 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
            {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
            {255.f, 255.f / 2.f, 255.f / 3.f, 255.f / 4.f, 255.f / 5.f, 255.f / 6.f},
        },
-       { ngraph::element::u8 },
+       { ov::element::u8 },
        {
-           { ngraph::element::f32 },
+           { ov::element::f32 },
            {},
-           { {0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f}, ngraph::element::f32, {1, 6, 1, 1} },
+           { {0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f}, ov::element::f32, {1, 6, 1, 1} },
        },
        "Concatenation",
        "u8",
@@ -124,10 +124,10 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
            {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
            {255.f, 255.f / 2.f, 255.f / 3.f, 255.f / 4.f, 255.f / 5.f, 255.f / 6.f},
        },
-       { ngraph::element::u8 },
+       { ov::element::u8 },
        {
-           { ngraph::element::f32 },
-           { {-127.f, -127.f / 2.f, -127.f / 3.f, -127.f / 4.f, -127.f / 5.f, -127.f / 6.f}, ngraph::element::f32, {1, 6, 1, 1} },
+           { ov::element::f32 },
+           { {-127.f, -127.f / 2.f, -127.f / 3.f, -127.f / 4.f, -127.f / 5.f, -127.f / 6.f}, ov::element::f32, {1, 6, 1, 1} },
            { 0.01f },
        },
        "Concatenation",
@@ -136,7 +136,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     },
 };
 
-const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+const std::vector<std::vector<ov::PartialShape>> shapes = {
     {{ 1, 1, 16, 16 }, { 1, 2, 16, 16 }, { 1, 3, 16, 16 }},
     {{ 4, 1, 16, 16 }, { 4, 2, 16, 16 }, { 4, 3, 16, 16 }}
 };
@@ -167,7 +167,7 @@ namespace testValues2 {
             -1
         },
     };
-    const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+    const std::vector<std::vector<ov::PartialShape>> shapes = {
         {{ 1, 1, 16, 16 }, { 1, 1, 16, 16 }, { 1, 1, 16, 16 }},
         {{ 4, 1, 16, 16 }, { 4, 1, 16, 16 }, { 4, 1, 16, 16 }}
     };

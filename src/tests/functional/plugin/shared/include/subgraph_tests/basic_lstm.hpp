@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <ngraph/pass/low_latency.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -34,7 +33,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()
     std::vector<uint64_t> outFormShapes1 = { 1, 1, third_dim };
-    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
+    auto pattern1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{3}, outFormShapes1);
     auto param_target_inputs = function->get_parameters().at(0)->output(0).get_target_inputs();
 
     // replace hardcoded shape
@@ -45,7 +44,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // Generate inputs
     GenerateInputs();
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
     LoadNetwork();
     auto referenceOutputs = CalculateRefs();
     auto states = inferRequest.QueryState();

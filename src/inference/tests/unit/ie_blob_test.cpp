@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <ie_blob.h>
 
+#include "blob_factory.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 

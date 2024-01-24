@@ -6,11 +6,12 @@
 
 #include <stdlib.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/frontend/extension.hpp>
 #include <string>
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/frontend/extension.hpp"
+#include "openvino/frontend/manager.hpp"
 
 // Resolves different backend names to an internal device enumeration
 inline std::string backend_name_to_device(const std::string& backend_name) {
@@ -38,7 +39,10 @@ std::shared_ptr<ov::Model> convert_model(std::ifstream& model_stream);
 // A wrapper to create ONNX Frontend and configure the conversion pipeline to get
 // a model with possible Framework Nodes
 std::shared_ptr<ov::Model> convert_partially(const std::string& model_path);
-
+// Returns loaded InputModel for customizing before conversion
+// If FrontEnd::Ptr has been passed - return a FrontEnd object which was used for loading model
+InputModel::Ptr load_model(const std::string& model_path, ov::frontend::FrontEnd::Ptr* return_front_end = nullptr);
+InputModel::Ptr load_model(const std::wstring& model_path, ov::frontend::FrontEnd::Ptr* return_front_end = nullptr);
 // Returns path to a manifest file
 std::string onnx_backend_manifest(const std::string& manifest);
 }  // namespace tests
