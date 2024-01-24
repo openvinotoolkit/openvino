@@ -16,7 +16,7 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -80,4 +80,4 @@ std::shared_ptr<ov::Model> MultiplyFunction::get(const element::Type model_preci
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

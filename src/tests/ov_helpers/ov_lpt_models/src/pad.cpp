@@ -11,7 +11,7 @@
 #include "ov_lpt_models/pad.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> PadFunction::get(
@@ -76,4 +76,4 @@ std::shared_ptr<ov::Model> PadFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
