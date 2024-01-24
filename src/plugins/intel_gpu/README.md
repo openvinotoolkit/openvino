@@ -40,16 +40,17 @@ This contents explain the internal implementation of dynamic shape support in th
   * [dynamic impl of kernels](./docs/dynamic_shape/dynamic_impl.md)
   * [in-memory kernel cache](./docs/dynamic_shape/in_memory_cache.md)
   * [async kernel compilation](./docs/dynamic_shape/async_compilation.md)
-  * weight compression
+  <!-- * weight compression (TBD)) -->
 * Optimization features
   * [Memory preallocation](./docs/dynamic_shape/memory_preallocation.md)
-  * Fake alignment of shape
-  * Shape-of subgraph on CPU
-  * Runtime buffer fusing
-  * Runtime reorder skip
-  * KV cache
+<!--  * Fake alignment of shape (TBD)
+  * Shape-of subgraph on CPU (TBD)
+  * Runtime buffer fusing (TBD)
+  * Runtime reorder skip (TBD)
+  * KV cache (TBD)
 * Performance analysis and debugging features (TBD)
 * Model caching for dynamic shape (TBD)
+-->
 
 ## Attached licenses
 

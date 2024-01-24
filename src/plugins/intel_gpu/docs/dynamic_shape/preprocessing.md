@@ -1,5 +1,5 @@
 # Preprocessing for dynamic shape execution
-As explained in basic flow of primitive execution for dynamic shape from [Basic flow for dynamic shape](TBD), several preprocessing processes are performed before setting arguments to kernel and executing selected impl.
+As explained in basic flow of primitive execution for dynamic shape from [Overall flow](overall_flow.md), several preprocessing processes are performed before setting arguments to kernel and executing selected impl.
 
 * update_shape - when the input shape changes, calculate and change the output shape and peform shape inference so that the shape is propagated to the next node.
 * update_impl - depending on the changed shape, `primitive_impl` is retrieved from in-memory cache or new impl is selected.
@@ -30,7 +30,7 @@ Details on how to execute shape inference through `primitive::update_shape` when
     public:
         layout calc_output_layout() const;
         std::vector<layout> calc_output_layouts() const;
-    } 
+    }
     ```
 9. If there is fused operation in `kernel_impl_params`, the output layout of the descriptor is also updated with `ov::PartialShape` of updated output layout. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L379)
 
@@ -53,7 +53,7 @@ In the case of static shape execution, output memory is allocated when creating 
 3. If the node is `input_layout`, `realloc_if_needed()` is skipped because it is assumed to always use external memory. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L408)
 4. Check whether output memory is already allocated and the requested buffer size is smaller than the current buffer size, and store the result in `can_reuse_buffer`. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L421)
 5. If the current node is `concat` and both `can_be_optimized()` and `allocation_done_by_other` are TRUE, `realloc_if_needed()` is skipped. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L424)
-6. Through `ShapePredictor`, the preallocation shape is predicted from the current shape and data type, and then update to output layout shape of `kernel impl params`. A more detailed explanation of this will be added as a seperate section later(TBD). [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L429)
+6. Through `ShapePredictor`, the preallocation shape is predicted from the current shape and data type, and then update to output layout shape of `kernel impl params`. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L429) More detail on the `ShapePredictor` can be found [here](memory_preallocation.md).
 7. If `can_reuse_buffer` is TRUE, `reused` of output memory is set to TRUE and output memory is updated with reinterpreted buffer. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L439)
 8. If `can_reuse_buffer` is FALSE, reallocate with `allocate_outputs()` to set the output memory and update `max_output_layout_size`. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L448)
 9. Get internal buffer layouts from the current `primitive_impl`. [(link)](https://github.com/openvinotoolkit/openvino/blob/eea49f3c9e6bba5463460fdc126c2df38a4a5215/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L458)
