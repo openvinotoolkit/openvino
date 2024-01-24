@@ -14,8 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/factory.hpp"
 
@@ -27,14 +25,14 @@ public:
     FactoryAttributeAdapter(std::shared_ptr<BASE_TYPE>& ref) : m_ref(ref) {}
 
     /// \brief Hook for extra processing before other attributes
-    virtual bool on_start(AttributeVisitor& /* visitor */) {
+    virtual bool on_start(ov::AttributeVisitor& /* visitor */) {
         return true;
     }
     /// \brief Hook for extra processing after other attributes
-    virtual bool on_finish(AttributeVisitor& /* visitor */) {
+    virtual bool on_finish(ov::AttributeVisitor& /* visitor */) {
         return true;
     }
-    bool visit_attributes(AttributeVisitor& visitor) override {
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
         if (on_start(visitor)) {
             std::string type_info_name;
             uint64_t type_info_version;

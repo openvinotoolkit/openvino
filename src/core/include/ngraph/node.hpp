@@ -28,7 +28,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"

@@ -20,11 +20,11 @@ OutputVector grid_sample(const Node& node) {
     v9::GridSample::Attributes attributes{};
     attributes.align_corners = node.get_attribute_value<int64_t>("align_corners", 0);
 
-    attributes.mode = EnumNames<v9::GridSample::InterpolationMode>::as_enum(
+    attributes.mode = ov::EnumNames<v9::GridSample::InterpolationMode>::as_enum(
         node.get_attribute_value<std::string>("mode", "bilinear"));
 
-    attributes.padding_mode =
-        EnumNames<v9::GridSample::PaddingMode>::as_enum(node.get_attribute_value<std::string>("padding_mode", "zeros"));
+    attributes.padding_mode = ov::EnumNames<v9::GridSample::PaddingMode>::as_enum(
+        node.get_attribute_value<std::string>("padding_mode", "zeros"));
 
     return {std::make_shared<v9::GridSample>(data, grid, attributes)};
 }

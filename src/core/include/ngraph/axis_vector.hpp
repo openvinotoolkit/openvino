@@ -18,7 +18,6 @@
 #include <ostream>
 #include <vector>
 
-#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 #include "openvino/core/axis_vector.hpp"
 
