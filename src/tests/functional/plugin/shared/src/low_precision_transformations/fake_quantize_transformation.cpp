@@ -45,7 +45,7 @@ void FakeQuantizeTransformation::SetUp() {
 
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
-    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
         params,
         netPrecision,
         inputShape,

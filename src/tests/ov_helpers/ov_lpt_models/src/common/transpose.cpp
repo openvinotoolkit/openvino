@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/common/transpose.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,4 +22,4 @@ bool Transpose::empty() const noexcept {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

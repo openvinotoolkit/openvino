@@ -40,7 +40,7 @@ void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,
         testValues.actual.precisionBeforeAdd,
         testValues.actual.add,

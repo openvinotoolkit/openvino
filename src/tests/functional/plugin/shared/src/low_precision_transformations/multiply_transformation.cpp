@@ -78,7 +78,7 @@ void MultiplyTransformation::SetUp() {
             std::vector<ov::PartialShape>{ inputShape1 } :
             std::vector<ov::PartialShape>{ inputShape1, inputShape2 });
 
-    function = ngraph::builder::subgraph::MultiplyPartialFunction::get(
+    function = ov::builder::subgraph::MultiplyPartialFunction::get(
         precision,
         inputShape,
         param.broadcast1,

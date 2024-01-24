@@ -5,7 +5,7 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -84,4 +84,4 @@ bool FakeQuantizeOnDataWithConstant::empty() const {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

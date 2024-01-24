@@ -38,7 +38,7 @@ void ClampTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ClampFunction::getOriginal(
+    function = ov::builder::subgraph::ClampFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

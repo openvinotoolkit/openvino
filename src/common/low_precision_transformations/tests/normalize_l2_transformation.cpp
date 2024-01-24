@@ -23,7 +23,7 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class NormalizeL2TransformationTestValues {
 public:
@@ -61,7 +61,7 @@ public:
         NormalizeL2TransformationTestValues params;
         std::tie(precision, shape, epsMode, axes, params) = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+        actualFunction = ov::builder::subgraph::NormalizeL2Function::getOriginal(
             precision,
             params.actual.inputPrecision,
             shape,
@@ -73,7 +73,7 @@ public:
         transform.add<ov::pass::low_precision::NormalizeL2Transformation, ov::op::v0::NormalizeL2>(params.transformationParams);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
+        referenceFunction = ov::builder::subgraph::NormalizeL2Function::getReference(
             precision,
             params.expected.inputPrecision,
             shape,

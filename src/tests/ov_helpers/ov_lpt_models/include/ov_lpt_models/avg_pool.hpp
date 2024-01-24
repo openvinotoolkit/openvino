@@ -10,7 +10,7 @@
 #include "common/fake_quantize_on_data.hpp"
 #include "common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,7 +22,7 @@ public:
         const ov::PartialShape& inputShape,
         const bool addFQ,
         const std::vector<std::string>& additionalLayers,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type originalFunctionPrecision,
@@ -35,12 +35,12 @@ public:
         const ov::PartialShape& inputShape,
         const bool addFQ,
         const std::vector<std::string>& additionalLayers,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationEnd);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationEnd);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

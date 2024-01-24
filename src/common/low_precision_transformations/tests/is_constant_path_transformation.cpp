@@ -15,7 +15,7 @@
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 TEST(LPT, isConstantPathFQAfterInputTransformation) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });

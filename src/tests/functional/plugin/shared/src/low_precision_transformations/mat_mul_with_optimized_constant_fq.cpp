@@ -50,7 +50,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 
     init_input_shapes({ shapes.first, shapes.second });
 
-    function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
         precision,
         shapes.first,
         shapes.second,

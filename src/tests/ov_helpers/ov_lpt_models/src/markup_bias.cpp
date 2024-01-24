@@ -8,7 +8,7 @@
 #include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& precision,
@@ -126,4 +126,4 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
 }
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

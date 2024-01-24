@@ -17,14 +17,14 @@ namespace LayerTestsDefinitions {
 
 class ConvolutionQDqTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnData;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnData;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnData;
 
-    ngraph::builder::subgraph::Constant constantOnWeights;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ov::builder::subgraph::Constant constantOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
 
     std::string layerName;
     std::string expectedKernelType;

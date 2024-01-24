@@ -11,7 +11,7 @@
 namespace LayerTestsDefinitions {
 class ReduceMaxTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> constantValues;
     bool keepDims;
     std::string layerName;

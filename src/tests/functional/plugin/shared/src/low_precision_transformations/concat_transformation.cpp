@@ -51,7 +51,7 @@ void ConcatTransformation::SetUp() {
     }
     init_input_shapes(inputs);
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
+    function = ov::builder::subgraph::ConcatFunction::getOriginal(
         precision,
         inputShape,
         testValues.input_constant1,

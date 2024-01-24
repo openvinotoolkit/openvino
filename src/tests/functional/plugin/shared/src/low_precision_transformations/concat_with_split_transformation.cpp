@@ -52,7 +52,7 @@ void ConcatWithSplitTransformation::SetUp() {
     inputShape1[1] = inputShape1[1].get_length() / numSplit;
     init_input_shapes({ inputShape1, inputShapes });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
         netPrecision,
         inputShapes,
         param.fqOnData1,

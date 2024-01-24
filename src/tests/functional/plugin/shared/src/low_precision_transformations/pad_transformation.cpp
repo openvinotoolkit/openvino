@@ -39,7 +39,7 @@ void PadTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::PadFunction::get(
+    function = ov::builder::subgraph::PadFunction::get(
         inputShape,
         netPrecision,
         param.fakeQuantize,

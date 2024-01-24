@@ -43,7 +43,7 @@ void GemmTransformation::SetUp() {
     const float low = 0.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 0.f : -128.f;
     const float high = 255.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 255.f : 127.f;
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,
         inputShape,
         low,

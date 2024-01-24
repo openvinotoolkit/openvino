@@ -47,7 +47,7 @@ void FullyConnectedTransformation::SetUp() {
 
     init_input_shapes({ shapes.inputA, shapes.inputB });
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         shapes.inputA,
         shapes.inputB,

@@ -38,7 +38,7 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         netPrecision,
         inputShape,
         {

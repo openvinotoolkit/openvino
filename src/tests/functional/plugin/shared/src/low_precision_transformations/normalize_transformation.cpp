@@ -55,7 +55,7 @@ void NormalizeL2Transformation::SetUp() {
 
     init_input_shapes(shapes.first);
 
-    function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+    function = ov::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
         ov::element::u8,

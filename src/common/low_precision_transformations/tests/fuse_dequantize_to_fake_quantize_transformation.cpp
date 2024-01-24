@@ -31,22 +31,22 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
+        ov::builder::subgraph::Add add;
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
         ov::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
+        ov::builder::subgraph::Add add;
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
         ov::element::Type precisionAfterDequantization;
         ov::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
     ov::PartialShape inputShape;
@@ -62,7 +62,7 @@ public:
     void SetUp() override {
         const FuseDequantizeToFakeQuantizeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeAdd,
             testValues.actual.add,
@@ -81,7 +81,7 @@ public:
             testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getReference(
+        referenceFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::getReference(
             testValues.inputShape,
             testValues.expected.precisionBeforeAdd,
             testValues.expected.add,

@@ -19,7 +19,7 @@ typedef std::tuple <
     element::Type,
     PartialShape,
     std::string,
-    ngraph::builder::subgraph::DequantizationOperations,
+    ov::builder::subgraph::DequantizationOperations,
     bool> FuseConvertTransformationParams;
 
 class FuseConvertTransformation :

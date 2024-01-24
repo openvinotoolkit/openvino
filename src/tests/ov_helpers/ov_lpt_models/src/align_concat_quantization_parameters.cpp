@@ -12,7 +12,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,7 +22,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {
@@ -129,9 +129,9 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {
@@ -240,4 +240,4 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

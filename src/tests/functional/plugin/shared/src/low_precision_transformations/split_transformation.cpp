@@ -39,7 +39,7 @@ void SplitTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::SplitFunction::getOriginal(
+    function = ov::builder::subgraph::SplitFunction::getOriginal(
         precision,
         inputShape,
         param.fakeQuantize,

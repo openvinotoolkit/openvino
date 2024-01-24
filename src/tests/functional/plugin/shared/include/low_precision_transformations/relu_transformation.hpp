@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 class ReluTestValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     bool isSubtract;
 };
 

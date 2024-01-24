@@ -32,7 +32,7 @@ void BatchToSpaceTransformation::SetUp() {
 
     init_input_shapes(param.input_shape);
 
-    function = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+    function = ov::builder::subgraph::BatchToSpaceFunction::get(
         param.input_shape,
         input_type,
         param.fake_quantize,

@@ -12,7 +12,7 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
     std::shared_ptr<ov::Model> SubtractFunction::getOriginal(
@@ -50,4 +50,4 @@ namespace subgraph {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

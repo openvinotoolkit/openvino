@@ -66,7 +66,7 @@ void AddTransformation::SetUp() {
     }
     init_input_shapes({ inputShape, inputShape2 });
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginal(
+    function = ov::builder::subgraph::AddFunction::getOriginal(
         precision, inputShape, param.broadcast,
         param.fakeQuantize1, param.fakeQuantize2);
 
