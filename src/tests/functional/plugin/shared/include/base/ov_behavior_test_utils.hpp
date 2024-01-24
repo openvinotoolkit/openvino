@@ -249,6 +249,21 @@ public:
     }
 };
 
+class OVClassSeveralDevicesTests : public OVPluginTestBase,
+                                   public OVClassNetworkTest,
+                                   public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> target_devices;
+
+    void SetUp() override {
+        target_device = ov::test::utils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
+        target_devices = GetParam();
+    }
+};
+
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \
     try {                                              \
