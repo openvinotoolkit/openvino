@@ -11,19 +11,6 @@
 namespace ov {
 namespace intel_cpu {
 
-static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
-    pugi::xml_node outputs = root.child("outputs");
-    auto nodes_it = outputs.children("out").begin();
-    size_t size = model->outputs().size();
-    for (size_t i = 0; i < size; ++nodes_it, i++) {
-        std::string name = nodes_it->attribute("name").value();
-        if (name.empty())
-            continue;
-        auto result = model->output(i).get_node_shared_ptr();
-        ov::descriptor::set_ov_tensor_legacy_name(result->input_value(0).get_tensor(), name);
-    }
-}
-
 ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
@@ -34,8 +21,6 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         pugi::xml_node outputs = root.append_child("outputs");
         for (const auto& out : model->get_results()) {
             auto out_node = outputs.append_child("out");
-            const std::string name = ov::descriptor::get_ov_tensor_legacy_name(out->input_value(0).get_tensor());
-            out_node.append_attribute("name").set_value(name.c_str());
         }
         xml_doc.save(stream);
     };
@@ -85,10 +70,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
     model = _model_builder(xmlString, std::move(dataBlob));
-
-    // Set Info
-    pugi::xml_node root = xmlInOutDoc.child("cnndata");
-    setInfo(root, model);
 }
 
 }   // namespace intel_cpu

@@ -67,10 +67,5 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
 
     preproc.build();
 
-    for (size_t i = 0; i < model->get_output_size(); i++) {
-        ov::descriptor::set_ov_tensor_legacy_name(model->output(i).get_node()->input_value(0).get_tensor(),
-                                                  legacy_names[i]);
-    }
-
     return false;
 }

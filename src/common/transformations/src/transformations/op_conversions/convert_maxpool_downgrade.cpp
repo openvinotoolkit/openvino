@@ -37,16 +37,10 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                                                                 maxpool_v8_node->get_rounding_type(),
                                                                 maxpool_v8_node->get_auto_pad());
 
-        auto out_name = ov::op::util::create_ie_output_name(maxpool_v8_node->output(0));
-
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
         ov::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         return true;
     };

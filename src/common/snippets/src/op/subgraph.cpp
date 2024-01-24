@@ -256,16 +256,11 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 }
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
-    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
-    }
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {

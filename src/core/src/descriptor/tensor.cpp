@@ -17,13 +17,6 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
     set_names(names);
 }
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
-    : m_element_type(element_type),
-      m_partial_shape(pshape),
-      m_shape_changed(true) {
-    m_name_it = m_names.cend();
-}
-
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                ov::Node* node,
@@ -140,17 +133,8 @@ void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
     m_value_label = old.get_value_label();
-    m_legacy_name = old.m_legacy_name;
     m_rt_info = old.get_rt_info();
     m_shape_changed = true;
-}
-
-std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tensor& tensor) {
-    return tensor.m_legacy_name;
-}
-
-void ov::descriptor::set_ov_tensor_legacy_name(ov::descriptor::Tensor& tensor, const std::string& tensor_name) {
-    tensor.m_legacy_name = tensor_name;
 }
 
 std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor::Tensor& tensor) {
@@ -160,10 +144,6 @@ std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor
             names += ", ";
         names += name;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = get_ov_tensor_legacy_name(tensor);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
 }

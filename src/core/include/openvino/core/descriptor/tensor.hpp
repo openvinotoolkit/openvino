@@ -32,22 +32,12 @@ namespace descriptor {
 
 class Tensor;
 
-OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-
-OPENVINO_DEPRECATED("set_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
-
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
     Tensor(const element::Type& element_type,
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use constructor with set of names")
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
@@ -128,15 +118,12 @@ protected:
     PartialShape m_partial_shape;
     ov::Tensor m_lower_value, m_upper_value;
     TensorLabel m_value_label;
-    std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
     std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 
-    friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-    friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend class pass::ReverseShapeAndTypeInfer;
 };
 
