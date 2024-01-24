@@ -81,15 +81,23 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     const auto& config = linear_ir.get_config();
     if (linear_ir.empty())
         return false;
+
     m_tile_rank = 1;
+
     if (!config.m_enable_domain_optimization) {
         // Note: this is a special case: if optimization is not allowed, always assume 2D tile
         m_tile_rank = 2;
         return false;
     }
+
+    VectorDims master_shape = linear_ir.get_master_shape();
+    if (linear_ir.is_dynamic()) {
+        m_tile_rank = master_shape.size() > 1 ? 2 : 1;
+        return false;
+    }
+
     OPENVINO_ASSERT(config.m_min_parallel_work_amount != 0, "OptimizeDomain: Min parallel work amount can't equal to zero");
     std::vector<VectorDims> input_shapes;
-    VectorDims master_shape = linear_ir.get_master_shape();
     bool blocked_input_shapes = false;
     for (const auto& io_expr : linear_ir.get_IO_ops()) {
         if (io_expr->get_type() == snippets::lowered::IOExpression::io_type::INPUT) {
