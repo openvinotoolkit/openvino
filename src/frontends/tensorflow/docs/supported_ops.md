@@ -68,10 +68,10 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AssertNextDataset                                       | NO                            |                               |
 | AssertPrevDataset                                       | NO                            |                               |
 | Assign                                                  | YES                           |                               |
-| AssignAdd                                               | NO                            |                               |
-| AssignAddVariableOp                                     | NO                            |                               |
-| AssignSub                                               | NO                            |                               |
-| AssignSubVariableOp                                     | NO                            |                               |
+| AssignAdd                                               | YES                           |                               |
+| AssignAddVariableOp                                     | YES                           |                               |
+| AssignSub                                               | YES                           |                               |
+| AssignSubVariableOp                                     | YES                           |                               |
 | AssignVariableOp                                        | YES                           |                               |
 | AssignVariableXlaConcatND                               | NO                            |                               |
 | Atan                                                    | YES                           |                               |
