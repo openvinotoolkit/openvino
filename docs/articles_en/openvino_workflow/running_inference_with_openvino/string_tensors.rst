@@ -27,8 +27,8 @@ of arbitrary length, including an empty string, and can be set independently of 
 Depending on the API used (C++ or Python), the underlying data type that represents the string when accessing the tensor elements is
 different:
 
- - in C++, std::string is used
- - in Python, `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used, as a read-only copy of the underlying C++ content
+* in C++, std::string is used
+* in Python, `numpy.str_`/`numpy.bytes_` populated Numpy arrays are used, as a read-only copy of the underlying C++ content
 
 String tensor implementation doesn't imply any limitations on string encoding, as underlying `std::string` doesn't have such limitations.
 It is capable of representing all valid UTF-8 characters but also any other byte sequence outside of the UTF-8 encoding standard.
