@@ -177,16 +177,16 @@ Running Generative AI Models using Native OpenVINO APIs
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with a few simplifications.
 
-To convert model from Hugging Face, the recommended way is to use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above.
+To convert the Hugging Face model, the recommended way is to use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above.
 In this case, the conversion process is significantly simplified because Optimum-Intel provides necessary conversion parameters which in many cases model-specific and require knowlege of a lot of model input properties.
-Moreover, Optimum Intel applies several model optimization like weight compression and using stateful form by default that further similifies model exporting flow.
+Moreover, Optimum-Intel applies several model optimization like weight compression and using stateful form by default that further similifies model exporting flow.
 You can still use a regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, TensorFlow etc.)
 
 Model optimization can be performed within Hugging Face or directly using NNCF as described in the :doc:`weight compression guide <weight_compression>`.
 
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
-* In case of LLMs for text generation, you need to handle tokenization, inference and token selection loop, and de-tokenization. If token selection involves beam search, it also needs to be written. This is covered in details by `C++ Text Generation Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__`
+* In case of LLMs for text generation, you need to handle tokenization, inference and token sampling, and de-tokenization. If token sampling involves beam search, it also needs to be written. This is covered in details by `C++ Text Generation Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__`
 * For image generation models, you need to make a pipeline that includes several model inferences: inference for source (e.g., text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. `C++ Implementation of Stable Diffusion <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__ is a good reference point.
 
 
