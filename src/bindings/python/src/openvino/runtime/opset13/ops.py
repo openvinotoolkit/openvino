@@ -350,7 +350,7 @@ def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -
 
 
 @nameable_op
-@apply_affix_on("input_low", "input_high", "output_low", "output_high")
+@apply_affix_on("data", "input_low", "input_high", "output_low", "output_high")
 def fake_quantize(
     data: NodeInput,
     input_low: NodeInput,
@@ -376,9 +376,9 @@ def fake_quantize(
                            auto-broadcasting of input tensors.
     :param name:           Optional name of the new node.
     :param prefix:         Optional keyword-only string to apply before original names of
-                           all input nodes (excluding `data`).
-    :param prefix:         Optional keyword-only string to apply after original names of
-                           all input nodes (excluding `data`).
+                           all generated input nodes (for example: passed as numpy arrays).
+    :param suffix:         Optional keyword-only string to apply after original names of
+                           all generated input nodes (for example: passed as numpy arrays).
     :return: New node with quantized value.
 
     Input floating point values are quantized into a discrete set of floating point values.

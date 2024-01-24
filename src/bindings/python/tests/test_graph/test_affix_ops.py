@@ -11,16 +11,14 @@ from openvino import Type
 
 
 @pytest.mark.parametrize("prefix_string", [
-    "",
     "ABC",
     "custom_prefix_",
 ])
 @pytest.mark.parametrize("suffix_string", [
-    "",
     "XYZ",
     "_custom_suffix",
 ])
-def test_fake_quantize_affix(prefix_string, suffix_string):
+def test_fake_quantize_affix_fails(prefix_string, suffix_string):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
     bound_shape = []
@@ -55,15 +53,58 @@ def test_fake_quantize_affix(prefix_string, suffix_string):
     assert model.get_type_name() == "FakeQuantize"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
+
+    assert data_name == parameter_data.friendly_name
+    assert input_low_name == parameter_input_low.friendly_name
+    assert input_high_name == parameter_input_high.friendly_name
+    assert output_low_name == parameter_output_low.friendly_name
+    assert output_high_name == parameter_output_high.friendly_name
+
+
+@pytest.mark.parametrize("prefix_string", [
+    "",
+    "ABC",
+    "custom_prefix_",
+])
+@pytest.mark.parametrize("suffix_string", [
+    "",
+    "XYZ",
+    "_custom_suffix",
+])
+def test_fake_quantize_affix(prefix_string, suffix_string):
+    levels = np.int32(4)
+    data_shape = [1, 2, 3, 4]
+    bound_shape = [1]
+
+    a_arr = np.ones(data_shape, dtype=np.float32)
+    b_arr = np.array(bound_shape, dtype=np.float32)
+    c_arr = np.array(bound_shape, dtype=np.float32)
+    d_arr = np.array(bound_shape, dtype=np.float32)
+    e_arr = np.array(bound_shape, dtype=np.float32)
+
+    model = ov.fake_quantize(
+        a_arr,
+        b_arr,
+        c_arr,
+        d_arr,
+        e_arr,
+        levels,
+        prefix=prefix_string,
+        suffix=suffix_string,
+    )
+
+    # Check if node was created correctly
+    assert model.get_type_name() == "FakeQuantize"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
     # Check that data parameter and node itself do not change:
     if prefix_string != "":
         assert prefix_string not in model.friendly_name
-        assert prefix_string not in parameter_data.friendly_name
     if suffix_string != "":
         assert suffix_string not in model.friendly_name
-        assert suffix_string not in parameter_data.friendly_name
     # Check that other parameters change:
-    assert prefix_string + input_low_name + suffix_string == parameter_input_low.friendly_name
-    assert prefix_string + input_high_name + suffix_string == parameter_input_high.friendly_name
-    assert prefix_string + output_low_name + suffix_string == parameter_output_low.friendly_name
-    assert prefix_string + output_high_name + suffix_string == parameter_output_high.friendly_name
+    for node_input in model.inputs():
+        generated_node = node_input.get_source_output().get_node()
+        print(generated_node.friendly_name)
+        assert prefix_string in generated_node.friendly_name
+        assert suffix_string in generated_node.friendly_name

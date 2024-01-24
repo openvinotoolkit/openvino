@@ -42,8 +42,10 @@ def apply_affix_on(*node_names: Any) -> Callable:
             arg_names = getfullargspec(func).args
             arg_mapping = dict(zip(arg_names, args))
             for node_name in node_names:
-                if node_name in arg_mapping:
-                    arg_mapping[node_name] = _apply_affix(arg_mapping[node_name],
+                # Apply only on auto-generated nodes. Create such node and apply affixes.
+                # Any Node instance supplied by the user is keeping the name as-is.
+                if node_name in arg_mapping and not isinstance(arg_mapping[node_name], Node):
+                    arg_mapping[node_name] = _apply_affix(as_node(arg_mapping[node_name]),
                                                           prefix=kwargs.get("prefix", ""),
                                                           suffix=kwargs.get("suffix", ""),
                                                           )
