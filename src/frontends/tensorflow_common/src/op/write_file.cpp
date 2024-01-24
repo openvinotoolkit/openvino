@@ -16,9 +16,8 @@ namespace op {
 
 OutputVector translate_write_file(const NodeContext& node) {
     default_op_checks(node, 1, {"WriteFile"});
-    auto input = node.get_input(0);
 
-    auto write_file_node = std::make_shared<KeepInGraphOp>("WriteFile");
+    auto write_file_node = make_shared<KeepInGraphOp>("WriteFile");
     set_node_name(node.get_name(), write_file_node);
     return {write_file_node};
 }
