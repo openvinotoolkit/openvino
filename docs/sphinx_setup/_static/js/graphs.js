@@ -948,7 +948,6 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            var indexes = [];
             if (kpi === 'throughput') {
                 var throughputData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
@@ -965,10 +964,8 @@ $(document).ready(function () {
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = latencyData.map(tData => tData[prec]); 
                 });
-
                 return config;
                 // return removeEmptyLabel(config);
-
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
@@ -1031,7 +1028,7 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
-    function removeEmptyLabel(config
+    function removeEmptyLabel(config, indexes) {
         var indexes = [];
         config.datasets.forEach((item, index) =>{
             if(item.data[0] == '') {
@@ -1043,6 +1040,7 @@ $(document).ready(function () {
         sorted.forEach((index)=>{
             config.datasets.splice(index,1);
         })
+        console.log(config);
         return config;
     }
 
