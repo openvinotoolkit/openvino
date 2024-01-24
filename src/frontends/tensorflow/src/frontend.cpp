@@ -9,6 +9,7 @@
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/internal_operation.hpp"
+#include "helper_ops/keep_in_graph_op.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/op/util/keep_in_graph_op.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -83,8 +83,6 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
             auto op_type = std::string(fw_node->get_type_name());
             auto fw_node_attrs = fw_node->get_attrs();
             update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
-        } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::KeepInGraphOp>(node)) {
-            update_failures_unsupported_ops(fw_node->get_op_type(), {}, unsupported_operations, failures);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());

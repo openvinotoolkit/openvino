@@ -5,6 +5,7 @@
 #include "translate_session.hpp"
 
 #include "helper_ops/enter.hpp"
+#include "helper_ops/keep_in_graph_op.hpp"
 #include "helper_ops/loop_cond.hpp"
 #include "helper_ops/merge.hpp"
 #include "helper_ops/next_iteration.hpp"
@@ -12,7 +13,6 @@
 #include "input_model.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/op/util/keep_in_graph_op.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
@@ -543,7 +543,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
                 for (auto output : ov_outputs) {
                     auto node = output.port.get_node_shared_ptr();
-                    auto kept_in_graph_op = std::dynamic_pointer_cast<ov::op::util::KeepInGraphOp>(node);
+                    auto kept_in_graph_op = std::dynamic_pointer_cast<KeepInGraphOp>(node);
                     if (kept_in_graph_op) {
                         auto sink_op = std::dynamic_pointer_cast<ov::op::Sink>(node);
                         sinks.push_back(sink_op);

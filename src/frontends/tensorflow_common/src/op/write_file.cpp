@@ -3,7 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/op/util/keep_in_graph_op.hpp"
+#include "helper_ops/keep_in_graph_op.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -17,9 +17,8 @@ namespace op {
 OutputVector translate_write_file(const NodeContext& node) {
     default_op_checks(node, 1, {"WriteFile"});
     auto input = node.get_input(0);
-    OutputVector inputs = {input};
 
-    auto write_file_node = std::make_shared<ov::op::util::KeepInGraphOp>(inputs, 1, "WriteFile");
+    auto write_file_node = std::make_shared<KeepInGraphOp>("WriteFile");
     set_node_name(node.get_name(), write_file_node);
     return {write_file_node};
 }
