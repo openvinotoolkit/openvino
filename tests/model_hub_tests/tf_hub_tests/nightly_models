@@ -65,12 +65,12 @@ biggan-deep-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorF
 efficientdet/lite2/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite2-detection/versions/1
 imagenet/mobilenet_v2_050_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-224-classification/versions/2
 mobilebert/uncased_L-24_H-128_B-512_A-4_F-4_OPT/squadv1,https://www.kaggle.com/models/google/mobilebert/frameworks/tensorFlow1/variations/uncased-l-24-h-128-b-512-a-4-f-4-opt-squadv1/versions/1
-delf,https://www.kaggle.com/models/google/delf/frameworks/tensorFlow1/variations/delf/versions/1,xfail,129232 IndexError list index out of range for Squeeze
+delf,https://www.kaggle.com/models/google/delf/frameworks/tensorFlow1/variations/delf/versions/1
 ssd_mobilenet_v2,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/ssd-mobilenet-v2/versions/1
 imagenet/mobilenet_v3_large_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-075-224-feature-vector/versions/1
 centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512-kpts/versions/1,skip,129153 TimeoutError or killed with a signal 11
 bert_cased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/cased-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
-biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2,skip,129232 IndexError list index out of range for Squeeze
+biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2
 tf2-preview/gnews-swivel-20dim-with-oov,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim-with-oov/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
 tf2-preview/nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 efficientnet/b4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b4-feature-vector/versions/1
@@ -87,7 +87,7 @@ imagenet/efficientnet_v2_imagenet21k_ft1k_m/feature_vector,https://www.kaggle.co
 imagenet/inception_v1/classification,https://www.kaggle.com/models/google/inception-v1/frameworks/tensorFlow2/variations/classification/versions/2
 bit/m-r50x1,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x1/versions/1
 progan-128,https://www.kaggle.com/models/google/progan-128/frameworks/tensorFlow1/variations/progan-128/versions/1
-biggan-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/256/versions/2,skip,129232 IndexError list index out of range for Squeeze
+biggan-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/256/versions/2
 nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/efficientnet_v2_imagenet21k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b0-feature-vector/versions/1
 bert_multi_cased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/multi-cased-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
@@ -159,7 +159,7 @@ faster_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorfl
 ssd_mobilenet_v2/fpnlite_640x640,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/fpnlite-640x640/versions/1
 imagenet/resnet_v1_50/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/50-classification/versions/2
 movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
-biggan-128,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/128/versions/2,skip,129232 IndexError list index out of range for Squeeze
+biggan-128,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/128/versions/2
 Wiki-words-250-with-normalization,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/250-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 sentence-t5/st5-base,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-base/versions/1
 movinet/a2/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a2-base-kinetics-600-classification/versions/3
@@ -394,7 +394,7 @@ german-tacotron2,https://www.kaggle.com/models/myusufs/german-tacotron2/framewor
 convnext_xlarge_21k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-224/versions/1
 gtr/gtr-large,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-large/versions/1
 AraBERT,https://www.kaggle.com/models/kaggle/arabert/frameworks/tensorFlow2/variations/arabert/versions/1
-trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/1/versions/1,skip,129232 IndexError list index out of range for Squeeze
+trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/1/versions/1
 imagenet/mobilenet_v1_050_128/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-128-classification/versions/2
 tf2-preview/nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
 imagenet/mobilenet_v1_100_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-192-feature-vector/versions/2
@@ -423,7 +423,7 @@ wav2vec2-xlsr-53,https://www.kaggle.com/models/kaggle/wav2vec2/frameworks/tensor
 unet/industrial/class_10,https://tfhub.dev/nvidia/unet/industrial/class_10/1,skip,Model is not available
 movinet/a5/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-stream-kinetics-600-classification/versions/2
 vit_r26_s32_lightaug_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-lightaug-fe/versions/1
-mmt/architecture_image-q-24,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-24/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture_image-q-24,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-24/versions/1
 wiki40b-lm-nl,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/nl/versions/1
 imagenet/efficientnet_v2_imagenet21k_m/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-m-classification/versions/2
 tf2-preview/nnlm-zh-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-zh-dim50/versions/1,skip,120721 AssertionError No signatures for a model
@@ -470,7 +470,7 @@ sup-rotation-100,https://www.kaggle.com/models/vtab/sup-rotation-100/frameworks/
 wiki40b-lm-ko,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ko/versions/1
 imagenet/mobilenet_v2_075_128/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-128-classification/versions/2
 efficientdet/lite3x/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3x-feature-vector/versions/1
-mmt/baseline_baseline,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/baseline_baseline,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline/versions/1
 boundless/three_quarter,https://www.kaggle.com/models/google/boundless/frameworks/tensorFlow1/variations/three-quarter/versions/1
 imagenet/mobilenet_v1_100_160/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-160-classification/versions/2
 unet/industrial/class_3,https://tfhub.dev/nvidia/unet/industrial/class_3/1,skip,Model is not available
@@ -499,14 +499,14 @@ vgg19-block3-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19
 experts/bert/wiki_books/qqp,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books-qqp/versions/2
 remote_sensing/uc_merced-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-uc-merced-resnet50/versions/1
 mixer_b16_i1k_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i1k-fe/versions/1
-mmt/loss_single-modality-contrastive1024,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/loss-single-modality-contrastive1024/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/loss_single-modality-contrastive1024,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/loss-single-modality-contrastive1024/versions/1
 regnety600mf_feature_extractor,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/600mf-feature-extractor/versions/1
 exemplar,https://www.kaggle.com/models/vtab/exemplar/frameworks/tensorFlow1/variations/exemplar/versions/1
 imagenet/mobilenet_v1_025_192/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-192-classification/versions/2
 wiki40b-lm-tr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/tr/versions/1
 mixer_b16_sam_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-sam-fe/versions/1
 logit_reconstruction/robust,https://www.kaggle.com/models/google/logit-reconstruction/frameworks/tensorFlow1/variations/robust/versions/1
-mmt/baseline_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline-no-bert-transfer/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/baseline_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline-no-bert-transfer/versions/1
 nnlm-ko-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ko-dim128/versions/1,skip,120721 AssertionError No signatures for a model
 experts/bit/r50x1/in21k/angiosperm,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-angiosperm/versions/1
 vit_l16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-l16-classification/versions/1
@@ -518,7 +518,7 @@ spiral/default-wgangp-celebahq64-gen-19steps/agent8,https://www.kaggle.com/model
 experts/bit/r50x1/in21k/carnivore,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-carnivore/versions/1
 HRNet/ade20k-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/tensorFlow2/variations/hrnet-ade20k-hrnetv2-w48/versions/1,skip,120721 AssertionError No signatures for a model
 wae-gan,https://www.kaggle.com/models/vtab/wae-gan/frameworks/tensorFlow1/variations/wae-gan/versions/1
-mmt/architecture_image-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-12/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture_image-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-12/versions/1
 MuRIL-Large,https://www.kaggle.com/models/google/muril/frameworks/tensorFlow2/variations/large/versions/1
 spiral/default-wgangp-celebahq64-gen-19steps/agent9,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent9/versions/1
 swin_large_patch4_window7_224_in22k_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/large-patch4-window7-224-in22k-fe/versions/1
@@ -547,14 +547,14 @@ remote_sensing/eurosat-ms-resnet50,https://www.kaggle.com/models/google/resnet50
 compare_gan/model_10_lsun_bedroom_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-10-lsun-bedroom-resnet19/versions/1,skip,128817 Model references undeclared parameters
 convnext_xlarge_21k_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-1k-384-fe/versions/1
 mobilevit_xxs_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/xxs-1k-256-fe/versions/1
-mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1
 spiral/default-wgangp-celebahq64-gen-19steps/agent1,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent1/versions/1
 small_bert/bert_uncased_L-8_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
 edgetpu/vision/deeplab-edgetpu/fused_argmax/m,https://www.kaggle.com/models/google/deeplab-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-m/versions/1
 image_augmentation/nas_imagenet,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/nas-imagenet/versions/1
 mixer_b16_i21k_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i21k-fe/versions/1,skip,128695 Inference results mismatch
-nonsemantic-speech-benchmark/trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/nonsemantic-speech-benchmark-trillsson1/versions/1,skip,129232 IndexError list index out of range for Squeeze
-trillsson5,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/5/versions/1,skip,129232 IndexError list index out of range for Squeeze
+nonsemantic-speech-benchmark/trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/nonsemantic-speech-benchmark-trillsson1/versions/1
+trillsson5,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/5/versions/1
 logit_reconstruction/inceptionv3,https://www.kaggle.com/models/google/logit-reconstruction/frameworks/tensorFlow1/variations/inceptionv3/versions/1
 spiral/default-wgangp-celebahq64-gen-19steps/agent6,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent6/versions/1
 tf2-preview/nnlm-id-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-id-dim128/versions/1,skip,120721 AssertionError No signatures for a model
@@ -589,7 +589,7 @@ sentence-t5/st5-11b,https://www.kaggle.com/models/google/sentence-t5/frameworks/
 gtr/gtr-xxl,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-xxl/versions/1
 swin_base_patch4_window7_224_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/base-patch4-window7-224-fe/versions/1
 small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
-mmt/data_mscoco,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-mscoco/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/data_mscoco,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-mscoco/versions/1
 vit_r26_s32_lightaug_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-lightaug-classification/versions/1
 compare_gan/s3gan_10_256x256,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/s3gan-10-256x256/versions/1
 experts/bit/r50x1/in21k/tree,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-tree/versions/1
@@ -606,7 +606,7 @@ swin_small_patch244_window877_kinetics400_1k,https://www.kaggle.com/models/kaggl
 experts/bit/r50x1/in21k/covering,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-covering/versions/1
 HRNet/msegpcontext-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/tensorFlow2/variations/hrnet-msegpcontext-hrnetv2-w48/versions/1,skip,120721 AssertionError No signatures for a model
 convnext_large_21k_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-224-fe/versions/1
-mmt/baseline-ft_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-ft-baseline-no-bert-transfer/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/baseline-ft_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-ft-baseline-no-bert-transfer/versions/1
 wiki40b-lm-el,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/el/versions/1
 imagenet/efficientnet_v2_imagenet21k_ft1k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b2-classification/versions/1
 wiki40b-lm-ro,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ro/versions/1
@@ -622,20 +622,20 @@ experts/bit/r50x1/in21k/abstraction,https://www.kaggle.com/models/google/experts
 wiki40b-lm-th,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/th/versions/1
 imagenet/mobilenet_v1_100_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/100-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
 imagenet/efficientnet_v2_imagenet21k_b1/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b1-classification/versions/1
-mmt/data_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-sbu/versions/1,skip,129232 IndexError list index out of range for Squeeze
-mmt/data_combined-instance,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-combined-instance/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/data_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-sbu/versions/1
+mmt/data_combined-instance,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-combined-instance/versions/1
 semi-exemplar-10,https://www.kaggle.com/models/vtab/semi-exemplar-10/frameworks/tensorFlow1/variations/semi-exemplar-10/versions/1
 swin_tiny_patch4_window7_224,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/tiny-patch4-window7-224/versions/1
 vila/image,https://www.kaggle.com/models/google/vila/frameworks/tensorFlow2/variations/image/versions/1
 imagenet/mobilenet_v1_075_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
 convnext_large_21k_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-224/versions/1
-mmt/architecture_vilbert-4block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-4block/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture_vilbert-4block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-4block/versions/1
 imagenet/mobilenet_v1_050_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/050-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
-mmt/architecture-ft_language-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-ft-language-q-12/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture-ft_language-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-ft-language-q-12/versions/1
 convnext_small_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/small-1k-224-fe/versions/1
 bit_resnet152x2_224_classification,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/bit-resnet152x2-224-classification/versions/1
 experts/bit/r50x1/in21k/relation,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-relation/versions/1
-mmt/architecture_single-modality,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-single-modality/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture_single-modality,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-single-modality/versions/1
 convnext_xlarge_21k_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-1k-224-fe/versions/1
 convnext_base_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-384-fe/versions/1
 compare_gan/model_4_lsun_bedroom_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-4-lsun-bedroom-resnet19/versions/1,skip,128817 Model references undeclared parameters
@@ -649,7 +649,7 @@ deit_base_patch16_384,https://www.kaggle.com/models/spsayakpaul/deit/frameworks/
 deit_small_distilled_patch16_224_fe,https://www.kaggle.com/models/spsayakpaul/deit/frameworks/tensorFlow2/variations/small-distilled-patch16-224-fe/versions/1
 llr-pretrain-adv/linear,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/linear/versions/1
 edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/m,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/feature-vector-m/versions/2
-mmt/architecture_vilbert-2block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-2block/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/architecture_vilbert-2block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-2block/versions/1
 mobilevit_xs_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/xs-1k-256-fe/versions/1
 convnext_base_21k_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-21k-1k-384/versions/1
 imagenet/mobilenet_v2_100_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-128-feature-vector/versions/2
@@ -668,9 +668,9 @@ mixer_b32_sam_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/
 small_bert/bert_en_uncased_L-8_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-8-h-512-a-8/versions/2
 tiny_video_net/mobile_1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/mobile-1/versions/1,skip,128817 Model references undeclared parameters
 vgg19-block5-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block5-conv2-unpooling-encoder/versions/1,skip,128695 Inference results mismatch
-mmt/data-ft_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-ft-sbu/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/data-ft_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-ft-sbu/versions/1
 swin_s3_base_224,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/s3-base-224/versions/1
-mmt/data_cc-with-bert,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc-with-bert/versions/1,skip,129232 IndexError list index out of range for Squeeze
+mmt/data_cc-with-bert,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc-with-bert/versions/1
 experts/bit/r50x1/in21k/instrument,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-instrument/versions/1
 imagenet/mobilenet_v3_small_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-100-224-classification/versions/1
 imagenet/efficientnet_v2_imagenet1k_b1/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b1-feature-vector/versions/2
