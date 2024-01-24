@@ -103,15 +103,30 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg src2 = TReg(in_vec_idxs[2]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    const TReg dst = TReg(out_vec_idxs[0]);
 
-    if (dst.getIdx() != src2.getIdx()) {
+    TReg mul0(in_vec_idxs[0]);
+    if (dst.getIdx() == in_vec_idxs[0]) {
+        TReg aux(aux_vec_idxs[0]);
+        TReg src0(in_vec_idxs[0]);
+        h->uni_orr(aux, src0, src0);
+        mul0 = aux;
+    }
+
+    TReg mul1(in_vec_idxs[1]);
+    if (dst.getIdx() == in_vec_idxs[1]) {
+        TReg aux(aux_vec_idxs[0]);
+        TReg src1(in_vec_idxs[1]);
+        h->uni_orr(aux, src1, src1);
+        mul1 = aux;
+    }
+
+    if (dst.getIdx() != in_vec_idxs[2]) {
+        TReg src2(in_vec_idxs[2]);
         h->uni_orr(dst, src2, src2);
     }
-    h->fmla(dst.s, src0.s, src1.s);
+
+    h->fmla(dst.s, mul0.s, mul1.s);
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
