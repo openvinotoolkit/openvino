@@ -18,7 +18,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/strides.hpp"

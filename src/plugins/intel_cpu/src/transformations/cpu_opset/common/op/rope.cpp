@@ -59,7 +59,7 @@ void ov::intel_cpu::RoPENode::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), input_pshape);
 }
 
-bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool ov::intel_cpu::RoPENode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(RoPENode_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("slice_start", m_config.slice_start);

@@ -58,7 +58,7 @@ public:
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    virtual bool visit_attributes(AttributeVisitor& visitor) override {
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // TODO: implement reading as well, now it work for serialization only
         std::string domain = m_node.domain();
         std::string op_type = m_node.op_type();
@@ -124,7 +124,7 @@ public:
     }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
-    virtual bool visit_attributes(AttributeVisitor& visitor) override;
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 
 }  // namespace frontend
