@@ -304,6 +304,9 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
         src_t lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
+        // to test CI
+        for (size_t i = 0; i < 1; i++)
+            ;
 
         if (std::is_integral<src_t>::value
             || ctx.interimPrc.is_real()
@@ -571,6 +574,10 @@ void cpu_convert(const void *srcPtr,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size) {
+    // to test CI
+    for (size_t i = 0; i < 1; i++)
+        ;
+
     if (size == 0) {
         return;
     }
