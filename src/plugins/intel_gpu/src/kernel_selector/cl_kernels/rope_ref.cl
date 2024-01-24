@@ -1,0 +1,43 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "include/fetch_utils.cl"
+
+KERNEL(rope_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos_sin,
+    __global OUTPUT_TYPE* output)
+{
+    const uint p = get_global_id(0);
+    const uint f = get_global_id(1) / INPUT0_FEATURE_NUM;
+    const uint b = get_global_id(1) % INPUT0_FEATURE_NUM;
+    const uint h = get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = get_global_id(2) % HALF_ROTARY_NDIMS * 2;
+
+#ifdef ENABLE_SLICE
+    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, p, b, h * HEAD_SIZE, 0);
+
+    input_idx += SLICED_FROM_START * (p * INPUT0_FEATURE_NUM + b + 1)
+              + SLICED_FROM_END * (p * INPUT0_FEATURE_NUM + b);
+#else
+    uint input_idx = INPUT0_GET_INDEX(p, b, h * HEAD_SIZE, 0);
+#endif
+    uint cos_sin_p = p < INPUT1_BATCH_NUM ? p : 0;
+    uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
+
+    uint output_idx = OUTPUT_GET_INDEX(p, b, h, 0);
+
+    if (get_global_id(2) >= HEAD_COUNT * HALF_ROTARY_NDIMS)
+        return;
+
+    INPUT1_TYPE cosv = cos_sin[cos_sin_idx + r];
+    INPUT1_TYPE sinv = cos_sin[cos_sin_idx + r + 1];
+
+    output[output_idx + r] = cosv * input[input_idx + r] - sinv * input[input_idx + r + 1];
+    output[output_idx + r + 1] = sinv * input[input_idx + r] + cosv * input[input_idx + r + 1];
+
+    output[output_idx + ROTARY_NDIMS + f] = input[input_idx + ROTARY_NDIMS + f];
+}
