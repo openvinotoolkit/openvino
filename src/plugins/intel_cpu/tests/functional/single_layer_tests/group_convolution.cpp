@@ -1214,8 +1214,6 @@ const auto groupConvParams_ExplicitPadding_DW_1D = ::testing::Combine(::testing:
 const std::vector<CPUSpecificParams> CPUParams_DW_1D = {conv_sse42_dw_1D,
                                                         conv_avx2_dw_1D,
                                                         conv_avx512_dw_1D,
-                                                        conv_sse42_dw_1D_nspc,
-                                                        conv_avx2_dw_1D_nspc,
                                                         conv_avx512_dw_1D_nspc};
 
 std::vector<InputShape> inputShapes1dDW = {{{}, {{2, 32, 7}}},
@@ -1269,8 +1267,6 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(::testing:
 const std::vector<CPUSpecificParams> CPUParams_DW_2D = {conv_sse42_dw_2D,
                                                         conv_avx2_dw_2D,
                                                         conv_avx512_dw_2D,
-                                                        conv_sse42_dw_2D_nspc,
-                                                        conv_avx2_dw_2D_nspc,
                                                         conv_avx512_dw_2D_nspc};
 
 std::vector<InputShape> inputShapes2dDW = {{{}, {{2, 32, 7, 7}}},
@@ -1320,8 +1316,6 @@ const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(::testing:
 const std::vector<CPUSpecificParams> CPUParams_DW_3D = {conv_sse42_dw_3D,
                                                         conv_avx2_dw_3D,
                                                         conv_avx512_dw_3D,
-                                                        conv_sse42_dw_3D_nspc,
-                                                        conv_avx2_dw_3D_nspc,
                                                         conv_avx512_dw_3D_nspc};
 
 std::vector<InputShape> inputShapes3dDW = {{{}, {{2, 32, 7, 7, 7}}},
@@ -2013,8 +2007,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_GroupConv,
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT SSE42 DW GroupConvolution ============= */
-const std::vector<CPUSpecificParams> sse42_DW_2D = {conv_sse42_dw_2D, conv_sse42_dw_2D_nspc};
-const std::vector<CPUSpecificParams> sse42_DW_3D = {conv_sse42_dw_3D, conv_sse42_dw_3D_nspc};
+const std::vector<CPUSpecificParams> sse42_DW_2D = {conv_sse42_dw_2D};
+const std::vector<CPUSpecificParams> sse42_DW_3D = {conv_sse42_dw_3D};
 const std::vector<groupConvLayerCPUTestParamsSet> JIT_SSE42_DW_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
     //  1. jcp.ngroups % simd_w (=0,!=0)
     //  2. jcp.nb_ch
@@ -2127,8 +2121,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_SSE42_DW_GroupConv,
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX2 DW GroupConvolution ============= */
-const std::vector<CPUSpecificParams> avx2_DW_2D = {conv_avx2_dw_2D, conv_avx2_dw_2D_nspc};
-const std::vector<CPUSpecificParams> avx2_DW_3D = {conv_avx2_dw_3D, conv_avx2_dw_3D_nspc};
+const std::vector<CPUSpecificParams> avx2_DW_2D = {conv_avx2_dw_2D};
+const std::vector<CPUSpecificParams> avx2_DW_3D = {conv_avx2_dw_3D};
 const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX2_DW_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
     //  1. jcp.ngroups % simd_w (=0,!=0)
     //  2. jcp.nb_ch
