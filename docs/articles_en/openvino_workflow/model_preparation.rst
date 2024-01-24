@@ -56,8 +56,6 @@ and `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
    For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only conversion option.
 
-   TensorFlow may present additional considerations :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
-
 Model States
 ##############################################
 
