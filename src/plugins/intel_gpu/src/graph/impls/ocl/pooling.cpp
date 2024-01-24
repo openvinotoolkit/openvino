@@ -5,6 +5,7 @@
 #include "pooling/pooling_kernel_base.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling_inst.h"
+#include "pooling_shape_inference_util.hpp"
 #include "primitive_base.hpp"
 #include "validation_util.hpp"
 
@@ -94,21 +95,12 @@ public:
         ov::CoordinateDiff pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
         auto auto_pad = primitive->auto_pad;
 
-        if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
-            pads_begin.clear();
-            pads_end.clear();
-            ov::util::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                             kernel,
-                                             stride,
-                                             dilation,
-                                             auto_pad,
-                                             pads_end,
-                                             pads_begin);
-        }
-        if (auto_pad == ov::op::PadType::VALID) {
-            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
-        }
+        ov::op::v8::MaxPool op;
+        op.set_strides(stride);
+        op.set_kernel(kernel);
+        op.set_auto_pad(auto_pad);
+
+        ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation, pads_begin, pads_end);
 
         auto spatial_rank = output_layout.get_spatial_rank();
 

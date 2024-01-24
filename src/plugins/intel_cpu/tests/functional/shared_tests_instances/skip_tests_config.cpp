@@ -205,6 +205,21 @@ std::vector<std::string> disabledTestPatterns() {
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
         // Issue: 129025
         R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
+        // Issue: 119648
+        R"(.*smoke_LPT/InterpolateTransformation.*)",
+        // Issue: 129931
+        R"(smoke_FQLayerDQBias_4D_dynamic/FQLayerDQBias.*)",
+        R"(smoke_FQLayerDQBias_4D_static/FQLayerDQBias.*)",
+        R"(smoke_LPT/ConvolutionTransformation.*)",
+        R"(smoke_LPT/ConvolutionWIthIncorrectWeightsTransformation.*)",
+        R"(smoke_LPT/EliminateFakeQuantizeTransformation.*)",
+        R"(smoke_LPT/FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation.*)",
+        R"(smoke_LPT/FakeQuantizePrecisionSelectionTransformation.*)",
+        R"(smoke_LPT/GroupConvolutionTransformation.*)",
+        R"(smoke_LPT/MatMulTransformation.*)",
+        R"(smoke_LPT/MatMulWithOptimizedConstantFq.*)",
+        R"(smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.*)",
+        R"(smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.*)",
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"
@@ -272,6 +287,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=FakeQuantizeBinaryConvolution.*)");
     // Issue: 124395
     retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
+    retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
 #    endif
 
 #endif

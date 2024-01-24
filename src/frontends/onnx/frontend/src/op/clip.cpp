@@ -5,11 +5,15 @@
 #include "op/clip.hpp"
 
 #include <limits>
-#include <memory>
 
 #include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "validation_util.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -23,7 +27,7 @@ OutputVector clip(const Node& node) {
 
     const double min_value = node.get_attribute_value<double>("min", std::numeric_limits<double>::lowest());
 
-    return {std::make_shared<default_opset::Clamp>(data, min_value, max_value)};
+    return {std::make_shared<v0::Clamp>(data, min_value, max_value)};
 }
 
 }  // namespace set_1
@@ -70,10 +74,10 @@ std::shared_ptr<ov::op::v0::Constant> get_constant_max_of_type(ov::element::Type
 
 OutputVector clip(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
-    const Output<ngraph::Node> data = inputs.at(0);
+    const Output<ov::Node> data = inputs.at(0);
     const element::Type data_type = data.get_element_type();
-    Output<ngraph::Node> min;
-    Output<ngraph::Node> max;
+    Output<ov::Node> min;
+    Output<ov::Node> max;
 
     // If second input is provided, assign to min input, otherwise set lowest
     // numeric limit of data type as min input.
@@ -91,9 +95,9 @@ OutputVector clip(const Node& node) {
         max = get_constant_max_of_type(data_type);
     }
 
-    const auto max_of_min_and_data = std::make_shared<default_opset::Maximum>(min, data);
+    const auto max_of_min_and_data = std::make_shared<v1::Maximum>(min, data);
 
-    return {std::make_shared<default_opset::Minimum>(max, max_of_min_and_data)};
+    return {std::make_shared<v1::Minimum>(max, max_of_min_and_data)};
 }
 
 }  // namespace set_11

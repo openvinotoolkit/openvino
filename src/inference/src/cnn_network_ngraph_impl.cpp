@@ -18,11 +18,10 @@
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -125,11 +124,8 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
-                                           const std::vector<IExtensionPtr>& exts,
-                                           bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
-      _ie_extensions(exts),
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
@@ -195,7 +191,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
-    _ngraph_function = ngraph::clone_function(*network.getFunction());
+    _ngraph_function = network.getFunction()->clone();
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
@@ -261,7 +257,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
-            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
+            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ov::op::v0::Result>(layer)) {
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
@@ -275,10 +271,10 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 
                 // Check that we don't have a result for the output port
                 for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
-                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                    if (dynamic_cast<ov::op::v0::Result*>(port.get_node()))
                         return OK;
                 }
-                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
+                auto result = make_shared<::ov::op::v0::Result>(layer->output(outputIndex));
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
                 // Check that we cannot add Result to layer with non unique friendly name
@@ -374,7 +370,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         }
 
         try {
-            ngraph::pass::Manager ssr_manager;
+            ov::pass::Manager ssr_manager;
             using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
@@ -506,11 +502,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
@@ -528,11 +520,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
     noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
@@ -550,13 +538,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
     noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-
         std::stringstream binBuf;
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);

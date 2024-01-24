@@ -12,27 +12,10 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-void ov::infer_auto_padding(const Shape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    ov::util::infer_auto_padding(image_shape,
-                                 filter_shape,
-                                 filter_strides,
-                                 filter_dilations,
-                                 pad_type,
-                                 padding_above,
-                                 padding_below);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
@@ -279,59 +262,6 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
         return r.compatible(other);
     });
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool try_apply_auto_padding(const PartialShape& image_shape,
-                            const Shape& filter_shape,
-                            const Strides& filter_strides,
-                            const Strides& filter_dilations,
-                            const op::PadType pad_type,
-                            CoordinateDiff& padding_above,
-                            CoordinateDiff& padding_below) {
-    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
-
-    if (image_shape.rank().is_dynamic()) {
-        return false;
-    }
-    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
-        if (image_dims[i + 2].is_static()) {
-            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
-            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
-            auto output_size = (image_size + filter_stride - 1) / filter_stride;
-
-            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
-            auto padding_lhs = padding_needed / 2;
-            auto padding_rhs = padding_needed - padding_lhs;
-            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
-        } else {
-            padding_below.push_back(0);
-            padding_above.push_back(0);
-        }
-    }
-    return true;
-}
-
-void infer_auto_padding(const Shape& image_shape,
-                        const Shape& filter_shape,
-                        const Strides& filter_strides,
-                        const Strides& filter_dilations,
-                        const op::PadType pad_type,
-                        CoordinateDiff& padding_above,
-                        CoordinateDiff& padding_below) {
-    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
-    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    try_apply_auto_padding(image_dims,
-                           filter_shape,
-                           filter_strides,
-                           filter_dilations,
-                           pad_type,
-                           padding_above,
-                           padding_below);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
     Tensor lb, ub;

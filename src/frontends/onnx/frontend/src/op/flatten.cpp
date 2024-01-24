@@ -4,11 +4,11 @@
 
 #include "op/flatten.hpp"
 
-#include <cinttypes>
-
 #include "exceptions.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "validation_util.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

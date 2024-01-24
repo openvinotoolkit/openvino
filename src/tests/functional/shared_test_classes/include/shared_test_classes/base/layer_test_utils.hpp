@@ -10,13 +10,7 @@
 #include <memory>
 #include <tuple>
 #include <gtest/gtest.h>
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/pass/serialize.hpp>
+#include <ie_core.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -55,24 +49,24 @@ public:
 
     virtual void Run();
 
-    virtual void Serialize(ngraph::pass::Serialize::Version ir_version = ngraph::pass::Serialize::Version::UNSPECIFIED);
+    virtual void Serialize(ov::pass::Serialize::Version ir_version = ov::pass::Serialize::Version::UNSPECIFIED);
 
     virtual void QueryNetwork();
 
-    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
+    static void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
                         float threshold,
                         float abs_threshold = -1.f);
 
-    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+    static void Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
                         float threshold,
                         float abs_threshold = -1.f);
 
-    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+    virtual void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
-    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected, const InferenceEngine::Blob::Ptr &actual);
+    virtual void Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>> &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
@@ -80,7 +74,7 @@ public:
 
     virtual void SetRefMode(RefMode mode);
 
-    std::shared_ptr<ngraph::Function> GetFunction();
+    std::shared_ptr<ov::Model> GetFunction();
 
     std::map<std::string, std::string>& GetConfiguration();
 
@@ -93,7 +87,7 @@ public:
     // get runtime precision by operation friendly name which can be fused
     std::string getRuntimePrecisionByFusedName(const std::string& layerName);
 
-    std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
+    std::map<std::string, ov::Node::RTMap> getRuntimeInfo();
 
 #ifndef NDEBUG
     void showRuntimePrecisions();
@@ -153,8 +147,8 @@ protected:
     virtual void Infer();
 
     TargetDevice targetDevice;
-    std::shared_ptr<ngraph::Function> function;
-    std::shared_ptr<ngraph::Function> functionRefs;
+    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> functionRefs;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -170,7 +164,7 @@ protected:
 
     virtual void Validate();
 
-    virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
+    virtual std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
 
     /// default method to convert parameters for reference operation. Used before reference implementation execution
     /// can be overridden by specific operation test

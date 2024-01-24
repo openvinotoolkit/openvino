@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "max_pool_shape_inference.hpp"
 #include "pooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.hpp"
@@ -219,15 +220,12 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     ov::CoordinateDiff pads_end(desc->pads_end.begin(), desc->pads_end.end());
     auto auto_pad = desc->auto_pad;
 
-    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
-        pads_begin.clear();
-        pads_end.clear();
-        ov::util::try_apply_auto_padding(input_shape, kernel_size, stride, dilation, auto_pad, pads_end, pads_begin);
-    }
-    if (auto_pad == ov::op::PadType::VALID) {
-        pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-        pads_end = ov::CoordinateDiff(pads_end.size(), 0);
-    }
+    ov::op::v8::MaxPool op;
+    op.set_strides(stride);
+    op.set_kernel(kernel_size);
+    op.set_auto_pad(auto_pad);
+
+    ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation, pads_begin, pads_end);
 
     size_t spatial_size = input_shape.size() - 2;
     for (size_t i = 0; i < spatial_size; ++i) {

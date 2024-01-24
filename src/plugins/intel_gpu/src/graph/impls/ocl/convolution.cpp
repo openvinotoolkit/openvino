@@ -5,6 +5,7 @@
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
 #include "convolution_inst.h"
+#include "convolution_shape_inference.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "kernel_base.h"
 #include "primitive_base.hpp"
@@ -89,31 +90,30 @@ public:
         ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
         const auto auto_pad = primitive->auto_pad;
         conv_params.has_explicit_paddings = primitive->auto_pad == ov::op::PadType::EXPLICIT;
+
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             const auto& input_layout = impl_param.get_input_layout();
-            auto spatial_rank = input_layout.get_spatial_rank();
-            std::vector<int32_t> dims;
+            const auto spatial_rank = input_layout.get_spatial_rank();
+
+            ov::PartialShape kernel;
             for (size_t i = 0; i < spatial_rank; i++) {
-                dims.push_back(static_cast<int32_t>(weights_layout.spatial(i)));
+                kernel.emplace_back(weights_layout.spatial(i));
             }
-            ov::Shape kernel(dims.begin(), dims.end());
-            pads_begin.clear();
-            pads_end.clear();
 
-            ov::util::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                             kernel,
-                                             stride,
-                                             dilation,
-                                             auto_pad,
-                                             pads_end,
-                                             pads_begin);
+            // Use any forward convolution to apply padding
+            ov::op::v1::Convolution op;
+            op.set_dilations(dilation);
+            op.set_strides(stride);
+            op.set_auto_pad(auto_pad);
 
-            pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-            pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
-        }
-        if (auto_pad == ov::op::PadType::VALID) {
-            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
+            ov::op::convolution::apply_auto_pad(&op,
+                                                input_layout.get_partial_shape(),
+                                                kernel,
+                                                pads_begin.begin(),
+                                                pads_end.begin());
+        } else if (auto_pad == ov::op::PadType::VALID) {
+            std::fill(pads_begin.begin(), pads_begin.end(), 0);
+            std::fill(pads_end.begin(), pads_end.end(), 0);
         }
 
         uint32_t kx = weights_layout.spatial(0);

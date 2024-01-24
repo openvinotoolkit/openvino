@@ -101,7 +101,7 @@ bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
         !tensor_has_zero_value(get_input_tensor(0).get_upper_value())) {
         const auto max_constant = ov::util::make_tensor_of_max_value(get_output_element_type(0));
         OPENVINO_ASSERT(max_constant.get_byte_size() <= output_values[0].get_byte_size());
-        memcpy(output_values[0].data(), max_constant.data(), max_constant.get_byte_size());
+        std::memcpy(output_values[0].data(), max_constant.data(), max_constant.get_byte_size());
         return true;
     }
 

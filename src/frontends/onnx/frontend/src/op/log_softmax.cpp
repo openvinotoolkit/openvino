@@ -4,22 +4,27 @@
 
 #include "op/log_softmax.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "validation_util.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
+std::shared_ptr<ov::Node> onnx_logsoftmax(const Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
-    const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
-    const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-    return std::make_shared<default_opset::Reshape>(result, data_shape, false);
+    const auto result = std::make_shared<v5::LogSoftmax>(coerced_data, 1);
+    const auto data_shape = std::make_shared<v3::ShapeOf>(data);
+    return std::make_shared<v1::Reshape>(result, data_shape, false);
 }
 
 OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
@@ -31,16 +36,16 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
     const auto axis = node.get_attribute_value<int64_t>("axis", DEFAULT_AXIS);
 
-    std::shared_ptr<ngraph::Node> result;
+    std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), Shape{}, {1});
         break;
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
         ov::util::normalize_axis(node.get_description(), axis, data_rank);
-        result = std::make_shared<default_opset::LogSoftmax>(data, 0);
+        result = std::make_shared<v5::LogSoftmax>(data, 0);
         break;
     }
     default: {
@@ -65,7 +70,7 @@ OutputVector log_softmax(const Node& node) {
 namespace set_13 {
 OutputVector log_softmax(const Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
-    return {std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
+    return {std::make_shared<v5::LogSoftmax>(node.get_ng_inputs()[0], axis)};
 }
 }  // namespace set_13
 

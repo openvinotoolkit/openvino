@@ -9,7 +9,6 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
@@ -571,18 +570,6 @@ public:
             return decltype(ov::streams::num)::value_type{2};
         } else if (name == ov::compilation_num_threads.name()) {
             return decltype(ov::compilation_num_threads)::value_type{4};
-        } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-            std::vector<std::string> configs;
-            for (const auto& property : rwProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
-        } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-            std::vector<std::string> configs;
-            for (const auto& property : roProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
         } else if (name == ov::internal::supported_properties) {
             return decltype(ov::internal::supported_properties)::value_type(
                 {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
@@ -690,18 +677,6 @@ public:
             return decltype(ov::enable_profiling)::value_type{false};
         } else if (name == ov::streams::num.name()) {
             return decltype(ov::streams::num)::value_type{2};
-        } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-            std::vector<std::string> configs;
-            for (const auto& property : rwProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
-        } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-            std::vector<std::string> configs;
-            for (const auto& property : roProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
         } else if (name == ov::internal::supported_properties) {
             return decltype(ov::internal::supported_properties)::value_type(
                 {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
