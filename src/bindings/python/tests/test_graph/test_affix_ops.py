@@ -105,6 +105,5 @@ def test_fake_quantize_affix(prefix_string, suffix_string):
     # Check that other parameters change:
     for node_input in model.inputs():
         generated_node = node_input.get_source_output().get_node()
-        print(generated_node.friendly_name)
         assert prefix_string in generated_node.friendly_name
         assert suffix_string in generated_node.friendly_name
