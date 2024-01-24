@@ -65,8 +65,9 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/rope_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -813,12 +814,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
+        manager.register_pass<ov::intel_gpu::EliminateStridedSlice>();
+        manager.register_pass<ov::intel_gpu::RoPEFusion>();
+
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
-
         manager.run_passes(func);
     }
+    // ov::pass::Serialize("serialized_ir/openvino_model.xml", "openvino_model.bin").run_on_model(func);
+    // {
+    //     pass::VisualizeTree("image.svg").run_on_model(func);
+    // }
 }
 }  // namespace intel_gpu
 }  // namespace ov

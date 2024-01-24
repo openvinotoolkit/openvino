@@ -1,24 +1,8 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
-#include "ov_ops/type_relaxed.hpp"
-
-namespace ov {
-namespace intel_gpu {
-
-template<typename T, typename... Args>
-std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types,
-                                     const element::TypeVector& output_data_types,
-                                     Args&&... args) {
-    return std::make_shared<ov::op::TypeRelaxed<T>>(std::forward<Args>(args)...);
-}
-
-
-}  // namespace intel_gpu
-}  // namespace ov
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
@@ -48,13 +32,32 @@ std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
-namespace intel_gpu {
-namespace transformation_utils {
+namespace gen_pattern {
 
 static bool force_matcher_verbose = false;
 
+#ifdef CPU_DEBUG_CAPS
 
-#define _VERBOSE_LOG(...)
+template <typename... Args>
+static inline void _verbose_log(Args&&... args) {
+    std::stringstream ss;
+    int dummy[] = {(ss << std::forward<Args>(args) << " ", 0)...};
+    (void)(dummy);
+    ss << std::endl;
+    std::cout << ss.str();
+}
+
+static int matcher_verbose_enabled() {
+    static const int enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE"))) : 0;
+    return enabled;
+}
+
+#    define _VERBOSE_LOG(...)                                   \
+        if (matcher_verbose_enabled() || force_matcher_verbose) \
+        _verbose_log(__VA_ARGS__)
+#else
+#    define _VERBOSE_LOG(...)
+#endif
 
 namespace detail {
 inline std::vector<std::string> split_string(const std::string& s, const std::string& delimiter) {
@@ -1146,7 +1149,7 @@ public:
                 if (rt_info.count("symbolic_const_value")) {
                     // symbolic constant node, a symbol reference is observed
                     auto& symbols = rt_info["symbolic_const_value"].as<std::vector<Symbol>>();
-                    auto constop = std::dynamic_pointer_cast<ov::op::v0::Constant>(value_node);
+                    auto constop = std::dynamic_pointer_cast<op::v0::Constant>(value_node);
                     if (!constop) {
                         _VERBOSE_LOG("symbolic_const_value unexpected OP: ", value_node->get_friendly_name());
                         return false;
@@ -1308,6 +1311,5 @@ private:
     bool m_is_valid;
 };
 
-}  // namespace transformation_utils
-}  // namespace intel_gpu
+}  // namespace gen_pattern
 }  // namespace ov
