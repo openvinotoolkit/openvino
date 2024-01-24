@@ -16,6 +16,8 @@ namespace snippets {
 
 class CanonicalizationTests : public TransformationTestsF {
 public:
+    CanonicalizationTests();
+
     using VectorDims = ov::snippets::VectorDims;
     using Layout = std::vector<size_t>;
     virtual void run();
@@ -23,6 +25,7 @@ public:
 protected:
     std::vector<VectorDims> m_input_shapes;
     std::vector<Layout> m_input_layouts;
+    template <typename Func>
     void prepare_functions(const std::vector<VectorDims>& shapes);
 };
 

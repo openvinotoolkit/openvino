@@ -140,6 +140,7 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+    void update_shape_infer();
 
     bool is_dynamic() const;
 
@@ -240,11 +241,11 @@ private:
     class LIRShapeInfer : public ShapeInferSnippetsNode {
     public:
         using IOExpression = lowered::IOExpression;
-        explicit LIRShapeInfer(container& body_exprs, io_container& io_exprs);
+        explicit LIRShapeInfer(const LinearIR& linear_ir);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 
     private:
-        const std::shared_ptr<container> m_exprs = nullptr;
+        std::vector<ExpressionPtr> m_exprs {};
         std::vector<std::shared_ptr<IOExpression>> m_input_exprs {};
         std::vector<std::shared_ptr<IOExpression>> m_output_exprs {};
     };

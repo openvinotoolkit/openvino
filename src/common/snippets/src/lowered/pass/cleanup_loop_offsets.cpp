@@ -20,16 +20,19 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
         const auto& node = expr_it->get()->get_node();
         if (auto loop_end = as_type_ptr<op::LoopEndStatic>(node)) {
             auto next_expr_it = std::next(expr_it);
-            const auto& next_node = next_expr_it->get()->get_node();
+            while (ov::is_type<op::RankNormalization>(next_expr_it->get()->get_node())) {
+                next_expr_it = std::next(next_expr_it);
+            }
             // Note: Finalization offsets before the Result can be safely disregarded
             // TODO: Need verify that Buffers on the inputs doesn't have other consumers (other Loops)
             //       and this Loop doesn't have Buffer on other outputs.
+            const auto next_expr = *next_expr_it;
+            const auto& next_node = next_expr->get_node();
             if (is_type<ov::op::v0::Result>(next_node)) {
                 const auto& fin_offsets = loop_end->get_finalization_offsets();
                 loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                 is_modified = true;
-            }
-            if (auto outer_loop_end = as_type_ptr<op::LoopEndStatic>(next_node)) {
+            } else if (auto outer_loop_end = as_type_ptr<op::LoopEndStatic>(next_node)) {
                 const auto& is_incremented = loop_end->get_is_incremented();
                 auto fin_offsets = loop_end->get_finalization_offsets();
                 std::unordered_map<PortConnectorPtr, size_t> per_port_connector_offset;
@@ -40,7 +43,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
                 const auto outer_is_incremented = outer_loop_end->get_is_incremented();
                 const auto outer_increment = static_cast<int64_t>(outer_loop_end->get_increment());
                 auto outer_ptr_increments = outer_loop_end->get_ptr_increments();
-                const auto& outer_loop_inputs = next_expr_it->get()->get_input_port_connectors();
+                const auto& outer_loop_inputs = next_expr->get_input_port_connectors();
                 for (size_t i = 0; i < outer_ptr_increments.size(); i++) {
                     if (!outer_is_incremented[i])
                         continue;

@@ -24,10 +24,10 @@ pass::Canonicalization::Canonicalization(const BlockedShapeVector& blocked_input
 }
 
 bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    RUN_ON_MODEL_SCOPE(Canonicalization);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Canonicalization")
     bool is_modified = false;
-    const ParameterVector& params = m->get_parameters();
+    const auto& params = m->get_parameters();
+    const auto& results = m->get_results();
     OPENVINO_ASSERT(m_in_shapes.size() == params.size(),
                     "Number of parameters for snippet doesn't match passed to the Canonicalization pass. ",
                     "Expected: ", m_in_shapes.size(), " Got: ", params.size(), ".");
@@ -39,12 +39,20 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto compare_ranks = [](const Layout& l, const Layout& r) {
         return l.size() < r.size();
     };
+
     // Layout with the max rank
     const auto& max_rank_it = std::max_element(m_in_layouts.begin(), m_in_layouts.end(), compare_ranks);
     Layout base_layout = *max_rank_it;
     size_t max_rank = base_layout.size();
     const bool base_is_blocked = is_blocked_layout(base_layout);
 
+    // Before we have to save original output shapes
+    std::vector<ov::PartialShape> original_out_shapes(results.size());
+    for (size_t i = 0; i < results.size(); ++i) {
+        original_out_shapes[i] = results[i]->get_input_partial_shape(0);
+    }
+
+    // Reshape inputs using blocked shapes provided by backend
     for (size_t i = 0; i < m_in_layouts.size(); i++) {
         const auto& i_layout = m_in_layouts[i];
         const auto& i_shape = m_in_shapes[i];
@@ -67,7 +75,7 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
             size_t num_prepend = max_rank - i_rank - num_append;
             const auto& out = params[i]->output(0);
             const auto& target_inputs = out.get_target_inputs();
-            auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);
+            auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append, 0);
             for (auto& in : target_inputs)
                 in.replace_source_output(rank_norm);
             is_modified = true;
@@ -77,6 +85,24 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
                             "Canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
     }
+
+    if (!base_is_blocked) {
+        // Reshape body
+        m->validate_nodes_and_infer_types();
+
+        // Normalize output shapes - remove inserted first scalar dimensions
+        for (size_t i = 0; i < results.size(); ++i) {
+            const auto& new_shape = results[i]->get_input_partial_shape(0);
+            size_t num_pop = 0;
+            if (new_shape.size() == original_out_shapes[i].size()) {
+                continue;
+            }
+            num_pop = new_shape.size() - original_out_shapes[i].size();
+            auto rank_norm = std::make_shared<op::RankNormalization>(results[i]->input_value(0), 0, 0, num_pop);
+            results[i]->set_argument(0, rank_norm->output(0));
+        }
+    }
+
     return is_modified;
 }
 

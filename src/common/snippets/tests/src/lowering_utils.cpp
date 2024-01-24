@@ -119,12 +119,13 @@ std::shared_ptr<ov::snippets::op::Subgraph>
                                           const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config,
                                           const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
                                           const std::shared_ptr<ov::snippets::Generator>& generator,
-                                          size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+                                          size_t min_parallel_work_amount, size_t min_kernel_work_amount, size_t tensor_rank,
                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
-    subgraph->generate({}, {}, {}, backend_passes, lowered_pass_config, lowered_backend_passes, min_parallel_work_amount, min_kernel_work_amount, factory);
+    subgraph->generate({}, {}, {}, backend_passes, lowered_pass_config, lowered_backend_passes,
+                       min_parallel_work_amount, min_kernel_work_amount, tensor_rank, factory);
     return subgraph;
 }
 

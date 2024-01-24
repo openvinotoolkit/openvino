@@ -45,11 +45,9 @@ public:
     Schedule() = default;
     /**
      * @brief Create schedule out of specific parameters
-     * @param domain work domain for kernel execution
      * @param lr lowering result produced during code generation
      */
-    Schedule(std::vector<size_t>&& domain, LoweringResult&& lr) : parallel_exec_domain(domain), lowering_result(lr) {}
-    Schedule(std::vector<size_t> domain, LoweringResult&& lr) : parallel_exec_domain(std::move(domain)), lowering_result(lr) {}
+    Schedule(LoweringResult&& lr) : lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -57,7 +55,6 @@ public:
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    VectorDims parallel_exec_domain {};
     LoweringResult lowering_result {};
 };
 

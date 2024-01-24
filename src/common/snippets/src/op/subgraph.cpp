@@ -43,6 +43,7 @@
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
 #include "snippets/lowered/pass/validate.hpp"
+#include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 
@@ -341,14 +342,6 @@ VectorDims Subgraph::infer_master_shape() {
     return default_broadcasting->infer(inputs).dims.front();
 }
 
-void Subgraph::set_tensor_rank(size_t new_rank) {
-    OPENVINO_ASSERT(new_rank > 0, "Tensor rank must be positive");
-    m_tensor_rank = new_rank;
-    if (m_linear_ir) {
-        m_linear_ir->set_tensor_rank(new_rank);
-    }
-}
-
 void Subgraph::set_kernel_rank(size_t new_rank) {
     OPENVINO_ASSERT(new_rank > 0, "Kernel rank must be positive");
     m_kernel_rank = new_rank;
@@ -358,12 +351,12 @@ void Subgraph::set_kernel_rank(size_t new_rank) {
 }
 
 std::shared_ptr<lowered::LinearIR>
-Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_kernel_work_amount, size_t tensor_rank,
                                     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = m_kernel_rank;
-    lowering_config.m_tensor_rank = m_tensor_rank;
+    lowering_config.m_tensor_rank = tensor_rank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
@@ -425,20 +418,20 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     manager.run_passes(body_ptr());
 }
 
-void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
-                                            LoweringResult& lowering_result,
-                                            const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                            const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) const {
+void Subgraph::control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                                            const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
+    const auto& lowered_config = m_linear_ir->get_config();
+
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = linear_ir.get_config().m_loop_depth;
-    lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
-    linear_ir.set_loop_depth(loop_depth);
+    size_t loop_depth = lowered_config.m_loop_depth;
+    lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
+    m_linear_ir->set_loop_depth(loop_depth);
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
-    const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
+    const int32_t buffer_allocation_rank = static_cast<int32_t>(lowered_config.m_loop_depth);
 
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
@@ -451,24 +444,35 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-    pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
-    pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
+    pipeline.register_pass<lowered::pass::AllocateBuffers>(m_buffer_scratchpad_size, lowered_config.m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.register_pass<lowered::pass::Validate>(); // must be last
-    pipeline.run(linear_ir);
+    pipeline.run(*m_linear_ir);
+
+    // After transformations need to update shape infer
+    m_linear_ir->update_shape_infer();
+    m_shape_infer = m_linear_ir->get_shape_infer_instance();
 
     // After transformations init runtime configurator
     // If shapes are static - creates static loop descriptors with inited data ptr shifts
     // If shapes are dynamic - creates full set of loop descriptor for the following initialization by static shapes
-    linear_ir.init_runtime_configurator();
+    m_linear_ir->init_runtime_configurator();
 }
 
 const lowered::RuntimeConfig& Subgraph::configure_runtime_args() {
     return m_linear_ir->configure_runtime_args();
+}
+
+void Subgraph::lower(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
+                     size_t min_parallel_work_amount, size_t min_kernel_work_amount, size_t tensor_rank,
+                     const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
+    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, tensor_rank, factory);
+    control_flow_transformations(lowered_pass_config, lowered_backend_passes);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
@@ -477,17 +481,15 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_backend_passes,
                                       const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
                                       const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
-                                      size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+                                      size_t min_parallel_work_amount, size_t min_kernel_work_amount, size_t tensor_rank,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
-    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
-    return generate_from_linear_ir(lowered_pass_config, lowered_backend_passes, compile_params);
+    lower(lowered_pass_config, lowered_backend_passes, min_parallel_work_amount, min_kernel_work_amount, tensor_rank, factory);
+    return generate_from_linear_ir(compile_params);
 }
 
-snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& backed_passes,
-                                                     const void* compile_params) const {
+snippets::Schedule Subgraph::generate_from_linear_ir(const void* compile_params) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
@@ -496,9 +498,19 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
     // Note: some transformations performed in the generator, e.g. tail insertion, can break shape propagation
     //  until we fix this behavior, we have to make a copy of LIR before giving it to the generator.
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
-    auto linear_ir {*m_linear_ir->clone()};
+    auto linear_ir = *m_linear_ir->clone();
+
+    if (is_dynamic()) {
+        ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
+        shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
+        shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
+        shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+        shape_dependent_pipeline.run(linear_ir);
+    }
+
     LoweringResult lowering_result;
-    control_flow_transformations(linear_ir, lowering_result, lowered_pass_config, backed_passes);
+    lowering_result.buffer_scratchpad_size = m_buffer_scratchpad_size;
+
 #ifdef SNIPPETS_DEBUG_CAPS
     if (linear_ir.get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
@@ -507,12 +519,15 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
 #endif
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
-    VectorDims parallel_exec_domain = linear_ir.get_master_shape();
-    const size_t loop_depth = linear_ir.get_config().m_loop_depth;
+    return {std::move(lowering_result)};
+}
+
+VectorDims Subgraph::get_parallel_exec_domain() const {
+    VectorDims parallel_exec_domain = m_linear_ir->get_master_shape();
+    const auto& loop_depth = m_linear_ir->get_config().m_loop_depth;
     for (size_t i = 0; i < loop_depth; i++)
         parallel_exec_domain[parallel_exec_domain.size() - 1 - i] = 1;
-
-    return {parallel_exec_domain, std::move(lowering_result)};
+    return parallel_exec_domain;
 }
 
 void Subgraph::print() const {

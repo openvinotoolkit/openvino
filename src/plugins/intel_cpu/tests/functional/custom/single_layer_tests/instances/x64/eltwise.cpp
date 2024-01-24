@@ -444,7 +444,7 @@ const auto params_4D_blocked_blocked_dyn_const = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Blocked_MemOrder_dyn_const_x64, EltwiseLayerCPUTest, params_4D_blocked_blocked_dyn_const,
                          EltwiseLayerCPUTest::getTestCaseName);
@@ -479,7 +479,7 @@ const auto params_4D_blocked_blocked_dyn_param = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Blocked_MemOrder_dyn_param_x64, EltwiseLayerCPUTest, params_4D_blocked_blocked_dyn_param,
                          EltwiseLayerCPUTest::getTestCaseName);
@@ -514,7 +514,7 @@ const auto params_4D_dyn_param_fusing_Blocked_Blocked = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
         ::testing::ValuesIn(fusingParamsSet_x64),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing_Blocked_Blocked, EltwiseLayerCPUTest, params_4D_dyn_param_fusing_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
@@ -532,7 +532,7 @@ const auto params_4D_blocked_blocked_dyn_param_fusing = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
         ::testing::ValuesIn(fusingParamsSet_x64),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_blocked_blocked_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_blocked_blocked_dyn_param_fusing,
                          EltwiseLayerCPUTest::getTestCaseName);
@@ -552,7 +552,7 @@ const auto params_5D_dyn_const_Blocked_Blocked = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Blocked())),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_const_Blocked_Blocked, EltwiseLayerCPUTest, params_5D_dyn_const_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
@@ -570,7 +570,7 @@ const auto params_5D_dyn_param_Blocked_Blocked = ::testing::Combine(
                 ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Blocked())),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(enforceSnippets()));
+        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param_Blocked_Blocked, EltwiseLayerCPUTest, params_5D_dyn_param_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);

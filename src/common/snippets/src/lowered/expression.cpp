@@ -205,15 +205,12 @@ void Expression::updateShapes() {
     try {
         std::vector<VectorDimsRef> input_shapes;
 
-        const auto& in_connectors = get_input_port_connectors();
-        const auto& in_descriptors = get_input_port_descriptors();
-
-        input_shapes.reserve(in_connectors.size());
-        for (size_t i = 0; i < in_connectors.size(); i++) {
-            const auto& src_port_desc = in_connectors[i]->get_source().get_descriptor_ptr();
-            in_descriptors[i]->set_shape(src_port_desc->get_shape());
+        input_shapes.reserve(m_input_port_connectors.size());
+        for (size_t i = 0; i < m_input_port_connectors.size(); i++) {
+            const auto& src_port_desc = m_input_port_connectors[i]->get_source().get_descriptor_ptr();
+            m_input_port_descriptors[i]->set_shape(src_port_desc->get_shape());
             // Note that input_shape is a reference, so we should always bind it to an object with a longer lifetime
-            input_shapes.emplace_back(in_descriptors[i]->get_shape());
+            input_shapes.emplace_back(m_input_port_descriptors[i]->get_shape());
         }
 
         result = m_shapeInference->infer(input_shapes);
@@ -223,10 +220,9 @@ void Expression::updateShapes() {
     }
     OPENVINO_ASSERT(result.status == ShapeInferStatus::success,
                     "Shape inference of " + (get_node()->get_friendly_name()) + " didn't return success status");
-    const auto& out_descriptors = get_output_port_descriptors();
-    OPENVINO_ASSERT(result.dims.size() == out_descriptors.size(), "shapeInference call returned invalid number of output shapes");
-    for (size_t i = 0; i < out_descriptors.size(); i++)
-        out_descriptors[i]->set_shape(result.dims[i]);
+    OPENVINO_ASSERT(result.dims.size() == m_output_port_descriptors.size(), "shapeInference call returned invalid number of output shapes");
+    for (size_t i = 0; i < m_output_port_descriptors.size(); i++)
+        m_output_port_descriptors[i]->set_shape(result.dims[i]);
 }
 
 IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Parameter>& par, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
@@ -241,6 +237,16 @@ ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnecto
     return expr;
 }
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+LoopExpression::LoopExpression(const std::shared_ptr<op::LoopBase>& loop, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+        : Expression(loop, factory) {}
+
+ExpressionPtr LoopExpression::clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                                    const std::shared_ptr<Node>& new_node) const {
+    const auto& expr = std::shared_ptr<LoopExpression>(new LoopExpression(*this));
+    expr->update_node_and_connectors(new_inputs, new_node);
+    return expr;
+}
+
+} // namespace lowered
+} // namespace snippets
+} // namespace ov

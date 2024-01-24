@@ -57,7 +57,12 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Result>(expr->get_node()),
                     "Result validation expects Result op");
-    const auto source = expr->get_input_port_connector(0)->get_source();
+    auto source = expr->get_input_port_connector(0)->get_source();
+    if (is_type<snippets::op::RankNormalization>(source.get_expr()->get_node())) {
+        OPENVINO_ASSERT(source.get_expr()->get_output_port_connector(0)->get_consumers().size() == 1,
+                        "RankNormalization before Result must have only one consumer - this Result");
+        source = source.get_expr()->get_input_port_connector(0)->get_source();
+    }
     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
                     "Result expects MemoryAccess parent");

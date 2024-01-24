@@ -135,7 +135,11 @@ void RuntimeConfigurator::init_io_info(const LinearIR& linear_ir) {
                 break;
             }
             case lowered::IOExpression::io_type::OUTPUT: {
-                m_io_descs[idx] = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                auto parent_output = expr->get_input_port_connector(0)->get_source();
+                if (is_type<op::RankNormalization>(parent_output.get_expr()->get_node())) {
+                    parent_output = parent_output.get_expr()->get_input_port_connector(0)->get_source();
+                }
+                m_io_descs[idx] = parent_output.get_descriptor_ptr();
                 m_io_data_sizes[idx] = expr->get_node()->get_input_element_type(0).size();
                 break;
             } default : {

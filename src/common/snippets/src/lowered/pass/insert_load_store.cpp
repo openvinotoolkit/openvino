@@ -20,7 +20,7 @@ using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
-size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
+size_t InsertLoadStore::get_processing_dim(const ExpressionPort& port) {
     const auto layout = port.get_descriptor_ptr()->get_layout();
     const auto shape = port.get_descriptor_ptr()->get_shape();
     size_t last_dim_idx = 0;
@@ -30,7 +30,11 @@ size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
         last_dim_idx = utils::get_output_dim_idx(layout, 0);
     else
         OPENVINO_THROW("Unsupported type of expression port");
-    const auto dim = shape[last_dim_idx];
+    return shape[last_dim_idx];
+}
+
+size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
+    const auto dim = get_processing_dim(port);
     return utils::is_dynamic_value(dim) ? m_vector_size : std::min(dim, m_vector_size);
 }
 
@@ -61,9 +65,14 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 }
 
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
-    const auto& data_expr = *data_expr_it;
-    const auto& parent_output = data_expr->get_input_port_connector(0)->get_source();
-    const auto& parent_expr = parent_output.get_expr();
+    auto data_expr = *data_expr_it;
+    auto parent_output = data_expr->get_input_port_connector(0)->get_source();
+    auto parent_expr = parent_output.get_expr();
+    if (is_type<op::RankNormalization>(parent_expr->get_node())) {
+        data_expr = parent_expr;
+        parent_output = parent_expr->get_input_port_connector(0)->get_source();
+        parent_expr = parent_output.get_expr();
+    }
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
     const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);

@@ -77,17 +77,25 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         auto op = expr->get_node();
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT) {
+                const auto reg_idx = io_expr->get_index();
                 const auto& out_connector = expr->get_output_port_connector(0);
-                manually_assigned_gprs[out_connector] = io_expr->get_index();
+                manually_assigned_gprs[out_connector] = reg_idx;
                 const auto& consumer_inputs = out_connector->get_consumers();
                 const auto& first_consumer = consumer_inputs.begin()->get_expr();
                 // TODO [96434]: Support RankNormalization (Reshape) in arbitrary place in pipeline, not just after inputs
                 if (ov::is_type<op::RankNormalization>(first_consumer->get_node())) {
                     OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
-                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = io_expr->get_index();
+                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = reg_idx;
                 }
             } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
-                manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                const auto reg_idx = num_parameters + io_expr->get_index();
+                manually_assigned_gprs[expr->get_input_port_connector(0)] = reg_idx;
+                // TODO [96434]: Support RankNormalization (Reshape) in arbitrary place in pipeline, not just after inputs
+                const auto& parent_expr = io_expr->get_input_port_connector(0)->get_source().get_expr();
+                if (ov::is_type<op::RankNormalization>(parent_expr->get_node())) {
+                    OPENVINO_ASSERT(parent_expr->get_output_port_connectors().size() == 1, "RankNormalization on output must have only one consumer - Result");
+                    manually_assigned_gprs[parent_expr->get_input_port_connector(0)] = reg_idx;
+                }
             } else {
                 OPENVINO_THROW("Unsupported io_type detected");
             }

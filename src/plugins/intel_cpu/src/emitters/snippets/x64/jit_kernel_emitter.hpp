@@ -57,7 +57,6 @@ struct jit_snippets_call_args::loop_args_t {
     loop_args_t& operator=(loop_args_t other);
     friend void swap(loop_args_t& first, loop_args_t& second);
 
-private:
     void init_pointers_and_copy_data(const int64_t num_elements, const int64_t* ptr_increments, const int64_t* finalization_offsets);
 
     int64_t m_work_amount = 0;

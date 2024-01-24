@@ -6,6 +6,9 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
+#include "internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
