@@ -206,7 +206,7 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
             i++;
         }
         concat_dims.push_back(cum_adv_index_shape_tensor);
-        for (;i < non_used_dims.size(); i++) {
+        for (; i < non_used_dims.size(); i++) {
             concat_dims.push_back(input_dims->output(non_used_dims[i]));
         }
     }

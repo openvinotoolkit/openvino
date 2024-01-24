@@ -235,7 +235,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
                 OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never "
                                   "used and treated as `self`\n";
             } else {
-                OPENVINO_DEBUG << "[ WARNING ] Removing parameter[" << i << "] in converted Pytorch model, because it "
+                OPENVINO_DEBUG << "[ WARNING ] Removing parameter[" << i
+                               << "] in converted Pytorch model, because it "
                                   "is never used\n";
             }
             model->remove_parameter(p);

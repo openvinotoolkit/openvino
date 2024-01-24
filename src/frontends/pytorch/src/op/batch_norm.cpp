@@ -74,8 +74,7 @@ OutputVector make_batch_norm(const NodeContext& context,
         auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
         var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, false));
     }
-    return {context.mark_node(
-        std::make_shared<v5::BatchNormInference>(input, w, b, mean, var, epsilon))};
+    return {context.mark_node(std::make_shared<v5::BatchNormInference>(input, w, b, mean, var, epsilon))};
 }
 }  // namespace
 
@@ -140,7 +139,8 @@ OutputVector translate_batch_norm_legit_no_stats_fx(const NodeContext& context) 
         bias = context.get_input(2);
     }
     auto training = context.const_input<bool>(3);
-    FRONT_END_OP_CONVERSION_CHECK(training, "aten._native_batch_norm_legit.no_stats can only be used when training=True.");
+    FRONT_END_OP_CONVERSION_CHECK(training,
+                                  "aten._native_batch_norm_legit.no_stats can only be used when training=True.");
     // index 4 momentum is used during training only
     auto eps = context.const_input<float>(5);
     auto output = make_batch_norm(context, context.get_input(0), weight, bias, {}, {}, eps);

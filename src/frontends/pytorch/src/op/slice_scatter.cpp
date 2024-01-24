@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/slice.hpp"
-
 #include <climits>
 
+#include "helper_ops/slice_assign.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
-#include "helper_ops/slice_assign.hpp"
 
 namespace ov {
 namespace frontend {

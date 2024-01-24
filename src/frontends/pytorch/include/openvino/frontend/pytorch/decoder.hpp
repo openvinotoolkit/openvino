@@ -116,10 +116,10 @@ public:
     virtual bool is_input_inlined(size_t index) const = 0;
 
     /// Returns named attribute as Any. For example kwargs input for FX graph
-    virtual ov::Any get_attribute(const std::string &name) const = 0;
+    virtual ov::Any get_attribute(const std::string& name) const = 0;
 
     /// Returns index of named input. For example kwargs input for FX graph
-    virtual size_t get_named_input(const std::string &name) const = 0;
+    virtual size_t get_named_input(const std::string& name) const = 0;
 
     /// Returns the id of the decoder type ("fx": TorchFX, "ts": TorchScript)
     virtual const std::string& decoder_type_name() const = 0;
