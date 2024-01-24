@@ -10,7 +10,18 @@
 #include <set>
 #include <utility>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
+
 #include "ngraph/factory.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
+
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 

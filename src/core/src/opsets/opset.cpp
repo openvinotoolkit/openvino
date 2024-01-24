@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset.hpp"
+#include "openvino/opsets/opset.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
-#include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
@@ -206,25 +205,3 @@ const ov::OpSet& ov::get_opset13() {
     });
     return opset;
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-
-OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
-
-OpSet::OpSet(const OpSet& opset) : ov::OpSet(opset) {}
-
-const std::map<std::string, std::function<const OpSet&()>>& get_available_opsets() {
-#define _REG_OPSET(OPSET) \
-    { #OPSET, get_##OPSET }
-    const static std::map<std::string, std::function<const OpSet&()>> opset_map = {_REG_OPSET(opset3)};
-#undef _REG_OPSET
-    return opset_map;
-}
-
-const OpSet& get_opset3() {
-    static OpSet opset(ov::get_opset3());
-    return opset;
-}
-
-}  // namespace ngraph

@@ -66,9 +66,6 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 
-// nGraph opsets
-#include "ngraph/opsets/opset.hpp"
-
 // nGraph passes
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
