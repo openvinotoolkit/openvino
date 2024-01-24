@@ -12,6 +12,7 @@ from models_hub_common.utils import cleanup_dir, get_models_list
 from torch_utils import TestTorchConvertModel, process_pytest_marks
 from openvino import convert_model
 from torch.export import export
+from packaging import version
 
 
 def filter_timm(timm_list: list) -> list:
@@ -59,7 +60,9 @@ class TestTimmConvertModel(TestTorchConvertModel):
 
     def convert_model_impl(self, model_obj):
         if self.mode == "export":
-            graph = export(model_obj, self.example).run_decompositions()
+            graph = export(model_obj, self.example)
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                graph = graph.run_decompositions()
             ov_model = convert_model(graph, example_input=self.example)
         else:
             ov_model = super().convert_model_impl(model_obj)

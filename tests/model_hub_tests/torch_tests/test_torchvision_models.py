@@ -11,6 +11,7 @@ import torchvision.transforms.functional as F
 from torch_utils import process_pytest_marks, TestTorchConvertModel
 from openvino import convert_model
 from torch.export import export
+from packaging import version
 
 
 def get_all_models() -> list:
@@ -90,7 +91,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
 
     def convert_model_impl(self, model_obj):
         if self.mode == "export":
-            graph = export(model_obj, self.example).run_decompositions()
+            graph = export(model_obj, self.example)
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                graph = graph.run_decompositions()
             try:
                 ov_model = convert_model(graph, example_input=self.example)
             except Exception as e:

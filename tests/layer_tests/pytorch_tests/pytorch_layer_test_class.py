@@ -13,6 +13,7 @@ from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
+from packaging import version
 import openvino.frontend.pytorch.torchdynamo.backend
 
 
@@ -89,7 +90,9 @@ class PytorchLayerTest:
                 from openvino import convert_model
                 from torch.export import export
 
-                em = export(model, tuple(torch_inputs)).run_decompositions()
+                em = export(model, tuple(torch_inputs))
+                if version.parse(torch.__version__) >= version.parse("2.2"):
+                    em = em.run_decompositions()
                 print(em.graph_module.code)
                 converted_model = convert_model(em, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(converted_model, ov_inputs, dynamic_shapes)
