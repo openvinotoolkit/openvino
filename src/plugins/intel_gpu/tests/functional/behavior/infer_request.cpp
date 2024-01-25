@@ -8,7 +8,6 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"

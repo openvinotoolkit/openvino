@@ -8,7 +8,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
@@ -18,7 +17,7 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -83,10 +82,10 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
     const bool broadcast1,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
+    const ov::builder::subgraph::FakeQuantizeOnData& fq1,
     const bool broadcast2,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter,
+    const ov::builder::subgraph::FakeQuantizeOnData& fq2,
+    const ov::builder::subgraph::FakeQuantizeOnData& fqAfter,
     const bool secondInputIsConstant) {
     auto inputShape1 = inputShape;
     if (broadcast1) {
@@ -153,4 +152,4 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

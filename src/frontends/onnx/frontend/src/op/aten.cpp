@@ -48,7 +48,7 @@ OutputVector aten(const Node& node) {
         inputs.size() == 4 && ov::op::util::is_null(inputs[2]) && !ov::op::util::is_null(inputs[3]);
     const bool is_offsets_three_inputs = inputs.size() == 3 && !ov::op::util::is_null(inputs[2]);
 
-    Output<ov::Node> embedding_bag;
+    ov::Output<ov::Node> embedding_bag;
     if (is_packed_two_inputs) {
         embedding_bag = std::make_shared<v3::EmbeddingBagPackedSum>(inputs[0], inputs[1]);
     } else if (is_packed_three_inputs) {
