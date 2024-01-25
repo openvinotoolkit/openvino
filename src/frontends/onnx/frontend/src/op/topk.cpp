@@ -11,7 +11,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 

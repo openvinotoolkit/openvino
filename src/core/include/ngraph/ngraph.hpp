@@ -59,7 +59,6 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"

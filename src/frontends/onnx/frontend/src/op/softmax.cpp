@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 

@@ -14,7 +14,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
@@ -92,53 +91,6 @@ std::vector<T> read_vector(const ov::Tensor& tv) {
     for (size_t i = 0; i < expected.size(); ++i) {                      \
         ASSERT_FLOAT_EQ(expected[i], result[i]) << "at index: " << i;   \
     }
-
-TEST(eval, max_eval_parameter) {
-    auto p = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(p);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    EXPECT_FALSE(result.first);
-    EXPECT_EQ(result.second, numeric_limits<uint64_t>::max());
-}
-
-TEST(eval, max_eval_constant) {
-    auto c = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {27});
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(c);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_TRUE(result.first);
-    EXPECT_EQ(result.second, 27);
-}
-
-TEST(eval, max_eval_minimum_constant) {
-    auto c = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {27});
-    auto p = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
-    auto m = make_shared<op::v1::Minimum>(c, p);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(m);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_TRUE(result.first);
-    EXPECT_EQ(result.second, 27);
-}
-
-TEST(eval, max_eval_reduce_min) {
-    auto concat = make_shared<op::v0::Convert>(
-        make_shared<op::v0::Concat>(OutputVector{make_shared<op::v0::Parameter>(element::i64, Shape{4}),
-                                                 make_shared<op::v0::Constant>(element::i64, Shape{4}, 37)},
-                                    0),
-        element::i32);
-    auto reduce = make_shared<op::v0::Convert>(
-        make_shared<op::v1::ReduceMin>(concat, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
-        element::i64);
-    auto squeezes = make_shared<op::v0::Squeeze>(
-        make_shared<op::v0::Unsqueeze>(reduce, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
-        make_shared<op::v0::Constant>(element::i64, Shape{1}, 0));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    EXPECT_EQ(ngraph::maximum_value(squeezes).second, 37);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
 
 TEST(eval, evaluate_shape_of) {
     auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});

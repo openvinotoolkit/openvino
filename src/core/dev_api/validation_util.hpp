@@ -56,12 +56,12 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Ou
 /// \brief Make scalar tensor which stores maximum value of ov::element::Type.
 /// \param et  Element type to get its maximum.
 /// \return Tensor with maximum value.
-Tensor make_tensor_of_max_value(const element::Type_t et);
+OPENVINO_API Tensor make_tensor_of_max_value(const element::Type_t et);
 
 /// \brief Make scalar tensor which stores minimum value of ov::element::Type.
 /// \param et  Element type to get its minimum.
 /// \return Tensor with minimum value.
-Tensor make_tensor_of_min_value(const element::Type_t et);
+OPENVINO_API Tensor make_tensor_of_min_value(const element::Type_t et);
 
 /// @brief Get the tensors shapes as ov::PartialShape.
 ///
