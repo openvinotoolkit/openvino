@@ -12,6 +12,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "shared_test_classes/single_op/matrix_nms.hpp"
 
 namespace ov {
 namespace test {
@@ -20,81 +21,19 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using ngraph::helpers::operator<<;
 
-using TopKParams = std::tuple<int,      // Maximum number of boxes to be selected per class
-                              int>;     // Maximum number of boxes to be selected per batch element
-
-using ThresholdParams = std::tuple<float,   // minimum score to consider box for the processing
-                                   float,   // gaussian_sigma parameter for gaussian decay_function
-                                   float>;  // filter out boxes with low confidence score after decaying
-
-using NmsParamsGPU = std::tuple<std::vector<InputShape>,                            // Params using to create 1st and 2nd inputs
-                             ov::element::Type,                                  // Model type
-                             ov::op::v8::MatrixNms::SortResultType,              // Order of output elements
-                             ov::element::Type,                                  // Output type
-                             TopKParams,                                         // Maximum number of boxes topk params
-                             ThresholdParams,                                    // Thresholds: score_threshold, gaussian_sigma, post_threshold
-                             int,                                                // Background class id
-                             bool,                                               // If boxes are normalized
-                             ov::op::v8::MatrixNms::DecayFunction,               // Decay function
-                             std::string>;                                       // Device name
-
-class MatrixNmsLayerTestGPU : public testing::WithParamInterface<NmsParamsGPU>,
-                           virtual public SubgraphBaseTest {
+class MatrixNmsLayerTestGPU : virtual public MatrixNmsLayerTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<NmsParamsGPU>& obj);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
-
-protected:
-    void SetUp() override;
 
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ov::op::v8::MatrixNms::Attributes m_attrs;
     bool m_outStaticShape;
+
+protected:
+    void SetUp() override;
 };
-
-std::string MatrixNmsLayerTestGPU::getTestCaseName(const testing::TestParamInfo<NmsParamsGPU>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    op::v8::MatrixNms::SortResultType sort_result_type;
-    ov::element::Type out_type;
-    int backgroudClass;
-    op::v8::MatrixNms::DecayFunction decayFunction;
-    TopKParams top_k_params;
-    ThresholdParams threshold_params;
-    bool normalized;
-    std::string target_device;
-    std::tie(shapes, model_type, sort_result_type, out_type, top_k_params, threshold_params,
-        backgroudClass, normalized, decayFunction, target_device) = obj.param;
-
-    int nms_top_k, keep_top_k;
-    std::tie(nms_top_k, keep_top_k) = top_k_params;
-
-    float score_threshold, gaussian_sigma, post_threshold;
-    std::tie(score_threshold, gaussian_sigma, post_threshold) = threshold_params;
-
-    std::ostringstream result;
-    result << "IS=(";
-    for (const auto& shape : shapes) {
-        result << ov::test::utils::partialShape2str({shape.first}) << "_";
-    }
-    result << ")_TS=(";
-    for (const auto& shape : shapes) {
-        for (const auto& item : shape.second) {
-            result << ov::test::utils::vec2str(item) << "_";
-        }
-    }
-
-    using ov::test::utils::operator<<;
-    result << ")_model_type=" << model_type << "_";
-    result << "sortResultType=" << sort_result_type << "_normalized=" << normalized << "_";
-    result << "out_type=" << out_type << "_nms_top_k=" << nms_top_k << "_keep_top_k=" << keep_top_k << "_";
-    result << "backgroudClass=" << backgroudClass << "_decayFunction=" << decayFunction << "_";
-    result << "score_threshold=" << score_threshold << "_gaussian_sigma=" << gaussian_sigma << "_";
-    result << "post_threshold=" << post_threshold <<"_TargetDevice=" << target_device;
-    return result.str();
-}
 
 void MatrixNmsLayerTestGPU::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
@@ -198,6 +137,13 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                     throw std::runtime_error("Expected and actual size 3rd output have different size");
             }
 
+#define CASE(X, Y, _expected_offset, _actual_offset, _size, _threshold)                                              \
+    case X:                                                                                                          \
+        LayerTestsUtils::LayerTestsCommon::Compare(                                                                  \
+            reinterpret_cast<const ov::fundamental_type_for<X>*>(expectedBuffer) + _expected_offset,                 \
+            reinterpret_cast<const ov::fundamental_type_for<Y>*>(actualBuffer) + _actual_offset, _size, _threshold); \
+        break;
+
             const auto& precision = actual.get_element_type();
             auto expected_offset = 0;
             auto actual_offset = 0;
@@ -206,16 +152,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                 switch (precision) {
                     case ov::element::f32: {
                         switch (expected.get_element_type()) {
-                            case ov::element::f32:
-                                LayerTestsUtils::LayerTestsCommon::Compare(
-                                        reinterpret_cast<const float *>(expectedBuffer) + expected_offset * 6,
-                                        reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums * 6, 1e-5f);
-                                break;
-                            case ov::element::f64:
-                                LayerTestsUtils::LayerTestsCommon::Compare(
-                                        reinterpret_cast<const double *>(expectedBuffer) + expected_offset * 6,
-                                        reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums *6, 1e-5f);
-                                break;
+                            CASE(ov::element::f32, ov::element::f32, expected_offset * 6, actual_offset * 6, validNums *6, 1e-5f)
+                            CASE(ov::element::f64, ov::element::f32, expected_offset * 6, actual_offset * 6, validNums *6, 1e-5f)
                             default:
                                 break;
                         }
@@ -228,16 +166,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                     }
                     case ov::element::i32: {
                         switch (expected.get_element_type()) {
-                            case ov::element::i32:
-                                LayerTestsUtils::LayerTestsCommon::Compare(
-                                        reinterpret_cast<const int32_t *>(expectedBuffer) + expected_offset,
-                                        reinterpret_cast<const int32_t *>(actualBuffer) + actual_offset, validNums, 0);
-                                break;
-                            case ov::element::i64:
-                                LayerTestsUtils::LayerTestsCommon::Compare(
-                                        reinterpret_cast<const int64_t *>(expectedBuffer) + expected_offset,
-                                        reinterpret_cast<const int32_t *>(actualBuffer) + actual_offset, validNums, 0);
-                                break;
+                            CASE(ov::element::i32, ov::element::i32, expected_offset, actual_offset, validNums, 0)
+                            CASE(ov::element::i64, ov::element::i32, expected_offset, actual_offset, validNums, 0)
                             default:
                                 break;
                         }
@@ -249,14 +179,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                     }
                     case ov::element::i64: {
                         switch (expected.get_element_type()) {
-                        case ov::element::i32:
-                            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int32_t*>(expectedBuffer) + expected_offset,
-                                                                       reinterpret_cast<const int64_t*>(actualBuffer) + actual_offset, validNums, 0);
-                            break;
-                        case ov::element::i64:
-                            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer) + expected_offset,
-                                                                       reinterpret_cast<const int64_t*>(actualBuffer) + actual_offset, validNums, 0);
-                            break;
+                            CASE(ov::element::i32, ov::element::i64, expected_offset, actual_offset, validNums, 0)
+                            CASE(ov::element::i64, ov::element::i64, expected_offset, actual_offset, validNums, 0)
                         default:
                             break;
                         }
@@ -283,16 +207,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
             switch (precision) {
                 case ov::element::i32: {
                     switch (expected.get_element_type()) {
-                        case ov::element::i32:
-                            LayerTestsUtils::LayerTestsCommon::Compare(
-                                    reinterpret_cast<const int32_t *>(expectedBuffer),
-                                    reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
-                            break;
-                        case ov::element::i64:
-                            LayerTestsUtils::LayerTestsCommon::Compare(
-                                    reinterpret_cast<const int64_t *>(expectedBuffer),
-                                    reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
-                            break;
+                        CASE(ov::element::i32, ov::element::i32, 0, 0, size, 0)
+                        CASE(ov::element::i64, ov::element::i32, 0, 0, size, 0)
                         default:
                             break;
                     }
@@ -300,16 +216,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                 }
                 case ov::element::i64: {
                     switch (expected.get_element_type()) {
-                    case ov::element::i32:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                            reinterpret_cast<const int32_t*>(expectedBuffer),
-                            reinterpret_cast<const int64_t*>(actualBuffer), size, 0);
-                        break;
-                    case ov::element::i64:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                            reinterpret_cast<const int64_t*>(expectedBuffer),
-                            reinterpret_cast<const int64_t*>(actualBuffer), size, 0);
-                        break;
+                        CASE(ov::element::i32, ov::element::i64, 0, 0, size, 0)
+                        CASE(ov::element::i64, ov::element::i64, 0, 0, size, 0)
                     default:
                         break;
                     }
