@@ -69,15 +69,15 @@ CoordinateDiff conv_default_padding(const Node* /* node */,
 // padding/after dilation" for cases where there is actually no padding/dilation.
 //
 ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
-                                                   const ov::PartialShape& data_shape,
-                                                   const Strides& data_dilation,
-                                                   const CoordinateDiff& data_padding_below,
-                                                   const CoordinateDiff& data_padding_above,
-                                                   const ov::PartialShape& window_shape,
-                                                   const Strides& window_strides,
-                                                   const Strides& window_dilation,
-                                                   bool is_window_all_in_padding_allowed,
-                                                   bool ceil_mode) {
+                                                       const ov::PartialShape& data_shape,
+                                                       const Strides& data_dilation,
+                                                       const CoordinateDiff& data_padding_below,
+                                                       const CoordinateDiff& data_padding_above,
+                                                       const ov::PartialShape& window_shape,
+                                                       const Strides& window_strides,
+                                                       const Strides& window_dilation,
+                                                       bool is_window_all_in_padding_allowed,
+                                                       bool ceil_mode) {
     ov::PartialShape data_shape_merged{ov::PartialShape::dynamic()};
 
     NODE_VALIDATION_CHECK(
@@ -234,14 +234,14 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 // Infers the output batch shape and element type for batched pooling fprop.
 //
 ov::PartialShape infer_batched_pooling_forward(const Node* node,
-                                           const ov::PartialShape& data_batch_shape,
-                                           const CoordinateDiff& data_padding_below,
-                                           const CoordinateDiff& data_padding_above,
-                                           const ov::PartialShape& window_shape,
-                                           const Strides& window_strides,
-                                           bool is_window_all_in_padding_allowed,
-                                           bool ceil_mode,
-                                           const Strides& window_dilation) {
+                                               const ov::PartialShape& data_batch_shape,
+                                               const CoordinateDiff& data_padding_below,
+                                               const CoordinateDiff& data_padding_above,
+                                               const ov::PartialShape& window_shape,
+                                               const Strides& window_strides,
+                                               bool is_window_all_in_padding_allowed,
+                                               bool ceil_mode,
+                                               const Strides& window_dilation) {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
                               (data_batch_shape.rank().get_length() >= 3 && data_batch_shape.rank().get_length() <= 5),
@@ -420,17 +420,18 @@ static std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch
     return std::make_tuple(et_result, batch_result_shape, ov::PartialShape{channel_dim});
 }
 
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               element::Type mean_element_type,
-                                                                               element::Type variance_element_type,
-                                                                               const ov::PartialShape& input_shape,
-                                                                               const ov::PartialShape& gamma_shape,
-                                                                               const ov::PartialShape& beta_shape,
-                                                                               const ov::PartialShape& mean_shape,
-                                                                               const ov::PartialShape& variance_shape) {
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    element::Type mean_element_type,
+    element::Type variance_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape,
+    const ov::PartialShape& mean_shape,
+    const ov::PartialShape& variance_shape) {
     return infer_batch_norm_forward_helper(node,
                                            input_element_type,
                                            input_shape,
@@ -440,13 +441,14 @@ std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_f
                                             {variance_element_type, variance_shape, "variance"}});
 }
 
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               const ov::PartialShape& input_shape,
-                                                                               const ov::PartialShape& gamma_shape,
-                                                                               const ov::PartialShape& beta_shape) {
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape) {
     return infer_batch_norm_forward_helper(
         node,
         input_element_type,
@@ -455,15 +457,15 @@ std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_f
 }
 
 ov::PartialShape infer_slice_shape(const Node* node,
-                               const ov::PartialShape& input_shape,
-                               const std::vector<int64_t>& begin,
-                               const std::vector<int64_t>& end,
-                               const std::vector<int64_t>& strides,
-                               const AxisSet& begin_mask,
-                               const AxisSet& end_mask,
-                               const AxisSet& new_axis_mask,
-                               const AxisSet& shrink_axis_mask,
-                               const AxisSet& ellipsis_mask) {
+                                   const ov::PartialShape& input_shape,
+                                   const std::vector<int64_t>& begin,
+                                   const std::vector<int64_t>& end,
+                                   const std::vector<int64_t>& strides,
+                                   const AxisSet& begin_mask,
+                                   const AxisSet& end_mask,
+                                   const AxisSet& new_axis_mask,
+                                   const AxisSet& shrink_axis_mask,
+                                   const AxisSet& ellipsis_mask) {
     if (begin.size() && end.size()) {
         NODE_VALIDATION_CHECK(node,
                               begin.size() == end.size(),

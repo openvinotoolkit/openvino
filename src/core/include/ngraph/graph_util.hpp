@@ -160,7 +160,9 @@ std::shared_ptr<Node> make_zero(const ov::element::Type& element_type, const ov:
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_constant_from_string(std::string val, const ov::element::Type& element_type, const ov::Shape& shape);
+std::shared_ptr<Node> make_constant_from_string(std::string val,
+                                                const ov::element::Type& element_type,
+                                                const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API

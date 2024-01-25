@@ -31,7 +31,9 @@ using ov::op::v0::Constant;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-Strides conv_default_strides(const Node* node, const ov::PartialShape& data_batch_shape, const ov::PartialShape& filters_shape);
+Strides conv_default_strides(const Node* node,
+                             const ov::PartialShape& data_batch_shape,
+                             const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -75,27 +77,29 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                                       element::Type input_element_type,
-                                                                                       element::Type gamma_element_type,
-                                                                                       element::Type beta_element_type,
-                                                                                       element::Type mean_element_type,
-                                                                                       element::Type variance_element_type,
-                                                                                       const ov::PartialShape& input_shape,
-                                                                                       const ov::PartialShape& gamma_shape,
-                                                                                       const ov::PartialShape& beta_shape,
-                                                                                       const ov::PartialShape& mean_shape,
-                                                                                       const ov::PartialShape& variance_shape);
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    element::Type mean_element_type,
+    element::Type variance_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape,
+    const ov::PartialShape& mean_shape,
+    const ov::PartialShape& variance_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                                       element::Type input_element_type,
-                                                                                       element::Type gamma_element_type,
-                                                                                       element::Type beta_element_type,
-                                                                                       const ov::PartialShape& input_shape,
-                                                                                       const ov::PartialShape& gamma_shape,
-                                                                                       const ov::PartialShape& beta_shape);
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API

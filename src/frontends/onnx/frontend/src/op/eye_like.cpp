@@ -38,7 +38,7 @@ OutputVector eye_like(const Node& node) {
 
     const auto& input_rank = input.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
-                     input_rank.compatible(Rank(2)),
+                     input_rank.compatible(ov::Rank(2)),
                      "The provided shape rank: ",
                      input_rank.get_length(),
                      " is unsupported, only 2D shapes are supported");

@@ -106,7 +106,7 @@ void validate_zero_point(const ov::Output<ov::Node> zero_point, const ov::Output
 
 std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
                                         const int64_t axis,
-                                        const PartialShape& x_shape) {
+                                        const ov::PartialShape& x_shape) {
     // these reshapes make sure that dequantization happens over the specified axis
     auto input_rank = input.get_partial_shape().rank();
 

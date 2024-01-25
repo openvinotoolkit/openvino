@@ -27,7 +27,7 @@ void validate_generate_proposals_inputs(const OutputVector& inputs) {
 
     const auto& anchors_shape = inputs[3].get_partial_shape();
     const auto anchors_rank = anchors_shape.rank();
-    OPENVINO_ASSERT(anchors_rank == Rank(2), "GenerateProposals input anchors rank should be 2, is ", anchors_rank);
+    OPENVINO_ASSERT(anchors_rank == ov::Rank(2), "GenerateProposals input anchors rank should be 2, is ", anchors_rank);
     OPENVINO_ASSERT(anchors_shape[1].compatible(4),
                     "GenerateProposals input anchors shape should be {A, 4}, is ",
                     anchors_shape);

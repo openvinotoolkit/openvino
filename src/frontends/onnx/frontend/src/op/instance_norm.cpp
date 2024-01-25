@@ -23,9 +23,9 @@ OutputVector instance_norm(const Node& node) {
     ov::Output<ov::Node> data(node.get_ng_inputs().at(0));
     ov::Output<ov::Node> scale(node.get_ng_inputs().at(1));
     ov::Output<ov::Node> bias(node.get_ng_inputs().at(2));
-    const PartialShape& data_pshape = data.get_partial_shape();
-    const PartialShape& scale_pshape = scale.get_partial_shape();
-    const PartialShape& bias_pshape = bias.get_partial_shape();
+    const ov::PartialShape& data_pshape = data.get_partial_shape();
+    const ov::PartialShape& scale_pshape = scale.get_partial_shape();
+    const ov::PartialShape& bias_pshape = bias.get_partial_shape();
     const float epsilon{node.get_attribute_value<float>("epsilon", 1e-5f)};
 
     element::Type result_et;
