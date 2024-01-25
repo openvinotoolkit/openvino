@@ -433,37 +433,28 @@ TEST_P(CompressWeightsNoZeroPoint, FakeConvert) {
 
     {
         // TODO: change when it's allowed to create a fp8 constant from fp32 values
-        std::vector<uint8_t> weights_data = destination_type == "f8e4m3" ? std::vector<uint8_t>{0xb5,  // -0.8125
-                                                                                                0xba,  // -1.25
-                                                                                                0xba,  // -1.25
-                                                                                                0x95,  // -0.0507812
-                                                                                                0x3b,  // 1.375
-                                                                                                0x3e,  // 1.75
-                                                                                                0x3f,  // 1.875
-                                                                                                0xc3,  // -2.75
-                                                                                                0xc5,  // -3.25
-                                                                                                0xc2,  // -2.5
-                                                                                                0xb3,  // -0.6875
-                                                                                                0x30}  // 0.5
-                                                                         :
+        std::vector<float> weights_data =
+            destination_type == "f8e4m3"
+                ? std::vector<float>{-0.8125f,
+                                     -1.25f,
+                                     -1.25f,
+                                     -0.0507812f,
+                                     1.375f,
+                                     1.75f,
+                                     1.875f,
+                                     -2.75f,
+                                     -3.25f,
+                                     -2.5f,
+                                     -0.6875f,
+                                     0.5f}
+                :
 
-                                                                         std::vector<uint8_t>{0xba,   // -0.75
-                                                                                              0xbd,   // -1.25
-                                                                                              0xbd,   // -1.25
-                                                                                              0xaa,   // -0.046875
-                                                                                              0x3d,   // 1.25
-                                                                                              0x3f,   // 1.75
-                                                                                              0x3f,   // 1.75
-                                                                                              0xc1,   // -2.5
-                                                                                              0xc2,   // -3
-                                                                                              0xc1,   // -2.5
-                                                                                              0xba,   // -0.75
-                                                                                              0x38};  // 0.5
-
+                std::vector<
+                    float>{-0.75f, -1.25f, -1.25f, -0.046875f, 1.25f, 1.75f, 1.75f, -2.5f, -3.0f, -2.5f, -0.75f, 0.5f};
         auto weights =
-            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data.data());
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data);
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.01834533});
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.01834533f});
         auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(multiply, ParameterVector{});
     }
@@ -509,33 +500,25 @@ TEST_P(CompressWeightsWithZeroPoint, FakeConvert) {
 
     {
         // TODO: change when it's allowed to create a fp8 constant from fp32 values
-        std::vector<uint8_t> weights_data = destination_type == "f8e4m3" ? std::vector<uint8_t>{0xbc,   // -1.5
-                                                                                                0xc0,   // -2
-                                                                                                0xbf,   // -1.875
-                                                                                                0xb4,   // -0.75
-                                                                                                0x3b,   // 1.375
-                                                                                                0x3e,   // 1.75
-                                                                                                0x3f,   // 1.875
-                                                                                                0xc3,   // -2.75
-                                                                                                0xc5,   // -3.25
-                                                                                                0xc2,   // -2.5
-                                                                                                0xb3,   // -0.6875
-                                                                                                0x30}   // 0.5
-                                                                         : std::vector<uint8_t>{0xbe,   // -1.5
-                                                                                                0xc0,   // -2
-                                                                                                0xc0,   // -2
-                                                                                                0xba,   // -0.75
-                                                                                                0x3d,   // 1.25
-                                                                                                0x3f,   // 1.75
-                                                                                                0x40,   // 2
-                                                                                                0xc1,   // -2.5
-                                                                                                0xc2,   // -3
-                                                                                                0xc1,   // -2.5
-                                                                                                0xb9,   // -0.625
-                                                                                                0x38};  // 0.5
+        std::vector<float> weights_data =
+            destination_type == "f8e4m3"
+                ? std::vector<float>{-1.5f,
+                                     -2.0f,
+                                     -1.875f,
+                                     -0.75f,
+                                     1.375f,
+                                     1.75f,
+                                     1.875f,
+                                     -2.75f,
+                                     -3.25f,
+                                     -2.5f,
+                                     -0.6875f,
+                                     0.5f}
+                : std::vector<
+                      float>{-1.5f, -2.0f, -2.0f, -0.75f, 1.25f, 1.75f, 2.0f, -2.5f, -3.0f, -2.5f, -0.625f, 0.5f};
 
         auto weights =
-            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data.data());
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data);
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
         auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.7f, 0.0304f, 0.012f});
         auto subtract = std::make_shared<op::v1::Subtract>(convert, shift);
