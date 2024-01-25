@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

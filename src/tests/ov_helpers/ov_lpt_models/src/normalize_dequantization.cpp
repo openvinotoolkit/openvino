@@ -4,7 +4,6 @@
 
 #include "ov_lpt_models/normalize_dequantization.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 

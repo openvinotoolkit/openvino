@@ -8,7 +8,6 @@
 #include "openvino/opsets/opset1.hpp"
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/strided_slice.hpp"
 
 using namespace ov::pass::low_precision;

@@ -9,7 +9,6 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 

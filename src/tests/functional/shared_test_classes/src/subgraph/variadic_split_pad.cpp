@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

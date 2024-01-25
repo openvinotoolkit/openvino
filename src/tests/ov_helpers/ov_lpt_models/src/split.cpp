@@ -7,7 +7,6 @@
 
 #include "ov_lpt_models/split.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"

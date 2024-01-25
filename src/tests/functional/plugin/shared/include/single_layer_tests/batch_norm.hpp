@@ -5,7 +5,6 @@
 #pragma once
 
 #include "shared_test_classes/single_layer/batch_norm.hpp"
-#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 

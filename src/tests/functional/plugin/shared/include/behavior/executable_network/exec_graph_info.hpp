@@ -11,7 +11,6 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "base/behavior_test_utils.hpp"
-#include "ov_models/builders.hpp"
 
 #include "pugixml.hpp"
 

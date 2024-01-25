@@ -7,7 +7,6 @@
 
 #include "ov_lpt_models/variadic_split.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"

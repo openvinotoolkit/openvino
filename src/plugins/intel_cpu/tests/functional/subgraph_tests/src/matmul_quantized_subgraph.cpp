@@ -4,7 +4,6 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"

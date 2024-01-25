@@ -6,6 +6,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_no_reshapes.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace TestDataHelpers {
 

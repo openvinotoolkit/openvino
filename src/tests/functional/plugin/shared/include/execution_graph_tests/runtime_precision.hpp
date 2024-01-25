@@ -12,7 +12,6 @@
 #include <memory>
 
 #include "common_test_utils/test_common.hpp"
-#include "ov_models/builders.hpp"
 
 namespace ExecutionGraphTests {
 

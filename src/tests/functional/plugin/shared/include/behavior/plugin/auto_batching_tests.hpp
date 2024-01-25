@@ -11,12 +11,12 @@
 #include <functional_test_utils/plugin_cache.hpp>
 
 #include "openvino/runtime/properties.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;

@@ -3,7 +3,6 @@
 //
 
 #include "behavior/infer_request/set_io_blob_precision.hpp"
-#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 

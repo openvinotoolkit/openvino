@@ -5,7 +5,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
