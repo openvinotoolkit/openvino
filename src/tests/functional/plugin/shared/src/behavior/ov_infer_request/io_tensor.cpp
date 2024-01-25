@@ -222,8 +222,8 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
 }
 
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedInputTensorThrow) {
-    const ov::Shape shape1 = {1, 2, 32, 32};
-    const ov::Shape shape2 = {1, 2, 40, 40};
+    const ov::Shape shape1 = {1, 2, 40, 40};
+    const ov::Shape shape2 = {1, 2, 32, 32};
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
     OV_ASSERT_NO_THROW(function->reshape(shapes));
