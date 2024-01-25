@@ -74,24 +74,6 @@ enum class EltwiseImplType {
     optimizedShapeAgnostic = 2
 };
 
-#ifndef OPENVINO_ARCH_ARM64
-struct EltwiseData {
-    Algorithm algo;
-    dnnl::algorithm onednnAlgorithm;
-    float alpha;
-    float beta;
-    float gamma;
-
-    bool operator==(const EltwiseData& rhs) const noexcept {
-        return algo == rhs.algo &&
-            onednnAlgorithm == rhs.onednnAlgorithm &&
-            alpha == rhs.alpha &&
-            beta == rhs.beta &&
-            gamma == rhs.gamma;
-    }
-};
-#endif
-
 class Eltwise : public Node {
 public:
     class IEltwiseExecutor {
@@ -213,11 +195,7 @@ class eltwise_precision_helper {
 public:
     static ov::element::Type get_precision(const size_t inputs_number,
                                            const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
-                                           #if defined(OPENVINO_ARCH_ARM64)
-                                           const std::vector<ov::intel_cpu::aarch64::EltwiseData>& eltwise_data);
-                                           #else
                                            const std::vector<EltwiseData>& eltwise_data);
-                                           #endif
 
 private:
     static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);

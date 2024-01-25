@@ -8,6 +8,7 @@
 
 #include <onednn/dnnl.h>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
+#include "nodes/executors/eltwise.hpp"
 
 // disable x64 macros
 #undef abi_param1
@@ -74,22 +75,6 @@ struct jit_uni_eltwise_kernel {
     virtual void create_ker() = 0;
 
     jit_eltwise_params jep_;
-};
-
-struct EltwiseData {
-    Algorithm algo;
-    dnnl::algorithm onednnAlgorithm;
-    float alpha;
-    float beta;
-    float gamma;
-
-    bool operator==(const EltwiseData& rhs) const noexcept {
-        return algo == rhs.algo &&
-            onednnAlgorithm == rhs.onednnAlgorithm &&
-            alpha == rhs.alpha &&
-            beta == rhs.beta &&
-            gamma == rhs.gamma;
-    }
 };
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
@@ -254,7 +239,7 @@ class eltwise_precision_helper {
 public:
     static ov::element::Type get_precision(const size_t inputs_number,
                                            const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
-                                           const std::vector<ov::intel_cpu::aarch64::EltwiseData>& eltwise_data);
+                                           const std::vector<EltwiseData>& eltwise_data);
 
 private:
     static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
