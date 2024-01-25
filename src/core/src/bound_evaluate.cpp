@@ -510,8 +510,6 @@ bool ov::tensor_has_max_value(const Tensor& bound) {
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
 
     const auto max_values = ov::util::make_tensor_of_max_value(bound.get_element_type());
-    if (!max_values)
-        return false;
     const auto max_constant = std::make_shared<ov::op::v0::Constant>(max_values);
     OutputVector equal(1);
 
