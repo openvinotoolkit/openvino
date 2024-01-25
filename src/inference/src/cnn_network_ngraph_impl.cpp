@@ -124,11 +124,8 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
-                                           const std::vector<IExtensionPtr>& exts,
-                                           bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
-      _ie_extensions(exts),
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
@@ -194,7 +191,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
-    _ngraph_function = ngraph::clone_function(*network.getFunction());
+    _ngraph_function = network.getFunction()->clone();
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
@@ -505,10 +502,6 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -527,10 +520,6 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
     noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -549,11 +538,6 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
     noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-
         std::stringstream binBuf;
         ov::pass::Manager manager;
         using namespace ov::pass;

@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class UnsqueezeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> unsqueezeAxes;
     ov::PartialShape shape;
 };
