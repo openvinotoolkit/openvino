@@ -11,20 +11,20 @@ Stateful models
    openvino_docs_OV_UG_lowlatency2
 
 .. meta::
-   :description: OpenVINO Runtime includes a special API to work with stateful 
-                 networks, where a state can be automatically read, set, saved 
+   :description: OpenVINO Runtime includes a special API to work with stateful
+                 networks, where a state can be automatically read, set, saved
                  or reset between inferences.
 
 
-Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
-it can be processed with RNN like models that contain a cycle inside. However, in some cases (e.g., online speech recognition of time series 
-forecasting) length of data sequence is unknown. Then, data can be divided in small portions and processed step-by-step. The dependency 
+Several use cases require processing of data sequences. When length of a sequence is known and small enough,
+it can be processed with RNN like models that contain a cycle inside. However, in some cases (e.g., online speech recognition of time series
+forecasting) length of data sequence is unknown. Then, data can be divided in small portions and processed step-by-step. The dependency
 between data portions should be addressed. For that, models save some data between inferences - a state. When one dependent sequence is over,
 a state should be reset to initial value and a new sequence can be started.
 
 Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains a special ``Offset`` specifier to define time offset in a model.
 
-OpenVINO also contains a special API to simplify work with models with states. A state is automatically saved between inferences, 
+OpenVINO also contains a special API to simplify work with models with states. A state is automatically saved between inferences,
 and there is a way to reset a state when needed. A state can also be read or set to some new value between inferences.
 
 OpenVINO State Representation
@@ -32,8 +32,8 @@ OpenVINO State Representation
 
 OpenVINO contains the ``Variable``, a special abstraction to represent a state in a model. There are two operations: :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` - to save a value in a state and :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` - to read a value saved on previous iteration.
 
-To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with model conversion API or create an OpenVINO model. 
-(For more information, refer to the :doc:`Build OpenVINO Model section <openvino_docs_OV_UG_Model_Representation>`). 
+To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with model conversion API or create an OpenVINO model.
+(For more information, refer to the :doc:`Build OpenVINO Model section <openvino_docs_OV_UG_Model_Representation>`).
 
 Below is the graph in both forms:
 
@@ -207,11 +207,11 @@ One infer request and one thread will be used in this example. Using several thr
 
    .. tab-item:: C++
       :sync: cpp
-      
+
       .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
          :language: cpp
          :fragment: [part1]
-    
+
    .. tab-item:: Python
       :sync: py
 
@@ -221,7 +221,7 @@ One infer request and one thread will be used in this example. Using several thr
 
 
 
-For more elaborate examples demonstrating how to work with models with states, 
+For more elaborate examples demonstrating how to work with models with states,
 refer to the speech sample and a demo in the :doc:`Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 
 LowLatency Transformations
@@ -237,17 +237,13 @@ You can get the TensorIterator/Loop operations from different frameworks via mod
 * **ONNX and frameworks supported via ONNX format** - ``LSTM``, ``RNN``, and ``GRU`` original layers are converted to the ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM``/``RNN``/``GRU Cell``. The ``Peepholes`` and ``InputForget`` modifications are not supported, while the ``sequence_lengths`` optional input is.
 ``ONNX Loop`` layer is converted to the OpenVINO :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>` operation.
 
-* **Apache MXNet** - ``LSTM``, ``RNN``, ``GRU`` original layers are converted to ``TensorIterator`` operation, which body contains ``LSTM``/``RNN``/``GRU Cell`` operations.
-
 * **TensorFlow** - ``BlockLSTM`` is converted to ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM Cell`` operation, whereas ``Peepholes`` and ``InputForget`` modifications are not supported.
 The ``While`` layer is converted to ``TensorIterator``, which body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (model conversion) time, the dynamic cases are not supported.
 
 * **TensorFlow2** - ``While`` layer is converted to ``Loop`` operation, which body can contain any supported operations.
 
-* **Kaldi** - Kaldi models already contain ``Assign``/``ReadValue`` (Memory) operations after model conversion. The ``TensorIterator``/``Loop`` operations are not generated.
+.. note::
 
-.. note:: 
-   
-   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated and will be removed entirely in the future.
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi has been deprecated.
 
 
