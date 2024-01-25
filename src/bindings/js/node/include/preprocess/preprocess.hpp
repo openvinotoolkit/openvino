@@ -7,8 +7,8 @@
 
 #include "openvino/openvino.hpp"
 
-#include "preprocess/resize_algorithm.hpp"
-#include "preprocess/pre_post_process_wrap.hpp"
+#include "node/include/preprocess/resize_algorithm.hpp"
+#include "node/include/preprocess/pre_post_process_wrap.hpp"
 
 namespace preprocess {
     /** @brief This method is called during initialization of OpenVINO native add-on.

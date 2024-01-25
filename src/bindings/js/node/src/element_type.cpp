@@ -1,9 +1,8 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "element_type.hpp"
+#include "node/include/element_type.hpp"
 
-#include <iostream>
 #include <typeinfo>
 
 namespace element {

@@ -5,8 +5,8 @@
 
 #include <napi.h>
 
-#include "errors.hpp"
-#include "helper.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 
 

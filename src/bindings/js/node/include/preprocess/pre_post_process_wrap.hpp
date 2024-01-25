@@ -5,14 +5,14 @@
 
 #include <napi.h>
 
-#include "element_type.hpp"
-#include "errors.hpp"
-#include "helper.hpp"
-#include "model_wrap.hpp"
+#include "node/include/element_type.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "node/include/model_wrap.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/openvino.hpp"
-#include "preprocess/input_info.hpp"
-#include "preprocess/output_info.hpp"
+#include "node/include/preprocess/input_info.hpp"
+#include "node/include/preprocess/output_info.hpp"
 
 class PrePostProcessorWrap : public Napi::ObjectWrap<PrePostProcessorWrap> {
 public:

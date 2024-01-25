@@ -62,7 +62,7 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME} PRIVATE 
     "${node-api-headers_SOURCE_DIR}/include"
     "${node-addon-api_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)

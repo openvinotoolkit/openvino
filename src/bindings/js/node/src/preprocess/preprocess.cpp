@@ -1,9 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/preprocess.hpp"
+#include "node/include/preprocess/preprocess.hpp"
 
-#include "addon.hpp"
+#include "node/include/addon.hpp"
 
 namespace preprocess {
 Napi::Object init(Napi::Env env, Napi::Object exports) {
