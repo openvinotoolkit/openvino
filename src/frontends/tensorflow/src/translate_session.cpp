@@ -553,24 +553,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
                 NodeContext node_context(operation_decoder, ov_inputs, ov_variables_map, this);
                 ov_outputs = translator(node_context);
-
-                for (auto output : ov_outputs) {
-                    auto node = output.port.get_node_shared_ptr();
-                    auto kept_in_graph_op = std::dynamic_pointer_cast<KeepInGraphOp>(node);
-                    if (kept_in_graph_op) {
-                        auto sink_op = std::dynamic_pointer_cast<ov::op::Sink>(node);
-                        sinks.push_back(sink_op);
-                    }
-                    auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
-                    if (multi_subgraph) {
-                        for (const auto& body_model : multi_subgraph->get_functions()) {
-                            if (body_model->get_sinks().size()) {
-                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
-                                break;
-                            }
-                        }
-                    }
-                }
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
@@ -587,6 +569,25 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    operation_name,
                                                                    "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
+            }
+
+            for (auto output : ov_outputs) {
+                auto node = output.port.get_node_shared_ptr();
+                // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,
+                // which we might need to remove from graph
+                if (ov::as_type_ptr<KeepInGraphOp>(node)) {
+                    sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(node));
+                } else {
+                    auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+                    if (multi_subgraph) {
+                        for (const auto& body_model : multi_subgraph->get_functions()) {
+                            if (body_model->get_sinks().size()) {
+                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type, ov_inputs)) {
             OutputVector indexed_ov_outputs;

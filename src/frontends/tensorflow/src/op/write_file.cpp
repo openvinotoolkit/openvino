@@ -21,6 +21,10 @@ OutputVector translate_write_file(const NodeContext& node) {
 
     auto write_file_node = make_shared<KeepInGraphOp>("WriteFile", ov_inputs);
     set_node_name(node.get_name(), write_file_node);
+
+    // Original WriteFile op has no outputs, but we need to return one auxiliary output
+    // to keep this operation in graph, otherwise we will have no access to operation from translator.
+    // KeepInGraphOp is added to Sink vector in ov::Model and is kept in the graph until the end of conversion.
     return {write_file_node};
 }
 }  // namespace op
