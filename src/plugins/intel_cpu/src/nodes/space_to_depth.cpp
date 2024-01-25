@@ -90,7 +90,7 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_ERROR("doesn't support mode: ", ngraph::as_string(modeNgraph));
+        THROW_ERROR("doesn't support mode: ", ov::as_string(modeNgraph));
     }
 
     attrs.blockSize = spaceToDepth->get_block_size();

@@ -7,7 +7,6 @@
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
-#include "ov_models/builders.hpp"
 
 namespace {
 using namespace HeteroTests;

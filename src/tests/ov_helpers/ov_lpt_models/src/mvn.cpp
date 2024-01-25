@@ -4,12 +4,11 @@
 
 #include "ov_lpt_models/mvn.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -19,7 +18,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     auto deqStructure = dequantization;
@@ -67,9 +66,9 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -104,4 +103,4 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
