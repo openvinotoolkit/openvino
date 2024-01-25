@@ -181,6 +181,9 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
     });
 
     jit.AddConstants({
+        MakeJitConstant("TRANSPOSE_X_LAST", 0),
+        MakeJitConstant("TRANSPOSE_Y_LAST", 1),
+        MakeJitConstant("TRANSPOSE_OTHER", 2),
         MakeJitConstant("INPUT0_DIMS_ORDER", GetDimsOrder(params.input0_order)),
         MakeJitConstant("INPUT1_DIMS_ORDER", GetDimsOrder(params.input1_order)),
         MakeJitConstant("MATMUL_AXIS", static_cast<char>(std::toupper(GetDimsOrder(params.input0_order).at(10)))),

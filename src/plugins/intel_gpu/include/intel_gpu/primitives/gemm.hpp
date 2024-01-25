@@ -25,6 +25,12 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
+    typedef enum {
+        X_LAST = 0,
+        Y_LAST,
+        OTHER,
+    } TransposeType;
+
     gemm() : primitive_base("", {}) {}
 
     /// @brief Constructs gemm layer.
@@ -56,7 +62,7 @@ struct gemm : public primitive_base<gemm> {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
 
-        auto get_tranaposed_order = [] (size_t rank, bool transposed) {
+        auto get_transposed_order = [] (size_t rank, bool transposed) {
             std::vector<int64_t> order(rank);
             std::iota(order.begin(), order.end(), 0);
             if (transposed)
@@ -64,8 +70,8 @@ struct gemm : public primitive_base<gemm> {
             return order;
         };
 
-        input0_order = get_tranaposed_order(input_rank, transpose_input0);
-        input1_order = get_tranaposed_order(weight_rank, transpose_input1);
+        input0_order = get_transposed_order(input_rank, transpose_input0);
+        input1_order = get_transposed_order(weight_rank, transpose_input1);
         output_order = {};
     }
 
@@ -103,13 +109,13 @@ struct gemm : public primitive_base<gemm> {
 
             if (rank == order_idx[rank]) {
                 // normal
-                return 0;
+                return TransposeType::X_LAST;
             } else if (rank == order_idx[rank - 1]) {
                 // the second last dim is moved to the last
-                return 1;
+                return TransposeType::Y_LAST;
             } else {
                 // other
-                return 2;
+                return TransposeType::OTHER;
             }
         };
 

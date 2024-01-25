@@ -122,7 +122,7 @@ KERNEL(gemm_tiled_opt)(
     const uint batch_offset_output_diff = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
 
     // Start pointers offsets
-#if TRANSPOSE_INPUT0 == 0
+#if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
     #if HAS_DYNAMIC_K_PADDING
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y+1), 0) - batch_offset_input0;
@@ -131,7 +131,7 @@ KERNEL(gemm_tiled_opt)(
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 1, 0);
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 0, (TILE_K));
     #endif
-#elif TRANSPOSE_INPUT0 == 1
+#elif TRANSPOSE_INPUT0 == TRANSPOSE_Y_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
     #if HAS_DYNAMIC_K_PADDING
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, 1) - batch_offset_input0;
@@ -141,14 +141,14 @@ KERNEL(gemm_tiled_opt)(
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 0, (TILE_K));
     #endif
 #endif // TRANSPOSE_INPUT0
-#if TRANSPOSE_INPUT1 == 0
+#if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
     #if HAS_DYNAMIC_K_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 1, tile_n_offset) - batch_offset_input1;
     #else
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 1, 0);
     #endif
-#elif TRANSPOSE_INPUT1 == 1
+#elif TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
     #if HAS_DYNAMIC_K_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 0, (tile_n_offset + 1)) - batch_offset_input1;
@@ -166,14 +166,14 @@ KERNEL(gemm_tiled_opt)(
 
     const uint b_raw_global_id = tile_n_offset + sglid;
 
-#if TRANSPOSE_INPUT0 == 1
+#if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
     MAKE_VECTOR_TYPE(INPUT0_TYPE, SIMD_WIDTH) a_tile;
-#endif // TRANSPOSE_INPUT0 == 1
-#if TRANSPOSE_INPUT1 != 1
+#endif // TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
+#if TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
     B_FLOATN b_tile[TILE_K];
-#else // TRANSPOSE_INPUT1 != 1
+#else // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
     MAKE_VECTOR_TYPE(INPUT1_TYPE, SIMD_WIDTH) b_tile;
-#endif // TRANSPOSE_INPUT1 != 1
+#endif // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
     B_FLOATN c_tile[TILE_M];
 
     unroll_for (uint i = 0; i < TILE_M; i++) {
@@ -186,48 +186,48 @@ KERNEL(gemm_tiled_opt)(
         // Loading B tile
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
 #if IS_DYNAMIC
-#if TRANSPOSE_INPUT1 == 0
+#if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
 #if HAS_DYNAMIC_N_PADDING
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
 #else
             b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
 #endif
             b_ptr += input1_offset;
-#elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+#elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
             if (b_raw_global_id > N - 1) {
                 b_tile[b_load_id] = 0;
             } else {
                 uint b_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (b_load_id + k * TILE_K), x);
                 b_tile[b_load_id] = input1[b_idx];
             }
-#endif // TRANSPOSE_INPUT1 == 0
+#endif // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
 #else // IS_DYNAMIC
-#if TRANSPOSE_INPUT1 == 0
+#if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
 #if TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
 #else // TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
 #endif // TILE_N_NOT_DIVISIBLE
             b_ptr += input1_offset;
-#elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+#elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
             if (b_raw_global_id > N - 1) {
                 b_tile[b_load_id] = 0;
             } else {
                 uint b_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (b_load_id + k * TILE_K), x);
                 b_tile[b_load_id] = input1[b_idx];
             }
-#endif // TRANSPOSE_INPUT1 == 0
+#endif // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
 #endif // IS_DYNAMIC
         } // Loading B tile end
-#if TRANSPOSE_INPUT1 == 1
+#if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
         b_ptr = b_ptr + (input1_offset * sglid);
         b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
         b_ptr = b_ptr + input1_offset1 - (input1_offset * sglid);
-#endif // TRANSPOSE_INPUT1
+#endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
         // Loading A tile and tile C calculation
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
-#if TRANSPOSE_INPUT0 == 0
+#if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
 #if IS_DYNAMIC
 #if HAS_DYNAMIC_K_PADDING
             // In case of dynamic padding we can't guarantee memory access alignment for
@@ -256,16 +256,16 @@ KERNEL(gemm_tiled_opt)(
 #endif // TILE_K > SIMD_WIDTH
                 }
             }
-#elif TRANSPOSE_INPUT0 == 2 // TRANSPOSE_INPUT0
+#elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
             a_tile[dot_id] = input0[a_idx];
 #endif // TRANSPOSE_INPUT0
         } // Loading A tile and tile C calculation end
 
-#if TRANSPOSE_INPUT0 == 0
+#if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
         a_ptr = a_ptr + input0_offset1 - (input0_offset * tile_m_iterations);
 #else // TRANSPOSE_INPUT0
-    #if TRANSPOSE_INPUT0 == 1
+    #if TRANSPOSE_INPUT0 == TRANSPOSE_Y_LAST
         a_ptr = a_ptr + (input0_offset * sglid);
         a_tile = VLOAD(0, a_ptr);
         a_ptr = a_ptr + input0_offset1 - (input0_offset * sglid);
@@ -285,14 +285,14 @@ KERNEL(gemm_tiled_opt)(
     if (TILE_K_NOT_DIVISIBLE) {
         // Loading leftovers of the matrix B
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
-        #if TRANSPOSE_INPUT1 == 0
+        #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
             #if HAS_DYNAMIC_N_PADDING
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
                 b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
             #endif
             b_ptr += input1_offset;
-        #elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+        #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == 0
             if (b_raw_global_id > N - 1) {
                 b_tile[b_load_id] = 0;
             } else {
@@ -301,7 +301,7 @@ KERNEL(gemm_tiled_opt)(
             }
         #endif
         } // Loading leftovers of the matrix B end
-        #if TRANSPOSE_INPUT1 == 1
+        #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
             b_ptr = b_ptr + (input1_offset * sglid);
             b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
         #endif // TRANSPOSE_INPUT1
@@ -320,14 +320,14 @@ KERNEL(gemm_tiled_opt)(
 #if TILE_K_NOT_DIVISIBLE
     // Loading leftovers of the matrix B
     unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
-    #if TRANSPOSE_INPUT1 == 0
+    #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
         #if TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
         #else // TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
         #endif // TILE_N_NOT_DIVISIBLE
         b_ptr += input1_offset;
-    #elif TRANSPOSE_INPUT1 == 2 // TRANSPOSE_INPUT1 == 0
+    #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == 0
         if (b_raw_global_id > N - 1) {
             b_tile[b_load_id] = 0;
         } else {
@@ -336,7 +336,7 @@ KERNEL(gemm_tiled_opt)(
         }
     #endif
     } // Loading leftovers of the matrix B end
-    #if TRANSPOSE_INPUT1 == 1
+    #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
         b_ptr = b_ptr + (input1_offset * sglid);
         b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
     #endif // TRANSPOSE_INPUT1
