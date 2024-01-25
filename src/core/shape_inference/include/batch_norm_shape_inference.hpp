@@ -27,8 +27,6 @@ std::vector<TRShape> infer_shape(const Node* node,
                               ").");
 
         channel_dim = data_input_shape[1];
-    } else {
-        channel_dim = TDimension::dynamic();
     }
 
     // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size "channel_dim".
