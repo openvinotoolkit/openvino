@@ -4,20 +4,18 @@
 
 #include "op/quantize_linear.hpp"
 
-#include <cstdint>
-#include <memory>
-#include <numeric>
-#include <tuple>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
+#include "validation_util.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -25,15 +23,15 @@ namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
+Output<ov::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
-        return std::make_shared<default_opset::Constant>(element::u8, Shape{1}, std::uint8_t(0));
+        return std::make_shared<v0::Constant>(element::u8, Shape{1}, std::uint8_t(0));
     }
 }
 
-void validate_zero_point_type(const Node& onnx_node, const Output<ngraph::Node>& y_zero_point) {
+void validate_zero_point_type(const Node& onnx_node, const Output<ov::Node>& y_zero_point) {
     const auto& y_zero_point_et = y_zero_point.get_element_type();
     CHECK_VALID_NODE(
         onnx_node,
@@ -43,49 +41,48 @@ void validate_zero_point_type(const Node& onnx_node, const Output<ngraph::Node>&
         "integer type.");
 }
 
-Output<ngraph::Node> validate_scale(const Node& onnx_node, const Output<ngraph::Node>& y_scale) {
+Output<ov::Node> validate_scale(const Node& onnx_node, const Output<ov::Node>& y_scale) {
     const auto& y_scale_et = y_scale.get_element_type();
     CHECK_VALID_NODE(onnx_node, y_scale_et.is_static(), "\"y_scale\" input data type must be static.");
     if (y_scale_et != element::f32) {
-        return std::make_shared<default_opset::Convert>(y_scale, element::f32);
+        return std::make_shared<v0::Convert>(y_scale, element::f32);
     }
     return y_scale;
 }
 
-Output<ngraph::Node> validate_data(const Node& onnx_node, const Output<ngraph::Node>& data) {
+Output<ov::Node> validate_data(const Node& onnx_node, const Output<ov::Node>& data) {
     const auto& data_et = data.get_element_type();
     CHECK_VALID_NODE(onnx_node, data_et.is_static(), "\"x\" input data type must be static.");
 
     if (data_et != element::f32) {
-        return std::make_shared<default_opset::Convert>(data, element::f32);
+        return std::make_shared<v0::Convert>(data, element::f32);
     }
     return data;
 }
 
-std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_output_bands(
-    const element::Type& destination_type,
-    const element::Type& data_type) {
-    std::shared_ptr<ngraph::Node> output_low;
-    std::shared_ptr<ngraph::Node> output_high;
+std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_bands(const element::Type& destination_type,
+                                                                                  const element::Type& data_type) {
+    std::shared_ptr<ov::Node> output_low;
+    std::shared_ptr<ov::Node> output_high;
 
     // These values could be used in a ConvertQuantizeDequantize transformation and
     // should be aligned
     switch (destination_type) {
     case element::i8:
-        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -128);
-        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 127);
+        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -128);
+        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 127);
         break;
     case element::u8:
-        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 255);
+        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 255);
         break;
     case element::i16:
-        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, -32768);
-        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 32767);
+        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -32768);
+        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 32767);
         break;
     case element::u16:
-        output_low = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 65535);
+        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 65535);
         break;
     default:
         OPENVINO_THROW("Unsupported element type for QuantizeLinear");
@@ -95,55 +92,47 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_out
     return std::make_tuple(output_low, output_high);
 }
 
-std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_input_bands(
-    const Output<ngraph::Node>& y_scale,
-    const Output<ngraph::Node>& y_zero_point,
-    const std::shared_ptr<ngraph::Node>& output_low,
-    const std::shared_ptr<ngraph::Node>& output_high,
+std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands(
+    const Output<ov::Node>& y_scale,
+    const Output<ov::Node>& y_zero_point,
+    const std::shared_ptr<ov::Node>& output_low,
+    const std::shared_ptr<ov::Node>& output_high,
     const element::Type& data_type) {
-    std::shared_ptr<ngraph::Node> input_low;
-    std::shared_ptr<ngraph::Node> input_high;
-    const auto& zero_point = std::make_shared<default_opset::Convert>(y_zero_point, data_type);
+    std::shared_ptr<ov::Node> input_low;
+    std::shared_ptr<ov::Node> input_high;
+    const auto& zero_point = std::make_shared<v0::Convert>(y_zero_point, data_type);
 
-    input_low =
-        std::make_shared<default_opset::Multiply>(y_scale,
-                                                  std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_low)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    input_low = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_low, zero_point));
+    if (auto constant = ov::util::get_constant_from_source(input_low)) {
         input_low = constant;
     }
-    input_high =
-        std::make_shared<default_opset::Multiply>(y_scale,
-                                                  std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_high)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    input_high = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_high, zero_point));
+    if (auto constant = ov::util::get_constant_from_source(input_high)) {
         input_high = constant;
     }
 
     return std::make_tuple(input_low, input_high);
 }
 }  // namespace
-std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
-                                                 const Output<ngraph::Node>& y_zero_point,
-                                                 const Output<ngraph::Node>& data) {
+std::shared_ptr<ov::Node> make_fake_quantize(const Output<ov::Node>& y_scale,
+                                             const Output<ov::Node>& y_zero_point,
+                                             const Output<ov::Node>& data) {
     const element::Type& destination_type = y_zero_point.get_element_type();
     const element::Type& data_type = data.get_element_type();
 
-    std::shared_ptr<ngraph::Node> output_low;
-    std::shared_ptr<ngraph::Node> output_high;
+    std::shared_ptr<ov::Node> output_low;
+    std::shared_ptr<ov::Node> output_high;
     std::tie(output_low, output_high) = detail::get_output_bands(destination_type, data_type);
 
-    std::shared_ptr<ngraph::Node> input_low;
-    std::shared_ptr<ngraph::Node> input_high;
+    std::shared_ptr<ov::Node> input_low;
+    std::shared_ptr<ov::Node> input_high;
     std::tie(input_low, input_high) =
         detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
 
     const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
 
-    return std::make_shared<default_opset::Convert>(
-        std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
+    return std::make_shared<v0::Convert>(
+        std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
         destination_type);
 }
 }  // namespace detail
@@ -165,9 +154,9 @@ OutputVector quantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace {
-OutputVector quantize_linear(Output<ngraph::Node> x,
-                             Output<ngraph::Node> y_scale,
-                             Output<ngraph::Node> y_zero_point,
+OutputVector quantize_linear(Output<ov::Node> x,
+                             Output<ov::Node> y_scale,
+                             Output<ov::Node> y_zero_point,
                              int64_t axis,
                              Node node) {
     namespace detail = ngraph::onnx_import::op::detail;
@@ -178,9 +167,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = normalize_axis(node.get_description(), axis, x_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
