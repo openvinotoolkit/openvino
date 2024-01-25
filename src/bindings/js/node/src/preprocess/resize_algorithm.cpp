@@ -5,8 +5,6 @@
 
 #include <typeinfo>
 
-#include "openvino/runtime/core.hpp"
-
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
     auto enumObj = Napi::Object::New(info.Env());
     std::vector<Napi::PropertyDescriptor> pds;

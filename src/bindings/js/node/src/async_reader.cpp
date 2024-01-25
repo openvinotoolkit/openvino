@@ -3,6 +3,8 @@
 
 #include "node/include/async_reader.hpp"
 
+#include "node/include/model_wrap.hpp"
+
 void ReaderWorker::Execute() {
     ov::Core core;
 

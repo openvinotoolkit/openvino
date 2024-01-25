@@ -4,6 +4,8 @@
 #include "node/include/partial_shape_wrap.hpp"
 
 #include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 
 PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PartialShapeWrap>(info) {
     const size_t attrs_length = info.Length();

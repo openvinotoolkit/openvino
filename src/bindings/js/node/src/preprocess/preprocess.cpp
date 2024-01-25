@@ -4,6 +4,8 @@
 #include "node/include/preprocess/preprocess.hpp"
 
 #include "node/include/addon.hpp"
+#include "node/include/preprocess/pre_post_process_wrap.hpp"
+#include "node/include/preprocess/resize_algorithm.hpp"
 
 namespace preprocess {
 Napi::Object init(Napi::Env env, Napi::Object exports) {

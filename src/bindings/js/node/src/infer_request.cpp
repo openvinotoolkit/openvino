@@ -4,10 +4,11 @@
 #include "node/include/infer_request.hpp"
 
 #include <mutex>
-#include <random>
 
 #include "node/include/addon.hpp"
 #include "node/include/compiled_model.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
 

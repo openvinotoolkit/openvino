@@ -5,6 +5,8 @@
 
 #include <typeinfo>
 
+#include "node/include/helper.hpp"
+
 namespace element {
 Napi::Object init(Napi::Env env, Napi::Object exports) {
     auto element = Napi::PropertyDescriptor::Accessor<add_element_namespace>("element");
