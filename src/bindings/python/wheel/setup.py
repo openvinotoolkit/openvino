@@ -44,7 +44,6 @@ SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
 BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
-
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
