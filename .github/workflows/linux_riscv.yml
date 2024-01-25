@@ -56,8 +56,6 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-#      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-#      CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
@@ -202,9 +200,6 @@ jobs:
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
-#      - name: Sleep
-#        run: sleep 5h
-
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --verbose
 
@@ -213,19 +208,6 @@ jobs:
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
-
-      - name: Show sccache log
-        continue-on-error: true
-        run: |
-          cat ${SCCACHE_ERROR_LOG}
-
-      - name: Upload sccache log
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: sccache_log
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'error'
 
       - name: Build OpenVINO C++ samples
         run: |
