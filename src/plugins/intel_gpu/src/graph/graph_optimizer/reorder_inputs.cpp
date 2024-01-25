@@ -552,7 +552,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<dir>::first(node, next);
         auto successor = travel_direction_wrapper<dir>::second(node, next);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -564,7 +565,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 
@@ -600,7 +602,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(node, next.first);
         auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -612,7 +615,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<direction_e::backwards>::first(node, next.first)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 

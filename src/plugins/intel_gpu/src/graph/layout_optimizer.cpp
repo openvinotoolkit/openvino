@@ -140,24 +140,31 @@ bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, dat
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
+                                                                       int32_t src_port,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id, out_layout };
+    cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);
 
     auto count = _cached_reorders.size();
     std::stringstream ss;
-    ss << src_id << "_reorder_" << count;
+    ss << src_id << "_" << std::to_string(src_port) << "_reorder_" << count;
 
-    auto reorder = std::make_shared<cldnn::reorder>(ss.str(), src_id, out_layout);
+    auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
 
     return std::make_pair(reorder, false);
+}
+
+std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
+                                                                       const layout& in_layout,
+                                                                       const layout& out_layout) {
+    return get_reorder(src_id, 0, in_layout, out_layout);
 }
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
