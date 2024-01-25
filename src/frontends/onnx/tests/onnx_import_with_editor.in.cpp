@@ -14,7 +14,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"

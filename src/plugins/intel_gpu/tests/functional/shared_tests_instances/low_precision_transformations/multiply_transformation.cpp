@@ -22,7 +22,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ov::element::undefined, // ngraph::element::i8
+        ov::element::undefined, // ov::element::i8
         false
     },
     {
@@ -31,25 +31,25 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ov::element::undefined, // ngraph::element::u8
-        false
-    },
-    {
-        true,
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        false,
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ov::element::undefined, //ngraph::element::u8
+        ov::element::undefined, // ov::element::u8
         false
     },
     {
         true,
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        false,
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        ov::element::undefined, //ov::element::u8
+        false
+    },
+    {
+        true,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         false,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ov::element::undefined, // ngraph::element::i8
+        ov::element::undefined, // ov::element::i8
         false
     },
     {
@@ -58,7 +58,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ov::element::undefined, // ngraph::element::i8
+        ov::element::undefined, // ov::element::i8
         false
     },
     {
@@ -67,7 +67,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ov::element::undefined, // ngraph::element::u8
+        ov::element::undefined, // ov::element::u8
         false
     },
     {
@@ -76,11 +76,11 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.27f }, { 1.28f }, { -1.27f }, { 1.28f } },
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ov::element::undefined, // ngraph::element::u8
+        ov::element::undefined, // ov::element::u8
         false
     },
-    { false, {}, false, {}, {}, ov::element::undefined /* ngraph::element::f32 */, false },
-    { true, {}, true, {}, {}, ov::element::undefined /* ngraph::element::f32 */, false },
+    { false, {}, false, {}, {}, ov::element::undefined /* ov::element::f32 */, false },
+    { true, {}, true, {}, {}, ov::element::undefined /* ov::element::f32 */, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyTransformation,

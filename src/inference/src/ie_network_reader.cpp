@@ -21,8 +21,6 @@
 #include "ie_input_info.hpp"
 #include "itt.hpp"
 #include "legacy_op_extension.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -37,11 +35,7 @@
 namespace InferenceEngine {
 
 namespace {
-
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
-                                 const std::vector<IExtensionPtr>& exts,
-                                 bool is_new_api,
-                                 bool frontendMode = false) {
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function, bool is_new_api, bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps
     if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11 && !is_new_api) {
         IR_READER_SCOPE(ir11_old_api);
@@ -108,7 +102,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, is_new_api));
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, is_new_api));
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
@@ -119,8 +113,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool is_new_api,
                                 bool enable_mmap) {
-    auto exts = ov::legacy_convert::convert_extension(ov_exts);
-
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
@@ -153,7 +145,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, is_new_api);
+        return convert_to_cnnnetwork(ngFunc, is_new_api);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -173,7 +165,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
-    auto exts = ov::legacy_convert::convert_extension(ov_exts);
 
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
@@ -195,7 +186,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, is_new_api, frontendMode);
+        return convert_to_cnnnetwork(ngFunc, is_new_api, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

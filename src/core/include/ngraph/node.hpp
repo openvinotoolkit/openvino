@@ -28,19 +28,18 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/output.hpp"
-#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node_input.hpp"
 #include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/descriptor/output.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"

@@ -18,12 +18,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-namespace runtime {
-class HostTensor;
-}
-}  // namespace ngraph
-
 namespace ov {
 class Node;
 /// \brief Alias for label tensor.
@@ -98,7 +92,7 @@ public:
     TensorLabel get_value_label() const {
         return m_value_label;
     }
-    /// \brief checks if lower and upper bound are set and point to the same HostTensor
+    /// \brief checks if lower and upper bound are set and point to the same Tensor
     bool has_and_set_bound() const {
         return m_upper_value && m_lower_value && m_upper_value.data() == m_lower_value.data();
     }
@@ -144,7 +138,6 @@ protected:
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend class pass::ReverseShapeAndTypeInfer;
-    friend class ngraph::runtime::HostTensor;
 };
 
 OPENVINO_API

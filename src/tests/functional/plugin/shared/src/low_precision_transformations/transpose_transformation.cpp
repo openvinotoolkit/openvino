@@ -36,7 +36,7 @@ void TransposeTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
+    function = ov::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,
         testValues.transposeConstValues,
         testValues.precisionBeforeFq,

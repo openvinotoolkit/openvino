@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class ShuffleChannelsTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::int64_t axis;
     std::int64_t group;
     std::string layerName;
