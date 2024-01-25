@@ -6,7 +6,6 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using ov::test::utils::ActivationTypes;

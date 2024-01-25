@@ -46,7 +46,7 @@ void VariadicSplitTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::VariadicSplitFunction::getOriginal(
+    function = ov::builder::subgraph::VariadicSplitFunction::getOriginal(
         precision,
         inputShape,
         param.fakeQuantize,
