@@ -205,7 +205,7 @@ jobs:
 #        run: sleep 5h
 
       - name: Cmake - Build
-        run: cmake --debug-output --build ${OPENVINO_BUILD_DIR} --parallel
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --debug-output
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
