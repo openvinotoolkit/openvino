@@ -641,7 +641,15 @@ bool primitive_inst::use_async_compilation() {
         const auto& fc_node = _node->as<fully_connected>();
         if (fc_node.get_primitive()->compressed_weights) {
             auto weights_dt = fc_node.weights().get_output_layout().data_type;
-            compile_fc_impls = !one_of(weights_dt, {data_types::i4, data_types::u4});
+            auto input_shape = _impl_params->get_input_layout().get_shape();
+            auto batch_size = std::accumulate(input_shape.begin(),
+                                              input_shape.end() - 1,
+                                              size_t{1},
+                                              std::multiplies<size_t>());
+
+            // Disable async compilation for all int4 FC, except in the case of batch_size == 1
+            if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
+                compile_fc_impls = false;
         }
     }
 
