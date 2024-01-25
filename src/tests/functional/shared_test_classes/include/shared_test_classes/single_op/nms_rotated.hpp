@@ -35,7 +35,7 @@ public:
 
 protected:
     void SetUp() override;
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
+
     void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
 
 private:
