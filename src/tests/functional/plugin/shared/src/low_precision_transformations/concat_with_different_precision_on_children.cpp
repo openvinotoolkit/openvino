@@ -42,7 +42,7 @@ void ConcatWithDifferentChildrenTransformation::SetUp() {
 
     init_input_shapes({ inputShapes, inputShapes });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
         netPrecision, inputShapes, param.axis, param.fqOnData1, param.fqOnData2);
 }
 

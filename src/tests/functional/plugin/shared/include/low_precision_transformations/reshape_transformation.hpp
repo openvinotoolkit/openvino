@@ -16,7 +16,7 @@ class ReshapeTransformationParam {
 public:
     ov::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
     std::string expectedKernelType;
 };
