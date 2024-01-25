@@ -87,12 +87,18 @@ class TestTimmConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("name", ["hardcorenas_a.miil_green_in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
-        self.mode = "export"
+        self.mode = "trace"
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, name, ie_device):
+        self.mode = "trace"
+        self.run(name, None, ie_device)
+
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("name", get_all_models())
+    def test_convert_model_export_all_models(self, name, ie_device):
         self.mode = "export"
         self.run(name, None, ie_device)
 

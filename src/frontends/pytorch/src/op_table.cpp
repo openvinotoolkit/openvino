@@ -231,6 +231,10 @@ OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
 OP_CONVERTER(translate_xor);
 // Torch FX Translations
+OP_CONVERTER(translate_adaptive_max_pool1d_fx);
+OP_CONVERTER(translate_adaptive_max_pool2d_fx);
+OP_CONVERTER(translate_adaptive_max_pool3d_fx);
+OP_CONVERTER(translate_addmm_fx);
 OP_CONVERTER(translate_arange_fx);
 OP_CONVERTER(translate_batch_norm_legit_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
@@ -241,6 +245,7 @@ OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
 OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_full_fx);
+OP_CONVERTER(translate_gelu_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
@@ -642,14 +647,19 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
 
 const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
-        {"aten._adaptive_avg_pool2d.default", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
+        {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
+        {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
+        {"aten._adaptive_avg_pool3d.default", op::translate_adaptive_avg_pool3d},
+        {"aten.adaptive_max_pool1d.default", op::translate_adaptive_max_pool1d_fx},
+        {"aten.adaptive_max_pool2d.default", op::translate_adaptive_max_pool2d_fx},
+        {"aten.adaptive_max_pool3d.default", op::translate_adaptive_max_pool3d_fx},
         {"aten._local_scalar_dense.default", op::skip_node},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._unsafe_view.default", op::translate_reshape},
         {"aten.add.Tensor", op::translate_add},
         {"aten.add_.Tensor", op::translate_add},
-        {"aten.addmm.default", op::translate_addmm},
+        {"aten.addmm.default", op::translate_addmm_fx},
         {"aten.alias.default", op::skip_node},
         {"aten.arange.start", op::translate_arange_fx},
         {"aten.arange.start_step", op::translate_arange_fx},
@@ -658,7 +668,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.as_strided.default", op::translate_as_strided},
         {"aten.avg_pool2d.default", op::translate_avg_poolnd},
         {"aten.avg_pool3d.default", op::translate_avg_poolnd},
-        {"aten.baddbmm.default", op::translate_addmm},
+        {"aten.baddbmm.default", op::translate_addmm_fx},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.cat.default", op::translate_cat_fx},
@@ -687,7 +697,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.full.names", op::translate_full_fx},
         {"aten.full_like.default", op::translate_full_like},
         {"aten.gather.default", op::translate_gather},
-        {"aten.gelu.default", op::translate_gelu},
+        {"aten.gelu.default", op::translate_gelu_fx},
         {"aten.gt.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten.hardsigmoid.default", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten.hardswish.default", op::translate_1to1_match_1_inputs<opset10::HSwish>},

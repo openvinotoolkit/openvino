@@ -413,7 +413,7 @@ class TorchScriptPythonDecoder (Decoder):
         return False
 
     def get_attribute(self, name):
-        return OVAny()
+        return OVAny(None)
 
     def get_named_input(self, name):
         raise RuntimeError("There is no named inputs in TS graph")

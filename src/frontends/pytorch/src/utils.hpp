@@ -64,7 +64,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-std::shared_ptr<op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs);
+std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 
 bool is_none_node(const Output<Node>& node);
 

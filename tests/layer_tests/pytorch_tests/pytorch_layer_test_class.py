@@ -95,7 +95,8 @@ class PytorchLayerTest:
                     em = em.run_decompositions()
                 print(em.graph_module.code)
                 converted_model = convert_model(em, example_input=torch_inputs)
-                self._resolve_input_shape_dtype(converted_model, ov_inputs, dynamic_shapes)
+                self._resolve_input_shape_dtype(
+                    converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
             else:
                 trace_model = kwargs.get('trace_model', False)
@@ -103,16 +104,16 @@ class PytorchLayerTest:
                 with torch.no_grad():
                     if kwargs.get('use_convert_model', False):
                         smodel, converted_model = self.convert_via_mo(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
                     else:
                         smodel, converted_model = self.convert_directly_via_frontend(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
                 if kind is not None and not isinstance(kind, (tuple, list)):
                     kind = [kind]
                 if kind is not None:
                     for op in kind:
                         assert self._check_kind_exist(
-                        smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
+                            smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
             compiled = core.compile_model(converted_model, ie_device)
@@ -144,10 +145,11 @@ class PytorchLayerTest:
                     if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
                         # do not differentiate between int32 and int64
                         continue
-                    assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
+                    assert ov_type == fw_type, f"dtype validation failed: ov={ov_type} vs fw={fw_type}"
                     continue
-                ov_tensor_fw_format = torch.tensor(np.array(ov_tensor))
-                assert ov_tensor_fw_format.dtype == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_fw_format.dtype} != {fw_tensor.dtype}"
+                ov_tensor_format = torch.tensor(np.array(ov_tensor))
+                assert ov_tensor_format.dtype == fw_tensor.dtype, f"dtype validation failed: ov={ov_tensor_format.dtype} vs fw={fw_tensor.dtype}"
+                assert ov_tensor_format.shape == fw_tensor.shape, f"Shapes are not equal: ov={ov_tensor_format.shape} vs fw={fw_tensor.shape}"
 
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
@@ -164,8 +166,6 @@ class PytorchLayerTest:
                 if np.array(cur_fw_res).size == 0:
                     continue
                 cur_ov_res = infer_res[compiled.output(i)]
-                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                assert cur_ov_res.shape == cur_fw_res.shape, "Shapes are not equal: {} vs {}".format(cur_ov_res.shape, cur_fw_res.shape)
                 n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
                                                                         atol=fw_eps,
                                                                         rtol=fw_eps, equal_nan=True).sum()

@@ -226,20 +226,15 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
     // inference if model is completely frozen and all methods are inlined. So we check if it doesn't have any
     // consumers in the finally converted model and remove this parameter. This parameter should have index 0.
-    auto params = model->get_parameters();
-    for (size_t i = 0; i < params.size(); i++) {
-        auto p = params[i];
-        if (p->output(0).get_target_inputs().empty()) {
+    if (model->get_parameters().size() > 0) {
+        auto self = model->get_parameters()[0];
+        if (self->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            if (i == 0) {
-                OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never "
-                                  "used and treated as `self`\n";
-            } else {
-                OPENVINO_DEBUG << "[ WARNING ] Removing parameter[" << i
-                               << "] in converted Pytorch model, because it "
-                                  "is never used\n";
-            }
-            model->remove_parameter(p);
+            OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used "
+                              "and treated as `self`\n";
+            model->remove_parameter(self);
+        } else {
+            OPENVINO_DEBUG << "[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n";
         }
     }
 }

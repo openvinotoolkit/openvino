@@ -155,7 +155,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
 
     @pytest.mark.parametrize("name",
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_convert_model_export_all_models(self, name, ie_device):
         self.mode = "export"
         self.run(name, None, ie_device)
