@@ -7,16 +7,16 @@ graph {
     op_type: "Celu"
     attribute {
       name: "alpha"
-      i: 2
-      type: INT
+      f: 2.0
+      type: FLOAT
     }
   }
-  name: "test_celu_int"
+  name: "test_celu_float_1"
   input {
     name: "X"
     type {
       tensor_type {
-        elem_type: 7
+        elem_type: 1
         shape {
           dim {
             dim_value: 4

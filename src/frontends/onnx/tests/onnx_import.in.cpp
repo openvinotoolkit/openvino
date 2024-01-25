@@ -6241,11 +6241,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_int) {
-    auto model = convert_model("celu_int.onnx");
+    auto model = convert_model("celu_float_1.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<int>(Shape{4}, {-5, -4, -10, 7});
-    test_case.add_expected_output<float>(Shape{4}, {-0.99326205f, -0.98168436f, -0.9999546f, 7.f});
+    test_case.add_input<int>(Shape{4}, {-5.f, -4.f, -10.f, 7.f});
+    test_case.add_expected_output<float>(Shape{4}, {-1.83583f, -1.72932943f, -1.98652411f, 7.f});
 
     test_case.run();
 }
