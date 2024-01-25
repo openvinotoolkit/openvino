@@ -598,7 +598,7 @@ static void set_intersection(const std::set<std::vector<element::Type>>& precisi
 
 ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_number,
                                                           const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
-                                                          const std::vector<ov::intel_cpu::aarch64::EltwiseData>& eltwise_data) {
+                                                          const std::vector<EltwiseData>& eltwise_data) {
     ov::element::Type exec_prc = ov::element::undefined;
 
     const auto algorithm = eltwise_data.front().algo;
