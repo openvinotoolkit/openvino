@@ -201,14 +201,14 @@ jobs:
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
+      - name: Sleep
+        run: sleep 5h
+
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
-
-      - name: Sleep
-        run: sleep 5h
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
