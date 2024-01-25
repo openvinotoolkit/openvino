@@ -130,8 +130,9 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
 
     OPENVINO_ASSERT(layout.bytes_count() <= get_device_info().max_alloc_mem_size,
                     "[GPU] Exceeded max size of memory object allocation: ",
-                    "Requested ", layout.bytes_count(), " bytes "
-                    "but max alloc size is ", get_device_info().max_alloc_mem_size, " bytes");
+                    "requested ", layout.bytes_count(), " bytes, "
+                    "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
+                    "Please try to reduce batch size or use lower precision.");
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
 #ifdef __unix__
