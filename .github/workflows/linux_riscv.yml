@@ -59,6 +59,8 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
+      SCCACHE_LOG: 'debug'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -207,6 +209,18 @@ jobs:
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
+
+      - name: Show sccache log
+        continue-on-error: true
+        run: cat ${SCCACHE_ERROR_LOG}
+
+      - name: Upload sccache log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: sccache_log
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'error'
 
       - name: Build OpenVINO C++ samples
         run: |
