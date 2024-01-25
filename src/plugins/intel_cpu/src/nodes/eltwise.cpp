@@ -2223,7 +2223,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
 #if defined (OPENVINO_ARCH_ARM64)
-    bool canUseOptimizedImpl = mayiuse(dnnl::impl::cpu::aarch64::asimd) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+    bool canUseOptimizedImpl = mayiuse(dnnl::impl::cpu::aarch64::asimd) && (getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK);
+    bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 #else
     bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     // TODO: Add EltwiseLog algorithm support for JIT implementation
@@ -2314,7 +2315,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         canUseOptimizedImpl = false;
     }
 
-    implType = (useJit && canUseOptimizedImpl) ? EltwiseImplType::optimized : EltwiseImplType::reference;
+    implType = (useJit && canUseOptimizedImpl) ?
+                    (canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic : EltwiseImplType::optimized) :
+                    EltwiseImplType::reference;
 #else
     OPENVINO_THROW("Unknow CPU architecture");
 #endif

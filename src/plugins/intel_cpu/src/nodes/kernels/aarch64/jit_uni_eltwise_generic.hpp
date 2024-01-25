@@ -97,6 +97,16 @@ public:
     void generate() override;
 
 private:
+    const Xbyak_aarch64::XReg X_TMP_0 = x10;
+    const Xbyak_aarch64::XReg X_TMP_1 = x11;
+
+    XReg reg_post_op_ptrs = X_TMP_0;
+    XReg start_to_offsets = reg_post_op_ptrs;
+
+    XReg reg_oc_off = x12;
+    XReg reg_const_params = abi_param1;
+    XReg reg_indexes = abi_param2;
+
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     using TRegS = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TRegS;
 
@@ -113,9 +123,9 @@ private:
     // X7     | [not used]   | RSP | <stack pointer>
     // X8     | [not used]   | R8  | src ptr
     // X9     | work amount  | R9  | src ptr
-    // X10    | [not used]   | R10 | src ptr
-    // X11    | [not used]   | R11 | src ptr
-    // X12    | [not used]   | R12 | src ptr
+    // X10    | ker temporary| R10 | src ptr
+    // X11    | ker temporary| R11 | src ptr
+    // X12    | ker temporary (abi_not_param1)   | R12 | src ptr
     // X13    | [not used]   | R13 | src ptr
     // X14    | [not used]   | R14 | src ptr
     // X15    | dst          | R15 | temporary
