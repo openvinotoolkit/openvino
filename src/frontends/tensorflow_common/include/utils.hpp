@@ -15,7 +15,8 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-using OpMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMapPtr = std::shared_ptr<NameTensorMap>;
 
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,

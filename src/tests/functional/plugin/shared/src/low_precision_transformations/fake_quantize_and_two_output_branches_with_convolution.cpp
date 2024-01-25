@@ -46,7 +46,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         netPrecision,
         inputShape,
         testValues.fqOnData,
