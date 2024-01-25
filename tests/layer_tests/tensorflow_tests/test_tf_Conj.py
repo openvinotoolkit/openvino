@@ -51,12 +51,12 @@ class TestComplexConjugate(CommonTFLayerTest):
         return tf_net, ref_net
 
 
-    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
+    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                  use_new_frontend):
-        self._test(*self.create_complex_conjugate_net(**params),
+        self._test(*self.create_complex_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
 
@@ -94,11 +94,11 @@ class TestConjugate(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
+    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                  use_new_frontend):
-        self._test(*self.create_conjugate_net(**params),
+        self._test(*self.create_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend) 
