@@ -111,7 +111,7 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     const auto& funcInputs = function->inputs();
     auto funcInput = funcInputs.begin();
     inputs.clear();
-    runtime::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
+    Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
                                             targetInputStaticShapes[0],
                                             data_range,
                                             data_start_from,
@@ -132,7 +132,7 @@ void ActivationParamLayerTest::generate_inputs(const std::vector<ov::Shape>& tar
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        runtime::Tensor data_tensor;
+        Tensor data_tensor;
         const std::string& name = funcInput.get_node()->get_friendly_name();
         if (0 == name.compare("negativeSlope")) {
             ov::test::utils::InputGenerateData in_data;
