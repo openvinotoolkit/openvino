@@ -9,7 +9,6 @@
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/internal_operation.hpp"
-#include "helper_ops/keep_in_graph_op.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"

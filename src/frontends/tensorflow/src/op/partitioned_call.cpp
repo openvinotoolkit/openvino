@@ -4,7 +4,6 @@
 
 #include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 
 using namespace std;

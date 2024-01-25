@@ -16,8 +16,10 @@ class OPENVINO_API KeepInGraphOp : public InternalOperation {
 public:
     OPENVINO_OP("KeepInGraphOp", "ov::frontend::tensorflow", InternalOperation);
 
-    KeepInGraphOp(const std::string& op_type_name, const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : InternalOperation(decoder, OutputVector{}, 1, op_type_name),
+    KeepInGraphOp(const std::string& op_type_name,
+                  const OutputVector& inputs,
+                  const std::shared_ptr<DecoderBase>& decoder = nullptr)
+        : InternalOperation(decoder, inputs, 1, op_type_name),
           m_op_type_name(op_type_name) {}
 
     void validate_and_infer_types() override {
@@ -25,7 +27,7 @@ public:
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        auto keep_in_graph_node = std::make_shared<KeepInGraphOp>(m_op_type_name, m_decoder);
+        auto keep_in_graph_node = std::make_shared<KeepInGraphOp>(m_op_type_name, inputs, m_decoder);
         keep_in_graph_node->set_attrs(get_attrs());
         return keep_in_graph_node;
     }
