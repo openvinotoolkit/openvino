@@ -48,8 +48,8 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
         auto& name = kv.first;
         auto& val = kv.second;
         if (is_supported(kv.first)) {
-            OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
-                    "Invalid value for property ", name,  ": ", val.as<std::string>());
+            if (!property_validators.at(name)->is_valid(val))
+                OPENVINO_THROW("Invalid value for property ", name, ": ", val.as<std::string>());
             internal_properties[name] = val;
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
             user_properties[name] = val;
