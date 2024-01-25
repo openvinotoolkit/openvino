@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class OPENVINO_API KeepInGraphOp : public InternalOperation {
+class KeepInGraphOp : public InternalOperation {
 public:
     OPENVINO_OP("KeepInGraphOp", "ov::frontend::tensorflow", InternalOperation);
 
