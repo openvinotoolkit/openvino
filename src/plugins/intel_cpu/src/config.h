@@ -15,7 +15,6 @@
 #include <bitset>
 #include <map>
 #include <mutex>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {

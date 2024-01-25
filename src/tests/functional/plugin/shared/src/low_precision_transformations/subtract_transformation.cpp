@@ -35,7 +35,7 @@ void SubtractTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
+    function = ov::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {

@@ -11,13 +11,13 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
     std::shared_ptr<ov::Model> RoundWithToleranceFunction::getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization) {
+        const ov::builder::subgraph::DequantizationOperations dequantization) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         input->set_friendly_name("input");
 
@@ -36,7 +36,7 @@ namespace subgraph {
     std::shared_ptr<ov::Model> RoundWithToleranceFunction::getReference(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization) {
+        const ov::builder::subgraph::DequantizationOperations dequantization) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         input->set_friendly_name("input");
 
@@ -54,4 +54,4 @@ namespace subgraph {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
