@@ -783,9 +783,8 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
-            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionWithKVCache operation are supported";
+        if (!std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
+            errorMessage = "Only ScaledDotProductAttentionWithKVCache operation are supported";
             return false;
         }
         // expect shape of q: [B, H, L, S]
