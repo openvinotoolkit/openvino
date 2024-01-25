@@ -51,7 +51,6 @@
 #include "ngraph/evaluator.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"

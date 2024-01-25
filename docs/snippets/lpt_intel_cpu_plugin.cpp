@@ -18,7 +18,7 @@ namespace device {
 
 class ConvertOpSet1ToDeviceSpecific: public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         return true;
     }
 };

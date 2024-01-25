@@ -82,7 +82,7 @@ void TopKLayerTestGPU::SetUp() {
     for (size_t i = 0; i < topk->get_output_size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
     }
-    function = std::make_shared<ngraph::Function>(results, params, "TopK");
+    function = std::make_shared<ov::Model>(results, params, "TopK");
 }
 
 InferenceEngine::Blob::Ptr TopKLayerTestGPU::GenerateInput(const InferenceEngine::InputInfo& info) const {
