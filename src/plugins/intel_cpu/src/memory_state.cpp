@@ -11,6 +11,9 @@
 #include "utils/plain_tensor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
+
+using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov {
 namespace intel_cpu {
@@ -194,14 +197,33 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     auto H = pastkv.size(1);
     auto L0 = pastkv.size(2);
     auto S = pastkv.size(3);
-    parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
-        auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-        cpu_convert(&pastkv.at<char>({b_kv, h, m}),
-                    &output.at<char>({b, h, m}),
-                    pastkv.m_dt,
-                    output.m_dt,
-                    S);
-    });
+    if (pastkv.get_precision() == element::u8) {
+        auto nthr = parallel_get_max_threads();
+        std::vector<PlainTensor> buffers(nthr);
+        parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
+            auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
+            buffers[ithr].resize<float>({S});
+            dequant_u8(&pastkv.at<uint8_t>({b_kv, h, m}),
+                       buffers[ithr].data<float>(),
+                       S,
+                       m_scale_zp.at<float>(b_kv, h, m, size_t{0}),
+                       m_scale_zp.at<float>(b_kv, h, m, size_t{1}));
+            cpu_convert(buffers[ithr].data<float>(),
+                        &output.at<char>({b, h, m}),
+                        element::f32,
+                        output.m_dt,
+                        S);
+        });
+    } else {
+        parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+            auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
+            cpu_convert(&pastkv.at<char>({b_kv, h, m}),
+                        &output.at<char>({b, h, m}),
+                        pastkv.m_dt,
+                        output.m_dt,
+                        S);
+        });
+    }
 
     return std::make_shared<Tensor>(external_mem);
 }
@@ -217,7 +239,35 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     m_internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
     Memory external_mem(get_engine(), state_desc, m_state->data());
 
-    m_internal_mem->load(external_mem);
+    if (dense_internal_desc->getPrecision() == element::u8) {
+        PlainTensor external, internal;
+        auto&& actual_internal_order = m_dense_internal_desc->getOrder();
+        external.resize(external_mem.getStaticDims(), state_desc->getPrecision().size(), state_desc->getPrecision(), m_state->data());
+        internal.reset(m_internal_mem);
+        external = external.permute(actual_internal_order);
+        internal = internal.permute(actual_internal_order);
+        auto B = internal.size(0);
+        auto H = internal.size(1);
+        auto L0 = internal.size(2);
+        auto S = internal.size(3);
+        auto nthr = parallel_get_max_threads();
+        std::vector<PlainTensor> buffers(nthr);
+        parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
+            buffers[ithr].resize<float>({S});
+            cpu_convert(&external.at<char>({b, h, m}),
+                        buffers[ithr].data<float>(),
+                        external.m_dt,
+                        element::f32,
+                        S);
+            quant_u8(&internal.at<uint8_t>({b, h, m}),
+                     buffers[ithr].data<float>(),
+                     S,
+                     m_scale_zp.at<float>({b, h, m, size_t{0}}),
+                     m_scale_zp.at<float>({b, h, m, size_t{1}}));
+        });
+    } else {
+        m_internal_mem->load(external_mem);
+    }
 
     //2. Reset the beam search table
     auto&& state_dims = dense_internal_desc->getShape().getStaticDims();

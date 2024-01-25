@@ -1190,14 +1190,16 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 
             new_scale_zp_k.resize<float>({B, H, (L0 + L1) * 2, 2});
             new_scale_zp_v.resize<float>({B, H, (L0 + L1) * 2, 2});
-            parallel_for2d(B, H, [&](size_t b, size_t h) {
-                memcpy(&new_scale_zp_k.at<float>(b, h, false),
-                       &old_scale_zp_k.at<float>(b, h, false),
-                       sizeof(float) * L0 * 2);
-                memcpy(&new_scale_zp_v.at<float>(b, h, false),
-                       &old_scale_zp_v.at<float>(b, h, false),
-                       sizeof(float) * L0 * 2);
-            });
+            if (L0 > 0 && !is_reset) {
+                parallel_for2d(B, H, [&](size_t b, size_t h) {
+                    memcpy(&new_scale_zp_k.at<float>(b, h, false),
+                           &old_scale_zp_k.at<float>(b, h, false),
+                           sizeof(float) * L0 * 2);
+                    memcpy(&new_scale_zp_v.at<float>(b, h, false),
+                           &old_scale_zp_v.at<float>(b, h, false),
+                           sizeof(float) * L0 * 2);
+                });
+            }
 
             m_k_state->set_scale_zp(new_scale_zp_k);
             m_v_state->set_scale_zp(new_scale_zp_v);

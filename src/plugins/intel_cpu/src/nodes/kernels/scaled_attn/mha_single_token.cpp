@@ -27,6 +27,20 @@ namespace XARCH {
 
 using namespace ov;
 
+#if defined(HAVE_AVX2)
+
+#define prefetch_bytes(bytes, sel, advance, src) {  \
+    int8_t *p = reinterpret_cast<int8_t *>(src);    \
+    for (size_t i = 0; i < bytes; i += 64)          \
+        _mm_prefetch(p + i + advance, sel);         \
+}
+
+#else
+
+#define prefetch_bytes(bytes, sel, advance, src)
+
+#endif
+
 template<typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float scale, float zp) {
     size_t i = 0;
@@ -632,16 +646,27 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         if (start < end) {
             parallel_it_init(start, b, B, h_group, h_group_num, pk, kv_len);
             if (q_len == 1 && h_each_group_len == 1) {
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at<int32_t>(b, pk) : b;
-                    auto p = &past_k_scale_zp.at<float>(b_kv, h_group, pk, false);
-                    auto p_k = &present_key.at<T2>(b_kv, h_group, pk, false);
-                    _mm_prefetch(p_k + 4096, _MM_HINT_T0);
-                    _mm_prefetch(p_k + 4096 + 64, _MM_HINT_T0);
-                    buf_attn_w.at<float>(b, h_group, 0, pk) =
-                            dot_product(&query.at<T>(b, h_group, false), p_k,
-                                S, p, p + 1, &head_sum.at<float>(b, h_group, false));
-                    parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+                if (B == 1) {
+                    // the memory will be continuous when b==1
+                    for (size_t iwork = start; iwork < end; ++iwork) {
+                        auto p = &past_k_scale_zp.at<float>(0, h_group, pk, false);
+                        auto p_k = &present_key.at<T2>(0, h_group, pk, false);
+                        prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
+                        buf_attn_w.at<float>(0, h_group, 0, pk) =
+                                dot_product(&query.at<T>(0, h_group, false), p_k,
+                                    S, p, p + 1, &head_sum.at<float>(0, h_group, false));
+                        parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+                    }
+                } else {
+                    for (size_t iwork = start; iwork < end; ++iwork) {
+                        auto b_kv = beams ? beams.at<int32_t>(b, pk) : b;
+                        auto p = &past_k_scale_zp.at<float>(b_kv, h_group, pk, false);
+                        auto p_k = &present_key.at<T2>(b_kv, h_group, pk, false);
+                        buf_attn_w.at<float>(b, h_group, 0, pk) =
+                                dot_product(&query.at<T>(b, h_group, false), p_k,
+                                    S, p, p + 1, &head_sum.at<float>(b, h_group, false));
+                        parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+                    }
                 }
             } else {
                 for (size_t iwork = start; iwork < end; ++iwork) {
