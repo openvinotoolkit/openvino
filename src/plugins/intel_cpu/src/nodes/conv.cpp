@@ -336,7 +336,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static std::vector<impl_desc_type> priorities = {
+    priorities = {
         impl_desc_type::unknown,
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
@@ -376,18 +376,17 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref_any,
         impl_desc_type::ref,
     };
-
     priorities.erase(std::remove_if(priorities.begin(),
                                     priorities.end(),
                                     [&](impl_desc_type type) {
                                         return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
                                     }),
                      priorities.end());
-
     return priorities;
 }
 
 const bool Convolution::isBrgConvAvailable() {
+    //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
     const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                                            !avx2DisableBrgconvHeuristic;
     return isBrgConvAvailable;
