@@ -8,7 +8,6 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/shuffle_channels.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace ov {
 namespace builder {
