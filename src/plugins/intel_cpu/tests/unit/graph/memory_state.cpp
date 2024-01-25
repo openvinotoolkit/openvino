@@ -5,7 +5,6 @@
 
 #include "dummy_node.hpp"
 
-#include "ov_models/builders.hpp"
 #include "nodes/memory.hpp"
 #include "nodes/softmax.h"
 #include "nodes/shapeof.h"

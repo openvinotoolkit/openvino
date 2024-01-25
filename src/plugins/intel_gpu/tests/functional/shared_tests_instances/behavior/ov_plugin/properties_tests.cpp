@@ -632,7 +632,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     std::vector<std::thread> threads(2);
     // key: thread id, value: executable network
     std::map<uint32_t, ov::CompiledModel> exec_net_map;
-    std::vector<std::shared_ptr<ngraph::Function>> networks;
+    std::vector<std::shared_ptr<ov::Model>> networks;
     networks.emplace_back(simpleNetwork);
     networks.emplace_back(simpleNetwork);
 

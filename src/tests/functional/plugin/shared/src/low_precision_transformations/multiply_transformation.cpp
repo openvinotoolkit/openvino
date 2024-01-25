@@ -11,7 +11,6 @@
 #include "transformations/init_node_info.hpp"
 
 #include "ov_lpt_models/multiply_partial_function.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 
 namespace LayerTestsDefinitions {

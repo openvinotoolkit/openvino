@@ -3,7 +3,6 @@
 //
 
 #include "behavior/plugin/stress_tests.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
 namespace LayerTestsDefinitions {

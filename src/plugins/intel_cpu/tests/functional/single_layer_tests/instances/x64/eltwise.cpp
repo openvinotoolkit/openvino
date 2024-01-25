@@ -5,8 +5,7 @@
 #include "single_layer_tests/classes/eltwise.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 

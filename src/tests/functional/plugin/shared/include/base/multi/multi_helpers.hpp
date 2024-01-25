@@ -8,7 +8,6 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "openvino/util/common_util.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 

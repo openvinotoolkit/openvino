@@ -9,7 +9,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/assign_base.hpp"
 

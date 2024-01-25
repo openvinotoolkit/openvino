@@ -5,7 +5,6 @@
 #include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace builder {

@@ -9,6 +9,9 @@
 #include "pugixml.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "openvino/op/concat.hpp"
+#include "openvino/op/split.hpp"
+
 namespace ov {
 namespace test {
 namespace behavior {

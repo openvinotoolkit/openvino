@@ -7,7 +7,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

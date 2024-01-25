@@ -16,7 +16,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"

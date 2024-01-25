@@ -14,7 +14,6 @@
 #include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 

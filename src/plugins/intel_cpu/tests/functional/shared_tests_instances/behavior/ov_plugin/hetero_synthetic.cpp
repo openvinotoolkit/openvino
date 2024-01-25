@@ -5,8 +5,6 @@
 #include <vector>
 
 #include "behavior/ov_plugin/hetero_synthetic.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 // defined in plugin_name.cpp
 extern const char * cpu_plugin_file_name;

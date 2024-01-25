@@ -10,6 +10,8 @@
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
+#include "openvino/op/relu.hpp"
+
 namespace BehaviorTestsDefinitions {
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 

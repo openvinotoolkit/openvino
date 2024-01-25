@@ -7,7 +7,6 @@
 #include "nodes/input.h"
 #include "nodes/concat.h"
 
-#include "ov_models/builders.hpp"
 
 using namespace ov::intel_cpu;
 

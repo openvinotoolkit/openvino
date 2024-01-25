@@ -15,8 +15,6 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"

@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {

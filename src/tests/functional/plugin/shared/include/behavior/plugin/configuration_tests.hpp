@@ -12,7 +12,6 @@
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
 #include <functional_test_utils/skip_tests_config.hpp>
-#include <ov_models/subgraph_builders.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"

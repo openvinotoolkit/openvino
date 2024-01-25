@@ -9,7 +9,6 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
-#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {

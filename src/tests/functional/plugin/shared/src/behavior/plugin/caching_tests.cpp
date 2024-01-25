@@ -8,8 +8,6 @@
 
 #include "behavior/plugin/caching_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
@@ -17,6 +15,7 @@
 #include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 
 using namespace InferenceEngine::details;
@@ -77,7 +76,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnly
     res.push_back(nGraphFunctionWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(nGraphFunctionWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        inputShapeWrapper(ov::test::utils::make_conv_pool_relu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}),

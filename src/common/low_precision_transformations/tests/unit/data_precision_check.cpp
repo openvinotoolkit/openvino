@@ -7,7 +7,6 @@
 #include <ie_blob.h>
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/builders.hpp"
 
 using namespace ov;
 

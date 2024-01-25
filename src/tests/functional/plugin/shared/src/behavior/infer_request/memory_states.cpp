@@ -7,8 +7,10 @@
 #include "behavior/infer_request/memory_states.hpp"
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace BehaviorTestsDefinitions {
 std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams>& obj) {

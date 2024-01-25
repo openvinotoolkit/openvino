@@ -7,7 +7,6 @@
 #include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/builders.hpp"
 
 
 namespace ov {

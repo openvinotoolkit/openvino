@@ -3,7 +3,6 @@
 //
 
 #include "mock_common.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
