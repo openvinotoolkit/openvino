@@ -105,9 +105,6 @@ private:
     /** activation type for vanilla RNN cell */
     dnnl::algorithm cell_act = dnnl::algorithm::undef;
 
-    /** Weights data and state memory format: ldigo or any */
-    dnnl::memory::format_tag wFormat = dnnl::memory::format_tag::any;
-
     struct Interval {
         Interval() = default;
 

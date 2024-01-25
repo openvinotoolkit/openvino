@@ -12,7 +12,6 @@
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
 #include <functional_test_utils/skip_tests_config.hpp>
-#include <ov_models/subgraph_builders.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -53,7 +52,7 @@ protected:
 class ConfigBase : public BehaviorTestsUtils::IEPluginTestBase {
 public:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::CNNNetwork cnnNet;
     std::map<std::string, std::string> configuration;
 };

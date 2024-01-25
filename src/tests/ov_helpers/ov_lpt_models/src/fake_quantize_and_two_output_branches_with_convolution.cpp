@@ -7,10 +7,9 @@
 #include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -96,12 +95,12 @@ std::shared_ptr<ov::Model> FakeQuantizeAndTwoOutputBranchesWithConvolutionFuncti
     const ov::element::Type precision,
     const ov::Shape& inputShape,
     const ov::pass::low_precision::LayerTransformation::Params& params,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+    const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
     const ov::element::Type precisionBeforeOp,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOp,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter1,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter2) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter1,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter2) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
@@ -145,4 +144,4 @@ std::shared_ptr<ov::Model> FakeQuantizeAndTwoOutputBranchesWithConvolutionFuncti
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

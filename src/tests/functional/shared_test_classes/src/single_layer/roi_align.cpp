@@ -6,6 +6,9 @@
 
 #include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/roi_align.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -96,12 +99,12 @@ void ROIAlignLayerTest::SetUp() {
 
     fillCoordTensor(proposalVector, inputShape[2], inputShape[3], spatialScale, poolingRatio, pooledH, pooledW);
     fillIdxTensor(roiIdxVector, inputShape[0]);
-    ngraph::Shape idxShape = {coordsShape[0]};
+    ov::Shape idxShape = {coordsShape[0]};
 
     auto coords = std::make_shared<ov::op::v0::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
-    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ov::op::v3::ROIAlign>(params[0],
+    std::shared_ptr<ov::Node> roiAlign = std::make_shared<ov::op::v3::ROIAlign>(params[0],
                                                                                         coords,
                                                                                         roisIdx,
                                                                                         pooledH,
@@ -109,8 +112,8 @@ void ROIAlignLayerTest::SetUp() {
                                                                                         poolingRatio,
                                                                                         spatialScale,
                                                                                         poolingMode);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roiAlign)};
-    function = std::make_shared<ngraph::Function>(results, params, "roi_align");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roiAlign)};
+    function = std::make_shared<ov::Model>(results, params, "roi_align");
 }
 
 std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<roialignV9Params>& obj) {
@@ -181,12 +184,12 @@ void ROIAlignV9LayerTest::SetUp() {
                                        pooledH,
                                        pooledW);
     ROIAlignLayerTest::fillIdxTensor(roiIdxVector, inputShape[0]);
-    ngraph::Shape idxShape = {coordsShape[0]};
+    ov::Shape idxShape = {coordsShape[0]};
 
     auto coords = std::make_shared<ov::op::v0::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
-    std::shared_ptr<ngraph::Node> roiAlign = std::make_shared<ov::op::v9::ROIAlign>(
+    std::shared_ptr<ov::Node> roiAlign = std::make_shared<ov::op::v9::ROIAlign>(
             params[0],
             coords,
             roisIdx,
@@ -197,7 +200,7 @@ void ROIAlignV9LayerTest::SetUp() {
             ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(poolingMode),
             ov::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(roiAlignedMode));
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(roiAlign)};
-    function = std::make_shared<ngraph::Function>(results, params, "roi_align");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roiAlign)};
+    function = std::make_shared<ov::Model>(results, params, "roi_align");
 }
 }  // namespace LayerTestsDefinitions

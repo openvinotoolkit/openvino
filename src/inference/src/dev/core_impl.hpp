@@ -6,16 +6,12 @@
 
 #include <cpp/ie_cnn_network.h>
 
-#include <ie_remote_context.hpp>
-
 #include "any_copy.hpp"
 #include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
 #include "ie_cache_manager.hpp"
-#include "ie_extension.h"
 #include "ie_icore.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -199,21 +195,10 @@ private:
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     // Legacy API
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
-    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
-    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
-        try {
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
-            AddExtensionUnsafe(extension_ptr);
-        } catch (const InferenceEngine::GeneralError&) {
-            // in case of shared library is not opened
-        }
-    }
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
         const InferenceEngine::CNNNetwork& model,
         ov::Plugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig,
-        const InferenceEngine::RemoteContext::Ptr& context);
+        const std::map<std::string, std::string>& parsedConfig);
 
 public:
     CoreImpl(bool _newAPI);
@@ -248,13 +233,6 @@ public:
                                             bool frontendMode = false) const override;
 
     bool isNewAPI() const override;
-
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override;
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
-        const InferenceEngine::CNNNetwork& network,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const std::string& deviceNameOrig,
@@ -294,24 +272,8 @@ public:
      */
     std::vector<std::string> GetAvailableDevices() const override;
 
-    /**
-     * @brief Create a new shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
-     * @param deviceName Name of a device to create new shared context on.
-     * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
-     */
-    InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
-                                                      const InferenceEngine::ParamMap& params) override;
-
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
-
-    /**
-     * @brief Registers the extension in a Core object
-     *        Such extensions can be used for both CNNNetwork readers and device plugins
-     */
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 

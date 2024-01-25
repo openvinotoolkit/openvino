@@ -9,7 +9,7 @@ Two types of runners are available in this repository:
 
 The runners are specified for each job using the `runs-on` key. 
 
-An example `Build` job from the `linux.yml` workflow:
+An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
 Build:
   ...
@@ -63,7 +63,7 @@ The available configurations are:
 The configuration of a runner required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is, 
 the more robust configuration is required.
 
-The `Build` job in the `linux.yml` workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
+The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
   ...
@@ -73,7 +73,7 @@ Build:
 
 This group has machines with 16 core CPU and 32 GB of RAM, which could be utilized in parallel by the build tools used in the `Build` job. 
 
-The `C++ unit tests` job in the `linux.yml` workflow uses the `aks-linux-4-cores-16gb` group:
+The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
 CXX_Unit_Tests:
   name: C++ unit tests
@@ -86,7 +86,7 @@ CXX_Unit_Tests:
 As the C++ tests could not utilize the large number of cores for parallel execution as the build tools in the `Build` job could, 
 it would be pointless to use the `aks-linux-16-cores-32gb` group for them.
 
-The advice is to use runners with more cores/RAM size for the tasks that could load them.
+The advice is to use runners with more cores/RAM size for the tasks that **could load them**.
 
 It is possible to experiment with different configurations before deciding, i.e.,
 run a job on runners from different groups and observe the gains; if they are significant, e.g., 60 minutes on a 4-core runner vs. 15 minutes on a 16-core runner, 

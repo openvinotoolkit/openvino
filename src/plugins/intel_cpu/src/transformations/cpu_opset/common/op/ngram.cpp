@@ -24,17 +24,25 @@ bool ov::intel_cpu::NgramNode::visit_attributes(ov::AttributeVisitor &visitor) {
 
 void ov::intel_cpu::NgramNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(NgramNode_validate_and_infer_types);
-    NGRAPH_CHECK(m_k > 0, "k attribute must be greater than zero");
+    OPENVINO_ASSERT(m_k > 0, "k attribute must be greater than zero");
 
     const auto& idces_et = get_input_element_type(1);
     const auto& idces_shape = get_input_partial_shape(1);
-    NGRAPH_CHECK(idces_shape.rank() == 2, "'batch_idces' input must have 2D shape whereas current shape is", idces_shape);
-    NGRAPH_CHECK(idces_et.is_integral_number(), "'batch_idces' input must be integer whereas current element type is", idces_et);
+    OPENVINO_ASSERT(idces_shape.rank() == 2,
+                    "'batch_idces' input must have 2D shape whereas current shape is",
+                    idces_shape);
+    OPENVINO_ASSERT(idces_et.is_integral_number(),
+                    "'batch_idces' input must be integer whereas current element type is",
+                    idces_et);
 
     const auto& embeddings_et = get_input_element_type(0);
     const auto& embeddings_shape = get_input_partial_shape(0);
-    NGRAPH_CHECK(embeddings_et.is_real(), "'embeddings' input must be real whereas current element type is", embeddings_et);
-    NGRAPH_CHECK(embeddings_shape.rank() == 2, "'embeddings' input must have 2D shape whereas current shape is", embeddings_shape);
+    OPENVINO_ASSERT(embeddings_et.is_real(),
+                    "'embeddings' input must be real whereas current element type is",
+                    embeddings_et);
+    OPENVINO_ASSERT(embeddings_shape.rank() == 2,
+                    "'embeddings' input must have 2D shape whereas current shape is",
+                    embeddings_shape);
 
     auto out_shape = embeddings_shape;
     out_shape[1] *= m_k;

@@ -178,7 +178,6 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
         self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
-    
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -190,10 +189,9 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         self._test(*self.create_model(False), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
 
-
 class TestMask_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(100, 5).astype(np.float32),np.random.randn(100, 5).astype(np.float32))
+        return (np.random.randn(100, 5).astype(np.float32), np.random.randn(100, 5).astype(np.float32))
 
     def create_model(self):
         class aten_index_put_mask(torch.nn.Module):
@@ -208,4 +206,28 @@ class TestMask_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=True, use_convert_model=True)
+
+
+class TestMaskKosmos_IndexPut(PytorchLayerTest):
+    def _prepare_input(self):
+        mask = np.random.randint(0, 2, [1, 30]).astype(np.bool_)
+        num = mask.sum()
+        return (np.random.randn(1, 30, 50).astype(np.float32), mask.astype(np.int32), np.random.randn(num, 50).astype(np.float32))
+
+    def create_model(self):
+        class aten_index_put_mask(torch.nn.Module):
+            def forward(self, x, y, z):
+                x[y.to(dtype=torch.bool)] = z
+                return x
+
+        ref_net = None
+
+        return aten_index_put_mask(), ref_net, "aten::index_put_"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_nonzero_kosmos_index_put_(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=True, use_convert_model=True)

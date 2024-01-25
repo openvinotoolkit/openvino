@@ -59,7 +59,7 @@ void RangeLayerTest::SetUp() {
     }
     auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], ngPrc);
 
-    function = std::make_shared<ngraph::Function>(
+    function = std::make_shared<ov::Model>(
         std::make_shared<ov::op::v0::Result>(range),
         params,
         "Range");
@@ -118,7 +118,7 @@ void RangeNumpyLayerTest::SetUp() {
     params[2]->set_friendly_name("step");
 
     auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], ngNetPrc);
-    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
-    function = std::make_shared<ngraph::Function>(results, params, "Range");
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
+    function = std::make_shared<ov::Model>(results, params, "Range");
 }
 } // namespace LayerTestsDefinitions

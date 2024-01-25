@@ -5,7 +5,7 @@
 #include "op/bitwise_and.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
+#include "openvino/op/bitwise_and.hpp"
 
 using namespace ov::op;
 

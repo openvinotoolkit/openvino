@@ -4,7 +4,6 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "cpu/cpu_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -197,7 +196,7 @@ protected:
 
         checkFusingPosition = false;
 
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
         convert_precisions.insert({ov::element::i8, ov::element::f32});
         convert_precisions.insert({ov::element::u8, ov::element::f32});
     }

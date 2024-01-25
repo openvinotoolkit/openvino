@@ -73,7 +73,7 @@ function(ov_generate_frontends_hpp)
         endif()
     endforeach()
 
-    # add dependency on header file generation for all inference_engine source files
+    # add dependency on header file generation for all openvino_frontend_common_obj source files
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_frontends_hpp})
 endfunction()
 

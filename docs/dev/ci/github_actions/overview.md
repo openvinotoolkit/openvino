@@ -8,6 +8,7 @@ Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. Th
   * [Triggers and schedules](#workflows-triggers-and-schedule)
   * [Required workflows](#required-workflows)
   * [Workflow structure](#structure-of-the-workflows)
+  * [Workflow and job organisation](#workflows-and-jobs-organisation)
 * [Finding results, artefacts and logs](#finding-results-artefacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -44,7 +45,8 @@ Additionally, several supporting workflows build and test OpenVINO for other ope
 
 The OpenVINO workflows make use of the rich official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
 
-Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
+Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. 
+Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
 
 You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 
@@ -246,20 +248,12 @@ The jobs in the workflows utilize appropriate Docker images based on a job's nee
 
 ## Caches
 
-There are two types of caches available:
+Three types of caches are available:
 * [GitHub Actions cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
-  * Accessible by `actions/cache` action
-  * Available both GitHub-hosted and self-hosted runners
-  * Limited to 10GB per repository
-  * Suitable for small dependencies caches and artefacts that could be reused between runs 
 * Shared drive cache
-  * Mounted into the Docker container
-  * Available only to the self-hosted runners
-  * Large storage
-  * Suitable for large caches
-    * e.g., build caches, models, datasets
+* Remote build cache via [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs)
 
-The jobs in the workflows utilize appropriate caches based on a job's needs. Read more about the available caches and how to choose one [here](./caches.md).
+The jobs in the workflows utilize appropriate caches based on job's needs. Read more about the available caches and how to use one [here](./caches.md).
 
 ## Adding New Tests
 
