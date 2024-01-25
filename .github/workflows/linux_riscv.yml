@@ -201,8 +201,8 @@ jobs:
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
-      - name: Sleep
-        run: sleep 5h
+#      - name: Sleep
+#        run: sleep 5h
 
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
