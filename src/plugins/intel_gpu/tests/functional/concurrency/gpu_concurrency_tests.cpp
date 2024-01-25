@@ -5,7 +5,6 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
