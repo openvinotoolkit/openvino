@@ -20,8 +20,8 @@ class TestComplexConjugate(CommonTFLayerTest):
         imag_part_shape = inputs_info['imag_part']
 
         inputs_data = {}
-        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
-        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
+        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.complex64) - 2
+        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.complex64) - 2
 
         return inputs_data
     def create_complex_conjugate_net(self, input_shape):
@@ -34,8 +34,8 @@ class TestComplexConjugate(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            real_part = tf.compat.v1.placeholder(np.float32, input_shape, 'real_part')
-            imag_part = tf.compat.v1.placeholder(np.float32, input_shape, 'imag_part')
+            real_part = tf.compat.v1.placeholder(np.complex64, input_shape, 'real_part')
+            imag_part = tf.compat.v1.placeholder(np.complex64, input_shape, 'imag_part')
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
@@ -69,7 +69,7 @@ class TestConjugate(CommonTFLayerTest):
         input_shape = inputs_info['input']
 
         inputs_data = {}
-        inputs_data['input'] = np.random.default_rng().random(input_shape).astype(np.float32)
+        inputs_data['input'] = np.random.default_rng().random(input_shape).astype(np.complex64)
 
         return inputs_data
 
@@ -83,7 +83,7 @@ class TestConjugate(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(np.float32, input_shape, 'input')
+            input = tf.compat.v1.placeholder(np.complex64, input_shape, 'input')
 
             tf.raw_ops.Conj(x=input, name = "Operation")
 
