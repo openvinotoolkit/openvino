@@ -123,7 +123,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 }
 
 void jit_emitter::emitter_postamble() const {
-    for (size_t i = 0; i < preserved_gpr_idxs.size(); ++i) {
+    const int size = static_cast<int>(preserved_gpr_idxs.size());
+    for (int i = (size - 1); i >= 0; --i) {
         h->ldr(Xbyak_aarch64::XReg(preserved_gpr_idxs[i]), post_ptr(h->sp, 16));
     }
     preserved_gpr_idxs.clear();
