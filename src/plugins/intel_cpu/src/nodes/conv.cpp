@@ -371,6 +371,8 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
 
+    static std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
     priorities.erase(std::remove_if(priorities.begin(),
                                     priorities.end(),
                                     [](impl_desc_type type) {
