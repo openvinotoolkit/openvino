@@ -5,7 +5,6 @@
 #include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {

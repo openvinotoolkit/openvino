@@ -9,7 +9,6 @@
 #include <cpp/ie_infer_request.hpp>
 
 #include <file_utils.h>
-#include <ov_models/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
