@@ -33,7 +33,7 @@ class CustomInstallCommand(BaseCommand):
         # To use active environment version:
         $ pdm custom-install --python env
         # To use range from 3.10.0 to 3.11.*:
-        $ pdm custom-install --python ">3.9, <=3.11
+        $ pdm custom-install --python ">3.9, <=3.11"
         # Works with interface of `pdm install`:
         $ pdm custom-install --python env --no-lock --no-self --dry-run
 
