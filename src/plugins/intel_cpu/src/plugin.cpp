@@ -186,18 +186,19 @@ static bool streamsSet(const ov::AnyMap& config) {
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
     const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
+    int streams_set = config.streams;
     int streams;
-    if (config.streamExecutorConfig._streams_changed) {
-        streams = config.streamExecutorConfig._streams;
+    if (config.streamsChanged) {
+        streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
         streams = latency_streams;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
-        streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
+        streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
+    if (!((0 == streams_set) && config.streamsChanged)) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig.set_config_zero_stream();
@@ -385,15 +386,13 @@ bool Engine::is_legacy_api() const {
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
     if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = engConfig.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            streams);  // ov::optimal_number_of_infer_requests has no negative values
+            engConfig.streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
-        const auto streams = engConfig.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
-            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+            engConfig.streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
-        const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
+        const auto affinity = engConfig.threadBindingType;
         switch (affinity) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
@@ -408,8 +407,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
-        const auto num_threads = engConfig.streamExecutorConfig._threads;
-        return decltype(ov::inference_num_threads)::value_type(num_threads);
+        return decltype(ov::inference_num_threads)::value_type(engConfig.threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);

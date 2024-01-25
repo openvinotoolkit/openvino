@@ -59,24 +59,24 @@ struct CPUStreamsExecutor::Impl {
                     _impl->_streamIdQueue.pop();
                 }
             }
-            _numaNodeId = _impl->_config._streams
-                              ? _impl->_usedNumaNodes.at((_streamId % _impl->_config._streams) /
-                                                         ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) /
+            _numaNodeId = _impl->_config.get_streams()
+                              ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_streams()) /
+                                                         ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config._streams_info_table.size() > 0) {
+            if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
 #elif OV_THREAD == OV_THREAD_OMP
-            omp_set_num_threads(_impl->_config._threadsPerStream);
+            omp_set_num_threads(_impl->_config._threads_per_stream);
             if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    parallel_nt(_impl->_config._threadsPerStream, [&](int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex +
+                    parallel_nt(_impl->_config._threads_per_stream, [&](int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * _impl->_config._threads_per_stream + threadIndex +
                                      _impl->_config._threadBindingOffset;
                         pin_thread_to_vacant_core(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
                     });
@@ -104,7 +104,7 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (_impl->_config._name.find("StreamsExecutor") == std::string::npos) {
+            if (_impl->_config.get_name().find("StreamsExecutor") == std::string::npos) {
                 set_cpu_used(_cpu_ids, NOT_USED);
             }
             if (nullptr != _observer) {
@@ -120,6 +120,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int core_type,
                                    const int numa_node_id,
                                    const int max_threads_per_core) {
+            auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
@@ -141,8 +142,8 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
-                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
-                               ? _impl->_config._stream_processor_ids[stream_id]
+                _cpu_ids = static_cast<int>(stream_processors.size()) == _impl->_config.get_streams()
+                               ? stream_processors[stream_id]
                                : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
@@ -162,11 +163,12 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto stream_id = _impl->_config._streams == 0 ? 0 : _streamId % _impl->_config._streams;
+            int streams_num = _impl->_config.get_streams();
+            const auto stream_id = streams_num == 0 ? 0 : _streamId % streams_num;
             get_cur_stream_info(stream_id,
-                                _impl->_config._cpu_reservation,
+                                _impl->_config.get_cpu_reservation(),
                                 org_proc_type_table,
-                                _impl->_config._streams_info_table,
+                                _impl->_config.get_streams_info_table(),
                                 stream_type,
                                 concurrency,
                                 cpu_core_type,
@@ -309,16 +311,17 @@ struct CPUStreamsExecutor::Impl {
               this) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
-        if (_config._streams != 0) {
+        int streams_num = _config.get_streams();
+        if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
-                        std::min<std::size_t>(_config._streams, numaNodes.size()),
+                        std::min<std::size_t>(streams_num, numaNodes.size()),
                         std::back_inserter(_usedNumaNodes));
         } else {
             _usedNumaNodes = numaNodes;
         }
-        for (auto streamId = 0; streamId < _config._streams; ++streamId) {
+        for (auto streamId = 0; streamId < streams_num; ++streamId) {
             _threads.emplace_back([this, streamId] {
-                openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
+                openvino::itt::threadName(_config.get_name() + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
                     Task task;
                     {
@@ -426,7 +429,7 @@ void CPUStreamsExecutor::execute(Task task) {
 }
 
 void CPUStreamsExecutor::run(Task task) {
-    if (0 == _impl->_config._streams) {
+    if (0 == _impl->_config.get_streams()) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));

@@ -27,9 +27,9 @@ using namespace dnnl::impl::cpu::x64;
 Config::Config() {
     // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
-    streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
+    threadBindingType = IStreamsExecutor::NONE;
 #else
-    streamExecutorConfig._threadBindingType = IStreamsExecutor::CORES;
+    threadBindingType = IStreamsExecutor::CORES;
 #endif
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
@@ -38,14 +38,14 @@ Config::Config() {
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = get_available_numa_nodes();
     if (numaNodes.size() > 1) {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::NUMA;
+        threadBindingType = IStreamsExecutor::NUMA;
     } else {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
+        threadBindingType = IStreamsExecutor::NONE;
     }
 #    endif
 
     if (get_available_cores_types().size() > 1 /*Hybrid CPU*/) {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::HYBRID_AWARE;
+        threadBindingType = IStreamsExecutor::HYBRID_AWARE;
     }
 #endif
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -67,38 +67,80 @@ void Config::applyDebugCapsProperties() {
 #endif
 
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
-    const auto streamExecutorConfigKeys =
-        streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
-        if (streamExecutorConfigKeys.end() !=
-            std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streamExecutorConfig.set_property(key, val.as<std::string>());
-            if (key == ov::affinity.name()) {
+        if (key == ov::num_streams.name()) {
+            ov::Any value = val.as<std::string>();
+            auto streams_value = value.as<ov::streams::Num>();
+            if (streams_value.num >= 0) {
+                streams = streams_value.num;
+                streamsChanged = true;
+            } else if (streams_value == ov::streams::NUMA) {
+                latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
+            } else if (streams_value == ov::streams::AUTO) {
+                hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
+                changedHintPerfMode = true;
+            } else {
+                OPENVINO_THROW("Wrong value for property key ",
+                               key,
+                               ". Expected non negative numbers (#streams) or ",
+                               "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                               val.as<std::string>());
+            }
+        } else if (key == ov::inference_num_threads.name()) {
+            int value;
+            try {
+                value = val.as<int>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            if (value < 0) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            threads = value;
+        } else if (key == ov::internal::threads_per_stream.name()) {
+            try {
+                threadsPerStream = val.as<int>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", val.as<std::string>(), "for property key ", key);
+            }
+        } else if (key == ov::affinity.name()) {
+            try {
+                ov::Affinity affinity = val.as<ov::Affinity>();
                 changedCpuPinning = true;
-                try {
-                    const auto affinity_val = val.as<ov::Affinity>();
-                    enableCpuPinning =
-                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
-                                                                                                           : false;
-                } catch (const ov::Exception&) {
+                enableCpuPinning =
+                    (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
+                switch (affinity) {
+                case ov::Affinity::NONE:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
+                    break;
+                case ov::Affinity::CORE: {
+#if (defined(__APPLE__) || defined(_WIN32))
+                    _threadBindingType = ThreadBindingType::NUMA;
+#else
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
+#endif
+                } break;
+                case ov::Affinity::NUMA:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
+                    break;
+                case ov::Affinity::HYBRID_AWARE:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
+                    break;
+                default:
                     OPENVINO_THROW("Wrong value ",
                                    val.as<std::string>(),
                                    "for property key ",
                                    key,
                                    ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
-            }
-            if (key == ov::num_streams.name()) {
-                ov::Any value = val.as<std::string>();
-                auto streams_value = value.as<ov::streams::Num>();
-                if (streams_value == ov::streams::NUMA) {
-                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
-                } else if (streams_value == ov::streams::AUTO) {
-                    hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
-                    changedHintPerfMode = true;
-                }
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
             }
         } else if (key == ov::hint::performance_mode.name()) {
             try {
@@ -332,8 +374,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         _config.clear();
 
     if (exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
-        streamExecutorConfig._streams = 1;
-        streamExecutorConfig._streams_changed = true;
+        streams = 1;
+        streamsChanged = true;
     }
 
     this->modelType = modelType;
@@ -346,7 +388,7 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    switch (streamExecutorConfig._threadBindingType) {
+    switch (threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
         _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
         break;
