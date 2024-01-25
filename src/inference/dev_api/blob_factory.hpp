@@ -15,6 +15,7 @@
 
 #include "ie_blob.h"
 #include "ie_data.h"
+#include "ie_memcpy.h"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
