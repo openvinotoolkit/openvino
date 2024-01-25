@@ -133,6 +133,8 @@ public:
     }
 };
 
+using OVClassSeveralDevicesTestDefaultCore = OVClassSeveralDevicesTests;
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
