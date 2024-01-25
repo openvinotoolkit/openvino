@@ -75,25 +75,27 @@ public:
                                            //!< starting from offset
         int _threads = 0;                  //!< Number of threads distributed between streams.
                                            //!< Reserved. Should not be used.
-        bool _enable_hyper_thread = true;  //!< enable hyper thread
         PreferredCoreType _thread_preferred_core_type =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
+
     public:
         /**
          * @brief      A constructor with arguments
          *
-         * @param[in]  name                 The executor name
-         * @param[in]  streams              @copybrief Config::_streams
-         * @param[in]  threadsPerStream     @copybrief Config::_threads_per_stream
-         * @param[in]  threadBindingType    @copybrief Config::_threadBindingType
-         * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
-         * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
-         * @param[in]  threads              @copybrief Config::_threads
-         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
+         * @param[in]  name                     The executor name
+         * @param[in]  streams                  @copybrief Config::_streams
+         * @param[in]  threadsPerStream         @copybrief Config::_threads_per_stream
+         * @param[in]  threadBindingType        @copybrief Config::_threadBindingType
+         * @param[in]  threadBindingStep        @copybrief Config::_threadBindingStep
+         * @param[in]  threadBindingOffset      @copybrief Config::_threadBindingOffset
+         * @param[in]  threads                  @copybrief Config::_threads
+         * @param[in]  threadPreferredCoreType  @copybrief Config::_thread_preferred_core_type
+         * @param[in]  streams_info_table       @copybrief Config::_streams_info_table
+         * @param[in]  cpu_reservation          @copybrief Config::_cpu_reservation
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
@@ -127,6 +129,9 @@ public:
         int get_threads() {
             return _threads;
         }
+        int get_threads_per_stream() {
+            return _threads_per_stream;
+        }
         bool get_cpu_reservation() {
             return _cpu_reservation;
         }
@@ -136,14 +141,21 @@ public:
         std::vector<std::vector<int>> get_stream_processor_ids() {
             return _stream_processor_ids;
         }
-
+        ThreadBindingType get_thread_binding_type() {
+            return _threadBindingType;
+        }
+        int get_thread_binding_step() {
+            return _threadBindingStep;
+        }
+        int get_thread_binding_offset() {
+            return _threadBindingOffset;
+        }
         void set_name(std::string name) {
             _name = name;
         }
-
         bool compare(Config config) {
-            if (_name == config._name && _streams == config._streams && _threads_per_stream == config._threads_per_stream &&
-                _threadBindingType == config._threadBindingType &&
+            if (_name == config._name && _streams == config._streams &&
+                _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
                 _thread_preferred_core_type == config._thread_preferred_core_type) {
                 return true;
             } else {

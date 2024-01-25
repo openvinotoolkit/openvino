@@ -70,29 +70,29 @@ struct CPUStreamsExecutor::Impl {
                 init_stream();
             }
 #elif OV_THREAD == OV_THREAD_OMP
-            omp_set_num_threads(_impl->_config._threads_per_stream);
-            if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
+            omp_set_num_threads(_impl->_config.get_threads_per_stream());
+            if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config.get_thread_binding_type())) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    parallel_nt(_impl->_config._threads_per_stream, [&](int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config._threads_per_stream + threadIndex +
-                                     _impl->_config._threadBindingOffset;
-                        pin_thread_to_vacant_core(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
+                    parallel_nt(_impl->_config.get_threads_per_stream(), [&](int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * _impl->_config.get_threads_per_stream() + threadIndex +
+                                     _impl->_config.get_thread_binding_offset();
+                        pin_thread_to_vacant_core(thrIdx, _impl->_config.get_thread_binding_step(), ncpus, processMask);
                     });
                 }
             }
 #elif OV_THREAD == OV_THREAD_SEQ
-            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            if (ThreadBindingType::NUMA == _impl->_config.get_thread_binding_type()) {
                 pin_current_thread_to_socket(_numaNodeId);
-            } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+            } else if (ThreadBindingType::CORES == _impl->_config.get_thread_binding_type()) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    pin_thread_to_vacant_core(_streamId + _impl->_config._threadBindingOffset,
-                                              _impl->_config._threadBindingStep,
+                    pin_thread_to_vacant_core(_streamId + _impl->_config.get_thread_binding_offset(),
+                                              _impl->_config.get_thread_binding_step(),
                                               ncpus,
                                               processMask);
                 }

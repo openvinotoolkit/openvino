@@ -117,7 +117,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     break;
                 case ov::Affinity::CORE: {
 #if (defined(__APPLE__) || defined(_WIN32))
-                    _threadBindingType = ThreadBindingType::NUMA;
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
                     threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
 #endif
