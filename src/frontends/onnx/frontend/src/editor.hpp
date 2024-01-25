@@ -9,15 +9,13 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "ngraph/deprecated.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ov {
@@ -25,7 +23,7 @@ namespace onnx_editor {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
 /// \note This class can be used to modify an ONNX model before it gets translated to
-///       an ngraph::Function by the import_onnx_model function. It lets you modify the
+///       an ov::Model by the frontend->convert method. It lets you modify the
 ///       model's input types and shapes, extract a subgraph and more.
 class ONNX_IMPORTER_API ONNXModelEditor final {
 public:
@@ -73,7 +71,7 @@ public:
     ///                     be used to modified the ONNX model loaded from a file. This
     ///                     method throws an exception if the model doesn't contain any of
     ///                     the inputs specified in its parameter.
-    void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+    void set_input_shapes(const std::map<std::string, ov::PartialShape>& input_shapes);
 
     /// \brief Get shape of ONNX tensor indicated by the tensor_name.
     ///
@@ -109,7 +107,7 @@ public:
     /// \param input_values A collection of pairs {input_name: new_input_values} used to
     ///                     update the ONNX model. Initializers already existing are
     ///                     overwritten.
-    void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
+    void set_input_values(const std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>& input_values);
 
     /// \brief Changes the name of given tensor.
     ///
@@ -154,7 +152,7 @@ public:
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;
 
-    /// \brief     Converts an edited ONNX model to an nGraph Function representation.
+    /// \brief     Converts an edited ONNX model to an OpenVINO Model representation.
     std::shared_ptr<Model> get_function() const;
 
     /// \brief Returns a list of all inputs of the in-memory model.
@@ -204,8 +202,8 @@ public:
     ///        In such a case the algorthim tries to match the given node name
     ///        with the input name (providing an input index is not enough).
     ///        If a unique edge is found, it will be returned.
-    ///        If InputEdge cannot be determined based on parameter values an ngraph_error
-    ///        exception will be thrown.
+    ///        If InputEdge cannot be determined based on parameter values an ov::Exception
+    ///        will be thrown.
     ///
     /// \param node A node helper structure created based on a node name
     ///             or a node output name.
@@ -221,8 +219,8 @@ public:
     ///        In such a case the algorthim will try to match the given node name
     ///        with the output name (providing an output index is not enough).
     ///        If after such operation a found edge is unique, it is returned.
-    ///        If OutputEdge cannot be determined based on given params the ngraph_error
-    ///        exception is thrown.
+    ///        If OutputEdge cannot be determined based on given params the ov::Exception
+    ///        will be thrown.
     ///
     /// \param node A node helper structure created based on a node name
     ///             or a node output name.
@@ -287,7 +285,7 @@ public:
     ///
     std::vector<std::string> get_output_ports(const EditorNode& node) const;
 
-    /// \brief Returns a nGraph function based on edited model
+    /// \brief Returns a OpenVINO Model based on edited model
     ///        decoded to framework nodes
     ///
     std::shared_ptr<Model> decode();

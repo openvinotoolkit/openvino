@@ -3,12 +3,11 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_system_conf.h>
 
-#include <common_test_utils/test_common.hpp>
-
+#include "common_test_utils/test_common.hpp"
 #include "cpu_map_scheduling.hpp"
 #include "cpu_streams_calculation.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -304,7 +303,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_6 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}, {1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
@@ -326,7 +325,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}, {1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
@@ -348,7 +347,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
@@ -370,7 +369,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_tput_1sockets_14cores_2 = {

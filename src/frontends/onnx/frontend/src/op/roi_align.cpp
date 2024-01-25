@@ -13,7 +13,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
+
 namespace set_1 {
+
 OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
@@ -28,7 +30,7 @@ OutputVector roi_align(const Node& node) {
     const auto sampling_ratio = static_cast<int>(node.get_attribute_value<int64_t>("sampling_ratio", 1));
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
-    const auto pooling_mode = EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
+    const auto pooling_mode = ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
     const auto aligned_mode = ov::op::v9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
 
     return {std::make_shared<ov::op::v9::ROIAlign>(data,
@@ -57,7 +59,7 @@ OutputVector roi_align(const Node& node) {
     const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 1);
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
-    const auto pooling_mode = EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
+    const auto pooling_mode = ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(mode);
 
     const auto coordinate_transformation_mode =
         node.get_attribute_value<std::string>("coordinate_transformation_mode", "");

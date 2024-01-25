@@ -106,8 +106,8 @@ protected:
     unsigned int numIterations;
     unsigned int numThreads;
     std::string cache_path;
-    std::shared_ptr<ov::Model> model;
-    void SetupModel() {
+    std::vector<std::shared_ptr<ov::Model>> models;
+    void SetupModels() {
         ov::Core core;
         std::string ir_with_meta = R"V0G0N(
             <net name="Network" version="11">
@@ -278,23 +278,33 @@ protected:
             </net>
             )V0G0N";
         ov::Tensor weights = {};
-        model = core.read_model(ir_with_meta, weights);
+        auto model = core.read_model(ir_with_meta, weights);
         OPENVINO_ASSERT(model);
+        models.emplace_back(model); // model with cli_parameter
+        // test model with runtime attributes -- layout
+        model = ov::test::utils::make_split_multi_conv_concat();
+        for (auto& iter : model->get_parameters())
+            iter->set_layout("NCHW");
+        for (auto& iter : model->get_results())
+            iter->set_layout("NHCW");
+        models.emplace_back(model);
     }
 };
 
 // tested function: set_property, compile_model
 TEST_P(CoreThreadingTestsWithCacheEnabled, smoke_compilemodel_cache_enabled) {
     ov::Core core;
-    SetupModel();
+    SetupModels();
     core.set_property(target_device, config);
     core.set_property(ov::cache_dir(cache_path));
-    runParallel(
-        [&]() {
-            (void)core.compile_model(model, target_device);
-        },
-        numIterations,
-        numThreads);
+    for (auto& model : models) {
+        runParallel(
+            [&]() {
+                (void)core.compile_model(model, target_device);
+            },
+            numIterations,
+            numThreads);
+    }
     core.set_property(ov::cache_dir(""));
 }
 

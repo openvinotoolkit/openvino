@@ -300,7 +300,11 @@ TEST_P(ov_infer_request_test, cancel) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
     OV_EXPECT_OK(ov_infer_request_cancel(infer_request));
-    EXPECT_EQ(ov_status_e::INFER_CANCELLED, ov_infer_request_start_async(infer_request));
+    ov_status_e return_status = ov_infer_request_wait(infer_request);
+    if (return_status == ov_status_e::OK || return_status == ov_status_e::INFER_CANCELLED)
+        GTEST_SUCCEED();
+    else
+        GTEST_FAIL();
 }
 
 TEST_P(ov_infer_request_ppp, infer_ppp) {

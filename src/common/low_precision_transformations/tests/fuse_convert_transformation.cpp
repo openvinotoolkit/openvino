@@ -22,22 +22,22 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FuseConvertTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ov::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+        ov::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     bool constInput;
@@ -56,7 +56,7 @@ public:
         const ov::PartialShape inputShape = std::get<0>(GetParam());
         const FuseConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
+        actualFunction = ov::builder::subgraph::FuseConvertFunction::get(
                 inputShape,
                 testValues.actual.inputPrecision,
                 testValues.actual.dequantization,
@@ -67,7 +67,7 @@ public:
         transformer.add<ov::pass::low_precision::FuseConvertTransformation, ov::op::v0::Convert>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
+        referenceFunction = ov::builder::subgraph::FuseConvertFunction::get(
                 inputShape,
                 testValues.expected.inputPrecision,
                 testValues.expected.dequantization,

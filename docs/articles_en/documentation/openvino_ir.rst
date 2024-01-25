@@ -5,8 +5,8 @@ OpenVINO IR format
 
 
 .. meta::
-  :description: OpenVINO IR, known as Intermediate Representation, is the result 
-                of model conversion in OpenVINO and is represented by two files: 
+  :description: OpenVINO IR, known as Intermediate Representation, is the result
+                of model conversion in OpenVINO and is represented by two files:
                 an XML and a binary file.
 
 .. toctree::
@@ -19,12 +19,20 @@ OpenVINO IR format
    openvino_docs_ops_broadcast_rules
    openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference
 
-The models, built and trained using various frameworks, can be large and architecture-dependent. To successfully run inference from any device and maximize the benefits of OpenVINO tools, you can convert the model to the OpenVINO Intermediate Representation (IR) format. 
 
-OpenVINO IR is the proprietary model format of OpenVINO. It is produced after converting a model with model conversion API. Model conversion API translates the frequently used deep learning operations to their respective similar representation in OpenVINO and tunes them with the associated weights and biases from the trained model. The resulting IR contains two files:
+OpenVINO IR is the proprietary model format of OpenVINO, benefiting from the full extent
+of its features. It is obtained by converting a model from one of the
+:doc:`supported formats <openvino_docs_model_processing_introduction>`
+using the model conversion API or OpenVINO Converter. The process translates common
+deep learning operations of the original network to their counterpart representations in
+OpenVINO and tunes them with the associated weights and biases.
+The resulting OpenVINO IR format contains two files:
 
 * ``.xml`` - Describes the model topology.
 * ``.bin`` - Contains the weights and binary data.
+
+:doc:`See why converting to OpenVINO IR is recommended <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`
+
 
 IR Structure
 ############
@@ -148,11 +156,10 @@ Here is an example of a small IR XML file that corresponds to a graph from the p
          </meta_data>
       </net>
 
-The IR does not use explicit data nodes described in the previous section. In contrast, properties of data such as tensor dimensions and their data types are described as properties of input and output ports of operations. 
+The IR does not use explicit data nodes described in the previous section. In contrast, properties of data such as tensor dimensions and their data types are described as properties of input and output ports of operations.
 
 Additional Resources
 ####################
 
 * :doc:`IR and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
-* :doc:`OpenVINO API 2.0 transition guide <openvino_2_0_transition_guide>`
 

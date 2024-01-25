@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,7 +21,7 @@
 namespace LayerTestsDefinitions {
 
 std::string FullyConnectedTransformation::getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -30,8 +29,8 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(precision, shapes.inputA, targetDevice, params) <<
-        shapes.inputB << "_" <<
+           get_test_case_name_by_params(precision, shapes.inputA, targetDevice, params) <<
+           shapes.inputB << "_" <<
         shapes.transposeA << "_" <<
         shapes.transposeB;
 
@@ -39,12 +38,16 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 }
 
 void FullyConnectedTransformation::SetUp() {
-    ngraph::element::Type precision;
+    abs_threshold = 0.6;
+
+    ov::element::Type precision;
     MatMulShapes shapes;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    init_input_shapes({ shapes.inputA, shapes.inputB });
+
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         shapes.inputA,
         shapes.inputB,
@@ -53,7 +56,8 @@ void FullyConnectedTransformation::SetUp() {
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
-    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

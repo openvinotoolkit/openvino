@@ -7,18 +7,15 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/ceiling.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline OutputVector ceil(const Node& node) {
-    return {std::make_shared<default_opset::Ceiling>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v0::Ceiling>(node.get_ng_inputs().at(0))};
 }
 
 }  // namespace set_1

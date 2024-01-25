@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "ie_blob.h"
-#include "ie_remote_blob.hpp"
+#include "blob_factory.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_utils.hpp"
@@ -16,6 +16,29 @@
 #endif
 
 namespace ov {
+
+namespace {
+Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const Coordinate& end) {
+    OPENVINO_ASSERT(tensor_shape.size() == begin.size());
+    OPENVINO_ASSERT(begin.size() == end.size());
+
+    auto roi_shape = Shape(begin.size());
+
+    auto roi_begin = begin.begin();
+    auto roi_end = end.begin();
+    auto roi_dim = roi_shape.begin();
+    auto max_dim = tensor_shape.begin();
+
+    for (; max_dim != tensor_shape.end(); ++max_dim, ++roi_begin, ++roi_end, ++roi_dim) {
+        OPENVINO_ASSERT(*roi_begin <= *max_dim);
+        OPENVINO_ASSERT(*roi_end <= *max_dim);
+        *roi_dim = *roi_end - *roi_begin;
+        OPENVINO_ASSERT(*roi_dim <= *max_dim);
+    }
+
+    return roi_shape;
+}
+}  // namespace
 
 /**
  * @brief View tensor to external memory
@@ -156,7 +179,7 @@ public:
  *
  * @param element_type Tensor element type
  * @param shape Tensor shape
- * @param ptr pointer to external memoty
+ * @param ptr pointer to external memory
  * @param byte_strides Tensor strides
  *
  * @return Shared pointer to tensor interface
@@ -266,22 +289,14 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type, const Sha
  */
 class RoiTensor : public ITensor {
 public:
-    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) : m_owner{owner} {
-        OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
+    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+        : m_owner{owner},
+          m_shape{make_roi_shape(owner->get_shape(), begin, end)},
+          m_capacity{m_shape},
+          m_offset{std::inner_product(begin.begin(), begin.end(), get_strides().begin(), static_cast<size_t>(0))} {
+        OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
-                        owner->get_element_type());
-        auto owner_shape = owner->get_shape();
-        OPENVINO_ASSERT(owner_shape.size() == begin.size());
-        OPENVINO_ASSERT(begin.size() == end.size());
-        m_shape.resize(begin.size());
-        for (size_t i = 0; i < begin.size(); ++i) {
-            OPENVINO_ASSERT(begin[i] <= owner_shape[i]);
-            OPENVINO_ASSERT(end[i] <= owner_shape[i]);
-            m_shape[i] = end[i] - begin[i];
-            OPENVINO_ASSERT(m_shape[i] <= owner_shape[i]);
-        }
-        auto& strides = get_strides();
-        m_offset = std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
+                        get_element_type());
     }
 
     const element::Type& get_element_type() const override {
@@ -297,7 +312,18 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        OPENVINO_THROW("Shapes cannot be changed for ROI Tensor");
+        OPENVINO_ASSERT(new_shape.size() == m_shape.size());
+        for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
+             ++max_dim, ++new_dim) {
+            OPENVINO_ASSERT(*new_dim <= *max_dim,
+                            "Cannot set new shape: ",
+                            new_shape,
+                            " for ROI tensor! Dimension: ",
+                            std::distance(new_shape.cbegin(), new_dim),
+                            " is not compatible.");
+        }
+
+        m_shape = std::move(new_shape);
     }
 
     void* data(const element::Type& element_type) const override {
@@ -307,8 +333,9 @@ public:
 
 private:
     std::shared_ptr<ITensor> m_owner;
-    size_t m_offset;
     Shape m_shape;
+    const Shape m_capacity;
+    const size_t m_offset;
 };
 
 /**
@@ -354,8 +381,6 @@ public:
     std::shared_ptr<InferenceEngine::Blob> blob;
 
     BlobTensor(const InferenceEngine::Blob::Ptr& blob) : blob{blob} {
-        auto remote_impl = dynamic_cast<InferenceEngine::RemoteBlob*>(blob.get());
-        OPENVINO_ASSERT(!remote_impl);
         OPENVINO_ASSERT(blob);
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
         update_strides();
@@ -460,10 +485,6 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blo
         return {};
     } else if (unwrap && std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob) != nullptr) {
         return std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob)->get_tensor();
-    } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
-        return remote_blob->get_tensor();
-    } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
-        return {std::make_shared<RemoteBlobTensor>(remote_blob), nullptr};
     }
     ELSE_IF(float)
     ELSE_IF(double)
@@ -482,36 +503,6 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blo
         return {std::make_shared<BlobTensor>(blob), nullptr};
     }
 #undef IF
-}
-
-InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob) {
-#ifdef PROXY_PLUGIN_ENABLED
-    if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
-        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        }
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-#endif
-    return blob;
-}
-
-const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob) {
-#ifdef PROXY_PLUGIN_ENABLED
-    if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
-        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-            return blob_tensor->blob.get();
-        }
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-#endif
-    return blob;
 }
 
 InferenceEngine::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor,
@@ -559,10 +550,6 @@ InferenceEngine::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor,
         return {};
     } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
-        return blob_tensor->blob;
-    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
-        return std::make_shared<TensorRemoteBlob>(tensor, create_desc(tensor, desc));
     } else {
 #define CASE(precision, T)   \
     case element::precision: \

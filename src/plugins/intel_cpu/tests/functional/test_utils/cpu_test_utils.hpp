@@ -10,9 +10,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-// To be removed
-#include "exec_graph_info.hpp"
-
 namespace CPUTestUtils {
 typedef enum {
     undef,

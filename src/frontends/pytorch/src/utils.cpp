@@ -111,6 +111,10 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
+    return get_node_axes_range(context, x);
+};
+
+std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x) {
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
     Output<Node> reduced_rank;

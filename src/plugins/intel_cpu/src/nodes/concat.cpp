@@ -342,6 +342,26 @@ void Concat::prepareParams() {
             hasOuterLoop = true;
         }
     }
+
+    canOptimize1DCase = false;
+    if (outputShape.size() == 1 && outputStrides[0] == 1 && outputShape[0] <= 64 && elemSize == 4) {
+        // output is small 1d vector (which is typical in shape inference subgraph),
+        // in this case, inputs are also small 1d vector and single thread naive impl is faster
+        canOptimize1DCase = true;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+            const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& inputShape = srcMemDesc->getBlockDims();
+            const auto& strides = srcMemDesc->getStrides();
+            if (inputShape.size() != 1 || strides.size() != 1) {
+                canOptimize1DCase = false;
+                break;
+            }
+        }
+        if (canOptimize1DCase)
+            return;
+    }
+
     std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
@@ -451,6 +471,11 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
+    if (canOptimize1DCase) {
+        exec1DCase();
+        return;
+    }
+
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;
@@ -477,6 +502,19 @@ void Concat::execute(dnnl::stream strm) {
 
 ov::element::Type Concat::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
+}
+
+void Concat::exec1DCase() {
+    DEBUG_LOG(getName(), " exec1DCase");
+    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcShape = srcMemPtr->getStaticDims();
+        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        for (size_t i = 0; i < srcShape[0]; i++) {
+            *dst++ = src[i];
+        }
+    }
 }
 
 void Concat::execNspcSpecCase() {

@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "ngraph/op/util/slice_plan.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov {
@@ -217,45 +216,3 @@ bool SlicePlan::operator!=(const SlicePlan& other) const {
 }  // namespace util
 }  // namespace op
 }  // namespace ov
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-
-SlicePlan make_slice_plan(const Shape& input_shape,
-                          const std::vector<int64_t>& begins,
-                          const std::vector<int64_t>& ends,
-                          const std::vector<int64_t>& strides,
-                          const AxisSet& lower_bounds_mask,
-                          const AxisSet& upper_bounds_mask,
-                          const AxisSet& new_axis_mask,
-                          const AxisSet& shrink_axis_mask,
-                          const AxisSet& ellipsis_mask) {
-    const auto sp = ov::op::util::make_slice_plan(input_shape,
-                                                  begins,
-                                                  ends,
-                                                  strides,
-                                                  lower_bounds_mask,
-                                                  upper_bounds_mask,
-                                                  new_axis_mask,
-                                                  shrink_axis_mask,
-                                                  ellipsis_mask);
-    return SlicePlan{sp.begins, sp.ends, sp.strides, sp.reshape_in_shape, sp.reshape_out_shape, sp.reverse_axes};
-}
-
-bool SlicePlan::operator==(const SlicePlan& other) const {
-    bool equal = true;
-    equal &= begins == other.begins;
-    equal &= ends == other.ends;
-    equal &= strides == other.strides;
-    equal &= reshape_in_shape == other.reshape_in_shape;
-    equal &= reshape_out_shape == other.reshape_out_shape;
-    equal &= reverse_axes == other.reverse_axes;
-
-    return equal;
-}
-
-bool SlicePlan::operator!=(const SlicePlan& other) const {
-    return !(*this == other);
-}
-}  // namespace ngraph
-NGRAPH_SUPPRESS_DEPRECATED_END

@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,25 +21,29 @@
 namespace LayerTestsDefinitions {
 
 std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params);
+    return get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params);
 }
 
 void GemmTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    abs_threshold = 17;
+
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
-    const float low = 0.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
-    const float high = 255.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
+    init_input_shapes({ inputShape, inputShape });
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    const float low = 0.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 0.f : -128.f;
+    const float high = 255.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 255.f : 127.f;
+
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,
         inputShape,
         low,
@@ -48,7 +51,7 @@ void GemmTransformation::SetUp() {
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

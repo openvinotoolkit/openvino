@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/file_utils.hpp>
-#include "common_test_utils/test_common.hpp"
-#include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
+
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -468,8 +469,8 @@ void ExecGraphUniqueNodeNames::SetUp() {
 
     auto concat = std::make_shared<ov::op::v0::Concat>(split->outputs(), 1);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(concat)};
+    fnPtr = std::make_shared<ov::Model>(results, params, "SplitConvConcat");
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
@@ -490,7 +491,7 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
         names.insert(op->get_friendly_name());
 
         const auto & rtInfo = op->get_rt_info();
-        auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
         ASSERT_NE(rtInfo.end(), it);
     }
 };
