@@ -111,7 +111,7 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     if (dst.getIdx() == in_vec_idxs[0]) {
         TReg aux(aux_vec_idxs[0]);
         TReg src0(in_vec_idxs[0]);
-        h->uni_orr(aux, src0, src0);
+        h->mov(aux.b16, src0.b16);
         mul0 = aux;
     }
 
@@ -119,13 +119,13 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     if (dst.getIdx() == in_vec_idxs[1]) {
         TReg aux(aux_vec_idxs[0]);
         TReg src1(in_vec_idxs[1]);
-        h->uni_orr(aux, src1, src1);
+        h->mov(aux.b16, src1.b16);
         mul1 = aux;
     }
 
     if (dst.getIdx() != in_vec_idxs[2]) {
         TReg src2(in_vec_idxs[2]);
-        h->uni_orr(dst, src2, src2);
+        h->mov(dst.b16, src2.b16);
     }
 
     h->fmla(dst.s, mul0.s, mul1.s);
@@ -265,13 +265,13 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
     if (power == 1.f) {
         if (!get_from_dst && (in_vec_idxs[0] != dst.getIdx())) {
-            h->uni_orr(dst, src(), src());
+            h->mov(dst.b16, src().b16);
         }
         return;
     }
 
     if (std::floor(power) == power && power > 0) {
-        h->uni_orr(aux, src(), src());
+        h->mov(aux.b16, src().b16);
         h->fmov(dst.s, 1.);
 
         auto current_power = static_cast<size_t>(power);
