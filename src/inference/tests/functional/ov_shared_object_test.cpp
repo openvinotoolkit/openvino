@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
+#include <openvino/util/file_util.hpp>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/file_utils.hpp"
@@ -15,7 +15,7 @@ using namespace std;
 class SharedObjectOVTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
+        return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
                                                       std::string("mock_engine") + OV_BUILD_POSTFIX);
     }
 
