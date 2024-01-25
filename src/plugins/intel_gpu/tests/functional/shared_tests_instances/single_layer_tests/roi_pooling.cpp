@@ -2,10 +2,50 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op_tests/roi_pooling.hpp"
+#include "shared_test_classes/single_op/roi_pooling.hpp"
+
+namespace ov {
+namespace test {
+class ROIPoolingLayerTestGPU : virtual public ov::test::ROIPoolingLayerTest {
+protected:
+    void SetUp() override;
+};
+
+void ROIPoolingLayerTestGPU::SetUp() {
+    std::vector<InputShape> input_shapes;
+    ov::Shape pool_shape;
+    float spatial_scale;
+    ov::test::utils::ROIPoolingTypes pool_method;
+    ov::element::Type model_type;
+    std::string target_device;
+    std::tie(input_shapes, pool_shape, spatial_scale, pool_method, model_type, targetDevice) = this->GetParam();
+
+    abs_threshold = 0.08f;
+    if (model_type == ov::element::f16) {
+        abs_threshold = 0.15f;
+    }
+
+    init_input_shapes(input_shapes);
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]);
+    auto coord_param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
+    std::string pool_method_str;
+    if (pool_method == ov::test::utils::ROIPoolingTypes::ROI_MAX) {
+        pool_method_str = "max";
+    } else if (pool_method == ov::test::utils::ROIPoolingTypes::ROI_BILINEAR) {
+        pool_method_str = "bilinear";
+    } else {
+        FAIL() << "Incorrect type of ROIPooling operation";
+    }
+    auto roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(param, coord_param, pool_shape, spatial_scale, pool_method_str);
+    function = std::make_shared<ov::Model>(roi_pooling->outputs(), ov::ParameterVector{param, coord_param}, "roi_pooling");
+}
+
+TEST_P(ROIPoolingLayerTestGPU, Inference) {
+    run();
+}
 
 namespace {
-using ov::test::ROIPoolingLayerTest;
 
 const std::vector<ov::Shape> inShapes = {
     {{1, 3, 8, 8}},
@@ -62,13 +102,15 @@ const auto params_bilinear = testing::Combine(testing::ValuesIn(input_shapes),
                                               testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPooling_max,
-                         ROIPoolingLayerTest,
+                         ROIPoolingLayerTestGPU,
                          params_max,
-                         ROIPoolingLayerTest::getTestCaseName);
+                         ROIPoolingLayerTestGPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPooling_bilinear,
-                         ROIPoolingLayerTest,
+                         ROIPoolingLayerTestGPU,
                          params_bilinear,
-                         ROIPoolingLayerTest::getTestCaseName);
+                         ROIPoolingLayerTestGPU::getTestCaseName);
 
 }  // namespace
+}  // namespace test
+}  // namespace ov
