@@ -339,7 +339,7 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     try {
         if (inputShapes.empty())
@@ -364,7 +364,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
             return OK;
 
         // save original parameters shape
-        std::map<std::string, ngraph::PartialShape> originalInputShapes;
+        std::map<std::string, ov::PartialShape> originalInputShapes;
         for (const auto& param : params) {
             originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
         }
@@ -397,9 +397,9 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, ov::PartialShape> shapes;
     for (const auto& shape : inputShapes)
-        shapes[shape.first] = ngraph::PartialShape(shape.second);
+        shapes[shape.first] = ov::PartialShape(shape.second);
     return reshape(shapes, responseDesc);
 }
 
@@ -456,7 +456,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
 }  // namespace
 #endif
 
-void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
+void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();

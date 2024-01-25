@@ -156,11 +156,11 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_zero(const element::Type& element_type, const Shape& shape);
+std::shared_ptr<Node> make_zero(const ov::element::Type& element_type, const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_constant_from_string(std::string val, const element::Type& element_type, const Shape& shape);
+std::shared_ptr<Node> make_constant_from_string(std::string val, const ov::element::Type& element_type, const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
