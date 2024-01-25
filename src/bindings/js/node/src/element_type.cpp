@@ -3,8 +3,6 @@
 
 #include "node/include/element_type.hpp"
 
-#include <typeinfo>
-
 #include "node/include/helper.hpp"
 
 namespace element {

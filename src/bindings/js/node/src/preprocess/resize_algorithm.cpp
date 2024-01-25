@@ -3,8 +3,6 @@
 
 #include "node/include/preprocess/resize_algorithm.hpp"
 
-#include <typeinfo>
-
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
     auto enumObj = Napi::Object::New(info.Env());
     std::vector<Napi::PropertyDescriptor> pds;
