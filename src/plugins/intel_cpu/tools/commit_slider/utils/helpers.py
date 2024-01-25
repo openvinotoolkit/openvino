@@ -43,20 +43,22 @@ def getParams():
     )
     args, additionalArgs = parser.parse_known_args()
 
+    argHolder = DictHolder(args.__dict__)
+
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
-    customCfgPath = args.__dict__["configuration"]
+    customCfgPath = argHolder.configuration
     presetCfgData = None
     with open(presetCfgPath) as cfgFile:
         presetCfgData = json.load(cfgFile)
     cfgFile.close()
 
-    if args.__dict__["utility"] != "no_utility":
+    if argHolder.utility != "no_utility":
         it = iter(additionalArgs)
         addDict = dict(zip(it, it))
         mergedArgs = {**(args.__dict__), **addDict}
-        args.__dict__ = mergedArgs
-        return args, presetCfgData, presetCfgPath
+        argHolder = DictHolder(mergedArgs)
+        return argHolder, presetCfgData, presetCfgPath
 
     customCfgData = None
     with open(customCfgPath) as cfgFile:
@@ -68,7 +70,7 @@ def getParams():
         presetCfgData[key] = newVal
 
     presetCfgData = absolutizePaths(presetCfgData)
-    return args, presetCfgData, customCfgPath
+    return argHolder, presetCfgData, customCfgPath
 
 
 def getBlobDiff(file1, file2):
@@ -444,13 +446,13 @@ def safeClearDir(path, cfg):
 
 
 def runUtility(cfg, args):
-    modName = args.__dict__["utility"]
+    modName = args.utility
     try:
         mod = importlib.import_module(
             "utils.{un}".format(un=modName))
         utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
-        utility(args.__dict__)
+        utility(args)
     except ModuleNotFoundError as e:
         raise CfgError("No utility {} found".format(modName))
 
@@ -521,3 +523,10 @@ def checkAndGetSubclass(clName, parentClass):
         raise CfgError("Class {clName} doesn't exist".format(clName=clName))
     else:
         return cl[0]
+
+
+class DictHolder:
+    def __init__(self, dict: dict = None):
+        if dict is not None:
+            for k, v in dict.items():
+                setattr(self, k, v)

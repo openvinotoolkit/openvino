@@ -12,7 +12,7 @@
         "bruteForce" : "BruteForce"
     },
     "utilMap" : {
-        "map_builder" : "mapBuilder",
+        "map_builder" : "printMap",
         "log_parser" : "logParser"
     },
     "extendBuildCommand" : false,

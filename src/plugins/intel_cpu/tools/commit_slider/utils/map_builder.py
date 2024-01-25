@@ -5,7 +5,7 @@ from os import walk, path
 import json
 from utils.helpers import CfgError
 
-def makeMap(commonPath, subPath=None):
+def buildMap(commonPath, subPath=None):
     precomPath = commonPath
     items = next(walk(precomPath), (None, None, []))[1]
     map = {}
@@ -18,14 +18,10 @@ def makeMap(commonPath, subPath=None):
     return json.dumps(map)
 
 
-def printMap(commonPath, subPath=None):
-    print(makeMap(commonPath, subPath))
-
-
-def mapBuilder(args):
+def printMap(args):
     if "-path" not in args:
         raise CfgError("No 'path' for map builder provided")
     if "-subPath" in args:
-        printMap(args["-path"], args["-subPath"])
+        print(buildMap(args["-path"], args["-subPath"]))
     else:
-        printMap(args["-path"])
+        print(buildMap(args["-path"]))

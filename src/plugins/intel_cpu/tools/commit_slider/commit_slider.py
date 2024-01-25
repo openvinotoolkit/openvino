@@ -5,23 +5,23 @@ import subprocess
 import os
 import shutil
 import sys
-from shutil import copytree
+from distutils.dir_util import copy_tree
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
 
-if args.__dict__["utility"] != "no_utility":
+if args.utility != "no_utility":
     from utils.helpers import runUtility
     runUtility(cfgData, args)
 
-elif args.__dict__["isWorkingDir"]:
+elif args.isWorkingDir:
     # rerun script from work directory
     from utils.modes import Mode
     from utils.helpers import CfgError
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if args.__dict__["commitSeq"] is None:
+    if args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
@@ -38,7 +38,7 @@ elif args.__dict__["isWorkingDir"]:
         else:
             raise CfgError("Commit list is mandatory")
     else:
-        commitList = checkArgAndGetCommits(args.__dict__["commitSeq"], cfgData)
+        commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
 
     commitList.reverse()
     p = Mode.factory(cfgData)
@@ -52,7 +52,7 @@ else:
     else:
         safeClearDir(workPath, cfgData)
     curPath = os.getcwd()
-    copytree(curPath, workPath)
+    copy_tree(curPath, workPath)
     scriptName = os.path.basename(__file__)
     argString = " ".join(sys.argv)
     formattedCmd = "{py} {workPath}/{argString} -wd".format(
@@ -64,12 +64,12 @@ else:
     tempLogPath = cfgData["logPath"].format(workPath=workPath)
     permLogPath = cfgData["logPath"].format(workPath=curPath)
     safeClearDir(permLogPath, cfgData)
-    copytree(tempLogPath, permLogPath)
+    copy_tree(tempLogPath, permLogPath)
 
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copytree(tempCachePath, permCachePath)
+    copy_tree(tempCachePath, permCachePath)
 
     try:
         shutil.copyfile(
