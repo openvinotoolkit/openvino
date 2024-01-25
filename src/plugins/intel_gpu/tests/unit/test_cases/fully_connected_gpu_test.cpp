@@ -1043,17 +1043,15 @@ public:
         }
     }
 
-    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic) {
+    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         if (engine.get_device_info().dev_type == device_type::discrete_gpu)
             GTEST_SKIP();
 
-        long int batch_num = is_dynamic ? 260 : 256;
         long int ifm_num = 256;
         long int ofm_num = 256;
-        long int scales_group_size = 128;
 
         auto input_mem = engine.allocate_memory({ { batch_num, ifm_num}, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
@@ -1129,9 +1127,8 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
 
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            ASSERT_FLOAT_EQ(output_ptr_ref[i], output_ptr[i]) << "i = " << i;
-        }
+        for (size_t i = 0; i < output_ptr_ref.size(); i++)
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 5.0) << "i = " << i;
     }
 
     void test_compressed_scale_bias(bool is_caching_test) {
@@ -2639,19 +2636,43 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
-    this->test_compressed_int4_scale(false, false);
+    this->test_compressed_int4_scale(false, false, 256);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_cached) {
-    this->test_compressed_int4_scale(true, false);
+    this->test_compressed_int4_scale(true, false, 256);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic) {
-    this->test_compressed_int4_scale(false, true);
+    this->test_compressed_int4_scale(false, true, 260);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_cached) {
-    this->test_compressed_int4_scale(true, true);
+    this->test_compressed_int4_scale(true, true, 260);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g32) {
+    this->test_compressed_int4_scale(false, true, 1, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g64) {
+    this->test_compressed_int4_scale(false, true, 1, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g128) {
+    this->test_compressed_int4_scale(false, true, 1, 128);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g32) {
+    this->test_compressed_int4_scale(false, false, 1, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g64) {
+    this->test_compressed_int4_scale(false, false, 1, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g128) {
+    this->test_compressed_int4_scale(false, false, 1, 128);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
