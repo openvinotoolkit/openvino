@@ -6,8 +6,6 @@
 #include "low_precision/network_helper.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 using namespace ov::pass::low_precision;
 
