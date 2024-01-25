@@ -197,7 +197,7 @@ AxisVector get_default_order(const Shape& shape) {
     return get_default_order(shape.size());
 }
 
-AxisVector get_default_order(const PartialShape& shape) {
+AxisVector get_default_order(const ov::PartialShape& shape) {
     return get_default_order(shape.rank());
 }
 
@@ -207,7 +207,7 @@ AxisVector get_default_order(size_t rank) {
     return default_order;
 }
 
-AxisVector get_default_order(const Rank& rank) {
+AxisVector get_default_order(const ov::Rank& rank) {
     OPENVINO_ASSERT(rank.is_static(), "Can not calculate default order for dynamic rank");
 
     AxisVector default_order(rank.get_length());

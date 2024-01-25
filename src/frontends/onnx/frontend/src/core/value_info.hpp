@@ -41,7 +41,7 @@ public:
     const std::string& get_name() const {
         return m_value_info_proto->name();
     }
-    const PartialShape& get_shape() const {
+    const ov::PartialShape& get_shape() const {
         return m_partial_shape;
     }
     const element::Type& get_element_type() const {
@@ -75,7 +75,7 @@ protected:
 
 private:
     const ONNX_NAMESPACE::ValueInfoProto* m_value_info_proto;
-    PartialShape m_partial_shape = PartialShape::dynamic();
+    ov::PartialShape m_partial_shape = ov::PartialShape::dynamic();
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {

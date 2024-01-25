@@ -19,7 +19,7 @@ OutputVector reshape(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
     const auto data = ng_inputs.at(0);
 
-    Output<ov::Node> pattern;
+    ov::Output<ov::Node> pattern;
     bool special_zero = true;
     // Since opset 5 the target shape is provided as input
     if (ng_inputs.size() == 2) {

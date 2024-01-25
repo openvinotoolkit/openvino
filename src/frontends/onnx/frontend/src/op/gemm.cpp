@@ -19,9 +19,9 @@ namespace op {
 namespace set_1 {
 OutputVector gemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
-    Output<ov::Node> input_a = inputs.at(0);
-    Output<ov::Node> input_b = inputs.at(1);
-    Output<ov::Node> input_c;
+    ov::Output<ov::Node> input_a = inputs.at(0);
+    ov::Output<ov::Node> input_b = inputs.at(1);
+    ov::Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);
@@ -63,9 +63,9 @@ OutputVector gemm(const Node& node) {
 namespace set_6 {
 OutputVector gemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
-    Output<ov::Node> input_a = inputs.at(0);
-    Output<ov::Node> input_b = inputs.at(1);
-    Output<ov::Node> input_c;
+    ov::Output<ov::Node> input_a = inputs.at(0);
+    ov::Output<ov::Node> input_b = inputs.at(1);
+    ov::Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);

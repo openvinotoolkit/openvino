@@ -33,7 +33,7 @@ OutputVector qlinear_conv(const Node& node) {
     auto w_zero_point = inputs.at(5);
     auto y_scale = inputs.at(6);
     auto y_zero_point = inputs.at(7);
-    Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
+    ov::Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,

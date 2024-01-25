@@ -21,8 +21,8 @@ OutputVector dequantize_linear(const Node& node);
 
 namespace set_13 {
 namespace detail {
-OutputVector dequantize_linear(const Output<ov::Node>& x,
-                               const Output<ov::Node>& scale,
+OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
+                               const ov::Output<ov::Node>& scale,
                                const std::shared_ptr<ov::Node>& zero_point,
                                int64_t axis,
                                const Node& node);

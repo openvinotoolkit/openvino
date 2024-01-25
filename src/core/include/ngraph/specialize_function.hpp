@@ -102,7 +102,7 @@ namespace ngraph {
 NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::shared_ptr<Function> specialize_function(std::shared_ptr<Function> f,
-                                              const std::vector<element::Type>& parameter_element_types,
-                                              const std::vector<PartialShape>& parameter_shapes,
+                                              const std::vector<ov::element::Type>& parameter_element_types,
+                                              const std::vector<ov::PartialShape>& parameter_shapes,
                                               const std::vector<void*>& parameter_values);
 }  // namespace ngraph

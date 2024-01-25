@@ -40,7 +40,7 @@ std::shared_ptr<ov::Model> TransformationsAfterSplitFunction::get(const std::str
 
 std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformationName(
     const std::string transformationName,
-    const Output<Node> parent) {
+    const ov::Output<Node> parent) {
     if (transformationName == "AddTransformationWithoutConcat") {
         const auto dequantization = makeDequantization(parent, { {}, {}, { 3.f } });
         const auto addConstant = ov::opset1::Constant::create(element::u8, Shape{}, { 128.f });

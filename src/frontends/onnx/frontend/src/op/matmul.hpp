@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
-inline OutputVector matmul(const Output<ov::Node>& a, const Output<ov::Node>& b) {
+inline OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b) {
     return {std::make_shared<ov::op::v0::MatMul>(a, b)};
 }
 }  // namespace detail

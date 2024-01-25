@@ -17,7 +17,7 @@ namespace subgraph {
 namespace {
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeWithNames(
-        const Output<Node>& parent,
+        const ov::Output<Node>& parent,
         const ov::element::Type precision,
         const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::string name) {

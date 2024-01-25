@@ -206,15 +206,15 @@ AxisVector get_default_order(size_t rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Rank& rank);
+AxisVector get_default_order(const ov::Rank& rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Shape& shape);
+AxisVector get_default_order(const ov::Shape& shape);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const PartialShape& shape);
+AxisVector get_default_order(const ov::PartialShape& shape);
 
 /// \brief Function to query parsed version information of the version of ngraph which
 /// contains this function. Version information strictly follows Semantic Versioning
