@@ -67,7 +67,7 @@ void BatchNormInference::validate_and_infer_types() {
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
-    set_output_type(0, output_et, output_shapes.front());
+    set_output_type(0, output_et, output_shapes[0]);
 }
 
 std::shared_ptr<Node> BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -114,7 +114,7 @@ void BatchNormInference::validate_and_infer_types() {
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
-    set_output_type(0, output_et, output_shapes.front());
+    set_output_type(0, output_et, output_shapes[0]);
 }
 
 std::shared_ptr<Node> BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
