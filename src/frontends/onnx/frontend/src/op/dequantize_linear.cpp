@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "onnx_import/core/null_node.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -145,9 +145,7 @@ OutputVector dequantize_linear(const Output<ov::Node>& x,
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = ov::normalize_axis(node.get_description(), axis, x_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);

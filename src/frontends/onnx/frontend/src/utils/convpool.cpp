@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
