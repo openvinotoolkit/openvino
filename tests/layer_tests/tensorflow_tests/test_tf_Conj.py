@@ -39,7 +39,7 @@ class TestComplexConjugate(CommonTFLayerTest):
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
-            conj= tf.raw_ops.Conj(x=complex_input, name = "Operation")
+            conj= tf.raw_ops.Conj(input=complex_input, name = "Operation")
             real = tf.raw_ops.Real(input=conj)
             img = tf.raw_ops.Imag(input=conj)
 
@@ -85,7 +85,7 @@ class TestConjugate(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             input = tf.compat.v1.placeholder(np.float32, input_shape, 'input')
 
-            tf.raw_ops.Conj(x=input, name = "Operation")
+            tf.raw_ops.Conj(input=input, name = "Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
