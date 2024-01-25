@@ -9,7 +9,6 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/avg_pool.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
