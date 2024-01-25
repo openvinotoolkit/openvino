@@ -30,24 +30,20 @@ void Reference::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); i++) {
-//force f32 on ARM to avoid performance gap
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        auto inputType = ov::element::f32;
-#else
         auto inputType = ovCoreNode->get_input_element_type(i);
-#endif
+        if (one_of(inputType, ov::element::bf16, ov::element::f16)) {
+            inputType = ov::element::f32;
+        }
         inputConfigurators.emplace_back(LayoutType::ncsp, inputType, inputShapes[i]);
     }
 
     std::vector<PortConfigurator> outputConfigurators;
     outputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); i++) {
-//force f32 on ARM to avoid performance gap
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        auto outputType = ov::element::f32;
-#else
         auto outputType = ovCoreNode->get_output_element_type(i);
-#endif
+        if(one_of(outputType, ov::element::bf16, ov::element::f16)) {
+            outputType = ov::element::f32;
+        }
         outputConfigurators.emplace_back(LayoutType::ncsp, outputType, outputShapes[i]);
     }
 
@@ -75,12 +71,10 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
         outputs.reserve(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); ++i) {
             auto mem_desc = getBaseMemDescAtOutputPort(i);
-//force f32 on ARM to avoid performance gap
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-            auto outputType = ov::element::f32;
-#else
             auto outputType = ovCoreNode->get_output_element_type(i);
-#endif
+            if(one_of(outputType, ov::element::bf16, ov::element::f16)) {
+                outputType = ov::element::f32;
+            }
             if (mem_desc->isDefined()) {
                 outputs.emplace_back(outputType, mem_desc->getShape().getStaticDims());
             } else {
@@ -131,12 +125,10 @@ ov::TensorVector Reference::prepareInputs() const {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_input_partial_shape(i).rank().get_length() == 0 ?
                 ov::Shape{} : getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
-//force f32 on ARM to avoid performance gap
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        auto inputType = ov::element::f32;
-#else
         auto inputType = ovCoreNode->get_input_element_type(i);
-#endif
+        if (one_of(inputType, ov::element::bf16, ov::element::f16)) {
+            inputType = ov::element::f32;
+        }
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
             inputs.push_back(ov::Tensor(inputType, shape));
         } else {
@@ -153,12 +145,10 @@ ov::TensorVector Reference::prepareOutputs() const {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0 ?
                 ov::Shape{} : getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
-//force f32 on ARM to avoid performance gap
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        auto outputType = ov::element::f32;
-#else
         auto outputType = ovCoreNode->get_output_element_type(i);
-#endif
+        if(one_of(outputType, ov::element::bf16, ov::element::f16)) {
+            outputType = ov::element::f32;
+        }
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
             outputs.push_back(ov::Tensor(outputType, shape));
         } else {
