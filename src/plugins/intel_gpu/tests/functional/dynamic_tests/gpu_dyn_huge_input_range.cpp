@@ -118,6 +118,7 @@ protected:
     std::vector<int64_t> stride;
     std::vector<ov::test::utils::InputLayerType> restInputType;
     size_t inferRequestNum = 0;
+    bool exception;
 
     void SetUp() override {
         InputShape shapes;
@@ -180,11 +181,17 @@ protected:
         }
 
         function = std::make_shared<ov::Model>(results, params, "result");
+
+        set_callback_exception([this](const std::exception& exp) {
+            exception = true;
+        });
     }
 };
 
 TEST_P(DynamicShapeHugeRangeGPUTest, Inference) {
     run();
+    if (!exception)
+        FAIL() << "This test case is checking the exception that the object allocation is larger than the max_alloc_mem_size.";
 }
 
 std::map<std::string, std::string> emptyAdditionalConfig;
@@ -213,7 +220,7 @@ const std::vector<StridedSliceParams> paramsPlain2D_excessive_uppper_boundary = 
         StridedSliceParams{ { 0, 1 }, { 0, 2147483647 }, { 1, 1 }, { 1, 0 }, { 1, 0 },  { },  { },  { } },
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, DynamicShapeHugeRangeGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, DynamicShapeHugeRangeGPUTest,
                          ::testing::Combine(
                              ::testing::ValuesIn(inputShapesDynamic2D_excessive_uppper_boundary),
                              ::testing::ValuesIn(paramsPlain2D_excessive_uppper_boundary),
