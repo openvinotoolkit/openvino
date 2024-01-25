@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_plugin/core_integration.hpp"
+#include <openvino/runtime/properties.hpp>
 
 #include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
