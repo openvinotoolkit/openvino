@@ -65,7 +65,6 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_master_release
-      SCCACHE_RECACHE: 1
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Install git
