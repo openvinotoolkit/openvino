@@ -7,7 +7,7 @@
 #include <functional_test_utils/core_config.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
-#include "ngraph/pass/low_latency.hpp"
+#include "openvino/pass/low_latency.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/opsets/opset7.hpp"
@@ -132,7 +132,7 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> MemoryTest:
     }
 
     // evaluate method is not implemented for TI op.
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::UnrollTensorIterator>();
     manager.run_passes(function);
 
@@ -194,13 +194,13 @@ void MemoryTest::CreateCommonFunc() {
 void MemoryTest::ApplyLowLatency() {
     if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
-        manager.register_pass<pass::LowLatency2>();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(function);
     } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
-        manager.register_pass<pass::LowLatency2>(false);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::LowLatency2>(false);
         manager.run_passes(function);
     }
 }

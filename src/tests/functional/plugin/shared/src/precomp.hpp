@@ -18,7 +18,6 @@
 #include <map>
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
 #include <numeric>
 #include <ostream>
 #include <set>
