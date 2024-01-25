@@ -12,7 +12,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "dev/core_impl.hpp"
-#include "file_utils.h"
 #include "openvino/op/relu.hpp"
 #include "openvino/util/file_util.hpp"
 
