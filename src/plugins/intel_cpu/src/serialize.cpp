@@ -14,7 +14,7 @@ namespace intel_cpu {
 ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::StreamSerialize serializer(_ostream, {});
+    ov::pass::StreamSerialize serializer(_ostream, {}, ov::pass::Serialize::Version::UNSPECIFIED);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
