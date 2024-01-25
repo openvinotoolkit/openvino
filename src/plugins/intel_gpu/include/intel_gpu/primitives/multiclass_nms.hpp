@@ -209,7 +209,7 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         ret.emplace_back(output_selected_indices);
         ret.emplace_back(output_selected_num);
         return ret;

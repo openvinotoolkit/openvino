@@ -91,7 +91,7 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         if (!indices_output.empty())
             ret.push_back(indices_output);
         return ret;

@@ -187,7 +187,7 @@ struct fully_connected : public primitive_base<fully_connected> {
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         ret.push_back(weights);
 
         if (!bias.empty())

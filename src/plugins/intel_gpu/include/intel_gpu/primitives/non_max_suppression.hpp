@@ -111,7 +111,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         if (!num_select_per_class.empty())
             ret.push_back(num_select_per_class);
         if (!iou_threshold.empty())

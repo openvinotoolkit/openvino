@@ -275,7 +275,7 @@ struct loop : public primitive_base<loop> {
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
             auto target = std::find_if(input.begin(), input.end(),

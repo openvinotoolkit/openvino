@@ -122,7 +122,7 @@ struct generate_proposals
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         if (!output_rois_scores.empty())
             ret.push_back(output_rois_scores);
         if (!output_rois_num.empty())

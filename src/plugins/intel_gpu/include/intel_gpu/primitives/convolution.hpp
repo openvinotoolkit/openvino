@@ -484,7 +484,7 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     }
 
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         ret.reserve(weights.size() + bias.size());
         for (auto& w : weights) ret.push_back(w);
         for (auto& b : bias) ret.push_back(b);

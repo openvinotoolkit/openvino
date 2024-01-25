@@ -449,7 +449,7 @@ struct deconvolution : public primitive_base<deconvolution> {
 
 protected:
     std::vector<input_info> get_dependencies() const override {
-       std::vector<input_info> ret;
+        std::vector<input_info> ret;
         ret.reserve(weights.size() + bias.size() + (output_shape_id.empty() ? 0 : 1));
         for (auto& w : weights) ret.push_back(w);
         for (auto& b : bias) ret.push_back(b);
