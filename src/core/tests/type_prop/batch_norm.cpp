@@ -4,6 +4,7 @@
 
 #include "openvino/op/batch_norm.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 
@@ -369,14 +370,9 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_epsilon) {
 
     double eps_neg = -1.0;
     const BatchNormInferParams params{inputs_et, data_batch_shape, ch_inputs, eps_neg};
-    try {
-        auto bn = makeBatchNormOp<TypeParam>(params);
-        FAIL() << "Invalid 'epsilon' attribute value not detected";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'epsilon' must be non negative value.");
-    } catch (...) {
-        FAIL() << "Non-negative 'epsilon' attribute value check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(std::ignore = makeBatchNormOp<TypeParam>(params),
+                                  ov::NodeValidationFailure,
+                                  "Attribute 'epsilon' must be non negative value");
 }
 
 REGISTER_TYPED_TEST_SUITE_P(BatchNormTest,
