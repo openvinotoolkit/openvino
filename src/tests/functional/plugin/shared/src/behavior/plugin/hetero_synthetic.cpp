@@ -3,8 +3,6 @@
 //
 
 #include "behavior/plugin/hetero_synthetic.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include <random>

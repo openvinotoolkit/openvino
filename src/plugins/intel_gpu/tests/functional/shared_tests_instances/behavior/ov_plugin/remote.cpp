@@ -26,7 +26,7 @@ auto AutoBatchConfigs = []() {
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests, OVRemoteTest,
                         ::testing::Combine(
-                                ::testing::Values(ngraph::element::f32),
+                                ::testing::Values(ov::element::f32),
                                 ::testing::Values(::ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs),
                                 ::testing::ValuesIn(generate_remote_params())),
@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests, OVRemoteTest,
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVRemoteTest,
                          ::testing::Combine(
-                                 ::testing::Values(ngraph::element::f32),
+                                 ::testing::Values(ov::element::f32),
                                  ::testing::Values(::ov::test::utils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs()),
                                  ::testing::ValuesIn(generate_remote_params())),
