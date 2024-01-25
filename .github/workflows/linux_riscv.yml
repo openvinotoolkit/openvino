@@ -42,7 +42,7 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 150
+    timeout-minutes: 300
     defaults:
       run:
         shell: bash
@@ -206,6 +206,9 @@ jobs:
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Sleep
+        run: sleep 5h
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
