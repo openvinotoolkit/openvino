@@ -13,7 +13,7 @@ Running Inference with OpenVINO™
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_UG_ShapeInference
    openvino_docs_OV_UG_DynamicShapes
-   openvino_docs_OV_UG_model_state_intro
+   openvino_docs_OV_UG_stateful_models_intro
    openvino_docs_OV_UG_string_tensors
    Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
 
