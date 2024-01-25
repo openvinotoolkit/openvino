@@ -133,8 +133,8 @@ static void quant_u8(TA* a, TB* b, size_t n, float& scale, float& zp) {
     scale = (max - min) / 255;
     zp = -min / scale;
 
-#if defined(HAVE_AVX512F)
     i = 0;
+#if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
     auto v_zp = _mm512_set1_ps(zp);
     auto v_zero = _mm512_setzero_epi32();
@@ -146,7 +146,6 @@ static void quant_u8(TA* a, TB* b, size_t n, float& scale, float& zp) {
         _mm512_mask_cvtusepi32_storeu_epi8(a + i, 0xffff, v_i32);
     }
 #elif defined(HAVE_AVX2)
-    i = 0;
     auto v_scale = _mm256_set1_ps(1 / scale);
     auto v_zp = _mm256_set1_ps(zp);
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {

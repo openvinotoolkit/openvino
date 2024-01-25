@@ -70,8 +70,6 @@ private:
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
-
-    PlainTensor m_tmp_reorder;
 };
 
 }  // namespace node

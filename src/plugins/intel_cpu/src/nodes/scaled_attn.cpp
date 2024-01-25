@@ -1096,20 +1096,16 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
 
     // reorder
     if (!no_reorder) {
-        m_tmp_reorder.resize<int32_t>({B, L0});
-        for (size_t i = 0; i < B; i++) {
-            std::memcpy(&m_tmp_reorder.at<int32_t>({i}),
-                        &beam_table_k.at<int32_t>({i}),
-                        sizeof(int32_t) * L0);
-        }
         auto* table = beam_idx.data<int32_t>();
         // beam table is same for both k,v state
         for (size_t i = 0; i < B; i++) {
-            std::memcpy(&beam_table_k.at<int32_t>({i}),
-                        &m_tmp_reorder.at<int32_t>({static_cast<size_t>(table[i])}),
+            std::memcpy(&beam_table_k.at<int32_t>(i, false),
+                        &beam_table_v.at<int32_t>(static_cast<size_t>(table[i]), false),
                         sizeof(int32_t) * L0);
-            std::memcpy(&beam_table_v.at<int32_t>({i}),
-                        &m_tmp_reorder.at<int32_t>({static_cast<size_t>(table[i])}),
+        }
+        for (size_t i = 0; i < B; i++) {
+            std::memcpy(&beam_table_v.at<int32_t>(i, false),
+                        &beam_table_k.at<int32_t>(i, false),
                         sizeof(int32_t) * L0);
         }
     }
