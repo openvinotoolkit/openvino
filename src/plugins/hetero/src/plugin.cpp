@@ -14,11 +14,11 @@
 
 #include "compiled_model.hpp"
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "properties.hpp"
 
 ov::hetero::Plugin::Plugin() {
