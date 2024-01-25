@@ -202,12 +202,10 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_surface(const ov::el
 
 #ifdef _WIN32
     cldnn::shared_handle surf = extract_object(params, ov::intel_gpu::dev_object_handle);
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, cldnn::element_type_to_data_type(type),
-                                              TensorType::BT_SURF_SHARED, surf, 0, plane);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_SURF_SHARED, surf, 0, plane);
 #else
     cldnn::shared_surface surf = extract_object(params, ov::intel_gpu::dev_object_handle);
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, cldnn::element_type_to_data_type(type),
-                                              TensorType::BT_SURF_SHARED, nullptr, surf, plane);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_SURF_SHARED, nullptr, surf, plane);
 #endif
 }
 
@@ -215,15 +213,15 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
                                                                    const ov::Shape& shape,
                                                                    cldnn::shared_handle mem,
                                                                    TensorType tensor_type) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, cldnn::element_type_to_data_type(type), tensor_type, mem);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, cldnn::element_type_to_data_type(type), TensorType::BT_BUF_INTERNAL);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, cldnn::element_type_to_data_type(type), alloc_type);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, alloc_type);
 }
 
 void RemoteContextImpl::check_if_shared() const {

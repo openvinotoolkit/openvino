@@ -658,7 +658,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     if (is_remote) {
         m_plugin_inputs[name] = user_tensor_wrapper;
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
-        m_plugin_inputs[name] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
+        if (element_type != cldnn::element_type_to_data_type(element_type)) {
+            m_plugin_inputs[name] = {std::make_shared<RemoteTensorImpl>(m_context,
+                                                                        user_tensor->get_shape(),
+                                                                        cldnn::element_type_to_data_type(element_type),
+                                                                        TensorType::BT_USM_SHARED,
+                                                                        user_tensor->data()), TensorOwner::USER };
+        } else {
+            m_plugin_inputs[name] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
+        }
         is_remote = true;
     }
 
