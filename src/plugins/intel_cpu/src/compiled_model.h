@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "graph.h"
 #include "graph_context.h"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -14,6 +11,9 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
+
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
