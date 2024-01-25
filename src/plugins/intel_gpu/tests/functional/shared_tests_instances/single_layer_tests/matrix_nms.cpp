@@ -4,22 +4,14 @@
 
 #include <tuple>
 #include <string>
-
-#include "ov_models/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include <random>
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/single_op/matrix_nms.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
-
-using namespace ngraph;
-using namespace InferenceEngine;
-using ngraph::helpers::operator<<;
 
 class MatrixNmsLayerTestGPU : virtual public MatrixNmsLayerTest {
 public:
