@@ -14,7 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/rank.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/partial_shape.hpp"
