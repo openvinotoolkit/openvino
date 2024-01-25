@@ -34,6 +34,18 @@ OutputVector add(const Node& node) {
 }
 }  // namespace set_7
 
+namespace set_13 {
+OutputVector add(const Node& node) {
+    return common::handle_opset6_binary_op<default_opset::Add>(node);
+}
+}  // namespace set_13
+
+namespace set_14 {
+OutputVector add(const Node& node) {
+    return common::handle_opset6_binary_op<default_opset::Add>(node);
+}
+}  // namespace set_14
+
 }  // namespace op
 
 }  // namespace onnx_import
