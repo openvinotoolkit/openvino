@@ -75,7 +75,7 @@ Support Change and Deprecation Notices
 
 * Tools:
 
-  * :doc:`Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>`
+  * `Deployment Manager <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_deployment_manager_tool.html>`__
     is deprecated and will be supported for two years according to our LTS policy.
     Visit our :doc:`selector tool <openvino_docs_install_guides_overview>` to see
     package distribution options or our :doc:`deployment guide <openvino_deployment_guide>`
