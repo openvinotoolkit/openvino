@@ -112,6 +112,12 @@ const std::vector<ScatterUpdateLayerParams> scatterParams = {
             {{4, 2, {3, 9}, {4, 11}, {2, 3}, {2, 4}}, {{4, 2, 9, 10, 3, 4}, {4, 2, 3, 4, 3, 4}, {4, 2, 9, 11, 2, 2}}}},
         IndicesDescription{{4, 2}, {0, 2, 4, 6, 1, 3, 5, 7}},
         Axis{0}},
+    ScatterUpdateLayerParams{ScatterUpdateShapes{
+                                 {{-1}, {{9}, {32}, {63}, {64}}},
+                                 {{-1}, {{2}, {2}, {2}, {2}}},
+                             },
+                             IndicesDescription{{2}, {1, 8}},
+                             Axis{0}},
 };
 
 const std::vector<ElementType> inputPrecisions = {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -281,7 +281,6 @@ macro(ov_define_setup_py_dependencies)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        ${compat_ngraph_py_files}
         "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"

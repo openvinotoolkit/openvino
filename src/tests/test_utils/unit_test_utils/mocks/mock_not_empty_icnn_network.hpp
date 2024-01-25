@@ -28,8 +28,8 @@ public:
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override;
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
-    std::shared_ptr<ngraph::Function> getFunction() noexcept override;
-    std::shared_ptr<const ngraph::Function> getFunction() const noexcept override;
+    std::shared_ptr<ov::Model> getFunction() noexcept override;
+    std::shared_ptr<const ov::Model> getFunction() const noexcept override;
     MOCK_METHOD(InputInfo::Ptr, getInput, (const std::string& inputName), (const, noexcept));
     MOCK_METHOD(size_t, layerCount, (), (const, noexcept));
     MOCK_METHOD(StatusCode, addOutput, (const std::string&, size_t, ResponseDesc*), (noexcept));

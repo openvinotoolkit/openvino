@@ -7,15 +7,13 @@
 #include <memory>
 #include <type_traits>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/avg_pool.hpp"
-#include "ngraph/op/max_pool.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -62,8 +60,8 @@ protected:
     Strides m_dilations;
     Shape m_padding_below;
     Shape m_padding_above;
-    ngraph::op::PadType m_auto_pad;
-    ngraph::op::RoundingType m_rounding_type;
+    ov::op::PadType m_auto_pad;
+    ov::op::RoundingType m_rounding_type;
 
     enum class StorageOrder : int64_t { ROW_MAJOR = 0, COLUMN_MAJOR = 1 };
 

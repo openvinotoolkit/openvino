@@ -130,7 +130,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
-    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    ngraph::onnx_import::detail::convert_decoded_model(partially_converted);
     normalize(partially_converted);
 }
 

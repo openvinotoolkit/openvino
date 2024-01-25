@@ -21,7 +21,6 @@ public:
     MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>());
     MOCK_METHOD2(SetBlob, void(const std::string&, const InferenceEngine::Blob::Ptr&));
     MOCK_METHOD1(GetBlob, InferenceEngine::Blob::Ptr(const std::string&));
-    MOCK_CONST_METHOD1(GetPreProcess, const InferenceEngine::PreProcessInfo&(const std::string&));
     MOCK_METHOD1(SetCallback, void(std::function<void(std::exception_ptr)>));
     MOCK_METHOD0(QueryState, std::vector<InferenceEngine::IVariableStateInternal::Ptr>());
     MOCK_METHOD0(Cancel, void());

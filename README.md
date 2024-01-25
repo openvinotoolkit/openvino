@@ -174,7 +174,7 @@ See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/1
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
 
-Visit [Intel DevHub Discord server](https://discord.gg/wPuqAujS) if you need help or wish to talk to OpenVINO developers. You can go to the channel dedicated to Good First Issue support if you are working on a task.
+Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) if you need help or wish to talk to OpenVINO developers. You can go to the channel dedicated to Good First Issue support if you are working on a task.
 
 ## Take the issue
 If you wish to be assigned to an issue please add a comment with `.take` command.  
@@ -186,7 +186,7 @@ Report questions, issues and suggestions, using:
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
-* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/wPuqAujS)
+* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
 
 ## Additional Resources
 

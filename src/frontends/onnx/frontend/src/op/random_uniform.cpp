@@ -4,12 +4,11 @@
 
 #include "op/random_uniform.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "utils/common.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -32,12 +31,12 @@ OutputVector random_uniform(const Node& node) {
     // TODO: This multiplication leads to a mismatch in accuracy. Issue: 123003
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
-                                                            low_const,
-                                                            high_const,
-                                                            target_type,
-                                                            global_seed,
-                                                            seed_uint64)};
+    return {std::make_shared<v8::RandomUniform>(target_shape_const,
+                                                low_const,
+                                                high_const,
+                                                target_type,
+                                                global_seed,
+                                                seed_uint64)};
 }
 
 }  // namespace set_1

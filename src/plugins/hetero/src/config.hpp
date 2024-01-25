@@ -35,9 +35,6 @@ struct Configuration {
 
     std::string device_priorities;
     ov::AnyMap device_properties;
-
-private:
-    bool dump_graph;
 };
 }  // namespace hetero
 }  // namespace ov

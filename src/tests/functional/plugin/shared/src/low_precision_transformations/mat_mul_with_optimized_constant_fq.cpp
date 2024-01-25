@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,8 +21,8 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, ov::PartialShape> shapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
@@ -40,15 +39,18 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    threshold = 0.01f;
+    rel_threshold = 0.01;
+    abs_threshold = 2.1;
 
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+    ov::element::Type precision;
+    std::pair<ov::PartialShape, ov::PartialShape> shapes;
     ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
+    init_input_shapes({ shapes.first, shapes.second });
+
+    function = ov::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
         precision,
         shapes.first,
         shapes.second,
@@ -57,7 +59,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 }
 
 TEST_P(MatMulWithOptimizedConstantFq, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

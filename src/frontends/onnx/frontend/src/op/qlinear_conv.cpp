@@ -7,16 +7,15 @@
 
 #include "op/qlinear_conv.hpp"
 
-#include <cstddef>
-#include <memory>
-#include <vector>
-
 #include "conv.hpp"
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 #include "quantize_linear.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -34,22 +33,22 @@ OutputVector qlinear_conv(const Node& node) {
     auto w_zero_point = inputs.at(5);
     auto y_scale = inputs.at(6);
     auto y_zero_point = inputs.at(7);
-    Output<ngraph::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
+    Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,
-                                          std::make_shared<opset6::Convert>(x_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(x_zero_point, element::f32),
                                           1,
                                           node)[0];
     w = set_13::detail::dequantize_linear(w,
                                           w_scale,
-                                          std::make_shared<opset6::Convert>(w_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(w_zero_point, element::f32),
                                           1,
                                           node)[0];
 
     if (!ov::op::util::is_null(B)) {
-        B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),
-                                               std::make_shared<opset6::Multiply>(x_scale, w_scale))
+        B = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(B, x_scale.get_element_type()),
+                                           std::make_shared<v1::Multiply>(x_scale, w_scale))
                 ->output(0);
     }
 

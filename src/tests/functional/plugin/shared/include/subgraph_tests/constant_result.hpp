@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
+TEST_P(ConstantResultSubgraphTest, Inference) {
     run();
 }
 

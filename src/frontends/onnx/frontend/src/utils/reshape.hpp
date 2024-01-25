@@ -9,8 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -44,7 +43,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
 ///
 /// \return     Original node or a node representing a reshape of the original.
 ///
-Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node);
+Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node);
 
 /// \brief      Reshape node from shape {C} to {1, C, 1, 1,...}
 ///
@@ -58,8 +57,8 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node);
 ///
 /// \return     Original node or a node representing a reshape of the original.
 ///
-Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                         const Output<ngraph::Node>& expected_rank);
+Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
+                                                     const Output<ov::Node>& expected_rank);
 
 }  // namespace  reshape
 }  // namespace onnx_import

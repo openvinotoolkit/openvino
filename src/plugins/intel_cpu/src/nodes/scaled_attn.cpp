@@ -15,6 +15,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/util/common_util.hpp"
+#include "shape_inference/custom/scaled_attn.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -638,7 +639,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 };
 
 ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), m_tmp_reorder(true) {
+    : Node(op, context, SDPAShapeInferFactory(op)), m_tmp_reorder(true) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);

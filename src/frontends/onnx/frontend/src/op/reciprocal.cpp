@@ -4,11 +4,10 @@
 
 #include "op/reciprocal.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,8 +17,8 @@ namespace set_1 {
 OutputVector reciprocal(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
 
-    auto one_node = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
-    return {std::make_shared<default_opset::Divide>(one_node, data)};
+    auto one_node = v0::Constant::create(data.get_element_type(), Shape{}, {1});
+    return {std::make_shared<v1::Divide>(one_node, data)};
 }
 
 }  // namespace set_1

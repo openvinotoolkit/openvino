@@ -58,12 +58,16 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 124060
             R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)",
+            // Issue: 128924
+            R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
+            // Issue: 129802
+            R"(.*smoke_OVClassBasicTestP/OVClassBasicTestP.registerExistingPluginThrows.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
-            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
-            R"(.*ExecGraphSerializationTest.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
@@ -84,5 +88,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Nms9LayerTest.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
     };
 }

@@ -323,7 +323,15 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             # otherwise, fallback to existing default
             find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
         endif()
-        set(PROTOC_EXECUTABLE protobuf::protoc)
+
+        # with newer protobuf versions (4.22 and newer), we use CONFIG first
+        # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
+        # because it's not used in this case (oppositely to MODULE case)
+        if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
+            set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
+        else()
+            set(PROTOC_EXECUTABLE protobuf::protoc)
+        endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
     endif()
