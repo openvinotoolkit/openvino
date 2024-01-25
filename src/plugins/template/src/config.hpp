@@ -37,7 +37,6 @@ struct Configuration {
     bool streams_changed = false;
     int threads = 0;
     int threads_per_stream = 0;
-    ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
     uint32_t num_requests = 1;
     bool disable_transformations = false;

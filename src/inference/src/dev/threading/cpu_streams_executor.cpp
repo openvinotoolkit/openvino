@@ -59,11 +59,12 @@ struct CPUStreamsExecutor::Impl {
                     _impl->_streamIdQueue.pop();
                 }
             }
-            _numaNodeId = _impl->_config.get_streams()
-                              ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_streams()) /
-                                                         ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
-                                                          _impl->_usedNumaNodes.size()))
-                              : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
+            _numaNodeId =
+                _impl->_config.get_streams()
+                    ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_streams()) /
+                                               ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
+                                                _impl->_usedNumaNodes.size()))
+                    : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
