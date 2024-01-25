@@ -50,7 +50,7 @@ Stateful Model Example
 ######################
 
 
-.. image:: _static/images/stateful_model_example.png
+.. image:: _static/images/stateful_model_example.svg
    :align: center
 
 The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations. They have no connection with each other and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
