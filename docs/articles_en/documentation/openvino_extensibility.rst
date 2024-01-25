@@ -26,7 +26,7 @@ OpenVINO Extensibility Mechanism
 
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi has been deprecated with 2024.0 release). The list of supported operations is different for each of the supported frameworks.
+TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
 To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_resources_supported_operations_frontend>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:

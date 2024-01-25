@@ -5,14 +5,14 @@ ReLU
 
 
 .. meta::
-  :description: Learn about ReLU-1 - an element-wise, activation operation, which 
+  :description: Learn about ReLU-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *ReLU-1*
 
 **Category**: *Activation function*
 
-**Short description**: ReLU element-wise activation function. (`Reference <http://caffe.berkeleyvision.org/tutorial/layers/relu.html>`__).
+**Short description**: ReLU element-wise activation function.
 
 **Detailed description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units>`__.
 

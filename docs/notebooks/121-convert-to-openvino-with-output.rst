@@ -77,19 +77,19 @@ documentation.
 .. code:: ipython3
 
     # Model Optimizer CLI tool parameters description
-    
+
     ! mo --help
 
 
 .. parsed-literal::
 
     usage: main.py [options]
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --framework FRAMEWORK
                             Name of the framework used to train the input model.
-    
+
     Framework-agnostic parameters:
       --model_name MODEL_NAME, -n MODEL_NAME
                             Model_name parameter passed to the final create_ir
@@ -118,12 +118,10 @@ documentation.
       --use_legacy_frontend
                             Force the usage of legacy Frontend for model
                             conversion into IR. The legacy Frontend is Python
-                            based and is available for TensorFlow*, ONNX*, MXNet*,
-                            Caffe*, and Kaldi* models.
+                            based and is available for TensorFlow*, ONNX*, and models.
       --input_model INPUT_MODEL, -m INPUT_MODEL, -w INPUT_MODEL
                             Tensorflow*: a file with a pre-trained model (binary
-                            or text .pb file after freezing). Caffe*: a model
-                            proto file with model weights.
+                            or text .pb file after freezing).
       --input INPUT         Quoted list of comma-separated input nodes names with
                             shapes, data types, and values for freezing. The order
                             of inputs in converted model is the same as order of
@@ -298,7 +296,7 @@ documentation.
                             provided only for ONNX models that do not require
                             fallback to the legacy ONNX frontend for the
                             conversion.
-    
+
     TensorFlow*-specific parameters:
       --input_model_is_text [INPUT_MODEL_IS_TEXT]
                             TensorFlow*: treat the input model file as a text
@@ -329,108 +327,57 @@ documentation.
       --tensorflow_custom_layer_libraries TENSORFLOW_CUSTOM_LAYER_LIBRARIES
                             TensorFlow*: comma separated list of shared libraries
                             with TensorFlow* custom operations implementation.
-    
-    Caffe*-specific parameters:
-      --input_proto INPUT_PROTO, -d INPUT_PROTO
-                            Deploy-ready prototxt file that contains a topology
-                            structure and layer attributes
-      --caffe_parser_path CAFFE_PARSER_PATH
-                            Path to Python Caffe* parser generated from
-                            caffe.proto
-      --k K                 Path to CustomLayersMapping.xml to register custom
-                            layers
-      --disable_omitting_optional [DISABLE_OMITTING_OPTIONAL]
-                            Disable omitting optional attributes to be used for
-                            custom layers. Use this option if you want to transfer
-                            all attributes of a custom layer to IR. Default
-                            behavior is to transfer the attributes with default
-                            values and the attributes defined by the user to IR.
-      --enable_flattening_nested_params [ENABLE_FLATTENING_NESTED_PARAMS]
-                            Enable flattening optional params to be used for
-                            custom layers. Use this option if you want to transfer
-                            attributes of a custom layer to IR with flattened
-                            nested parameters. Default behavior is to transfer the
-                            attributes without flattening nested parameters.
-    
-    MXNet-specific parameters:
-      --input_symbol INPUT_SYMBOL
-                            Symbol file (for example, model-symbol.json) that
-                            contains a topology structure and layer attributes
-      --nd_prefix_name ND_PREFIX_NAME
-                            Prefix name for args.nd and argx.nd files.
-      --pretrained_model_name PRETRAINED_MODEL_NAME
-                            Name of a pretrained MXNet model without extension and
-                            epoch number. This model will be merged with args.nd
-                            and argx.nd files
-      --save_params_from_nd [SAVE_PARAMS_FROM_ND]
-                            Enable saving built parameters file from .nd files
-      --legacy_mxnet_model [LEGACY_MXNET_MODEL]
-                            Enable MXNet loader to make a model compatible with
-                            the latest MXNet version. Use only if your model was
-                            trained with MXNet version lower than 1.0.0
-      --enable_ssd_gluoncv [ENABLE_SSD_GLUONCV]
-                            Enable pattern matchers replacers for converting
-                            gluoncv ssd topologies.
-    
-    Kaldi-specific parameters:
-      --counts COUNTS       Path to the counts file
-      --remove_output_softmax [REMOVE_OUTPUT_SOFTMAX]
-                            Removes the SoftMax layer that is the output layer
-      --remove_memory [REMOVE_MEMORY]
-                            Removes the Memory layer and use additional inputs
-                            outputs instead
 
 
 .. code:: ipython3
 
     # Python conversion API parameters description
     from openvino.tools import mo
-    
-    
+
+
     mo.convert_model(help=True)
 
 
 .. parsed-literal::
 
     Optional parameters:
-      --help 
+      --help
     			Print available parameters.
-      --framework 
+      --framework
     			Name of the framework used to train the input model.
-    
+
     Framework-agnostic parameters:
-      --input_model 
+      --input_model
     			Model object in original framework (PyTorch, Tensorflow) or path to
     			model file.
     			Tensorflow*: a file with a pre-trained model (binary or text .pb file
     			after freezing).
-    			Caffe*: a model proto file with model weights
-    			
+
     			Supported formats of input model:
-    			
+
     			PaddlePaddle
     			paddle.hapi.model.Model
     			paddle.fluid.dygraph.layers.Layer
     			paddle.fluid.executor.Executor
-    			
+
     			PyTorch
     			torch.nn.Module
     			torch.jit.ScriptModule
     			torch.jit.ScriptFunction
-    			
+
     			TF
     			tf.compat.v1.Graph
     			tf.compat.v1.GraphDef
     			tf.compat.v1.wrap_function
     			tf.compat.v1.session
-    			
+
     			TF2 / Keras
     			tf.keras.Model
     			tf.keras.layers.Layer
     			tf.function
     			tf.Module
     			tf.train.checkpoint
-      --input 
+      --input
     			Input can be set by passing a list of InputCutInfo objects or by a list
     			of tuples. Each tuple can contain optionally input name, input
     			type or input shape. Example: input=("op_name", PartialShape([-1,
@@ -439,7 +386,7 @@ documentation.
     			input nodes names with shapes, data types, and values for freezing.
     			If operation names are specified, the order of inputs in converted
     			model will be the same as order of specified operation names (applicable
-    			for TF2, ONNX, MxNet).
+    			for TF2, ONNX).
     			The shape and value are specified as comma-separated lists. The data
     			type of input node is specified
     			in braces and can have one of the values: f64 (float64), f32 (float32),
@@ -455,12 +402,12 @@ documentation.
     			`node_name1` with the shape [3,4] as an input node and freeze output
     			port 1 of the node `node_name2` with the value [20,15] of the int32 type
     			and shape [2]: "0:node_name1[3,4],node_name2:1[2]{i32}->[20,15]".
-    			
-      --output 
+
+      --output
     			The name of the output operation of the model or list of names. For TensorFlow*,
     			do not add :0 to this name.The order of outputs in converted model is the
     			same as order of specified operation names.
-      --input_shape 
+      --input_shape
     			Input shape(s) that should be fed to an input node(s) of the model. Input
     			shapes can be defined by passing a list of objects of type PartialShape,
     			Shape, [Dimension, ...] or [int, ...] or by a string of the following
@@ -477,19 +424,19 @@ documentation.
     			for each input separated by a comma, for example: [1,3,227,227],[2,4]
     			for a model with two inputs with 4D and 2D shapes. Alternatively, specify
     			shapes with the --input option.
-      --example_input 
+      --example_input
     			Sample of model input in original framework.
     			For PyTorch it can be torch.Tensor.
     			For Tensorflow it can be tf.Tensor or numpy.ndarray.
     			For PaddlePaddle it can be Paddle Variable.
-      --batch 
+      --batch
     			Set batch size. It applies to 1D or higher dimension inputs.
     			The default dimension index for the batch is zero.
     			Use a label 'n' in --layout or --source_layout option to set the batch
     			dimension.
     			For example, "x(hwnc)" defines the third dimension to be the batch.
-    			
-      --mean_values 
+
+      --mean_values
     			Mean values to be used for the input image per channel. Mean values can
     			be set by passing a dictionary, where key is input name and value is mean
     			value. For example mean_values={'data':[255,255,255],'info':[255,255,255]}.
@@ -498,7 +445,7 @@ documentation.
     			input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]".
     			The exact meaning and order of channels depend on how the original model
     			was trained.
-      --scale_values 
+      --scale_values
     			Scale values to be used for the input image per channel. Scale values
     			can be set by passing a dictionary, where key is input name and value is
     			scale value. For example scale_values={'data':[255,255,255],'info':[255,255,255]}.
@@ -509,14 +456,14 @@ documentation.
     			was trained. If both --mean_values and --scale_values are specified,
     			the mean is subtracted first and then scale is applied regardless of
     			the order of options in command line.
-      --scale 
+      --scale
     			All input values coming from original network inputs will be divided
     			by this value. When a list of inputs is overridden by the --input parameter,
     			this scale is not applied for any input that does not match with the original
     			input of the model. If both --mean_values and --scale  are specified,
     			the mean is subtracted first and then scale is applied regardless of
     			the order of options in command line.
-      --reverse_input_channels 
+      --reverse_input_channels
     			Switch the input channels order from RGB to BGR (or vice versa). Applied
     			to original inputs of the model if and only if a number of channels equals
     			3. When --mean_values/--scale_values are also specified, reversing
@@ -525,7 +472,7 @@ documentation.
     			in the original model. In other words, if both options are specified,
     			then the data flow in the model looks as following: Parameter -> ReverseInputChannels
     			-> Mean apply-> Scale apply -> the original body of the model.
-      --source_layout 
+      --source_layout
     			Layout of the input or output of the model in the framework. Layout can
     			be set by passing a dictionary, where key is input name and value is LayoutMap
     			object. Or layout can be set by string of the following format. Layout
@@ -534,11 +481,11 @@ documentation.
     			Layout can be partially defined, "?" can be used to specify undefined
     			layout for one dimension, "..." can be used to specify undefined layout
     			for multiple dimensions, for example "?c??", "nc...", "n...c", etc.
-    			
-      --target_layout 
+
+      --target_layout
     			Same as --source_layout, but specifies target layout that will be in
     			the model after processing by ModelOptimizer.
-      --layout 
+      --layout
     			Combination of --source_layout and --target_layout. Can't be used
     			with either of them. If model has one input it is sufficient to specify
     			layout of this input, for example --layout nhwc. To specify layouts
@@ -547,20 +494,20 @@ documentation.
     			--layout "name1(nhwc->nchw),name2(cn->nc)".
     			Also "*" in long layout form can be used to fuse dimensions, for example
     			"[n,c,...]->[n*c,...]".
-      --compress_to_fp16 
+      --compress_to_fp16
     			If the original model has FP32 weights or biases, they are compressed
     			to FP16. All intermediate data is kept in original precision. Option
     			can be specified alone as "--compress_to_fp16", or explicit True/False
     			values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"
-    			
-      --extensions 
+
+      --extensions
     			Paths to libraries (.so or .dll) with extensions, comma-separated
     			list of paths, objects derived from BaseExtension class or lists of
     			objects. For the legacy MO path (if `--use_legacy_frontend` is used),
     			a directory or a comma-separated list of directories with extensions
     			are supported. To disable all extensions including those that are placed
     			at the default location, pass an empty string.
-      --transform 
+      --transform
     			Apply additional transformations. 'transform' can be set by a list
     			of tuples, where the first element is transform name and the second element
     			is transform parameters. For example: [('LowLatency2', {{'use_const_initializer':
@@ -572,114 +519,67 @@ documentation.
     			 "--transform "MakeStateful[param_res_names=
     			{'input_name_1':'output_name_1','input_name_2':'output_name_2'}]""
     			Available transformations: "LowLatency2", "MakeStateful", "Pruning"
-    			
-      --transformations_config 
+
+      --transformations_config
     			Use the configuration file with transformations description or pass
     			object derived from BaseExtension class. Transformations file can
     			be specified as relative path from the current directory, as absolute
     			path or as relative path from the mo root directory.
-      --silent 
+      --silent
     			Prevent any output messages except those that correspond to log level
     			equals ERROR, that can be set with the following option: --log_level.
     			By default, log level is already ERROR.
-      --log_level 
+      --log_level
     			Logger level of logging massages from MO.
     			Expected one of ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO',
     			'DEBUG', 'NOTSET'].
-      --version 
+      --version
     			Version of Model Optimizer
-      --progress 
+      --progress
     			Enable model conversion progress display.
-      --stream_output 
+      --stream_output
     			Switch model conversion progress display to a multiline mode.
-      --share_weights 
+      --share_weights
     			Map memory of weights instead reading files or share memory from input
     			model.
     			Currently, mapping feature is provided only for ONNX models
     			that do not require fallback to the legacy ONNX frontend for the conversion.
-    			
-    
+
+
     PaddlePaddle-specific parameters:
-      --example_output 
+      --example_output
     			Sample of model output in original framework. For PaddlePaddle it can
     			be Paddle Variable.
-    
+
     TensorFlow*-specific parameters:
-      --input_model_is_text 
+      --input_model_is_text
     			TensorFlow*: treat the input model file as a text protobuf format. If
     			not specified, the Model Optimizer treats it as a binary file by default.
-    			
-      --input_checkpoint 
+
+      --input_checkpoint
     			TensorFlow*: variables file to load.
-      --input_meta_graph 
+      --input_meta_graph
     			Tensorflow*: a file with a meta-graph of the model before freezing
-      --saved_model_dir 
+      --saved_model_dir
     			TensorFlow*: directory with a model in SavedModel format of TensorFlow
     			1.x or 2.x version.
-      --saved_model_tags 
+      --saved_model_tags
     			Group of tag(s) of the MetaGraphDef to load, in string format, separated
     			by ','. For tag-set contains multiple tags, all tags must be passed in.
-    			
-      --tensorflow_custom_operations_config_update 
+
+      --tensorflow_custom_operations_config_update
     			TensorFlow*: update the configuration file with node name patterns
     			with input/output nodes information.
-      --tensorflow_object_detection_api_pipeline_config 
+      --tensorflow_object_detection_api_pipeline_config
     			TensorFlow*: path to the pipeline configuration file used to generate
     			model created with help of Object Detection API.
-      --tensorboard_logdir 
+      --tensorboard_logdir
     			TensorFlow*: dump the input graph to a given directory that should be
     			used with TensorBoard.
-      --tensorflow_custom_layer_libraries 
+      --tensorflow_custom_layer_libraries
     			TensorFlow*: comma separated list of shared libraries with TensorFlow*
     			custom operations implementation.
-    
-    MXNet-specific parameters:
-      --input_symbol 
-    			Symbol file (for example, model-symbol.json) that contains a topology
-    			structure and layer attributes
-      --nd_prefix_name 
-    			Prefix name for args.nd and argx.nd files.
-      --pretrained_model_name 
-    			Name of a pretrained MXNet model without extension and epoch number.
-    			This model will be merged with args.nd and argx.nd files
-      --save_params_from_nd 
-    			Enable saving built parameters file from .nd files
-      --legacy_mxnet_model 
-    			Enable MXNet loader to make a model compatible with the latest MXNet
-    			version. Use only if your model was trained with MXNet version lower
-    			than 1.0.0
-      --enable_ssd_gluoncv 
-    			Enable pattern matchers replacers for converting gluoncv ssd topologies.
-    			
-    
-    Caffe*-specific parameters:
-      --input_proto 
-    			Deploy-ready prototxt file that contains a topology structure and
-    			layer attributes
-      --caffe_parser_path 
-    			Path to Python Caffe* parser generated from caffe.proto
-      --k 
-    			Path to CustomLayersMapping.xml to register custom layers
-      --disable_omitting_optional 
-    			Disable omitting optional attributes to be used for custom layers.
-    			Use this option if you want to transfer all attributes of a custom layer
-    			to IR. Default behavior is to transfer the attributes with default values
-    			and the attributes defined by the user to IR.
-      --enable_flattening_nested_params 
-    			Enable flattening optional params to be used for custom layers. Use
-    			this option if you want to transfer attributes of a custom layer to IR
-    			with flattened nested parameters. Default behavior is to transfer
-    			the attributes without flattening nested parameters.
-    
-    Kaldi-specific parameters:
-      --counts 
-    			Path to the counts file
-      --remove_output_softmax 
-    			Removes the SoftMax layer that is the output layer
-      --remove_memory 
-    			Removes the Memory layer and use additional inputs outputs instead
-    			
-    
+
 
 
 Fetching example models
@@ -697,7 +597,7 @@ This notebook uses two models for conversion examples:
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # create a directory for models files
     MODEL_DIRECTORY_PATH = Path("model")
     MODEL_DIRECTORY_PATH.mkdir(exist_ok=True)
@@ -710,10 +610,10 @@ NLP model from Hugging Face and export it in ONNX format:
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     from transformers.onnx import export, FeaturesManager
-    
-    
+
+
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
-    
+
     # download model
     hf_model = AutoModelForSequenceClassification.from_pretrained(
         "distilbert-base-uncased-finetuned-sst-2-english"
@@ -722,14 +622,14 @@ NLP model from Hugging Face and export it in ONNX format:
     tokenizer = AutoTokenizer.from_pretrained(
         "distilbert-base-uncased-finetuned-sst-2-english"
     )
-    
+
     # get model onnx config function for output feature format sequence-classification
     model_kind, model_onnx_config = FeaturesManager.check_supported_model_or_raise(
         hf_model, feature="sequence-classification"
     )
     # fill onnx config based on pytorch model config
     onnx_config = model_onnx_config(hf_model.config)
-    
+
     # export to onnx format
     export(
         preprocessor=tokenizer,
@@ -765,8 +665,8 @@ CV classification model from torchvision:
 .. code:: ipython3
 
     from torchvision.models import resnet50, ResNet50_Weights
-    
-    
+
+
     # create model object
     pytorch_model = resnet50(weights=ResNet50_Weights.DEFAULT)
     # switch model from training to inference mode
@@ -962,10 +862,10 @@ Convert PyTorch model to ONNX format:
 
     import torch
     import warnings
-    
-    
+
+
     ONNX_CV_MODEL_PATH = MODEL_DIRECTORY_PATH / "resnet.onnx"
-    
+
     if ONNX_CV_MODEL_PATH.exists():
         print(f"ONNX model {ONNX_CV_MODEL_PATH} already exists.")
     else:
@@ -992,7 +892,7 @@ To convert a model to OpenVINO IR, use the following command:
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/distilbert.onnx --output_dir model
 
 
@@ -1019,13 +919,13 @@ To convert a model to OpenVINO IR, use the following command:
 
     # Python conversion API
     from openvino.tools import mo
-    
+
     # mo.convert_model returns an openvino.runtime.Model object
     ov_model = mo.convert_model(ONNX_NLP_MODEL_PATH)
-    
+
     # then model can be serialized to *.xml & *.bin files
     from openvino.runtime import serialize
-    
+
     serialize(ov_model, xml_path=MODEL_DIRECTORY_PATH / "distilbert.xml")
 
 
@@ -1085,9 +985,9 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/distilbert.onnx --input input_ids,attention_mask --input_shape [1,128],[1,128] --output_dir model
-    
+
     # alternatively
     ! mo --input_model model/distilbert.onnx --input input_ids[1,128],attention_mask[1,128] --output_dir model
 
@@ -1134,14 +1034,14 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=["input_ids", "attention_mask"],
         input_shape=[[1, 128], [1, 128]],
     )
-    
+
     # alternatively specify input shapes, using the input parameter
     ov_model = mo.convert_model(
         ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])]
@@ -1158,7 +1058,7 @@ sequence length dimension for inputs:
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/distilbert.onnx --input input_ids,attention_mask --input_shape [1,-1],[1,-1] --output_dir model
 
 
@@ -1185,8 +1085,8 @@ sequence length dimension for inputs:
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=["input_ids", "attention_mask"],
@@ -1203,7 +1103,7 @@ dimension:
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/distilbert.onnx --input input_ids,attention_mask --input_shape [1,10..128],[1,10..128] --output_dir model
 
 
@@ -1230,8 +1130,8 @@ dimension:
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=["input_ids", "attention_mask"],
@@ -1266,11 +1166,11 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     # cut at the end
     ! mo --input_model model/distilbert.onnx --output /classifier/Gemm --output_dir model
-    
-    
+
+
     # cut from the beginning
     ! mo --input_model model/distilbert.onnx --input /distilbert/embeddings/LayerNorm/Add_1,attention_mask --output_dir model
 
@@ -1317,11 +1217,11 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     # cut at the end
     ov_model = mo.convert_model(ONNX_NLP_MODEL_PATH, output="/classifier/Gemm")
-    
+
     # cut from the beginning
     ov_model = mo.convert_model(
         ONNX_NLP_MODEL_PATH,
@@ -1366,7 +1266,7 @@ Resnet50 model that was exported to the ONNX format:
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/resnet.onnx --layout nchw --output_dir model
 
 
@@ -1393,8 +1293,8 @@ Resnet50 model that was exported to the ONNX format:
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
 Changing Model Layout
@@ -1409,9 +1309,9 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/resnet.onnx --layout "nchw->nhwc" --output_dir model
-    
+
     # alternatively use source_layout and target_layout parameters
     ! mo --input_model model/resnet.onnx --source_layout nchw --target_layout nhwc --output_dir model
 
@@ -1458,10 +1358,10 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
-    
+
     # alternatively use source_layout and target_layout parameters
     ov_model = mo.convert_model(
         ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc"
@@ -1481,9 +1381,9 @@ that the preprocessing takes negligible time for inference.
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/resnet.onnx --mean_values [123,117,104] --scale 255 --output_dir model
-    
+
     ! mo --input_model model/resnet.onnx --mean_values [123,117,104] --scale_values [255,255,255] --output_dir model
 
 
@@ -1529,10 +1429,10 @@ that the preprocessing takes negligible time for inference.
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, mean_values=[123, 117, 104], scale=255)
-    
+
     ov_model = mo.convert_model(
         ONNX_CV_MODEL_PATH, mean_values=[123, 117, 104], scale_values=[255, 255, 255]
     )
@@ -1551,7 +1451,7 @@ the color channels before inference.
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/resnet.onnx --reverse_input_channels --output_dir model
 
 
@@ -1578,8 +1478,8 @@ the color channels before inference.
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
 Compressing a Model to FP16
@@ -1596,7 +1496,7 @@ models, this decrease is negligible.
 .. code:: ipython3
 
     # Model Optimizer CLI
-    
+
     ! mo --input_model model/resnet.onnx --compress_to_fp16=True --output_dir model
 
 
@@ -1623,8 +1523,8 @@ models, this decrease is negligible.
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, compress_to_fp16=True)
 
 Convert Models Represented as Python Objects
@@ -1641,8 +1541,8 @@ training scripts).
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(pytorch_model)
 
 
@@ -1659,17 +1559,17 @@ string analogs, similar to the command-line tool.
 
     # Python conversion API
     from openvino.tools import mo
-    
-    
+
+
     ov_model = mo.convert_model(
         pytorch_model,
         input_shape=[1, 3, 100, 100],
         mean_values=[127, 127, 127],
         layout="nchw",
     )
-    
+
     ov_model = mo.convert_model(pytorch_model, source_layout="nchw", target_layout="nhwc")
-    
+
     ov_model = mo.convert_model(
         pytorch_model, compress_to_fp16=True, reverse_input_channels=True
     )

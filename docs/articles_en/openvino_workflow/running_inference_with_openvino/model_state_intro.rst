@@ -22,7 +22,7 @@ forecasting) length of data sequence is unknown. Then, data can be divided in sm
 between data portions should be addressed. For that, models save some data between inferences - a state. When one dependent sequence is over,
 a state should be reset to initial value and a new sequence can be started.
 
-Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains a special ``Offset`` specifier to define time offset in a model.
+Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences.
 
 OpenVINO also contains a special API to simplify work with models with states. A state is automatically saved between inferences,
 and there is a way to reset a state when needed. A state can also be read or set to some new value between inferences.

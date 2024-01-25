@@ -240,7 +240,7 @@ Additional Resources
 
 <!---
    To learn more about converting models from specific frameworks, go to:
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
+
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
    * :ref:`Convert Your TensorFlow Lite Model <convert model tfl>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
