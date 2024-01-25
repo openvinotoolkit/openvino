@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/util/file_util.hpp>
+#include <file_utils.h>
 #include <gtest/gtest.h>
 #include <ie_extension.h>
 
@@ -22,7 +22,7 @@ using ExtensionTests = ::testing::Test;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string getExtensionPath() {
-    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+    return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
                                                   std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 

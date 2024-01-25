@@ -14,7 +14,7 @@
 #include <memory>
 #include <string>
 
-#include "file_utils.h"
+#include "openvino/util/file_util.hpp"
 #include "ie_api.h"
 
 namespace ov {
